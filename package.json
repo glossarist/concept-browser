@@ -1,0 +1,40 @@
+{
+  "name": "glossarist-vocabulary-browser",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "postbuild": "node scripts/generate-404.js",
+    "preview": "vite preview",
+    "fetch-datasets": "node scripts/fetch-datasets.mjs",
+    "generate-data": "node scripts/generate-data.mjs",
+    "build-gcr": "node scripts/build-gcr.mjs",
+    "build-gcr:all": "node scripts/build-gcr.mjs --all",
+    "build:full": "npm run fetch-datasets && npm run generate-data && node scripts/build-edges.js && npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "d3": "^7.9.0",
+    "katex": "^0.16.45",
+    "pinia": "^2.3.1",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "@vue/test-utils": "^2.4.8",
+    "autoprefixer": "^10.4.21",
+    "happy-dom": "^20.9.0",
+    "js-yaml": "^4.1.0",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.7.3",
+    "vite": "^6.3.5",
+    "vitest": "^4.1.5",
+    "vue-tsc": "^2.2.8"
+  }
+}

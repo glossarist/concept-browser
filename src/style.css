@@ -1,0 +1,181 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    @apply antialiased bg-surface text-ink-800;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3 {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-weight: normal;
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer components {
+  /* Cards */
+  .card {
+    @apply bg-surface-raised rounded-xl border border-ink-100/60;
+    box-shadow: 0 1px 3px rgba(26, 27, 46, 0.04), 0 1px 2px rgba(26, 27, 46, 0.02);
+  }
+
+  .card-hover {
+    @apply card transition-all duration-200;
+  }
+  .card-hover:hover {
+    box-shadow: 0 4px 16px rgba(26, 27, 46, 0.08), 0 2px 4px rgba(26, 27, 46, 0.04);
+    @apply border-ink-200;
+    transform: translateY(-1px);
+  }
+  .card-hover:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(26, 27, 46, 0.04);
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply bg-ink-800 text-white px-5 py-2 rounded-lg font-medium text-sm transition-all duration-150;
+    box-shadow: 0 1px 2px rgba(26, 27, 46, 0.12);
+  }
+  .btn-primary:hover {
+    @apply bg-ink-700;
+    box-shadow: 0 2px 4px rgba(26, 27, 46, 0.16);
+  }
+  .btn-primary:disabled {
+    @apply bg-ink-300 cursor-not-allowed;
+    box-shadow: none;
+  }
+
+  .btn-secondary {
+    @apply bg-surface-raised text-ink-700 px-5 py-2 rounded-lg font-medium text-sm border border-ink-100 transition-all duration-150;
+  }
+  .btn-secondary:hover {
+    @apply bg-surface-alt border-ink-200;
+  }
+
+  .btn-ghost {
+    @apply text-ink-600 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-150;
+  }
+  .btn-ghost:hover {
+    @apply bg-ink-50 text-ink-800;
+  }
+  .btn-ghost.active {
+    @apply bg-ink-50 text-ink-800 font-semibold;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium tracking-wide;
+  }
+  .badge-blue {
+    @apply badge bg-blue-50 text-blue-700;
+  }
+  .badge-green {
+    @apply badge bg-emerald-50 text-emerald-700;
+  }
+  .badge-yellow {
+    @apply badge bg-amber-50 text-amber-700;
+  }
+  .badge-gray {
+    @apply badge bg-ink-50 text-ink-600;
+  }
+  .badge-purple {
+    @apply badge bg-purple-50 text-purple-700;
+  }
+
+  /* Links */
+  .concept-link {
+    @apply text-blue-600 hover:text-blue-800 underline-offset-2 hover:underline cursor-pointer transition-colors;
+  }
+
+  .xref-link {
+    @apply text-blue-600 hover:text-blue-800 underline-offset-2 hover:underline cursor-pointer transition-colors;
+    font-weight: 500;
+  }
+
+  /* Concept definition lists */
+  .concept-list {
+    list-style: disc;
+    padding-left: 1.25rem;
+    margin: 0.5rem 0;
+  }
+  .concept-list li {
+    margin: 0.25rem 0;
+  }
+
+  /* Smooth collapse for language sections */
+  .lang-content {
+    overflow: hidden;
+    transition: max-height 250ms ease-out, opacity 200ms ease-out;
+  }
+
+  /* Section labels */
+  .section-label {
+    @apply text-[11px] font-semibold uppercase tracking-widest text-ink-400 mb-2;
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  /* Math */
+  .math-inline .katex {
+    font-size: 1.05em;
+  }
+  .math-bold .katex .mord,
+  .math-bold .katex .mbin,
+  .math-bold .katex .mrel {
+    font-weight: bold;
+  }
+  .math-fallback {
+    @apply bg-ink-50 text-ink-600 px-1 rounded text-xs font-mono;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Route transitions */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 150ms ease;
+}
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+}
+
+/* Staggered entrance for card grids */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-entrance {
+  animation: fadeSlideIn 300ms ease both;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f4 25%, #f7f7f9 50%, #f0f0f4 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}

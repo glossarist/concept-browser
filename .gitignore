@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.datasets/
+.gcr/
+public/data/
+*.tsbuildinfo
+.DS_Store
+.env
+.env.local
