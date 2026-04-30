@@ -11,6 +11,7 @@ crossReferences:
 
 datasets:
   - id: iev
+    gcrPackage: https://github.com/glossarist/glossarist-data-iev/releases/download/gcr-latest/iev.gcr
     sourceRepo: https://github.com/glossarist/glossarist-data-iev
     title: "IEC Electropedia (IEV)"
     description: "International Electrotechnical Vocabulary — the world's most comprehensive online terminology database for electrotechnology"
@@ -20,10 +21,9 @@ datasets:
     color: "#3366ff"
     tags: [electrotechnical, iec, multilingual]
     languageOrder: [eng, fra, deu, spa, kor, jpn, zho, nld, pol, por, srp, swe, ara]
-    # Note: source repo is currently empty. Data will be populated when
-    # glossarist-data-iev is populated with harmonized concept YAML files.
 
   - id: isotc211
+    gcrPackage: https://github.com/geolexica/isotc211-glossary/releases/download/gcr-latest/isotc211.gcr
     sourceRepo: https://github.com/geolexica/isotc211-glossary
     title: "ISO/TC 211 Multi-Lingual Glossary"
     description: "Geographic information terminology from ISO/TC 211, covering GIS, geomatics, and geospatial standards"
@@ -32,11 +32,9 @@ datasets:
     externalConceptUrlTemplate: "https://isotc211.geolexica.org/concepts/{conceptId}/"
     color: "#0d9488"
     tags: [geographic-information, gis, iso, multilingual]
-    # Note: repo uses geolexica-v2 format (UUID-based). Needs a converter
-    # to canonical concept YAML before fetch-datasets can use it.
-    # gcrPackage URL will be set when GCR packages are published to releases.
 
   - id: isotc204
+    gcrPackage: https://github.com/geolexica/isotc204-glossary/releases/download/gcr-latest/isotc204.gcr
     sourceRepo: https://github.com/geolexica/isotc204-glossary
     title: "ISO/TC 204 ITS Vocabulary"
     description: "Intelligent transport systems vocabulary from ISO 14812, covering connected and automated driving"
@@ -47,6 +45,7 @@ datasets:
     tags: [transport, its, iso, automated-driving]
 
   - id: osgeo
+    gcrPackage: https://github.com/geolexica/osgeo-glossary/releases/download/gcr-latest/osgeo.gcr
     sourceRepo: https://github.com/geolexica/osgeo-glossary
     title: "OSGeo Lexicon"
     description: "Open Source Geospatial Foundation glossary of geospatial terms"
@@ -55,4 +54,3 @@ datasets:
     externalConceptUrlTemplate: "https://osgeo.geolexica.org/concepts/{conceptId}/"
     color: "#059669"
     tags: [osgeo, open-source, gis]
-    # Note: repo has no concept data in usable format yet.
