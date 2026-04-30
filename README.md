@@ -4,6 +4,8 @@ A statically deployable single-page application for browsing ISO/IEC terminology
 
 **Live site:** <https://www.geolexica.org>
 
+Glossarist is the software; deployment to `www.geolexica.org` happens through the [geolexica.org](https://github.com/geolexica/geolexica.org) repository, which sources the built SPA and deploys via S3 + CloudFront.
+
 ---
 
 ## Features
@@ -14,7 +16,7 @@ A statically deployable single-page application for browsing ISO/IEC terminology
 - **Cross-reference graph** — D3 force-directed graph showing concept relationships with dataset filtering
 - **Math rendering** — KaTeX rendering for AsciiMath notation in definitions (`stem:[...]`)
 - **Responsive design** — Mobile-first layout with integrated navigation
-- **Static deployment** — No server required. Deploy to GitHub Pages, Netlify, S3, or any static host
+- **Static deployment** — No server required. Deploy to any static host
 
 ---
 
@@ -152,7 +154,7 @@ crossReferences:
 1. Add an entry to `datasets.yml` (see configuration above)
 2. Run `npm run fetch-datasets && npm run generate-data && node scripts/build-edges.js`
 3. Verify with `npm run dev`
-4. Commit and push — CI deploys automatically
+4. Commit and push
 
 For the full guide, see [Adding a Dataset](docs/adding-a-dataset.md).
 
@@ -180,39 +182,57 @@ Concepts must conform to the [canonical format](docs/dataset-schema.md). The har
 
 ## Deployment
 
-### GitHub Pages (automatic)
+### Architecture
 
-The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that:
+```
+glossarist/vocabulary-browser          geolexica/geolexica.org
+(Glossarist software)                  (Deployment target)
+─────────────────────                  ──────────────────────
+Push to main                           Push to main / repository_dispatch
+  │                                      │
+  ├─ .github/workflows/deploy.yml       │
+  │   fetch + generate + build           │
+  │   → deploys to GitHub Pages (preview)│
+  │   → triggers geolexica.org dispatch  │
+  │                                      │
+  └──── repository_dispatch ─────────> build_deploy.yml
+                                          checkout vocabulary-browser
+                                          fetch + generate + build
+                                          → GitHub Pages → www.geolexica.org
+```
 
-1. Triggers on push to `main`
-2. Runs `npm ci`
+The vocabulary-browser repository is the **Glossarist software**. The [geolexica.org](https://github.com/geolexica/geolexica.org) repository is the **deployment target** — its workflow checks out vocabulary-browser, builds it, and deploys to GitHub Pages at `www.geolexica.org`.
+
+### Production deployment (www.geolexica.org)
+
+Deployments are managed by the `geolexica.org` repository's `build_deploy.yml` workflow:
+
+1. Checks out `glossarist/vocabulary-browser` at `main`
+2. Installs dependencies (`npm ci`)
 3. Fetches datasets and generates data
 4. Builds the SPA
-5. Deploys to GitHub Pages
+5. Deploys `dist/` to GitHub Pages
 
-To set up:
+The workflow triggers on:
+- Push to `main` in the geolexica.org repo
+- `repository_dispatch` from vocabulary-browser (automatic when vocabulary-browser pushes to main)
+- Manual trigger via the "Run workflow" button
 
-1. Go to **Settings → Pages** in your GitHub repository
-2. Set **Source** to "GitHub Actions"
-3. Push to `main` — the workflow deploys automatically
+See [geolexica/geolexica.org](https://github.com/geolexica/geolexica.org) for Pages configuration.
 
-The workflow also supports manual triggering via the "Run workflow" button in the Actions tab.
+### This repository's build workflow
 
-### GitHub Pages (manual)
+`.github/workflows/deploy.yml` runs on push to `main`:
 
-If you prefer to deploy manually:
-
-```bash
-npm run build:full
-
-# Option 1: Deploy using gh-pages branch
-npx gh-pages -d dist
-
-# Option 2: Push dist/ contents to a gh-pages branch manually
-git checkout -b gh-pages
-cp -r dist/* .
-git add -A && git commit -m "Deploy" && git push origin gh-pages
-```
+1. Checks out the code
+2. Runs `npm ci`
+3. Fetches datasets (`npm run fetch-datasets`)
+4. Builds GCR packages (`npm run build-gcr:all`)
+5. Generates data (`npm run generate-data`)
+6. Extracts edges (`node scripts/build-edges.js`)
+7. Builds the SPA (`npm run build`)
+8. Deploys to GitHub Pages (preview at the repository's Pages URL)
+9. Triggers `geolexica.org` deployment via `repository_dispatch`
 
 ### Custom base path
 
@@ -231,6 +251,7 @@ The build produces static files in `dist/` with an SPA `404.html` fallback. Depl
 - **Netlify:** Set build command to `npm run build:full`, publish directory to `dist`, add `_redirects` file with `/* /index.html 200`
 - **Vercel:** Set framework to Vite, build command to `npm run build:full`, output directory to `dist`
 - **AWS S3 + CloudFront:** Upload `dist/` to S3, set error document to `index.html`, configure CloudFront for SPA routing
+- **GitHub Pages:** Set **Settings → Pages → Source** to "GitHub Actions", then push to `main`
 - **Any static host:** Upload `dist/` and configure all 404s to serve `index.html`
 
 ---
