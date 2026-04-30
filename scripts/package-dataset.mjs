@@ -40,9 +40,97 @@ if (!sourceDir || !datasetId || !outputPath) {
 sourceDir = path.resolve(sourceDir);
 outputPath = path.resolve(outputPath);
 
-if (!fs.existsSync(path.join(sourceDir, 'concepts'))) {
-  console.error(`No concepts/ directory in ${sourceDir}`);
+const LANG_CODES = ['eng', 'ara', 'deu', 'fra', 'spa', 'ita', 'jpn', 'kor', 'pol', 'por', 'srp', 'swe', 'zho', 'rus', 'fin', 'dan', 'nld', 'msa', 'nob', 'nno'];
+
+// --- Geolexica v2 converter (UUID-based multi-doc YAML → canonical concept YAML) ---
+function convertGeolexicaV2(v2Dir, conceptsDir) {
+  const files = fs.readdirSync(v2Dir).filter(f => f.endsWith('.yaml') && !f.startsWith('.'));
+  console.log(`  Converting ${files.length} geolexica-v2 files...`);
+
+  if (fs.existsSync(conceptsDir)) fs.rmSync(conceptsDir, { recursive: true, force: true });
+  fs.mkdirSync(conceptsDir, { recursive: true });
+
+  let count = 0, errors = 0;
+  for (const file of files) {
+    try {
+      const content = fs.readFileSync(path.join(v2Dir, file), 'utf8');
+      const docs = yaml.loadAll(content);
+      if (!docs.length) continue;
+
+      // First doc is the concept registry entry
+      const registry = docs[0]?.data || docs[0];
+      const termid = registry?.identifier;
+      if (!termid) continue;
+
+      const localizedConcepts = registry?.localized_concepts || {};
+      const langMap = new Map(); // uuid → lang code
+
+      for (const [lang, uuid] of Object.entries(localizedConcepts)) {
+        langMap.set(uuid, lang);
+      }
+
+      // Build canonical concept
+      const concept = { termid: String(termid) };
+
+      // Subsequent docs are localized concepts
+      for (let i = 1; i < docs.length; i++) {
+        const doc = docs[i];
+        if (!doc) continue;
+        const data = doc.data || doc;
+        const docId = doc.id || data.id;
+        const lang = langMap.get(docId) || data.language_code;
+
+        if (!lang || !LANG_CODES.includes(lang)) continue;
+
+        const langBlock = {};
+        if (data.terms) langBlock.terms = data.terms;
+        if (data.definition) {
+          langBlock.definition = Array.isArray(data.definition) ? data.definition : [{ content: data.definition }];
+        }
+        if (data.notes) langBlock.notes = data.notes;
+        if (data.examples) langBlock.examples = data.examples;
+        if (data.sources) langBlock.sources = data.sources;
+        if (data.language_code) langBlock.language_code = data.language_code;
+        if (data.entry_status) langBlock.entry_status = data.entry_status;
+        if (data.dates) langBlock.dates = data.dates;
+        if (data.date_accepted) langBlock.date_accepted = data.date_accepted;
+        if (data.authoritative_source) langBlock.authoritative_source = data.authoritative_source;
+
+        concept[lang] = langBlock;
+      }
+
+      // Derive term from preferred designation in eng
+      if (!concept.term && concept.eng?.terms) {
+        const pref = concept.eng.terms.find(t => t.normative_status === 'preferred' || t.type === 'expression');
+        concept.term = pref?.designation || '';
+      }
+
+      const outPath = path.join(conceptsDir, `concept-${termid}.yaml`);
+      fs.writeFileSync(outPath, `---\n${yaml.dump(concept, { lineWidth: -1, noRefs: true })}`);
+      count++;
+    } catch (e) {
+      errors++;
+      if (errors <= 5) console.warn(`  Error converting ${file}: ${e.message}`);
+    }
+  }
+  if (errors > 5) console.warn(`  ... ${errors - 5} more errors`);
+  console.log(`  Converted ${count} concepts (${errors} errors)`);
+  return count;
+}
+
+// Determine concept source: geolexica-v2/, concepts/, or fail
+const v2Dir = path.join(sourceDir, 'geolexica-v2');
+let conceptsDir = path.join(sourceDir, 'concepts');
+const hasConcepts = fs.existsSync(conceptsDir) && fs.readdirSync(conceptsDir).some(f => f.endsWith('.yaml'));
+
+if (!hasConcepts && !fs.existsSync(v2Dir)) {
+  console.error(`No concepts/ or geolexica-v2/ directory in ${sourceDir}`);
   process.exit(1);
+}
+
+if (!hasConcepts && fs.existsSync(v2Dir)) {
+  console.log(`  No concepts/ found, using geolexica-v2/ format`);
+  convertGeolexicaV2(v2Dir, conceptsDir);
 }
 
 // --- Cross-reference maps from datasets.yml ---
@@ -155,8 +243,6 @@ function harmonizeLanguageBlock(lc, refPrefixMap, urnStandardMap) {
   return lc;
 }
 
-const LANG_CODES = ['eng', 'ara', 'deu', 'fra', 'spa', 'ita', 'jpn', 'kor', 'pol', 'por', 'srp', 'swe', 'zho', 'rus', 'fin', 'dan', 'nld', 'msa', 'nob', 'nno'];
-
 function harmonizeConcept(concept) {
   if (concept.termid != null) concept.termid = String(concept.termid);
   for (const lang of LANG_CODES) {
@@ -201,7 +287,6 @@ function collectStats(conceptsDir) {
 // --- Main ---
 console.log(`Packaging ${datasetId} from ${sourceDir}`);
 
-const conceptsDir = path.join(sourceDir, 'concepts');
 const files = fs.readdirSync(conceptsDir).filter(f => f.endsWith('.yaml'));
 console.log(`  Harmonizing ${files.length} concept files...`);
 
