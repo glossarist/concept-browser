@@ -284,57 +284,70 @@ for (const ds of config.datasets) {
   const gcrPath = path.join(GCR_DIR, `${ds.id}.gcr`);
   const targetDir = path.join(DATASETS_DIR, ds.id);
 
-  // Check for local .gcr file first (fastest, no download)
-  if (fs.existsSync(gcrPath)) {
-    console.log(`  Using local .gcr/${ds.id}.gcr`);
-    await extractGcr(gcrPath, targetDir);
-    const conceptCount = fs.readdirSync(path.join(targetDir, 'concepts')).filter(f => f.endsWith('.yaml')).length;
-    console.log(`  ${conceptCount} concepts (schema v1, already harmonized)`);
-    console.log();
-    continue;
-  }
-
-  // Download from gcrPackage URL if specified
-  if (ds.gcrPackage) {
-    console.log(`  Using GCR package: ${ds.gcrPackage}`);
-    await downloadGcr(ds.gcrPackage, gcrPath);
-    await extractGcr(gcrPath, targetDir);
-    const conceptCount = fs.readdirSync(path.join(targetDir, 'concepts')).filter(f => f.endsWith('.yaml')).length;
-    console.log(`  ${conceptCount} concepts (schema v1, already harmonized)`);
-    console.log();
-    continue;
-  }
-
-  // Check for local path override
-  const envOverride = process.env[`DATASET_SOURCE_${ds.id.toUpperCase()}`];
-
-  if (envOverride) {
-    console.log(`  Using local path: ${envOverride}`);
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
+  try {
+    // Check for local .gcr file first (fastest, no download)
+    if (fs.existsSync(gcrPath)) {
+      console.log(`  Using local .gcr/${ds.id}.gcr`);
+      await extractGcr(gcrPath, targetDir);
+      const conceptCount = fs.readdirSync(path.join(targetDir, 'concepts')).filter(f => f.endsWith('.yaml')).length;
+      console.log(`  ${conceptCount} concepts (schema v1, already harmonized)`);
+      console.log();
+      continue;
     }
-    const localConcepts = path.join(envOverride, 'concepts');
-    const targetConcepts = path.join(targetDir, 'concepts');
-    if (fs.existsSync(localConcepts)) {
-      if (fs.existsSync(targetConcepts)) {
-        fs.rmSync(targetConcepts, { recursive: true, force: true });
+
+    // Download from gcrPackage URL if specified
+    if (ds.gcrPackage) {
+      console.log(`  Using GCR package: ${ds.gcrPackage}`);
+      try {
+        await downloadGcr(ds.gcrPackage, gcrPath);
+      } catch (e) {
+        console.warn(`  GCR download failed: ${e.message}`);
+        console.warn(`  Skipping ${ds.id}`);
+        console.log();
+        continue;
       }
-      console.log(`  Copying concepts...`);
-      execSync(`cp -r "${localConcepts}" "${targetConcepts}"`, { stdio: 'pipe' });
+      await extractGcr(gcrPath, targetDir);
+      const conceptCount = fs.readdirSync(path.join(targetDir, 'concepts')).filter(f => f.endsWith('.yaml')).length;
+      console.log(`  ${conceptCount} concepts (schema v1, already harmonized)`);
+      console.log();
+      continue;
     }
-    const registerYaml = path.join(envOverride, 'register.yaml');
-    if (fs.existsSync(registerYaml)) {
-      fs.copyFileSync(registerYaml, path.join(targetDir, 'register.yaml'));
-    }
-  } else if (ds.sourceRepo) {
-    cloneOrUpdate(ds.sourceRepo, targetDir);
-  } else {
-    console.warn(`  No .gcr file, sourceRepo, or DATASET_SOURCE_${ds.id.toUpperCase()} env var, skipping`);
-    continue;
-  }
 
-  // Harmonize concepts to canonical format (only for repo-sourced datasets)
-  harmonizeDataset(targetDir, refPrefixMap, urnStandardMap);
+    // Check for local path override
+    const envOverride = process.env[`DATASET_SOURCE_${ds.id.toUpperCase()}`];
+
+    if (envOverride) {
+      console.log(`  Using local path: ${envOverride}`);
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+      const localConcepts = path.join(envOverride, 'concepts');
+      const targetConcepts = path.join(targetDir, 'concepts');
+      if (fs.existsSync(localConcepts)) {
+        if (fs.existsSync(targetConcepts)) {
+          fs.rmSync(targetConcepts, { recursive: true, force: true });
+        }
+        console.log(`  Copying concepts...`);
+        execSync(`cp -r "${localConcepts}" "${targetConcepts}"`, { stdio: 'pipe' });
+      }
+      const registerYaml = path.join(envOverride, 'register.yaml');
+      if (fs.existsSync(registerYaml)) {
+        fs.copyFileSync(registerYaml, path.join(targetDir, 'register.yaml'));
+      }
+    } else if (ds.sourceRepo) {
+      cloneOrUpdate(ds.sourceRepo, targetDir);
+    } else {
+      console.warn(`  No .gcr file, sourceRepo, or DATASET_SOURCE_${ds.id.toUpperCase()} env var, skipping`);
+      console.log();
+      continue;
+    }
+
+    // Harmonize concepts to canonical format (only for repo-sourced datasets)
+    harmonizeDataset(targetDir, refPrefixMap, urnStandardMap);
+  } catch (e) {
+    console.warn(`  Failed: ${e.message}`);
+    console.warn(`  Skipping ${ds.id}`);
+  }
   console.log();
 }
 
