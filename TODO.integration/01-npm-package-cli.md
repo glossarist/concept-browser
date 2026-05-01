@@ -1,96 +1,30 @@
-# 01 — npm Package with CLI
+# 01 — Remove GCR Building, Prepare npm Package CLI
 
 ## Goal
 
-Publish `glossarist-vocabulary-browser` as an npm package providing a CLI for the site build pipeline. The CLI fetches GCR packages from glossary repos, generates JSON-LD data, and builds the SPA.
+The vocabulary-browser should ONLY consume GCR packages — never build them. GCR building is the glossarist Ruby gem's job.
 
-## Current State
+## What Changed
 
-- Scripts are standalone `.mjs` files run via `node scripts/xxx.mjs`
-- `fetch-datasets.mjs` — downloads GCR packages from `gcrPackage` URLs or clones repos
-- `generate-data.mjs` — converts YAML → JSON-LD static files
-- `build-edges.js` — extracts cross-reference edges
-- `build-gcr.mjs` — builds GCR packages (THIS MUST BE REMOVED — not our responsibility)
-- `package-dataset.mjs` — harmonizes + builds GCR (THIS MUST BE REMOVED — glossarist-ruby's job)
-- `datasets.yml` — dataset registry (lives here for now, will move to geolexica.org)
-
-## Tasks
-
-### 1. Add `bin` entry to package.json
-
-```json
-{
-  "bin": {
-    "glossarist-browser": "./bin/glossarist-browser.mjs"
-  }
-}
-```
-
-### 2. Create `bin/glossarist-browser.mjs`
-
-Thin CLI wrapper that delegates to pipeline modules:
-
-```bash
-glossarist-browser fetch [--config path/to/datasets.yml] [--output-dir public/data]
-glossarist-browser generate [--input-dir .datasets] [--output-dir public/data]
-glossarist-browser build-edges [--data-dir public/data]
-glossarist-browser build [--data-dir public/data] [--output-dir dist]
-glossarist-browser build:full [--config path/to/datasets.yml]  # fetch + generate + edges + build
-```
-
-### 3. Refactor scripts into importable modules
-
-- `scripts/fetch-datasets.mjs` → `src/pipeline/fetch.mjs` (exportable `fetchDatasets(config)`)
-- `scripts/generate-data.mjs` → `src/pipeline/generate.mjs` (exportable `generateData(options)`)
-- `scripts/build-edges.js` → `src/pipeline/edges.mjs`
-- Keep the old script paths as thin wrappers for backwards compat (`npm run fetch-datasets`)
-
-### 4. Remove GCR building code
-
-Delete:
+### Removed
 - `scripts/build-gcr.mjs` — GCR building is glossarist-ruby's job
 - `scripts/package-dataset.mjs` — was a temporary Node.js GCR builder
+- `build-gcr` and `build-gcr:all` scripts from package.json
+- Harmonization code from `fetch-datasets.mjs` (`harmonizeLanguageBlock`, `harmonizeConcept`, `harmonizeDataset`, `buildRefMaps`, `extractInlineRefs`)
 
-Remove from CI workflow (`.github/workflows/deploy.yml`):
-```yaml
-# DELETE THIS STEP
-- run: npm run build-gcr:all
-```
-
-### 5. Remove `build-gcr` from package.json scripts
-
-```json
-// Remove these:
-"build-gcr": "node scripts/build-gcr.mjs",
-"build-gcr:all": "node scripts/build-gcr.mjs --all",
-```
-
-### 6. Update `fetch-datasets.mjs` to remove harmonization
-
-Harmonization (v0→v1 migration) happens in the glossarist-ruby `glossarist package` step. GCR packages arrive pre-harmonized. Remove:
-- `harmonizeLanguageBlock()`, `harmonizeConcept()`, `harmonizeDataset()` functions
-- `buildRefMaps()`, `extractInlineRefs()` functions
-- The harmonize call after cloning
-
-Keep: GCR download, extraction, git clone (fallback), local path override.
-
-### 7. Update `docs/` to reflect new responsibilities
-
-- Update `docs/gcr-spec.md` to reference `glossarist package` CLI
-- Update `docs/adding-a-dataset.md` to explain: glossary repo publishes GCR via Ruby gem, browser just downloads it
-
-### 8. Publish to npm
-
-```bash
-npm publish --access public
-```
+### Remaining (future work)
+- Add `bin` entry to package.json for CLI wrapper
+- Create `bin/glossarist-browser.mjs` with subcommands: fetch, generate, build-edges, build
+- Refactor scripts into importable modules (`src/pipeline/`)
+- Publish to npm as `glossarist-vocabulary-browser`
+- Move `datasets.yml` to geolexica.org repo
 
 ## Acceptance Criteria
 
-- [ ] `npx glossarist-browser fetch --config datasets.yml` downloads GCR files
-- [ ] `npx glossarist-browser generate` produces JSON-LD
-- [ ] `npx glossarist-browser build:full` runs full pipeline
-- [ ] No GCR building code remains
-- [ ] No harmonization code remains
-- [ ] `npm run dev` still works for local development
-- [ ] Published on npm as `glossarist-vocabulary-browser`
+- [x] No GCR building code remains (build-gcr.mjs, package-dataset.mjs deleted)
+- [x] No harmonization code remains in fetch-datasets.mjs
+- [x] `build-gcr` and `build-gcr:all` scripts removed from package.json
+- [x] `npm run dev` still works for local development
+- [x] `npm run fetch-datasets` still works (download GCR + clone fallback)
+- [ ] `npx glossarist-browser fetch --config datasets.yml` works (future)
+- [ ] Published on npm as `glossarist-vocabulary-browser` (future)

@@ -18,24 +18,34 @@ osgeo-1.2.0.gcr
 
 ## Release Convention
 
-Each glossary repo publishes GCR packages as GitHub Release assets:
+Each glossary repo publishes GCR packages as GitHub Releases, triggered by version tags:
 
-| Release tag | Asset filename | Purpose |
-|-------------|---------------|---------|
-| `gcr-v1.0.0` | `isotc204-1.0.0.gcr` | Pinned version |
-| `gcr-v1.0.1` | `isotc204-1.0.1.gcr` | Pinned version |
-| `gcr-latest` | `isotc204.gcr` | Always the latest (updated on push to main) |
+| Trigger | Tag | Assets |
+|---------|-----|--------|
+| Push tag `v1.0.0` | `v1.0.0` | `isotc204-1.0.0.gcr` + `isotc204.gcr` |
+| Push tag `v1.0.1` | `v1.0.1` | `isotc204-1.0.1.gcr` + `isotc204.gcr` |
 
-The `gcr-latest` tag is a rolling release — always updated to the latest version. Downstream consumers can pin to a specific version or track `gcr-latest`.
+Each release includes **two assets**:
+1. **Versioned**: `{shortname}-{version}.gcr` — for archival and pinned downloads
+2. **Unversioned alias**: `{shortname}.gcr` — enables stable `releases/latest/download/` URL
+
+### How to publish
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Or via GitHub UI: Releases → Draft a new release → tag `v1.0.0` → the workflow builds and uploads assets.
 
 ## Download URLs
 
 ```
-# Pinned version
-https://github.com/{org}/{repo}/releases/download/gcr-v1.0.0/{shortname}-1.0.0.gcr
+# Latest (always points to newest non-prerelease release)
+https://github.com/{org}/{repo}/releases/latest/download/{shortname}.gcr
 
-# Latest (rolling)
-https://github.com/{org}/{repo}/releases/download/gcr-latest/{shortname}.gcr
+# Pinned version
+https://github.com/{org}/{repo}/releases/download/v1.0.0/{shortname}-1.0.0.gcr
 ```
 
 ## ZIP Structure
@@ -153,19 +163,56 @@ glossarist validate isotc204-1.0.0.gcr
 
 ### CI Workflow (in glossary repos)
 
-```yaml
-- name: Build GCR
-  run: |
-    VERSION="${GITHUB_REF_NAME#gcr-v}"  # extract version from tag like gcr-v1.0.0
-    glossarist package . -o ${SHORTNAME}-${VERSION}.gcr \
-      --shortname ${SHORTNAME} --version ${VERSION} \
-      --title "${TITLE}" --owner "${OWNER}"
+Triggered by version tag push (`v*`). Builds GCR and publishes as GitHub Release with both versioned and unversioned assets.
 
-- name: Publish release
-  uses: softprops/action-gh-release@v2
-  with:
-    tag_name: gcr-v${VERSION}
-    files: ${SHORTNAME}-${VERSION}.gcr
+```yaml
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g. 1.0.0)'
+        required: true
+
+jobs:
+  publish-gcr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+      - run: gem install glossarist
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "filename=${SHORTNAME}-${VERSION}.gcr" >> "$GITHUB_OUTPUT"
+
+      - name: Build GCR package
+        run: |
+          glossarist package . -o "${{ steps.version.outputs.filename }}" \
+            --shortname ${SHORTNAME} --version "${{ steps.version.outputs.version }}" \
+            --title "${TITLE}" --owner "${OWNER}"
+
+      - name: Create unversioned alias
+        run: cp "${{ steps.version.outputs.filename }}" ${SHORTNAME}.gcr
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: "GCR Package v${{ steps.version.outputs.version }}"
+          files: |
+            ${{ steps.version.outputs.filename }}
+            ${SHORTNAME}.gcr
 ```
 
 ## Relationship to LXR

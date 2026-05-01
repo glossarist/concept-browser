@@ -4,8 +4,11 @@
  *
  * Reads datasets.yml, for each dataset:
  *   1. If .gcr/{id}.gcr exists, extract to .datasets/{id}/
- *   2. Else clone/update source repo into .datasets/{id}/
- *   3. Harmonize concept YAML files to canonical format (if from repo)
+ *   2. Else download from gcrPackage URL and extract
+ *   3. Else clone/update source repo into .datasets/{id}/
+ *
+ * GCR packages are pre-harmonized by the glossarist Ruby gem.
+ * Harmonization is NOT done here — it's the glossary repos' responsibility.
  *
  * Supports DATASET_SOURCE_{ID} env var to override with local path.
  * Supports GITHUB_TOKEN for private repos.
@@ -17,8 +20,6 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { pipeline } from 'stream/promises';
-import { Readable } from 'stream';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -48,7 +49,6 @@ async function downloadGcr(url, destPath) {
 
 // --- GCR extraction ---
 async function extractGcr(gcrPath, targetDir) {
-  // Use system unzip for speed (node built-in zip support is limited)
   if (fs.existsSync(targetDir)) {
     fs.rmSync(targetDir, { recursive: true, force: true });
   }
@@ -57,7 +57,6 @@ async function extractGcr(gcrPath, targetDir) {
   try {
     execSync(`unzip -o -q "${gcrPath}" -d "${targetDir}"`, { stdio: 'pipe' });
   } catch (e) {
-    // Fallback: try python
     try {
       execSync(`python3 -c "import zipfile; zipfile.ZipFile('${gcrPath}').extractall('${targetDir}')"`, { stdio: 'pipe' });
     } catch (e2) {
@@ -93,190 +92,10 @@ function cloneOrUpdate(sourceRepo, targetDir) {
   }
 }
 
-// --- Harmonization (only for repo-sourced datasets) ---
-function buildRefMaps(config) {
-  const xref = config.crossReferences || {};
-  return {
-    refPrefixMap: xref.refPrefixMap || {},
-    urnStandardMap: xref.urnStandardMap || {},
-  };
-}
-
-function extractInlineRefs(localizedData, refPrefixMap, urnStandardMap) {
-  const refs = [];
-  const texts = [];
-
-  if (localizedData.definition) {
-    const defs = Array.isArray(localizedData.definition)
-      ? localizedData.definition
-      : [localizedData.definition];
-    for (const d of defs) {
-      texts.push(typeof d === 'string' ? d : (d.content || ''));
-    }
-  }
-  if (localizedData.notes) {
-    for (const n of localizedData.notes) {
-      texts.push(typeof n === 'string' ? n : (n.content || ''));
-    }
-  }
-  if (localizedData.examples) {
-    for (const e of localizedData.examples) {
-      texts.push(typeof e === 'string' ? e : (e.content || ''));
-    }
-  }
-  const fullText = texts.join(' ');
-
-  const ievMatches = fullText.matchAll(/\{\{([^,}]+),\s*IEV:([^}]+)\}\}/g);
-  for (const m of ievMatches) {
-    const datasetId = refPrefixMap['IEV'];
-    if (datasetId) {
-      refs.push({ id: `https://glossarist.org/${datasetId}/concept/${m[2]}`, term: m[1].trim() });
-    }
-  }
-
-  const urnMatches = fullText.matchAll(/\{urn:iso:std:iso:(\d+):([^,}]+),([^}]+)\}/g);
-  for (const m of urnMatches) {
-    const datasetId = urnStandardMap[m[1]];
-    if (datasetId) {
-      refs.push({ id: `https://glossarist.org/${datasetId}/concept/${m[2]}`, term: m[3].trim() });
-    }
-  }
-
-  const seen = new Set();
-  return refs.filter(r => {
-    if (seen.has(r.id)) return false;
-    seen.add(r.id);
-    return true;
-  });
-}
-
-function harmonizeLanguageBlock(lc, refPrefixMap, urnStandardMap) {
-  if (!lc || typeof lc !== 'object') return lc;
-
-  if (lc.definition != null) {
-    if (typeof lc.definition === 'string') {
-      lc.definition = [{ content: lc.definition }];
-    }
-  }
-
-  if (lc.authoritative_source && !lc.sources) {
-    const src = lc.authoritative_source;
-    lc.sources = [{
-      type: 'authoritative',
-      origin: {
-        ...(src.ref ? { ref: src.ref } : {}),
-        ...(src.clause ? { clause: src.clause } : {}),
-        ...(src.link ? { link: src.link } : {}),
-      },
-    }];
-    delete lc.authoritative_source;
-  } else if (lc.authoritative_source) {
-    delete lc.authoritative_source;
-  }
-
-  if (!lc.dates) {
-    const dates = [];
-    if (lc.date_accepted) {
-      dates.push({ type: 'accepted', date: lc.date_accepted });
-    }
-    if (lc.date_amended) {
-      dates.push({ type: 'amended', date: lc.date_amended });
-    }
-    if (dates.length > 0) {
-      lc.dates = dates;
-    }
-  }
-
-  if (lc.entry_status === 'Standard') {
-    lc.entry_status = 'valid';
-  }
-
-  if (Array.isArray(lc.terms)) {
-    for (const t of lc.terms) {
-      if (t.abbrev === true) {
-        t.type = 'abbreviation';
-        delete t.abbrev;
-      }
-    }
-  }
-
-  const inlineRefs = extractInlineRefs(lc, refPrefixMap, urnStandardMap);
-  if (inlineRefs.length > 0) {
-    const existing = lc.references || [];
-    const existingIds = new Set(existing.map(r => r.id));
-    for (const r of inlineRefs) {
-      if (!existingIds.has(r.id)) {
-        existing.push(r);
-      }
-    }
-    lc.references = existing;
-  }
-
-  delete lc._revisions;
-
-  return lc;
-}
-
-function harmonizeConcept(conceptYaml, refPrefixMap, urnStandardMap) {
-  if (conceptYaml.termid != null) {
-    conceptYaml.termid = String(conceptYaml.termid);
-  }
-
-  const langCodes = ['eng', 'ara', 'deu', 'fra', 'spa', 'ita', 'jpn', 'kor', 'pol', 'por', 'srp', 'swe', 'zho', 'rus', 'fin', 'dan', 'nld', 'msa', 'nob', 'nno'];
-  for (const lang of langCodes) {
-    if (conceptYaml[lang]) {
-      conceptYaml[lang] = harmonizeLanguageBlock(conceptYaml[lang], refPrefixMap, urnStandardMap);
-    }
-  }
-
-  return conceptYaml;
-}
-
-function harmonizeDataset(datasetDir, refPrefixMap, urnStandardMap) {
-  const conceptsDir = path.join(datasetDir, 'concepts');
-  if (!fs.existsSync(conceptsDir)) {
-    console.warn(`  No concepts/ directory found`);
-    return 0;
-  }
-
-  const files = fs.readdirSync(conceptsDir).filter(f => f.endsWith('.yaml'));
-  console.log(`  Harmonizing ${files.length} concept files...`);
-
-  let count = 0;
-  let errors = 0;
-  for (const file of files) {
-    try {
-      const filePath = path.join(conceptsDir, file);
-      const content = fs.readFileSync(filePath, 'utf8');
-      const concept = yaml.load(content);
-      if (!concept || !concept.termid) continue;
-
-      harmonizeConcept(concept, refPrefixMap, urnStandardMap);
-
-      const yamlContent = yaml.dump(concept, {
-        lineWidth: -1,
-        noRefs: true,
-        sortKeys: false,
-        quotingType: '"',
-        forceQuotes: false,
-      });
-      fs.writeFileSync(filePath, `---\n${yamlContent}`);
-      count++;
-    } catch (e) {
-      errors++;
-      if (errors <= 5) console.warn(`  Error harmonizing ${file}: ${e.message}`);
-    }
-  }
-  if (errors > 5) console.warn(`  ... ${errors - 5} more errors`);
-  console.log(`  Harmonized ${count} concepts (${errors} errors)`);
-  return count;
-}
-
 // --- Main ---
 console.log('Fetching glossarist datasets...\n');
 
 const config = loadConfig();
-const { refPrefixMap, urnStandardMap } = buildRefMaps(config);
 
 for (const ds of config.datasets) {
   console.log(`${ds.id}:`);
@@ -290,7 +109,7 @@ for (const ds of config.datasets) {
       console.log(`  Using local .gcr/${ds.id}.gcr`);
       await extractGcr(gcrPath, targetDir);
       const conceptCount = fs.readdirSync(path.join(targetDir, 'concepts')).filter(f => f.endsWith('.yaml')).length;
-      console.log(`  ${conceptCount} concepts (schema v1, already harmonized)`);
+      console.log(`  ${conceptCount} concepts`);
       console.log();
       continue;
     }
@@ -308,7 +127,7 @@ for (const ds of config.datasets) {
       }
       await extractGcr(gcrPath, targetDir);
       const conceptCount = fs.readdirSync(path.join(targetDir, 'concepts')).filter(f => f.endsWith('.yaml')).length;
-      console.log(`  ${conceptCount} concepts (schema v1, already harmonized)`);
+      console.log(`  ${conceptCount} concepts`);
       console.log();
       continue;
     }
@@ -342,8 +161,8 @@ for (const ds of config.datasets) {
       continue;
     }
 
-    // Harmonize concepts to canonical format (only for repo-sourced datasets)
-    harmonizeDataset(targetDir, refPrefixMap, urnStandardMap);
+    // Note: harmonization is NOT done here. GCR packages are pre-harmonized.
+    // If using repo source, concepts should already be in schema v1 format.
   } catch (e) {
     console.warn(`  Failed: ${e.message}`);
     console.warn(`  Skipping ${ds.id}`);

@@ -10,8 +10,6 @@
     "preview": "vite preview",
     "fetch-datasets": "node scripts/fetch-datasets.mjs",
     "generate-data": "node scripts/generate-data.mjs",
-    "build-gcr": "node scripts/build-gcr.mjs",
-    "build-gcr:all": "node scripts/build-gcr.mjs --all",
     "build:full": "npm run fetch-datasets && npm run generate-data && node scripts/build-edges.js && npm run build",
     "test": "vitest run",
     "test:watch": "vitest"
