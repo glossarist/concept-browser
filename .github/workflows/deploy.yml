@@ -33,10 +33,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: npm run build-gcr:all
-
-      - run: npm run generate-data
-
       - run: npm run generate-data
 
       - run: node scripts/build-edges.js
