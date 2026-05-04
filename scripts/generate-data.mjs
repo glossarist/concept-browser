@@ -21,6 +21,42 @@ function readYaml(filePath) {
   return yaml.load(content);
 }
 
+/**
+ * Load a concept YAML file in either canonical or managed concept format.
+ *
+ * Canonical: single doc with `termid` and language keys (`eng:`, `fra:`).
+ * Managed: multi-doc YAML where doc 0 has `data.identifier` + `data.localized_concepts`
+ *          and docs 1+ have `data.language_code` with localization data.
+ *
+ * Always returns an object shaped like canonical format:
+ *   { termid: "...", eng: { terms: [...], definition: [...], ... }, fra: { ... } }
+ */
+function loadConceptFile(filePath) {
+  const content = fs.readFileSync(filePath, 'utf8');
+  const docs = yaml.loadAll(content, null, { schema: yaml.DEFAULT_SCHEMA });
+
+  if (docs.length === 1 && docs[0].termid !== undefined) {
+    return docs[0];
+  }
+
+  if (docs.length >= 1 && docs[0].data && docs[0].data.identifier !== undefined) {
+    const mc = docs[0];
+    const result = { termid: String(mc.data.identifier) };
+
+    for (const doc of docs.slice(1)) {
+      if (!doc || !doc.data || !doc.data.language_code) continue;
+      const lang = doc.data.language_code;
+      const lcData = { ...doc.data };
+      delete lcData.language_code;
+      result[lang] = lcData;
+    }
+
+    return result;
+  }
+
+  return docs[0];
+}
+
 function writeJson(filePath, data) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
@@ -174,7 +210,7 @@ function processDataset(dir, register, opts) {
   for (let i = 0; i < Math.min(files.length, maxConcepts); i++) {
     const file = files[i];
     try {
-      const conceptYaml = readYaml(path.join(dir, file));
+      const conceptYaml = loadConceptFile(path.join(dir, file));
       if (!conceptYaml || !conceptYaml.termid) continue;
 
       const termid = String(conceptYaml.termid);
