@@ -2,11 +2,13 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useVocabularyStore } from './stores/vocabulary';
 import { useSiteConfig } from './config/use-site-config';
+import { buildPageRoutes } from './router/page-routes';
+import router from './router';
 import AppHeader from './components/AppHeader.vue';
 import AppSidebar from './components/AppSidebar.vue';
 
 const store = useVocabularyStore();
-const { loadConfig } = useSiteConfig();
+const { loadConfig, config } = useSiteConfig();
 const appReady = ref(false);
 const showScrollTop = ref(false);
 let mainEl: HTMLElement | null = null;
@@ -20,7 +22,12 @@ function scrollToTop() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadConfig(), store.discoverDatasets()]);
+  const [, cfg] = await Promise.all([store.discoverDatasets(), loadConfig()]);
+  if (cfg?.pages) {
+    for (const route of buildPageRoutes(cfg.pages)) {
+      router.addRoute(route);
+    }
+  }
   appReady.value = true;
   // Watch scroll on main content area
   mainEl = document.querySelector('main');

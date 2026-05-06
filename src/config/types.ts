@@ -92,6 +92,19 @@ export interface DatasetConfig {
   languageOrder?: string[];
 }
 
+// === Pages ===
+
+export type PageType = 'news' | 'contributors' | 'about' | 'stats' | 'custom';
+
+export interface PageConfig {
+  type: PageType;
+  route: string;
+  title: string;
+  icon: string;
+  source?: string;
+  datasetScoped?: boolean;
+}
+
 // === Site Config ===
 
 export interface SiteConfig {
@@ -113,4 +126,5 @@ export interface SiteConfig {
     languageOrder?: string[];
   };
   email?: string;
+  pages?: PageConfig[];
 }

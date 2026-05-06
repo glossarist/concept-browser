@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue';
+import type { PageConfig } from './types';
 
 export interface RuntimeSiteConfig {
   id: string;
@@ -27,6 +28,7 @@ export interface RuntimeSiteConfig {
   footerNav?: { label: string; route: string }[];
   defaults?: { language?: string; languageOrder?: string[] };
   email?: string;
+  pages?: PageConfig[];
 }
 
 const siteConfig = ref<RuntimeSiteConfig | null>(null);
@@ -101,9 +103,42 @@ async function loadConfig(): Promise<RuntimeSiteConfig | null> {
   return siteConfig.value;
 }
 
+const BUILTIN_GLOBAL_PAGES: PageConfig[] = [
+  { type: 'custom', route: '', title: 'Home', icon: 'home' },
+  { type: 'custom', route: 'search', title: 'Search', icon: 'search' },
+  { type: 'custom', route: 'graph', title: 'Graph', icon: 'graph' },
+];
+
+const BUILTIN_DATASET_PAGES: PageConfig[] = [
+  { type: 'custom', route: '', title: 'Concepts', icon: 'list' },
+  { type: 'stats', route: 'stats', title: 'Statistics', icon: 'chart' },
+  { type: 'about', route: 'about', title: 'About', icon: 'info' },
+];
+
+function synthesizePages(features?: Record<string, unknown>, pages?: PageConfig[]) {
+  if (pages && pages.length > 0) return pages;
+
+  const result = [...BUILTIN_GLOBAL_PAGES];
+  if (features?.news) {
+    result.push({ type: 'news', route: 'news', title: 'News', icon: 'newspaper' });
+  }
+  return result;
+}
+
 export function useSiteConfig() {
   const config = computed(() => siteConfig.value);
   const visibleDatasets = computed(() => siteConfig.value?.datasets ?? []);
 
-  return { config, visibleDatasets, loadConfig };
+  const globalPages = computed<PageConfig[]>(() =>
+    synthesizePages(siteConfig.value?.features, siteConfig.value?.pages)
+      .filter(p => !p.datasetScoped),
+  );
+
+  const datasetPages = computed<PageConfig[]>(() => {
+    const declared = siteConfig.value?.pages?.filter(p => p.datasetScoped) ?? [];
+    if (declared.length > 0) return declared;
+    return BUILTIN_DATASET_PAGES;
+  });
+
+  return { config, visibleDatasets, loadConfig, globalPages, datasetPages };
 }

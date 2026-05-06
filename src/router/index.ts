@@ -19,18 +19,6 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
-    path: '/dataset/:registerId/stats',
-    name: 'stats',
-    component: () => import('../views/StatsView.vue'),
-    props: true,
-  },
-  {
-    path: '/dataset/:registerId/about',
-    name: 'about',
-    component: () => import('../views/AboutView.vue'),
-    props: true,
-  },
-  {
     path: '/search',
     name: 'search',
     component: () => import('../views/SearchView.vue'),
@@ -39,11 +27,6 @@ const routes: RouteRecordRaw[] = [
     path: '/graph',
     name: 'graph',
     component: () => import('../views/GraphView.vue'),
-  },
-  {
-    path: '/news',
-    name: 'news',
-    component: () => import('../views/NewsView.vue'),
   },
   {
     path: '/resolve/:uri(.*)',
