@@ -2,6 +2,8 @@
 
 export interface Manifest {
   id: string;
+  datasetUri: string;
+  uriAliases?: string[];
   title: string;
   description: string;
   owner: string;
@@ -19,8 +21,7 @@ export interface Manifest {
   sourceRepo: string;
   chunkSize: number;
   color?: string;
-  existingSiteUrl?: string;
-  externalConceptUrlTemplate?: string;
+  shortname?: string;
   languageOrder?: string[];
   languageStats?: Record<string, { terms: number; definitions: number }>;
 }
@@ -152,3 +153,9 @@ export type RelationType =
   | 'references'
   | 'replaces'
   | 'superseded';
+
+export type Resolution =
+  | { type: 'internal'; registerId: string; conceptId: string; crossDataset: boolean }
+  | { type: 'site'; baseUrl: string; conceptUri: string; label: string }
+  | { type: 'url'; url: string; label: string }
+  | { type: 'unresolved'; uri: string };

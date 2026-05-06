@@ -1,10 +1,17 @@
-import type { DatasetRegistry, Manifest } from './types';
+import type { DatasetRegistry, Manifest, Resolution } from './types';
+import type { RoutingEntry as ConfigRoutingEntry } from '../config/types';
 import { DatasetAdapter } from './DatasetAdapter';
 import { UriRouter } from './UriRouter';
+import { ReferenceResolver } from './ReferenceResolver';
 
 export class AdapterFactory {
   private adapters = new Map<string, DatasetAdapter>();
   readonly router = new UriRouter();
+  readonly resolver: ReferenceResolver;
+
+  constructor() {
+    this.resolver = new ReferenceResolver();
+  }
 
   async discoverDatasets(datasetsUrl: string): Promise<DatasetAdapter[]> {
     const resp = await fetch(datasetsUrl);
@@ -18,7 +25,6 @@ export class AdapterFactory {
       adapters.push(adapter);
     }
 
-    // Load manifests eagerly (small JSON) so home page has titles, counts, etc.
     await Promise.all(adapters.map(a => a.loadManifest().catch(() => {})));
 
     return adapters;
@@ -40,15 +46,23 @@ export class AdapterFactory {
     await adapter.loadIndex();
 
     this.router.registerDataset(registerId, `/data/${registerId}`, manifest);
+
+    const uriPatterns = [
+      manifest.datasetUri,
+      ...(manifest.uriAliases ?? []),
+      `https://glossarist.org/${registerId}/*`,
+    ];
+    this.resolver.registerDataset(registerId, uriPatterns);
+
     return adapter;
   }
 
-  resolveUri(uri: string): { adapter: DatasetAdapter; conceptId: string } | null {
-    const resolved = this.router.resolveUri(uri);
-    if (!resolved) return null;
-    const adapter = this.adapters.get(resolved.registerId);
-    if (!adapter) return null;
-    return { adapter, conceptId: resolved.conceptId };
+  loadRouting(entries: ConfigRoutingEntry[]): void {
+    this.resolver.loadRouting(entries);
+  }
+
+  resolve(uri: string, sourceDatasetId?: string): Resolution {
+    return this.resolver.resolveReference(uri, sourceDatasetId);
   }
 }
 
@@ -57,4 +71,8 @@ let _instance: AdapterFactory | null = null;
 export function getFactory(): AdapterFactory {
   if (!_instance) _instance = new AdapterFactory();
   return _instance;
+}
+
+export function resetFactory(): void {
+  _instance = null;
 }
