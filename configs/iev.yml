@@ -1,0 +1,54 @@
+id: iev
+domain: iev.geolexica.org
+title: IEC Electropedia
+description: International Electrotechnical Vocabulary.
+
+datasets:
+  - id: iev
+    uri: "urn:iec:std:iec:60050:*"
+    uriAliases:
+      - "https://glossarist.org/iev/*"
+    gcrPackage: https://github.com/glossarist/glossarist-data-iev/releases/latest/download/iev.gcr
+    sourceRepo: https://github.com/glossarist/glossarist-data-iev
+    title: "IEC Electropedia (IEV)"
+    description: "International Electrotechnical Vocabulary"
+    owner: IEC TC 1
+    color: "#3366ff"
+    languageOrder: [eng, fra, deu, spa, kor, jpn, zho, nld, pol, por, srp, swe, ara]
+
+routing:
+  - uri: "https://glossarist.org/isotc211/*"
+    type: site
+    baseUrl: "https://isotc211.geolexica.org"
+    label: "ISO/TC 211 Glossary"
+
+  - uri: "urn:iso:std:iso:14812:*"
+    type: site
+    baseUrl: "https://isotc204.geolexica.org"
+    label: "ISO/TC 204 ITS Vocabulary"
+
+  - uri: "https://glossarist.org/isotc204/*"
+    type: site
+    baseUrl: "https://isotc204.geolexica.org"
+    label: "ISO/TC 204 ITS Vocabulary"
+
+  - uri: "https://glossarist.org/osgeo/*"
+    type: site
+    baseUrl: "https://osgeo.geolexica.org"
+    label: "OSGeo Lexicon"
+
+branding:
+  primaryColor: "#3366ff"
+  ownerName: "IEC TC 1"
+  ownerUrl: https://www.electropedia.org
+
+features:
+  news: false
+  stats: true
+  graph: true
+  about: true
+  search: true
+
+defaults:
+  language: eng
+  languageOrder: [eng, fra, deu, spa, kor, jpn, zho, nld, pol, por, srp, swe, ara]
