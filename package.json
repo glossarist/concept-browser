@@ -1,8 +1,11 @@
 {
-  "name": "glossarist-vocabulary-browser",
+  "name": "@glossarist/concept-browser",
   "version": "0.1.0",
-  "private": true,
+  "description": "Vue SPA for browsing Glossarist terminology datasets with cross-reference resolution, graph visualization, and multi-language support",
   "type": "module",
+  "bin": {
+    "concept-browser": "./cli/index.mjs"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
@@ -11,11 +14,13 @@
     "fetch-datasets": "node scripts/fetch-datasets.mjs",
     "generate-data": "node scripts/generate-data.mjs",
     "build:full": "npm run fetch-datasets && npm run generate-data && node scripts/build-edges.js && npm run build",
+    "build:site": "concept-browser --site build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "d3": "^7.9.0",
+    "glossarist": "^0.1.1",
     "katex": "^0.16.45",
     "pinia": "^2.3.1",
     "vue": "^3.5.13",
@@ -34,5 +39,42 @@
     "vite": "^6.3.5",
     "vitest": "^4.1.5",
     "vue-tsc": "^2.2.8"
-  }
+  },
+  "keywords": [
+    "glossarist",
+    "terminology",
+    "vocabulary",
+    "iso",
+    "iec",
+    "geolexica",
+    "gcr",
+    "concept-browser"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/glossarist/concept-browser.git"
+  },
+  "bugs": {
+    "url": "https://github.com/glossarist/concept-browser/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "cli",
+    "scripts",
+    "src",
+    "public",
+    "datasets.yml",
+    "site-configs.yml",
+    "vite.config.ts",
+    "tsconfig.json",
+    "tailwind.config.js",
+    "postcss.config.js",
+    "env.d.ts"
+  ]
 }

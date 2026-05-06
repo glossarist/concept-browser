@@ -55,6 +55,7 @@ describe('AdapterFactory', () => {
       // Load manifest
       mockFetch.mockReturnValueOnce(mockJsonResponse({
         id: 'test',
+        datasetUri: 'https://glossarist.org/test/*',
         title: 'Test',
         languages: ['eng'],
         chunkSize: 500,
@@ -76,18 +77,22 @@ describe('AdapterFactory', () => {
       expect(adapter.manifest?.title).toBe('Test');
       expect(adapter.getConcepts().length).toBe(2);
 
-      // UriRouter should now resolve
-      const resolved = factory.resolveUri('https://glossarist.org/test/concept/102-01-01');
-      expect(resolved?.adapter.registerId).toBe('test');
-      expect(resolved?.conceptId).toBe('102-01-01');
+      // Resolver should now resolve internal URIs
+      const resolved = factory.resolve('https://glossarist.org/test/concept/102-01-01');
+      expect(resolved.type).toBe('internal');
+      if (resolved.type === 'internal') {
+        expect(resolved.registerId).toBe('test');
+        expect(resolved.conceptId).toBe('102-01-01');
+      }
     });
 
     it('returns undefined for unknown dataset', () => {
       expect(factory.getAdapter('nonexistent')).toBeUndefined();
     });
 
-    it('resolveUri returns null when dataset not loaded', () => {
-      expect(factory.resolveUri('https://glossarist.org/unknown/concept/123')).toBeNull();
+    it('resolve returns unresolved when dataset not loaded', () => {
+      const resolved = factory.resolve('https://glossarist.org/unknown/concept/123');
+      expect(resolved.type).toBe('unresolved');
     });
   });
 
@@ -101,7 +106,7 @@ describe('AdapterFactory', () => {
 
       // Load IEV
       mockFetch.mockReturnValueOnce(mockJsonResponse({
-        id: 'iev', title: 'IEV', languages: ['eng'], chunkSize: 500,
+        id: 'iev', datasetUri: 'urn:iec:std:iec:60050:*', title: 'IEV', languages: ['eng'], chunkSize: 500,
       }));
       mockFetch.mockReturnValueOnce(mockJsonResponse({
         registerId: 'iev', conceptCount: 0, chunkSize: 500, chunks: [], concepts: [],
@@ -110,7 +115,7 @@ describe('AdapterFactory', () => {
 
       // Load TC 204
       mockFetch.mockReturnValueOnce(mockJsonResponse({
-        id: 'isotc204', title: 'TC 204', languages: ['eng'], chunkSize: 500,
+        id: 'isotc204', datasetUri: 'urn:iso:std:iso:14812:*', title: 'TC 204', languages: ['eng'], chunkSize: 500,
       }));
       mockFetch.mockReturnValueOnce(mockJsonResponse({
         registerId: 'isotc204', conceptCount: 0, chunkSize: 500, chunks: [], concepts: [],
@@ -118,8 +123,13 @@ describe('AdapterFactory', () => {
       await factory.loadDataset('isotc204');
 
       // Cross-register resolution
-      expect(factory.resolveUri('https://glossarist.org/iev/concept/103-01-02')?.adapter.registerId).toBe('iev');
-      expect(factory.resolveUri('https://glossarist.org/isotc204/concept/3.1.1.1')?.adapter.registerId).toBe('isotc204');
+      const ievRes = factory.resolve('https://glossarist.org/iev/concept/103-01-02');
+      expect(ievRes.type).toBe('internal');
+      if (ievRes.type === 'internal') expect(ievRes.registerId).toBe('iev');
+
+      const tcRes = factory.resolve('https://glossarist.org/isotc204/concept/3.1.1.1');
+      expect(tcRes.type).toBe('internal');
+      if (tcRes.type === 'internal') expect(tcRes.registerId).toBe('isotc204');
     });
   });
 });
