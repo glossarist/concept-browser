@@ -1,30 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed } from 'vue';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
+import { useDatasetLoader } from '../composables/use-dataset-loader';
 import { langName, langLabel } from '../utils/lang';
 
 const props = defineProps<{ registerId: string }>();
 
 const store = useVocabularyStore();
 const { getColor } = useDsStyle();
-const loading = ref(false);
-const localError = ref<string | null>(null);
-
-async function ensureLoaded() {
-  if (store.manifests.has(props.registerId)) return;
-  loading.value = true;
-  localError.value = null;
-  try {
-    await store.loadDataset(props.registerId);
-  } catch (e: any) {
-    localError.value = e.message || 'Failed to load dataset';
-  }
-  loading.value = false;
-}
-
-onMounted(ensureLoaded);
-watch(() => props.registerId, ensureLoaded);
+const { loading, localError, ensureLoaded } = useDatasetLoader(() => props.registerId);
 
 const manifest = computed(() => store.manifests.get(props.registerId));
 </script>

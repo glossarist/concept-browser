@@ -2,34 +2,18 @@
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
+import { useDatasetLoader } from '../composables/use-dataset-loader';
 import ConceptCard from '../components/ConceptCard.vue';
 
 const props = defineProps<{ registerId: string }>();
 
 const store = useVocabularyStore();
 const { getStyle } = useDsStyle();
+const { loading, localError, ensureLoaded } = useDatasetLoader(() => props.registerId);
 
 const manifest = computed(() => store.manifests.get(props.registerId));
 const adapter = computed(() => store.datasets.get(props.registerId));
-const loading = ref(false);
-const localError = ref<string | null>(null);
 const chunkLoading = ref(false);
-
-async function ensureLoaded() {
-  const adp = store.datasets.get(props.registerId);
-  if (adp?.index) return;
-  loading.value = true;
-  localError.value = null;
-  try {
-    await store.loadDataset(props.registerId);
-  } catch (e: any) {
-    localError.value = e.message || 'Failed to load dataset';
-  }
-  loading.value = false;
-}
-
-onMounted(ensureLoaded);
-watch(() => props.registerId, ensureLoaded);
 
 const totalConceptCount = computed(() => adapter.value?.getConceptCount() ?? 0);
 
