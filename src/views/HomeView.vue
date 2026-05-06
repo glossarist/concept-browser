@@ -71,9 +71,9 @@ function goToGraph() { router.push({ name: 'graph' }); }
     <!-- Hero -->
     <div class="mb-10 sm:mb-14">
       <div class="flex items-center gap-2 mb-4">
-        <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-300">Glossarist</span>
+        <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-300">{{ siteConfig?.branding?.ownerName || 'Glossarist' }}</span>
         <span class="w-4 sm:w-6 h-px bg-ink-200"></span>
-        <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-300 hidden sm:inline">Vocabulary Browser</span>
+        <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-300 hidden sm:inline">{{ siteConfig?.subtitle || 'Terminology Register' }}</span>
       </div>
       <h1 class="font-serif text-[2rem] sm:text-[2.75rem] text-ink-800 leading-[1.1] mb-4 tracking-tight">
         {{ siteConfig?.title || 'Glossarist' }}<br class="hidden sm:block" /> <span v-if="siteConfig?.subtitle">{{ siteConfig.subtitle }}</span>
@@ -151,7 +151,7 @@ function goToGraph() { router.push({ name: 'graph' }); }
         </div>
 
         <div class="flex flex-wrap gap-1.5 pl-[22px] mb-3">
-          <span v-for="tag in ds.manifest.tags.slice(0, 3)" :key="tag" class="badge text-[10px]" :style="{ backgroundColor: getStyle(ds.id).light, color: getStyle(ds.id).dark }">
+          <span v-for="tag in (ds.manifest.tags ?? []).slice(0, 3)" :key="tag" class="badge text-[10px]" :style="{ backgroundColor: getStyle(ds.id).light, color: getStyle(ds.id).dark }">
             {{ tag }}
           </span>
         </div>

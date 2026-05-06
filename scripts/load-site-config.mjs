@@ -25,16 +25,19 @@ function findConfigFile(args = []) {
 
   const siteId = process.env.SITE_ID || args.find(a => !a.startsWith('-')) || null;
   if (siteId) {
+    // Check project configs/ dir first
     const p = resolve(projectRoot, 'configs', `${siteId}.yml`);
-    if (!existsSync(p)) {
-      throw new Error(`Site config not found: ${p}`);
-    }
-    return p;
+    if (existsSync(p)) return p;
+    // Check CWD (deployment repo may have configs locally)
+    const cwdP = resolve(process.cwd(), `${siteId}.yml`);
+    if (existsSync(cwdP)) return cwdP;
+    throw new Error(`Site config not found for '${siteId}'. Checked configs/${siteId}.yml and ${siteId}.yml`);
   }
 
-  const fallback = resolve(projectRoot, 'site-config.yml');
-  if (existsSync(fallback)) {
-    return fallback;
+  // Check CWD first (deployment repos), then project root
+  for (const dir of [process.cwd(), projectRoot]) {
+    const p = resolve(dir, 'site-config.yml');
+    if (existsSync(p)) return p;
   }
 
   throw new Error('No site config found. Set SITE_CONFIG, SITE_ID, or create site-config.yml');

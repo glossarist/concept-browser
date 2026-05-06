@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useVocabularyStore } from './stores/vocabulary';
+import { useSiteConfig } from './config/use-site-config';
 import AppHeader from './components/AppHeader.vue';
 import AppSidebar from './components/AppSidebar.vue';
 
 const store = useVocabularyStore();
+const { loadConfig } = useSiteConfig();
 const appReady = ref(false);
 const showScrollTop = ref(false);
 let mainEl: HTMLElement | null = null;
@@ -18,7 +20,7 @@ function scrollToTop() {
 }
 
 onMounted(async () => {
-  await store.discoverDatasets();
+  await Promise.all([loadConfig(), store.discoverDatasets()]);
   appReady.value = true;
   // Watch scroll on main content area
   mainEl = document.querySelector('main');

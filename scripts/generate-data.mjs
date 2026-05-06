@@ -159,7 +159,8 @@ function getPrimaryDesignation(conceptYaml) {
   for (const lang of LANG_CODES) {
     const lc = conceptYaml[lang];
     if (lc && lc.terms && lc.terms.length > 0) {
-      const preferred = lc.terms.find(t => t.normative_status === 'preferred') || lc.terms[0];
+      const preferredExpr = lc.terms.find(t => t.normative_status === 'preferred' && t.type === 'expression');
+      const preferred = preferredExpr || lc.terms.find(t => t.normative_status === 'preferred') || lc.terms[0];
       descs[lang] = preferred.designation;
     }
   }

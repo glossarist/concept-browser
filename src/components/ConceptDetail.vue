@@ -71,8 +71,11 @@ const engConcept = computed((): LocalizedConcept | null => {
 const primaryTerm = computed(() => {
   const eng = engConcept.value;
   if (!eng?.['gl:designation']?.length) return conceptId.value;
-  const preferred = eng['gl:designation'].find(d => d['gl:normativeStatus'] === 'preferred');
-  return preferred?.['gl:term'] ?? eng['gl:designation'][0]?.['gl:term'] ?? conceptId.value;
+  const desigs = eng['gl:designation'];
+  const preferredExpr = desigs.find(d => d['gl:normativeStatus'] === 'preferred' && d['@type'] === 'gl:Expression');
+  if (preferredExpr) return preferredExpr['gl:term'];
+  const preferred = desigs.find(d => d['gl:normativeStatus'] === 'preferred');
+  return preferred?.['gl:term'] ?? desigs[0]?.['gl:term'] ?? conceptId.value;
 });
 
 // Cross-reference resolver: generates clickable links for inline refs
@@ -199,13 +202,24 @@ async function navigateEdge(edge: GraphEdge) {
 function getTermForLang(lang: string): string {
   const lc = props.concept['gl:localizedConcept']?.[lang];
   if (!lc?.['gl:designation']?.length) return '\u2014';
-  const preferred = lc['gl:designation'].find(d => d['gl:normativeStatus'] === 'preferred');
-  return preferred?.['gl:term'] ?? lc['gl:designation'][0]?.['gl:term'] ?? '\u2014';
+  const desigs = lc['gl:designation'];
+  const preferredExpr = desigs.find(d => d['gl:normativeStatus'] === 'preferred' && d['@type'] === 'gl:Expression');
+  if (preferredExpr) return preferredExpr['gl:term'];
+  const preferred = desigs.find(d => d['gl:normativeStatus'] === 'preferred');
+  return preferred?.['gl:term'] ?? desigs[0]?.['gl:term'] ?? '\u2014';
 }
 
 function getDesignationsForLang(lang: string) {
   const lc = props.concept['gl:localizedConcept']?.[lang];
   return lc?.['gl:designation'] ?? [];
+}
+
+function orderedDesignations(lang: string) {
+  const desigs = getDesignationsForLang(lang);
+  const preferred = desigs.filter(d => d['gl:normativeStatus'] === 'preferred');
+  const admitted = desigs.filter(d => d['gl:normativeStatus'] === 'admitted' || d['gl:normativeStatus'] === 'deprecated');
+  const rest = desigs.filter(d => d['gl:normativeStatus'] !== 'preferred' && d['gl:normativeStatus'] !== 'admitted' && d['gl:normativeStatus'] !== 'deprecated');
+  return [...preferred, ...admitted, ...rest];
 }
 
 function hasDefinition(lang: string): boolean {
@@ -364,13 +378,13 @@ function plainTruncate(html: string, max: number = 120): string {
 
             <!-- Expandable content -->
             <div v-if="hasContent(lc)" v-show="!collapsedLangs.has(lc.lang)" class="lang-content px-3 sm:px-4 pb-4 space-y-3">
-              <!-- Designation / term -->
-              <div v-if="lc.designations.length > 1" class="flex flex-wrap items-center gap-2">
-                <span v-for="(d, i) in lc.designations" :key="i" class="flex items-center gap-1.5">
-                  <span class="font-medium text-ink-800" v-html="renderMath(d['gl:term'])"></span>
-                  <span class="badge text-[10px]" :class="designationTypeColor(d['@type'])">{{ designationTypeLabel(d['@type']) }}</span>
-                  <span v-if="d['gl:normativeStatus'] !== 'preferred'" class="badge badge-yellow text-[10px]">{{ d['gl:normativeStatus'] }}</span>
-                </span>
+              <!-- Designations -->
+              <div v-if="lc.designations.length > 1" class="space-y-1 pl-[22px]">
+                <div v-for="(d, i) in orderedDesignations(lc.lang)" :key="i" class="flex items-center gap-2 text-sm">
+                  <span :class="d['gl:normativeStatus'] === 'preferred' ? 'font-bold text-ink-800' : 'font-normal text-ink-700'" v-html="renderMath(d['gl:term'])"></span>
+                  <span class="badge text-[10px] flex-shrink-0" :class="designationTypeColor(d['@type'])">{{ designationTypeLabel(d['@type']) }}</span>
+                  <span v-if="d['gl:normativeStatus'] && d['gl:normativeStatus'] !== 'preferred'" class="badge badge-yellow text-[10px] flex-shrink-0">{{ d['gl:normativeStatus'] }}</span>
+                </div>
               </div>
 
               <!-- Definition -->
