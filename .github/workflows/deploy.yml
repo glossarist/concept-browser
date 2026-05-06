@@ -31,9 +31,12 @@ jobs:
 
       - run: npm run fetch-datasets
         env:
+          SITE_ID: geolexica
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - run: npm run generate-data
+        env:
+          SITE_ID: geolexica
 
       - run: node scripts/build-edges.js
 
