@@ -41,6 +41,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/GraphView.vue'),
   },
   {
+    path: '/news',
+    name: 'news',
+    component: () => import('../views/NewsView.vue'),
+  },
+  {
     path: '/resolve/:uri(.*)',
     name: 'resolve',
     component: () => import('../views/ResolveView.vue'),
