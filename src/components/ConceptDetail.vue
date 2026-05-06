@@ -10,6 +10,7 @@ import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
 import { getFactory } from '../adapters/factory';
 import ConceptTimeline from './ConceptTimeline.vue';
+import FormatDownloads from './FormatDownloads.vue';
 
 const props = defineProps<{
   concept: ConceptDocument;
@@ -517,6 +518,12 @@ function plainTruncate(html: string, max: number = 120): string {
               </div>
             </dl>
           </div>
+
+          <FormatDownloads
+            :register-id="manifest.id"
+            :concept-id="conceptId"
+            :formats="manifest.availableFormats || []"
+          />
         </div>
       </div>
     </div>

@@ -24,6 +24,7 @@ export interface Manifest {
   shortname?: string;
   languageOrder?: string[];
   languageStats?: Record<string, { terms: number; definitions: number }>;
+  availableFormats?: string[];
 }
 
 export interface ConceptIndex {
