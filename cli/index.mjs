@@ -86,6 +86,18 @@ Environment:
       await commands[step]();
     }
 
+    // Copy package static files (favicon, etc.) to deployment public dir
+    const fs = await import('fs');
+    const publicDir = resolve(process.cwd(), 'public');
+    fs.mkdirSync(publicDir, { recursive: true });
+    for (const file of ['favicon.svg']) {
+      const src = resolve(pkgRoot, 'public', file);
+      if (fs.existsSync(src) && !fs.existsSync(resolve(publicDir, file))) {
+        fs.copyFileSync(src, resolve(publicDir, file));
+        console.log(`Copied ${file} to public/`);
+      }
+    }
+
     // Run vite build using the package's vite.config.ts
     console.log(`\n=== BUILD SPA ===\n`);
     const viteConfig = resolve(pkgRoot, 'vite.config.ts');
