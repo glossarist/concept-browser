@@ -10,6 +10,7 @@ import type {
 import { UriRouter } from './UriRouter';
 
 export class DatasetAdapter {
+  private positionIndex = new Map<string, number>();
   readonly registerId: string;
   private baseUrl: string;
   manifest: Manifest | null = null;
@@ -44,8 +45,10 @@ export class DatasetAdapter {
     if (!resp.ok) throw new Error(`Failed to load index for ${this.registerId}: ${resp.status}`);
     this.index = (await resp.json()) as ConceptIndex;
     this.summaryMap.clear();
-    for (const entry of this.index.concepts) {
-      this.summaryMap.set(entry.id, entry);
+    this.positionIndex.clear();
+    for (let i = 0; i < this.index.concepts.length; i++) {
+      this.summaryMap.set(this.index.concepts[i].id, this.index.concepts[i]);
+      this.positionIndex.set(this.index.concepts[i].id, i);
     }
     return this.index;
   }
@@ -60,8 +63,10 @@ export class DatasetAdapter {
       if (!resp.ok) throw new Error(`Failed to load index for ${this.registerId}`);
       this.index = (await resp.json()) as ConceptIndex;
       this.summaryMap.clear();
-      for (const entry of this.index.concepts) {
-        this.summaryMap.set(entry.id, entry);
+      this.positionIndex.clear();
+      for (let i = 0; i < this.index.concepts.length; i++) {
+        this.summaryMap.set(this.index.concepts[i].id, this.index.concepts[i]);
+        this.positionIndex.set(this.index.concepts[i].id, i);
       }
       return this.index;
     }
@@ -118,6 +123,7 @@ export class DatasetAdapter {
       };
       (this.index!.concepts as (ConceptSummary | undefined)[])[startPos + i] = summary;
       this.summaryMap.set(entry.id, summary);
+      this.positionIndex.set(entry.id, startPos + i);
     }
   }
 
@@ -178,21 +184,7 @@ export class DatasetAdapter {
   }
 
   getConceptPosition(conceptId: string): number {
-    // Find position using chunk metadata instead of scanning sparse array
-    if (!this.indexMeta || !this.loadedChunks.size) return -1;
-    // Check summaryMap first (O(1)), then compute position from chunk layout
-    if (!this.summaryMap.has(conceptId)) return -1;
-    const concepts = this.index?.concepts as (ConceptSummary | undefined)[] | undefined;
-    if (!concepts) return -1;
-    // Only search within loaded chunks for efficiency
-    for (const chunkIdx of this.loadedChunks) {
-      const start = chunkIdx * (this.indexMeta.chunkSize);
-      const end = Math.min(start + this.indexMeta.chunkSize, concepts.length);
-      for (let i = start; i < end; i++) {
-        if (concepts[i]?.id === conceptId) return i;
-      }
-    }
-    return -1;
+    return this.positionIndex.get(conceptId) ?? -1;
   }
 
   getAdjacentConcepts(conceptId: string): { prev: string | null; next: string | null } {
@@ -243,12 +235,13 @@ export class DatasetAdapter {
       if (lc['gl:references']) {
         for (const ref of lc['gl:references']) {
           if (ref['@id'] && ref['@id'] !== sourceUri) {
+            const parsed = UriRouter.parseUri(ref['@id']);
             edges.push({
               source: sourceUri,
               target: ref['@id'],
               type: 'references',
               label: ref['gl:term'],
-              register: this.registerId,
+              register: parsed?.registerId ?? this.registerId,
             });
           }
         }

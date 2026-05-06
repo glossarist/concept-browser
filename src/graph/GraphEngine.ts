@@ -1,4 +1,5 @@
 import type { GraphNode, GraphEdge } from '../adapters/types';
+import { UriRouter } from '../adapters/UriRouter';
 
 /**
  * Directed multigraph engine for concept relationships.
@@ -7,33 +8,41 @@ import type { GraphNode, GraphEdge } from '../adapters/types';
 export class GraphEngine {
   private nodes = new Map<string, GraphNode>();
   private edges: GraphEdge[] = [];
+  private edgeKeys = new Set<string>();
   private adjacency = new Map<string, Map<string, GraphEdge[]>>();
   private reverseAdjacency = new Map<string, Map<string, GraphEdge[]>>();
 
   addNode(node: GraphNode): void {
-    if (!this.nodes.has(node.uri)) {
+    const existing = this.nodes.get(node.uri);
+    if (!existing) {
+      this.nodes.set(node.uri, node);
+    } else if (node.loaded && !existing.loaded) {
       this.nodes.set(node.uri, node);
     }
   }
 
   addEdge(edge: GraphEdge): void {
-    // Create stub nodes if targets not yet loaded
+    const key = `${edge.source}\0${edge.target}\0${edge.type}`;
+    if (this.edgeKeys.has(key)) return;
+    this.edgeKeys.add(key);
+
+    const parsed = UriRouter.parseUri(edge.target);
     if (!this.nodes.has(edge.source)) {
+      const sourceParsed = UriRouter.parseUri(edge.source);
       this.nodes.set(edge.source, {
         uri: edge.source,
-        register: edge.register,
-        conceptId: edge.source.split('/').pop() ?? '',
+        register: sourceParsed?.registerId ?? edge.register,
+        conceptId: sourceParsed?.conceptId ?? '',
         designations: {},
         status: 'stub',
         loaded: false,
       });
     }
     if (!this.nodes.has(edge.target)) {
-      const targetResolved = edge.target.match(/\/concept\/([^/]+)$/);
       this.nodes.set(edge.target, {
         uri: edge.target,
-        register: '',
-        conceptId: targetResolved?.[1] ?? '',
+        register: parsed?.registerId ?? '',
+        conceptId: parsed?.conceptId ?? '',
         designations: {},
         status: 'stub',
         loaded: false,
@@ -42,13 +51,11 @@ export class GraphEngine {
 
     this.edges.push(edge);
 
-    // Forward adjacency
     if (!this.adjacency.has(edge.source)) this.adjacency.set(edge.source, new Map());
     const sourceAdj = this.adjacency.get(edge.source)!;
     if (!sourceAdj.has(edge.target)) sourceAdj.set(edge.target, []);
     sourceAdj.get(edge.target)!.push(edge);
 
-    // Reverse adjacency
     if (!this.reverseAdjacency.has(edge.target)) this.reverseAdjacency.set(edge.target, new Map());
     const targetAdj = this.reverseAdjacency.get(edge.target)!;
     if (!targetAdj.has(edge.source)) targetAdj.set(edge.source, []);

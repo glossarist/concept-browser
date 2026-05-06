@@ -8,7 +8,9 @@ import type { XrefResolver } from '../utils/math';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
+import { getFactory } from '../adapters/factory';
 import ConceptTimeline from './ConceptTimeline.vue';
+import FormatDownloads from './FormatDownloads.vue';
 
 const props = defineProps<{
   concept: ConceptDocument;
@@ -21,6 +23,7 @@ const props = defineProps<{
 const router = useRouter();
 const store = useVocabularyStore();
 const { getColor } = useDsStyle();
+const factory = getFactory();
 
 const activeTab = ref<'definition' | 'history'>('definition');
 const activeHistoryLang = ref('eng');
@@ -42,12 +45,6 @@ function copyUri() {
     setTimeout(() => { uriCopied.value = false; }, 2000);
   });
 }
-
-const externalConceptUrl = computed(() => {
-  const template = props.manifest.externalConceptUrlTemplate;
-  if (!template) return null;
-  return template.replace('{conceptId}', conceptId.value);
-});
 
 const languages = computed(() => {
   const order = props.manifest.languageOrder;
@@ -75,8 +72,11 @@ const engConcept = computed((): LocalizedConcept | null => {
 const primaryTerm = computed(() => {
   const eng = engConcept.value;
   if (!eng?.['gl:designation']?.length) return conceptId.value;
-  const preferred = eng['gl:designation'].find(d => d['gl:normativeStatus'] === 'preferred');
-  return preferred?.['gl:term'] ?? eng['gl:designation'][0]?.['gl:term'] ?? conceptId.value;
+  const desigs = eng['gl:designation'];
+  const preferredExpr = desigs.find(d => d['gl:normativeStatus'] === 'preferred' && d['@type'] === 'gl:Expression');
+  if (preferredExpr) return preferredExpr['gl:term'];
+  const preferred = desigs.find(d => d['gl:normativeStatus'] === 'preferred');
+  return preferred?.['gl:term'] ?? desigs[0]?.['gl:term'] ?? conceptId.value;
 });
 
 // Cross-reference resolver: generates clickable links for inline refs
@@ -84,8 +84,18 @@ function escapeAttr(s: string) {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-const xrefResolver: XrefResolver = (registerId, conceptId, term) => {
-  return `<a href="#" class="xref-link" data-register="${escapeAttr(registerId)}" data-concept="${escapeAttr(conceptId)}">${escapeAttr(term)}</a>`;
+const xrefResolver: XrefResolver = (uri, term) => {
+  const resolution = factory.resolve(uri, props.registerId);
+  if (resolution.type === 'internal') {
+    return `<a href="#" class="xref-link" data-register="${escapeAttr(resolution.registerId)}" data-concept="${escapeAttr(resolution.conceptId)}">${escapeAttr(term)}</a>`;
+  }
+  if (resolution.type === 'site') {
+    return `<a href="${escapeAttr(resolution.baseUrl)}/resolve/${escapeAttr(encodeURIComponent(uri))}" target="_blank" rel="noopener" class="xref-link xref-external">${escapeAttr(term)}</a>`;
+  }
+  if (resolution.type === 'url') {
+    return `<a href="${escapeAttr(resolution.url)}" target="_blank" rel="noopener" class="xref-link xref-external">${escapeAttr(term)}</a>`;
+  }
+  return escapeAttr(term);
 };
 
 // Handle clicks on cross-reference links via event delegation
@@ -178,29 +188,39 @@ const incomingEdges = computed(() => props.edges.filter(e => e.target === props.
 
 async function navigateEdge(edge: GraphEdge) {
   const uri = edge.source === props.concept['@id'] ? edge.target : edge.source;
-  const match = uri.match(/\/concept\/([^/]+)$/);
-  const regMatch = uri.match(/glossarist\.org\/([^/]+)\/concept\//);
-  if (match && regMatch) {
-    const registerId = regMatch[1];
-    const conceptId = match[1];
-    await store.viewConcept(registerId, conceptId);
-    router.push({
-      name: 'concept',
-      params: { registerId, conceptId },
-    });
+  const resolution = factory.resolve(uri);
+
+  if (resolution.type === 'internal') {
+    await store.viewConcept(resolution.registerId, resolution.conceptId);
+    router.push({ name: 'concept', params: { registerId: resolution.registerId, conceptId: resolution.conceptId } });
+  } else if (resolution.type === 'site') {
+    window.open(`${resolution.baseUrl}/resolve/${encodeURIComponent(uri)}`, '_blank', 'noopener');
+  } else if (resolution.type === 'url') {
+    window.open(resolution.url, '_blank', 'noopener');
   }
 }
 
 function getTermForLang(lang: string): string {
   const lc = props.concept['gl:localizedConcept']?.[lang];
   if (!lc?.['gl:designation']?.length) return '\u2014';
-  const preferred = lc['gl:designation'].find(d => d['gl:normativeStatus'] === 'preferred');
-  return preferred?.['gl:term'] ?? lc['gl:designation'][0]?.['gl:term'] ?? '\u2014';
+  const desigs = lc['gl:designation'];
+  const preferredExpr = desigs.find(d => d['gl:normativeStatus'] === 'preferred' && d['@type'] === 'gl:Expression');
+  if (preferredExpr) return preferredExpr['gl:term'];
+  const preferred = desigs.find(d => d['gl:normativeStatus'] === 'preferred');
+  return preferred?.['gl:term'] ?? desigs[0]?.['gl:term'] ?? '\u2014';
 }
 
 function getDesignationsForLang(lang: string) {
   const lc = props.concept['gl:localizedConcept']?.[lang];
   return lc?.['gl:designation'] ?? [];
+}
+
+function orderedDesignations(lang: string) {
+  const desigs = getDesignationsForLang(lang);
+  const preferred = desigs.filter(d => d['gl:normativeStatus'] === 'preferred');
+  const admitted = desigs.filter(d => d['gl:normativeStatus'] === 'admitted' || d['gl:normativeStatus'] === 'deprecated');
+  const rest = desigs.filter(d => d['gl:normativeStatus'] !== 'preferred' && d['gl:normativeStatus'] !== 'admitted' && d['gl:normativeStatus'] !== 'deprecated');
+  return [...preferred, ...admitted, ...rest];
 }
 
 function hasDefinition(lang: string): boolean {
@@ -359,13 +379,13 @@ function plainTruncate(html: string, max: number = 120): string {
 
             <!-- Expandable content -->
             <div v-if="hasContent(lc)" v-show="!collapsedLangs.has(lc.lang)" class="lang-content px-3 sm:px-4 pb-4 space-y-3">
-              <!-- Designation / term -->
-              <div v-if="lc.designations.length > 1" class="flex flex-wrap items-center gap-2">
-                <span v-for="(d, i) in lc.designations" :key="i" class="flex items-center gap-1.5">
-                  <span class="font-medium text-ink-800" v-html="renderMath(d['gl:term'])"></span>
-                  <span class="badge text-[10px]" :class="designationTypeColor(d['@type'])">{{ designationTypeLabel(d['@type']) }}</span>
-                  <span v-if="d['gl:normativeStatus'] !== 'preferred'" class="badge badge-yellow text-[10px]">{{ d['gl:normativeStatus'] }}</span>
-                </span>
+              <!-- Designations -->
+              <div v-if="lc.designations.length > 1" class="space-y-1 pl-[22px]">
+                <div v-for="(d, i) in orderedDesignations(lc.lang)" :key="i" class="flex items-center gap-2 text-sm">
+                  <span :class="d['gl:normativeStatus'] === 'preferred' ? 'font-bold text-ink-800' : 'font-normal text-ink-700'" v-html="renderMath(d['gl:term'])"></span>
+                  <span class="badge text-[10px] flex-shrink-0" :class="designationTypeColor(d['@type'])">{{ designationTypeLabel(d['@type']) }}</span>
+                  <span v-if="d['gl:normativeStatus'] && d['gl:normativeStatus'] !== 'preferred'" class="badge badge-yellow text-[10px] flex-shrink-0">{{ d['gl:normativeStatus'] }}</span>
+                </div>
               </div>
 
               <!-- Definition -->
@@ -496,17 +516,14 @@ function plainTruncate(html: string, max: number = 120): string {
                   </button>
                 </dd>
               </div>
-              <div v-if="externalConceptUrl">
-                <dt class="text-ink-300">Official Source</dt>
-                <dd class="mt-0.5">
-                  <a :href="externalConceptUrl" target="_blank" rel="noopener" class="concept-link text-[11px]">
-                    View on {{ manifest.owner }} site
-                    <svg class="w-3 h-3 inline-block ml-0.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                  </a>
-                </dd>
-              </div>
             </dl>
           </div>
+
+          <FormatDownloads
+            :register-id="manifest.id"
+            :concept-id="conceptId"
+            :formats="manifest.availableFormats || []"
+          />
         </div>
       </div>
     </div>

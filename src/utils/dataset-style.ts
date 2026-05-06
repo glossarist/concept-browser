@@ -1,30 +1,14 @@
 import { useVocabularyStore } from '../stores/vocabulary';
 
-/**
- * Deterministic palette for datasets. First 3 match the original colors
- * for backwards compatibility; remaining slots extend for any new dataset.
- */
 const PALETTE = [
-  '#3366ff', // blue — IEV
-  '#0d9488', // teal — TC211
-  '#d97706', // amber — TC204
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#059669', // emerald
-  '#dc2626', // red
-  '#6366f1', // indigo
-  '#0891b2', // cyan
-  '#65a30d', // lime
-  '#be185d', // rose
-  '#7c3aed', // purple
+  '#3366ff', '#0d9488', '#d97706', '#8b5cf6',
+  '#ec4899', '#059669', '#dc2626', '#6366f1',
+  '#0891b2', '#65a30d', '#be185d', '#7c3aed',
 ];
 
 export interface DsStyle {
-  /** Primary color hex */
   color: string;
-  /** Light tint for backgrounds (rgba) */
   light: string;
-  /** Darker shade for text on light bg */
   dark: string;
 }
 
@@ -47,17 +31,19 @@ export function paletteColor(index: number): string {
   return PALETTE[index % PALETTE.length];
 }
 
-/**
- * Composable that resolves a dataset's style from the store.
- * Falls back to palette assignment by index when no manifest color is set.
- */
 export function useDsStyle() {
-  const store = useVocabularyStore();
+  const cache = new Map<string, DsStyle>();
 
   function getStyle(registerId: string): DsStyle {
+    const cached = cache.get(registerId);
+    if (cached) return cached;
+
+    const store = useVocabularyStore();
     const ds = store.datasetList.find(d => d.id === registerId);
     const color = ds?.manifest.color || paletteColor(store.datasetList.findIndex(d => d.id === registerId));
-    return makeDsStyle(color);
+    const style = makeDsStyle(color);
+    cache.set(registerId, style);
+    return style;
   }
 
   function getColor(registerId: string): string {

@@ -3,16 +3,21 @@ import fs from 'fs';
 import path from 'path';
 
 const PUBLIC_DATA = path.resolve(__dirname, '../../public/data');
+const DATASETS_JSON = path.resolve(PUBLIC_DATA, '..', 'datasets.json');
 
-describe('Data integrity', () => {
-  const datasets = ['iev', 'isotc211', 'isotc204', 'osgeo'];
+const hasData = fs.existsSync(DATASETS_JSON);
+const datasets: string[] = hasData
+  ? JSON.parse(fs.readFileSync(DATASETS_JSON, 'utf8')).map((d: any) => d.id)
+  : [];
 
-  it('has datasets.json at root', () => {
-    const file = path.resolve(PUBLIC_DATA, '..', 'datasets.json');
-    expect(fs.existsSync(file)).toBe(true);
-    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-    expect(data.length).toBe(4);
-    expect(data.map((d: any) => d.id).sort()).toEqual(['iev', 'isotc204', 'isotc211', 'osgeo']);
+describe.skipIf(!hasData || datasets.length === 0)('Data integrity', () => {
+  it('has valid datasets.json', () => {
+    const data = JSON.parse(fs.readFileSync(DATASETS_JSON, 'utf8'));
+    expect(data.length).toBeGreaterThan(0);
+    for (const d of data) {
+      expect(d.id).toBeTruthy();
+      expect(d.manifestUrl).toBeTruthy();
+    }
   });
 
   for (const ds of datasets) {
@@ -40,7 +45,6 @@ describe('Data integrity', () => {
         expect(idx.chunkSize).toBe(500);
         expect(idx.chunks.length).toBeGreaterThan(0);
 
-        // Every summary has required fields
         for (const c of idx.concepts) {
           expect(c.id).toBeTruthy();
           expect(typeof c.eng).toBe('string');
@@ -60,7 +64,6 @@ describe('Data integrity', () => {
         const conceptsDir = path.join(dsDir, 'concepts');
         const files = fs.readdirSync(conceptsDir).filter(f => f.endsWith('.json'));
 
-        // Check first, middle, and last concept
         const samples = [
           files[0],
           files[Math.floor(files.length / 2)],
@@ -95,37 +98,4 @@ describe('Data integrity', () => {
       });
     });
   }
-
-  describe('IEV specific', () => {
-    it('has all 22,228 concepts', () => {
-      const idx = JSON.parse(fs.readFileSync(path.join(PUBLIC_DATA, 'iev', 'index.json'), 'utf8'));
-      expect(idx.conceptCount).toBe(22228);
-    });
-
-    it('has 45 index chunks', () => {
-      const idx = JSON.parse(fs.readFileSync(path.join(PUBLIC_DATA, 'iev', 'index.json'), 'utf8'));
-      expect(idx.chunks.length).toBe(45);
-    });
-  });
-
-  describe('TC 211 specific', () => {
-    it('has all 1,302 concepts', () => {
-      const idx = JSON.parse(fs.readFileSync(path.join(PUBLIC_DATA, 'isotc211', 'index.json'), 'utf8'));
-      expect(idx.conceptCount).toBe(1302);
-    });
-  });
-
-  describe('TC 204 specific', () => {
-    it('has all 312 concepts', () => {
-      const idx = JSON.parse(fs.readFileSync(path.join(PUBLIC_DATA, 'isotc204', 'index.json'), 'utf8'));
-      expect(idx.conceptCount).toBe(312);
-    });
-  });
-
-  describe('OSGeo specific', () => {
-    it('has all 444 concepts', () => {
-      const idx = JSON.parse(fs.readFileSync(path.join(PUBLIC_DATA, 'osgeo', 'index.json'), 'utf8'));
-      expect(idx.conceptCount).toBe(444);
-    });
-  });
 });

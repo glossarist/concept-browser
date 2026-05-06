@@ -1,36 +1,24 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
-import { fileURLToPath } from 'url';
+import { naturalSort } from 'glossarist';
+import { loadSiteConfig } from './load-site-config.mjs';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..');
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
+const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
 const DATA = path.join(PUBLIC, 'data');
 
-// Dataset color palette (matches browser's src/utils/dataset-style.ts)
 const DS_PALETTE = [
   '#3366ff', '#0d9488', '#d97706', '#8b5cf6',
   '#ec4899', '#059669', '#dc2626', '#6366f1',
   '#0891b2', '#65a30d',
 ];
 
-// --- Helpers ---
 function readYaml(filePath) {
-  const content = fs.readFileSync(filePath, 'utf8');
-  return yaml.load(content);
+  return yaml.load(fs.readFileSync(filePath, 'utf8'));
 }
 
-/**
- * Load a concept YAML file in either canonical or managed concept format.
- *
- * Canonical: single doc with `termid` and language keys (`eng:`, `fra:`).
- * Managed: multi-doc YAML where doc 0 has `data.identifier` + `data.localized_concepts`
- *          and docs 1+ have `data.language_code` with localization data.
- *
- * Always returns an object shaped like canonical format:
- *   { termid: "...", eng: { terms: [...], definition: [...], ... }, fra: { ... } }
- */
 function loadConceptFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
   const docs = yaml.loadAll(content, null, { schema: yaml.DEFAULT_SCHEMA });
@@ -42,7 +30,6 @@ function loadConceptFile(filePath) {
   if (docs.length >= 1 && docs[0].data && docs[0].data.identifier !== undefined) {
     const mc = docs[0];
     const result = { termid: String(mc.data.identifier) };
-
     for (const doc of docs.slice(1)) {
       if (!doc || !doc.data || !doc.data.language_code) continue;
       const lang = doc.data.language_code;
@@ -50,7 +37,6 @@ function loadConceptFile(filePath) {
       delete lcData.language_code;
       result[lang] = lcData;
     }
-
     return result;
   }
 
@@ -77,7 +63,6 @@ function termToDesignation(term) {
   return doc;
 }
 
-// Canonical format: definition is always [{content: "..."}]
 function defsToJsonLd(defs) {
   if (!defs || !Array.isArray(defs)) return [];
   return defs
@@ -105,7 +90,6 @@ function sourcesToJsonLd(sources) {
   });
 }
 
-// Canonical format: references are pre-extracted during harmonization
 function refsToJsonLd(refs) {
   if (!refs || !Array.isArray(refs)) return [];
   return refs.map(r => ({
@@ -156,8 +140,6 @@ function yamlToJsonLd(conceptYaml, register) {
         'gl:date': d.date,
       }));
     }
-
-    // Structured cross-references (pre-extracted during harmonization)
     if (lc.references && lc.references.length > 0) {
       lDoc['gl:references'] = refsToJsonLd(lc.references);
     }
@@ -177,7 +159,8 @@ function getPrimaryDesignation(conceptYaml) {
   for (const lang of LANG_CODES) {
     const lc = conceptYaml[lang];
     if (lc && lc.terms && lc.terms.length > 0) {
-      const preferred = lc.terms.find(t => t.normative_status === 'preferred') || lc.terms[0];
+      const preferredExpr = lc.terms.find(t => t.normative_status === 'preferred' && t.type === 'expression');
+      const preferred = preferredExpr || lc.terms.find(t => t.normative_status === 'preferred') || lc.terms[0];
       descs[lang] = preferred.designation;
     }
   }
@@ -195,31 +178,77 @@ function getGroups(conceptYaml) {
   return [];
 }
 
-// --- Dataset Processors ---
-function processDataset(dir, register, opts) {
-  const files = fs.readdirSync(dir).filter(f => f.endsWith('.yaml')).sort();
-  const maxConcepts = opts.maxConcepts || files.length;
+function escapeTurtle(s) {
+  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+}
 
-  console.log(`Processing ${register}: ${files.length} files available, taking ${Math.min(maxConcepts, files.length)}`);
+function conceptJsonToTurtle(concept) {
+  const uri = concept['@id'] || '';
+  const id = concept['gl:identifier'] || '';
+  const lines = [
+    '@prefix skos: <http://www.w3.org/2004/02/skos/core#> .',
+    '@prefix dcterms: <http://purl.org/dc/terms/> .',
+    '',
+  ];
+
+  const props = ['  a skos:Concept'];
+  props.push(`  skos:notation "${escapeTurtle(id)}"`);
+
+  for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
+    if (lc['gl:designation']) {
+      for (const d of lc['gl:designation']) {
+        const term = d['gl:term'];
+        if (!term) continue;
+        const pred = d['gl:normativeStatus'] === 'preferred' ? 'skos:prefLabel' : 'skos:altLabel';
+        props.push(`  ${pred} "${escapeTurtle(term)}"@${lang}`);
+      }
+    }
+    if (lc['gl:definition']) {
+      for (const d of lc['gl:definition']) {
+        if (d['gl:content']) props.push(`  skos:definition "${escapeTurtle(d['gl:content'])}"@${lang}`);
+      }
+    }
+    if (lc['gl:notes']) {
+      for (const d of lc['gl:notes']) {
+        if (d['gl:content']) props.push(`  skos:scopeNote "${escapeTurtle(d['gl:content'])}"@${lang}`);
+      }
+    }
+  }
+
+  lines.push(`<${uri}>`);
+  lines.push(props.join(' ;\n'));
+  lines.push(' .');
+  return lines.join('\n');
+}
+
+function processDataset(dir, register, opts) {
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.yaml')).sort((a, b) => naturalSort(a.replace('.yaml', ''), b.replace('.yaml', '')));
+
+  console.log(`Processing ${register}: ${files.length} files`);
 
   const conceptsDir = path.join(DATA, register, 'concepts');
   const concepts = [];
   const langTermCounts = {};
   const langDefCounts = {};
+  const availableFormats = ['ttl', 'yaml'];
 
-  for (let i = 0; i < Math.min(files.length, maxConcepts); i++) {
+  for (let i = 0; i < files.length; i++) {
     const file = files[i];
     try {
       const conceptYaml = loadConceptFile(path.join(dir, file));
       if (!conceptYaml || !conceptYaml.termid) continue;
 
       const termid = String(conceptYaml.termid);
-
-      // Generate per-concept JSON-LD
       const jsonld = yamlToJsonLd(conceptYaml, register);
       writeJson(path.join(conceptsDir, `${termid}.json`), jsonld);
 
-      // Build index entry
+      // Generate Turtle format
+      const ttlContent = conceptJsonToTurtle(jsonld);
+      fs.writeFileSync(path.join(conceptsDir, `${termid}.ttl`), ttlContent);
+
+      // Copy source YAML
+      fs.copyFileSync(path.join(dir, file), path.join(conceptsDir, `${termid}.yaml`));
+
       concepts.push({
         id: termid,
         designations: getPrimaryDesignation(conceptYaml),
@@ -227,7 +256,6 @@ function processDataset(dir, register, opts) {
         status: conceptYaml.eng?.entry_status || 'valid',
       });
 
-      // Accumulate per-language stats
       for (const lang of opts.languages) {
         const lc = conceptYaml[lang];
         if (lc) {
@@ -244,7 +272,6 @@ function processDataset(dir, register, opts) {
     }
   }
 
-  // Generate chunked index (500 concepts per chunk)
   const CHUNK_SIZE = 500;
   const chunks = [];
   for (let i = 0; i < concepts.length; i += CHUNK_SIZE) {
@@ -259,15 +286,12 @@ function processDataset(dir, register, opts) {
     chunks.push({ file: chunkFile, count: chunk.length });
   }
 
-  // Generate summary index (lightweight — just IDs and first designation for search)
   const summary = concepts.map(c => ({
     id: c.id,
     eng: c.designations.eng || Object.values(c.designations)[0] || '',
     status: c.status,
   }));
 
-  // Graph-level data: single compact file with only node data needed for visualization
-  // Format: [id, primaryTerm, termLang, status] with shared uriPrefix
   const graphNodeEntries = concepts.map(c => {
     let term = '', lang = '';
     if (c.designations.eng) { term = c.designations.eng; lang = 'eng'; }
@@ -293,7 +317,6 @@ function processDataset(dir, register, opts) {
     concepts: summary,
   });
 
-  // Lightweight metadata-only index for large datasets
   writeJson(path.join(DATA, register, 'index-meta.json'), {
     registerId: register,
     schemaVersion: '1.0.0',
@@ -302,7 +325,6 @@ function processDataset(dir, register, opts) {
     chunks,
   });
 
-  // Compute per-language statistics from accumulated counts
   const langStats = {};
   for (const lang of opts.languages) {
     langStats[lang] = {
@@ -311,9 +333,10 @@ function processDataset(dir, register, opts) {
     };
   }
 
-  // Generate manifest
   const manifest = {
     id: register,
+    datasetUri: opts.datasetUri,
+    uriAliases: opts.uriAliases,
     title: opts.title,
     description: opts.description,
     owner: opts.owner,
@@ -332,9 +355,8 @@ function processDataset(dir, register, opts) {
     chunkSize: CHUNK_SIZE,
     color: opts.color,
     languageStats: langStats,
+    availableFormats,
   };
-  if (opts.existingSiteUrl) manifest.existingSiteUrl = opts.existingSiteUrl;
-  if (opts.externalConceptUrlTemplate) manifest.externalConceptUrlTemplate = opts.externalConceptUrlTemplate;
   if (opts.languageOrder) manifest.languageOrder = opts.languageOrder;
   writeJson(path.join(DATA, register, 'manifest.json'), manifest);
 
@@ -345,61 +367,237 @@ function processDataset(dir, register, opts) {
 // --- Main ---
 console.log('Generating Glossarist vocabulary browser data...\n');
 
-// Load datasets from datasets.yml
-const configPath = path.join(ROOT, 'datasets.yml');
-if (!fs.existsSync(configPath)) {
-  console.error('datasets.yml not found. Run npm run fetch-datasets first.');
-  process.exit(1);
-}
-const config = yaml.load(fs.readFileSync(configPath, 'utf8'));
-
+const { config } = loadSiteConfig();
 const counts = {};
 const registry = [];
 
 for (let i = 0; i < config.datasets.length; i++) {
   const ds = config.datasets[i];
 
-  // Always read from .datasets/{id}/concepts (harmonized by fetch-datasets)
   const dir = path.join(ROOT, '.datasets', ds.id, 'concepts');
-
   if (!fs.existsSync(dir)) {
     console.warn(`Skipping ${ds.id}: source directory not found (${dir})`);
     console.warn(`  Run: npm run fetch-datasets`);
     continue;
   }
 
-  // Read register.yaml for metadata
   const registerDir = path.join(ROOT, '.datasets', ds.id);
   const registerYamlPath = path.join(registerDir, 'register.yaml');
   let registerMeta = {};
   if (fs.existsSync(registerYamlPath)) {
-    try {
-      registerMeta = readYaml(registerYamlPath) || {};
-    } catch (e) {
-      console.warn(`  Warning: could not read register.yaml: ${e.message}`);
-    }
+    try { registerMeta = readYaml(registerYamlPath) || {}; } catch {}
   }
 
-  // Merge metadata: datasets.yml overrides → register.yaml → defaults
-  const dsTitle = ds.title || registerMeta.name || ds.id;
-  const dsDescription = ds.description || registerMeta.description || '';
   const dsLanguages = ds.languages || (registerMeta.subregisters ? Object.keys(registerMeta.subregisters) : ['eng']);
 
   counts[ds.id] = processDataset(dir, ds.id, {
-    title: dsTitle,
-    description: dsDescription,
+    title: ds.title || registerMeta.name || ds.id,
+    description: ds.description || registerMeta.description || '',
     owner: ds.owner,
     languages: dsLanguages,
     sourceRepo: ds.sourceRepo,
-    existingSiteUrl: ds.existingSiteUrl,
-    externalConceptUrlTemplate: ds.externalConceptUrlTemplate,
     languageOrder: ds.languageOrder,
     tags: ds.tags,
     color: ds.color || DS_PALETTE[i % DS_PALETTE.length],
+    datasetUri: ds.uri,
+    uriAliases: ds.uriAliases,
   });
   registry.push({ id: ds.id, manifestUrl: `/data/${ds.id}/manifest.json` });
 }
 writeJson(path.join(PUBLIC, 'datasets.json'), registry);
+
+// Generate routing.json from site config
+writeJson(path.join(PUBLIC, 'routing.json'), config.routing || []);
+console.log('Generated routing.json');
+
+// Copy/download logos
+async function processLogo(logoConfig, filename) {
+  if (!logoConfig) return;
+  const destDir = path.join(PUBLIC, 'logos');
+  fs.mkdirSync(destDir, { recursive: true });
+  const destPath = path.join(destDir, filename);
+
+  // Local file in deployment repo
+  if (logoConfig.localPath) {
+    const src = path.resolve(process.cwd(), logoConfig.localPath);
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, destPath);
+      console.log(`  Copied logo: ${src} → ${destPath}`);
+      return;
+    }
+    console.warn(`  Logo not found at: ${src}`);
+  }
+
+  // Remote URL
+  if (logoConfig.remoteUrl) {
+    try {
+      console.log(`  Downloading logo: ${logoConfig.remoteUrl}`);
+      const resp = await fetch(logoConfig.remoteUrl);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const buf = Buffer.from(await resp.arrayBuffer());
+      fs.writeFileSync(destPath, buf);
+      console.log(`  Saved logo: ${destPath}`);
+    } catch (e) {
+      console.warn(`  Logo download failed: ${e.message}`);
+    }
+  }
+}
+
+await processLogo(config.branding?.logo, `${config.id}-logo.svg`);
+await processLogo(config.branding?.footerLogo, `${config.id}-footer-logo.svg`);
+
+// === Page processors ===
+
+function processNewsPage(config, page) {
+  const newsDir = page.source
+    ? path.resolve(process.cwd(), page.source)
+    : config.newsDir
+      ? path.resolve(process.cwd(), config.newsDir)
+      : null;
+
+  if (!newsDir || !fs.existsSync(newsDir)) {
+    if (newsDir) console.warn(`News directory not found: ${newsDir}`);
+    return;
+  }
+
+  const index = [];
+  const newsOutDir = path.join(PUBLIC, 'news');
+  fs.mkdirSync(newsOutDir, { recursive: true });
+  const postFiles = fs.readdirSync(newsDir).filter(f => f.endsWith('.adoc') || f.endsWith('.md')).sort().reverse();
+
+  for (const file of postFiles) {
+    const content = fs.readFileSync(path.join(newsDir, file), 'utf8');
+    const frontmatter = {};
+    const bodyLines = [];
+
+    let inFm = false;
+    const lines = content.split('\n');
+    if (lines[0] === '---') {
+      inFm = true;
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i] === '---') { inFm = false; continue; }
+        if (inFm) {
+          const m = lines[i].match(/^(\w[\w\s]*):\s*(.*)/);
+          if (m) frontmatter[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, '');
+        } else {
+          bodyLines.push(lines[i]);
+        }
+      }
+    } else {
+      bodyLines.push(...lines);
+    }
+
+    const slug = file.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.(adoc|md)$/, '');
+    const body = bodyLines.join('\n').trim();
+
+    const ext = path.extname(file);
+    const destFile = path.join(newsOutDir, `${slug}${ext}`);
+    fs.copyFileSync(path.join(newsDir, file), destFile);
+
+    index.push({
+      slug,
+      title: frontmatter.title || slug,
+      date: frontmatter.date || '',
+      categories: frontmatter.categories ? frontmatter.categories.split(',').map(s => s.trim()) : [],
+      file: `/news/${slug}${ext}`,
+      excerpt: body.split('\n').find(l => l.trim())?.slice(0, 200) || '',
+    });
+  }
+
+  writeJson(path.join(PUBLIC, 'news.json'), index);
+  console.log(`Generated news index: ${index.length} posts, ${postFiles.length} files copied to public/news/`);
+}
+
+function processContributorsPage(config, page) {
+  const contributors = { register: config.id, contributors: [] };
+
+  for (const ds of config.datasets) {
+    const infoYamlPath = path.join(ROOT, '.datasets', ds.id, 'info.yaml');
+    if (!fs.existsSync(infoYamlPath)) continue;
+
+    try {
+      const info = readYaml(infoYamlPath);
+      if (info.header) {
+        contributors.owner = info.header['register-owner'];
+        contributors.manager = info.header['register-manager'];
+      }
+      if (info.languages) {
+        for (const [lang, data] of Object.entries(info.languages)) {
+          contributors.contributors.push({
+            language: lang,
+            registerName: data['register-name'] || '',
+            organization: data['submitting-organisation-name'] || '',
+            contact: data['submitting-organisation-contact'] || '',
+            email: data['submitting-organisation-contact-email'] || '',
+            uri: data['uniform-resource-identifier-uri'] || '',
+            country: data['operating-language-country'] || '',
+          });
+        }
+      }
+    } catch (e) {
+      console.warn(`  Skipping contributors for ${ds.id}: ${e.message}`);
+    }
+  }
+
+  if (contributors.contributors.length > 0 || contributors.owner) {
+    writeJson(path.join(PUBLIC, 'contributors.json'), contributors);
+    console.log(`Generated contributors: ${contributors.contributors.length} languages`);
+  }
+}
+
+const pageProcessors = {
+  news: processNewsPage,
+  contributors: processContributorsPage,
+};
+
+function synthesizePages(config) {
+  const pages = [];
+  if (config.newsDir) pages.push({ type: 'news', route: 'news', title: 'News', icon: 'newspaper' });
+  return pages;
+}
+
+function processPages(config) {
+  const pages = config.pages || synthesizePages(config);
+  for (const page of pages) {
+    const processor = pageProcessors[page.type];
+    if (processor) processor(config, page);
+  }
+  return pages;
+}
+
+const processedPages = processPages(config);
+
+// Generate site-config.json from site config
+const siteBranding = { ...config.branding };
+// Rewrite logo paths to downloaded filenames
+if (siteBranding.logo?.remoteUrl) {
+  siteBranding.logo = { ...siteBranding.logo, path: `/logos/${config.id}-logo.svg` };
+  delete siteBranding.logo.remoteUrl;
+}
+if (siteBranding.footerLogo?.remoteUrl) {
+  siteBranding.footerLogo = { ...siteBranding.footerLogo, path: `/logos/${config.id}-footer-logo.svg` };
+  delete siteBranding.footerLogo.remoteUrl;
+}
+
+writeJson(path.join(PUBLIC, 'site-config.json'), {
+  id: config.id,
+  domain: config.domain,
+  title: config.title,
+  subtitle: config.subtitle,
+  description: config.description,
+  datasets: config.datasets.map(d => d.id),
+  defaultDataset: config.datasets.length === 1 ? config.datasets[0].id : undefined,
+  branding: siteBranding,
+  analytics: config.analytics,
+  features: config.features,
+  social: config.social,
+  nav: config.nav,
+  footerNav: config.footerNav,
+  defaults: config.defaults,
+  email: config.email,
+  pages: processedPages.length > 0 ? processedPages : undefined,
+});
+console.log('Generated site-config.json');
 
 const total = Object.values(counts).reduce((s, n) => s + n, 0);
 console.log(`\nDone! Generated data for ${total} concepts across ${registry.length} datasets.`);

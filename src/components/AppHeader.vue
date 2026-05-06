@@ -2,11 +2,13 @@
 import { useRouter } from 'vue-router';
 import { useUiStore } from '../stores/ui';
 import { useVocabularyStore } from '../stores/vocabulary';
+import { useSiteConfig } from '../config/use-site-config';
 import { ref } from 'vue';
 
 const router = useRouter();
 const ui = useUiStore();
 const store = useVocabularyStore();
+const { config: siteConfig } = useSiteConfig();
 const searchInput = ref('');
 
 function doSearch() {
@@ -38,7 +40,14 @@ function goHome() {
 
       <!-- Logo -->
       <button @click="goHome" class="flex items-center gap-2 hover:opacity-80 transition flex-shrink-0 group">
-        <div class="w-8 h-8 bg-ink-800 rounded-lg flex items-center justify-center group-hover:bg-ink-700 transition-colors">
+        <div v-if="siteConfig?.branding?.logo" class="h-8 flex items-center">
+          <img
+            :src="siteConfig.branding.logo.path"
+            :alt="siteConfig.branding.logo.alt"
+            class="h-8 max-w-[48px] object-contain rounded"
+          />
+        </div>
+        <div v-else class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style="background-color: var(--brand-dark)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
@@ -46,7 +55,7 @@ function goHome() {
             <line x1="9" y1="11" x2="15" y2="11"/>
           </svg>
         </div>
-        <span class="font-serif text-lg text-ink-800 leading-none hidden sm:inline">Glossarist</span>
+        <span class="font-serif text-lg text-ink-800 leading-none hidden sm:inline">{{ siteConfig?.title || 'Glossarist' }}</span>
       </button>
 
       <!-- Search -->
@@ -69,6 +78,22 @@ function goHome() {
       <div class="text-xs text-ink-400 flex-shrink-0 hidden md:block">
         {{ store.datasetList.length }} datasets
       </div>
+
+      <!-- Theme toggle -->
+      <button
+        @click="ui.toggleTheme()"
+        :aria-label="ui.isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+        class="p-2 rounded-lg text-ink-400 hover:text-ink-600 hover:bg-ink-50 transition-colors flex-shrink-0"
+      >
+        <!-- Sun icon (shown in dark mode) -->
+        <svg v-if="ui.isDark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+        <!-- Moon icon (shown in light mode) -->
+        <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+        </svg>
+      </button>
     </div>
   </header>
 </template>

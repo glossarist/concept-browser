@@ -65,6 +65,15 @@ describe('GraphEngine', () => {
       expect(g.getNode('uri:a')?.status).toBe('valid');
     });
 
+    it('upgrades stub node when loaded node is added', () => {
+      const g = new GraphEngine();
+      g.addEdge(makeEdge('uri:a', 'uri:b'));
+      expect(g.getNode('uri:a')?.loaded).toBe(false);
+      g.addNode(makeNode('uri:a', 'a', 'test', { loaded: true, status: 'valid' }));
+      expect(g.getNode('uri:a')?.loaded).toBe(true);
+      expect(g.getNode('uri:a')?.conceptId).toBe('a');
+    });
+
     it('supports multiple edges between same pair', () => {
       const g = new GraphEngine();
       g.addEdge(makeEdge('uri:a', 'uri:b', 'references'));
@@ -73,6 +82,26 @@ describe('GraphEngine', () => {
       const edges = g.getEdges('uri:a');
       expect(edges.length).toBe(2);
       expect(edges.map(e => e.type).sort()).toEqual(['references', 'related']);
+    });
+
+    it('deduplicates identical edges', () => {
+      const g = new GraphEngine();
+      g.addEdge(makeEdge('uri:a', 'uri:b', 'references'));
+      g.addEdge(makeEdge('uri:a', 'uri:b', 'references'));
+      expect(g.edgeCount).toBe(1);
+    });
+
+    it('extracts register from URI for stub nodes', () => {
+      const g = new GraphEngine();
+      g.addEdge({
+        source: 'https://glossarist.org/isotc204/concept/3.1.1.1',
+        target: 'https://glossarist.org/iev/concept/102-01-10',
+        type: 'references',
+        register: 'isotc204',
+      });
+      const target = g.getNode('https://glossarist.org/iev/concept/102-01-10');
+      expect(target?.register).toBe('iev');
+      expect(target?.conceptId).toBe('102-01-10');
     });
   });
 

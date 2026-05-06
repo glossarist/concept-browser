@@ -1,5 +1,7 @@
 import type { Manifest } from './types';
 
+const URI_REGISTER_RE = /\/([^/]+)\/concept\/([^/]+)$/;
+
 export class UriRouter {
   private registerMap = new Map<string, { baseUrl: string; manifest: Manifest | null; uriBase: string }>();
 
@@ -19,6 +21,12 @@ export class UriRouter {
       }
     }
     return null;
+  }
+
+  /** Extract registerId and conceptId from any glossarist URI (no registration needed). */
+  static parseUri(uri: string): { registerId: string; conceptId: string } | null {
+    const m = uri.match(URI_REGISTER_RE);
+    return m ? { registerId: m[1], conceptId: m[2] } : null;
   }
 
   buildUri(registerId: string, conceptId: string): string {

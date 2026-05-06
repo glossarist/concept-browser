@@ -55,4 +55,22 @@ describe('UriRouter', () => {
     expect(router.resolveUri('https://glossarist.org/isotc211/concept/10')?.registerId).toBe('isotc211');
     expect(router.resolveUri('https://glossarist.org/isotc204/concept/3.1.1.1')?.registerId).toBe('isotc204');
   });
+
+  describe('parseUri (static)', () => {
+    it('extracts register and concept from any glossarist URI', () => {
+      expect(UriRouter.parseUri('https://glossarist.org/iev/concept/103-01-02')).toEqual({
+        registerId: 'iev', conceptId: '103-01-02',
+      });
+    });
+
+    it('handles multi-part concept IDs', () => {
+      expect(UriRouter.parseUri('https://glossarist.org/isotc204/concept/3.1.1.1')).toEqual({
+        registerId: 'isotc204', conceptId: '3.1.1.1',
+      });
+    });
+
+    it('returns null for non-matching URIs', () => {
+      expect(UriRouter.parseUri('https://example.com/other')).toBeNull();
+    });
+  });
 });
