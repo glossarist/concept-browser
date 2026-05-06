@@ -89,6 +89,11 @@ function buildEdgesForDataset(datasetDir, registerId) {
 // Main
 console.log('Building edge indexes...\n');
 
+if (!existsSync(DATA_DIR)) {
+  console.log('No data directory found. Nothing to do.');
+  process.exit(0);
+}
+
 const datasets = readdirSync(DATA_DIR).filter(f => {
   try {
     return existsSync(join(DATA_DIR, f, 'manifest.json'));
