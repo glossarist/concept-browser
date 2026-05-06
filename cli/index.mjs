@@ -92,9 +92,8 @@ Environment:
     fs.mkdirSync(publicDir, { recursive: true });
     for (const file of ['favicon.svg']) {
       const src = resolve(pkgRoot, 'public', file);
-      if (fs.existsSync(src) && !fs.existsSync(resolve(publicDir, file))) {
+      if (fs.existsSync(src)) {
         fs.copyFileSync(src, resolve(publicDir, file));
-        console.log(`Copied ${file} to public/`);
       }
     }
 
