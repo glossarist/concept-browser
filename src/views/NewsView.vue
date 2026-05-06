@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useSiteConfig } from '../config/use-site-config';
+import { renderAsciiDocLite } from '../utils/asciidoc-lite';
 
 interface NewsPost {
   slug: string;
   title: string;
   date: string;
   categories: string[];
+  file: string;
   excerpt: string;
 }
 
@@ -15,17 +17,49 @@ const posts = ref<NewsPost[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 
+const activeSlug = ref<string | null>(null);
+const activeHtml = ref('');
+const activeLoading = ref(false);
+
 onMounted(async () => {
   try {
     const resp = await fetch('/news.json');
-    if (resp.ok) {
-      posts.value = await resp.json();
-    }
+    if (resp.ok) posts.value = await resp.json();
   } catch (e: any) {
     error.value = e.message;
   }
   loading.value = false;
 });
+
+async function openPost(post: NewsPost) {
+  if (activeSlug.value === post.slug) {
+    activeSlug.value = null;
+    activeHtml.value = '';
+    return;
+  }
+  activeSlug.value = post.slug;
+  activeLoading.value = true;
+  try {
+    const resp = await fetch(post.file);
+    if (resp.ok) {
+      const text = await resp.text();
+      const body = stripFrontmatter(text);
+      activeHtml.value = renderAsciiDocLite(body);
+    }
+  } catch { /* ignore */ }
+  activeLoading.value = false;
+}
+
+function stripFrontmatter(text: string): string {
+  const lines = text.split('\n');
+  if (lines[0] !== '---') return text;
+  let end = -1;
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i] === '---') { end = i; break; }
+  }
+  if (end < 0) return text;
+  return lines.slice(end + 1).join('\n').trim();
+}
 
 function formatDate(dateStr: string) {
   if (!dateStr) return '';
@@ -69,20 +103,42 @@ function formatDate(dateStr: string) {
     </template>
 
     <template v-else>
-      <div class="space-y-6">
-        <article v-for="post in posts" :key="post.slug" class="card p-6">
-          <div class="flex items-center gap-3 text-xs text-ink-400 mb-2">
-            <time :datetime="post.date">{{ formatDate(post.date) }}</time>
-            <span v-if="post.categories.length" class="flex gap-1">
-              <span
-                v-for="cat in post.categories"
-                :key="cat"
-                class="bg-ink-50 text-ink-500 px-1.5 py-0.5 rounded"
-              >{{ cat }}</span>
-            </span>
+      <div class="space-y-4">
+        <article v-for="post in posts" :key="post.slug">
+          <button
+            @click="openPost(post)"
+            class="w-full text-left card p-6 hover:bg-surface-alt/50 transition-colors"
+            :class="activeSlug === post.slug ? 'ring-1 ring-ink-200' : ''"
+          >
+            <div class="flex items-center gap-3 text-xs text-ink-400 mb-2">
+              <time :datetime="post.date">{{ formatDate(post.date) }}</time>
+              <span v-if="post.categories.length" class="flex gap-1">
+                <span
+                  v-for="cat in post.categories"
+                  :key="cat"
+                  class="bg-ink-50 text-ink-500 px-1.5 py-0.5 rounded"
+                >{{ cat }}</span>
+              </span>
+            </div>
+            <div class="flex items-start justify-between gap-3">
+              <h2 class="font-serif text-xl text-ink-800">{{ post.title }}</h2>
+              <svg
+                class="w-5 h-5 text-ink-300 flex-shrink-0 mt-1 transition-transform"
+                :class="activeSlug === post.slug ? 'rotate-180' : ''"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              ><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+            <p v-if="activeSlug !== post.slug && post.excerpt" class="text-ink-500 text-sm mt-2 leading-relaxed">{{ post.excerpt }}</p>
+          </button>
+
+          <div v-if="activeSlug === post.slug" class="card border-t-0 rounded-t-none p-6 pt-2 -mt-1">
+            <div v-if="activeLoading" class="animate-pulse space-y-2">
+              <div class="h-4 bg-ink-100 rounded w-full"></div>
+              <div class="h-4 bg-ink-100 rounded w-5/6"></div>
+              <div class="h-4 bg-ink-100 rounded w-4/6"></div>
+            </div>
+            <div v-else class="prose-news" v-html="activeHtml"></div>
           </div>
-          <h2 class="font-serif text-xl text-ink-800 mb-2">{{ post.title }}</h2>
-          <p v-if="post.excerpt" class="text-ink-500 text-sm leading-relaxed">{{ post.excerpt }}</p>
         </article>
       </div>
     </template>
