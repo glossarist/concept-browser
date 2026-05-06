@@ -69,7 +69,6 @@
     "configs",
     "scripts",
     "src",
-    "public",
     "vite.config.ts",
     "tsconfig.json",
     "tailwind.config.js",
