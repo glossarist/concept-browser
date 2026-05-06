@@ -4,17 +4,22 @@ GCR is a sealed packaging format for Glossarist concept datasets, modeled after 
 
 ## Naming Convention
 
-GCR files are named `{shortname}-{version}.gcr`:
+GCR files are named `{shortname}-{version}[-full].gcr`:
 
 ```
 iev-1.0.0.gcr
+iev-1.0.0-full.gcr
 isotc211-2.3.0.gcr
+isotc211-2.3.0-full.gcr
 isotc204-1.0.0.gcr
+isotc204-1.0.0-full.gcr
 osgeo-1.2.0.gcr
+osgeo-1.2.0-full.gcr
 ```
 
 - **shortname** — machine-readable dataset identifier (lowercase, matches `id` in `datasets.yml`)
 - **version** — semantic version of this dataset release
+- **-full** suffix — indicates package includes `formats/` directory
 
 ## Release Convention
 
@@ -22,12 +27,13 @@ Each glossary repo publishes GCR packages as GitHub Releases, triggered by versi
 
 | Trigger | Tag | Assets |
 |---------|-----|--------|
-| Push tag `v1.0.0` | `v1.0.0` | `isotc204-1.0.0.gcr` + `isotc204.gcr` |
-| Push tag `v1.0.1` | `v1.0.1` | `isotc204-1.0.1.gcr` + `isotc204.gcr` |
+| Push tag `v1.0.0` | `v1.0.0` | 4 files (see below) |
 
-Each release includes **two assets**:
-1. **Versioned**: `{shortname}-{version}.gcr` — for archival and pinned downloads
-2. **Unversioned alias**: `{shortname}.gcr` — enables stable `releases/latest/download/` URL
+Each release includes **four assets**:
+1. **Versioned standard**: `{shortname}-{version}.gcr`
+2. **Unversioned standard alias**: `{shortname}.gcr`
+3. **Versioned full**: `{shortname}-{version}-full.gcr`
+4. **Unversioned full alias**: `{shortname}-full.gcr`
 
 ### How to publish
 
@@ -48,7 +54,18 @@ https://github.com/{org}/{repo}/releases/latest/download/{shortname}.gcr
 https://github.com/{org}/{repo}/releases/download/v1.0.0/{shortname}-1.0.0.gcr
 ```
 
+## Package Variants
+
+| Variant | Suffix | Contents |
+|---------|--------|----------|
+| **Standard** | `{shortname}-{version}.gcr` | `metadata.yaml` + `concepts/` |
+| **Full** | `{shortname}-{version}-full.gcr` | Standard + `compiled/` directory |
+
+The full variant adds pre-built whole-vocabulary format outputs (Turtle, JSON-LD, TBX, JSONL) for interchange and external consumers.
+
 ## ZIP Structure
+
+### Standard Package
 
 ```
 {shortname}-{version}.gcr (ZIP archive)
@@ -62,7 +79,23 @@ https://github.com/{org}/{repo}/releases/download/v1.0.0/{shortname}-1.0.0.gcr
     └── ...                    # Future: JSON or Marshal serialized concepts
 ```
 
-Every GCR package MUST contain `metadata.yaml` and `concepts/`.
+### Full Package
+
+```
+{shortname}-{version}-full.gcr (ZIP archive)
+├── metadata.yaml              # Dataset metadata (includes formats: [...] field)
+├── register.yaml              # Original register metadata from source repo
+├── concepts/                  # Harmonized concept YAML files (canonical format)
+│   ├── 102-01-01.yaml
+│   └── ...
+└── compiled/                  # Whole-vocabulary format outputs
+    ├── {shortname}.ttl        # SKOS Turtle (whole vocabulary)
+    ├── {shortname}.jsonld     # SKOS JSON-LD (whole vocabulary)
+    ├── {shortname}.tbx.xml    # TBX-XML (whole vocabulary)
+    └── {shortname}.jsonl      # JSONL (one concept per line)
+```
+
+Every GCR package MUST contain `metadata.yaml` and `concepts/`. Full packages MUST also contain `compiled/` with at least one format file.
 
 ## metadata.yaml Schema
 
@@ -101,6 +134,8 @@ tags: [electrotechnical, iec, multilingual]   # optional
 appearance:                                   # optional
   color: "#3366ff"
 
+formats: [turtle, jsonld, tbx, jsonl]         # optional — only in full packages; lists available compiled formats
+
 schema_version: "1.0.0"                       # required — GCR format version
 ```
 
@@ -132,6 +167,7 @@ schema_version: "1.0.0"                       # required — GCR format version
 | `license` | string | License identifier |
 | `tags` | string[] | Descriptive tags |
 | `appearance.color` | string | Primary brand color (hex) |
+| `formats` | string[] | Available compiled formats in full packages (e.g., `[turtle, jsonld, tbx, jsonl]`) |
 
 ## Validation Rules
 
@@ -175,7 +211,7 @@ glossarist validate isotc204-1.0.0.gcr
 
 ### CI Workflow (in glossary repos)
 
-Triggered by version tag push (`v*`). Builds GCR and publishes as GitHub Release with both versioned and unversioned assets.
+Triggered by version tag push (`v*`). Builds both standard and full GCR packages, publishes as GitHub Release.
 
 ```yaml
 on:
@@ -206,16 +242,24 @@ jobs:
             VERSION="${{ inputs.version }}"
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "filename=${SHORTNAME}-${VERSION}.gcr" >> "$GITHUB_OUTPUT"
 
-      - name: Build GCR package
+      - name: Build standard GCR package
         run: |
-          glossarist package . -o "${{ steps.version.outputs.filename }}" \
+          glossarist package . -o "${SHORTNAME}-${{ steps.version.outputs.version }}.gcr" \
             --shortname ${SHORTNAME} --version "${{ steps.version.outputs.version }}" \
             --title "${TITLE}" --owner "${OWNER}"
 
-      - name: Create unversioned alias
-        run: cp "${{ steps.version.outputs.filename }}" ${SHORTNAME}.gcr
+      - name: Build full GCR package (with formats)
+        run: |
+          glossarist package . -o "${SHORTNAME}-${{ steps.version.outputs.version }}-full.gcr" \
+            --shortname ${SHORTNAME} --version "${{ steps.version.outputs.version }}" \
+            --title "${TITLE}" --owner "${OWNER}" \
+            --compiled-formats tbx,jsonld,turtle,jsonl
+
+      - name: Create unversioned aliases
+        run: |
+          cp "${SHORTNAME}-${{ steps.version.outputs.version }}.gcr" "${SHORTNAME}.gcr"
+          cp "${SHORTNAME}-${{ steps.version.outputs.version }}-full.gcr" "${SHORTNAME}-full.gcr"
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -223,8 +267,10 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           name: "GCR Package v${{ steps.version.outputs.version }}"
           files: |
-            ${{ steps.version.outputs.filename }}
+            ${SHORTNAME}-${{ steps.version.outputs.version }}.gcr
             ${SHORTNAME}.gcr
+            ${SHORTNAME}-${{ steps.version.outputs.version }}-full.gcr
+            ${SHORTNAME}-full.gcr
 ```
 
 ## Relationship to LXR
