@@ -1,9 +1,14 @@
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: 'class',
   content: [
-    "./index.html",
-    "./src/**/*.{vue,js,ts,jsx,tsx}",
+    resolve(__dirname, "index.html"),
+    resolve(__dirname, "src/**/*.{vue,js,ts,jsx,tsx}"),
   ],
   theme: {
     extend: {
