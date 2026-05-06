@@ -158,9 +158,6 @@ function goToPage(p: number) {
         <router-link :to="{ name: 'about', params: { registerId } }" class="badge badge-purple hover:opacity-80 transition-opacity">
           About
         </router-link>
-        <a v-if="manifest.existingSiteUrl" :href="manifest.existingSiteUrl" target="_blank" class="badge badge-yellow hover:opacity-80 transition-opacity">
-          View on {{ manifest.existingSiteUrl.replace(/^https?:\/\//, '').split('/')[0] }}
-        </a>
       </div>
     </div>
 

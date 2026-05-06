@@ -1,22 +1,34 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useRouter } from 'vue-router';
 import { useDsStyle } from '../utils/dataset-style';
+import { useSiteConfig } from '../config/use-site-config';
 
 const store = useVocabularyStore();
 const router = useRouter();
 const { getStyle } = useDsStyle();
+const { config: siteConfig, loadConfig } = useSiteConfig();
 const exploring = ref(false);
+
+onMounted(async () => {
+  await loadConfig();
+  if (siteConfig.value?.defaultDataset) {
+    const targetId = siteConfig.value.defaultDataset;
+    if (!store.initialized) await store.discoverDatasets();
+    if (store.datasets.has(targetId)) {
+      router.replace({ name: 'dataset', params: { registerId: targetId } });
+    }
+  }
+});
 
 async function exploreRandom() {
   exploring.value = true;
   try {
-    // Ensure at least one dataset is loaded
     if (!store.initialized) await store.discoverDatasets();
     const loaded = [...store.datasets.values()].filter(a => a.index);
     if (!loaded.length) {
-      const first = store.datasetList[0];
+      const first = filteredDatasets.value[0];
       if (first) await store.loadDataset(first.id);
     }
     const result = await store.getRandomConcept();
@@ -29,14 +41,20 @@ async function exploreRandom() {
   }
 }
 
+const filteredDatasets = computed(() => {
+  if (!siteConfig.value) return store.datasetList;
+  const allowed = new Set(siteConfig.value.datasets);
+  return store.datasetList.filter(ds => allowed.has(ds.id));
+});
+
 const totalConcepts = computed(() =>
-  [...store.manifests.values()].reduce((sum, m) => sum + m.conceptCount, 0)
+  filteredDatasets.value.reduce((sum, ds) => sum + ds.manifest.conceptCount, 0)
 );
 
 const totalLanguages = computed(() => {
   const langs = new Set<string>();
-  for (const m of store.manifests.values()) {
-    for (const l of m.languages) langs.add(l);
+  for (const ds of filteredDatasets.value) {
+    for (const l of ds.manifest.languages) langs.add(l);
   }
   return langs.size;
 });
@@ -58,7 +76,8 @@ function goToGraph() { router.push({ name: 'graph' }); }
         <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-300 hidden sm:inline">Vocabulary Browser</span>
       </div>
       <h1 class="font-serif text-[2rem] sm:text-[2.75rem] text-ink-800 leading-[1.1] mb-4 tracking-tight">
-        Terminology<br class="hidden sm:block" /> Register
+        {{ siteConfig?.title || 'Glossarist' }}<br class="hidden sm:block" /> <span v-if="siteConfig?.subtitle">{{ siteConfig.subtitle }}</span>
+        <template v-if="!siteConfig?.subtitle">Terminology<br class="hidden sm:block" /> Register</template>
       </h1>
       <p class="text-base text-ink-400 max-w-lg leading-relaxed">
         Explore standardized terminology datasets from ISO and IEC technical committees.
@@ -76,15 +95,15 @@ function goToGraph() { router.push({ name: 'graph' }); }
         <button @click="exploreRandom" :disabled="exploring" class="btn-secondary flex items-center gap-2">
           <svg v-if="!exploring" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-          {{ exploring ? 'Exploring\u2026' : 'Surprise Me' }}
+          {{ exploring ? 'Exploring…' : 'Surprise Me' }}
         </button>
       </div>
     </div>
 
-    <!-- Stats — editorial column layout -->
+    <!-- Stats -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-px bg-ink-100/60 rounded-xl overflow-hidden mb-10 sm:mb-14">
       <div class="bg-surface-raised px-4 sm:px-6 py-5 animate-entrance" style="animation-delay: 80ms">
-        <div class="text-3xl font-serif text-ink-800 tabular-nums">{{ store.datasetList.length }}</div>
+        <div class="text-3xl font-serif text-ink-800 tabular-nums">{{ filteredDatasets.length }}</div>
         <div class="text-sm text-ink-400 mt-1">Datasets</div>
       </div>
       <div class="bg-surface-raised px-6 py-5 animate-entrance" style="animation-delay: 140ms">
@@ -104,13 +123,12 @@ function goToGraph() { router.push({ name: 'graph' }); }
     </div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <button
-        v-for="(ds, idx) in store.datasetList"
+        v-for="(ds, idx) in filteredDatasets"
         :key="ds.id"
         @click="goToDataset(ds.id)"
         class="card-hover p-6 text-left group animate-entrance"
         :style="{ borderLeft: `3px solid ${getStyle(ds.id).color}`, animationDelay: `${idx * 60}ms` }"
       >
-        <!-- Header -->
         <div class="flex items-start gap-3 mb-4">
           <span class="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" :style="{ backgroundColor: getStyle(ds.id).color }"></span>
           <div class="min-w-0">
@@ -120,12 +138,10 @@ function goToGraph() { router.push({ name: 'graph' }); }
           </div>
         </div>
 
-        <!-- Description -->
         <p class="text-sm text-ink-400 mb-5 line-clamp-2 leading-relaxed pl-[22px]">
           {{ ds.manifest.description }}
         </p>
 
-        <!-- Stats row -->
         <div class="flex items-center gap-3 pl-[22px] mb-3">
           <span :style="{ color: getStyle(ds.id).color }" class="text-sm font-semibold tabular-nums">{{ ds.manifest.conceptCount.toLocaleString() }}</span>
           <span class="text-xs text-ink-300">concepts</span>
@@ -134,14 +150,12 @@ function goToGraph() { router.push({ name: 'graph' }); }
           <span class="text-xs text-ink-300">languages</span>
         </div>
 
-        <!-- Tags -->
         <div class="flex flex-wrap gap-1.5 pl-[22px] mb-3">
           <span v-for="tag in ds.manifest.tags.slice(0, 3)" :key="tag" class="badge text-[10px]" :style="{ backgroundColor: getStyle(ds.id).light, color: getStyle(ds.id).dark }">
             {{ tag }}
           </span>
         </div>
 
-        <!-- Owner + arrow -->
         <div class="flex items-center justify-between pl-[22px]">
           <span class="text-[11px] text-ink-300">{{ ds.manifest.owner }}</span>
           <svg class="w-4 h-4 text-ink-200 group-hover:text-ink-400 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -2,11 +2,13 @@
 import { useRouter } from 'vue-router';
 import { useUiStore } from '../stores/ui';
 import { useVocabularyStore } from '../stores/vocabulary';
+import { useSiteConfig } from '../config/use-site-config';
 import { ref } from 'vue';
 
 const router = useRouter();
 const ui = useUiStore();
 const store = useVocabularyStore();
+const { config: siteConfig } = useSiteConfig();
 const searchInput = ref('');
 
 function doSearch() {
@@ -38,7 +40,14 @@ function goHome() {
 
       <!-- Logo -->
       <button @click="goHome" class="flex items-center gap-2 hover:opacity-80 transition flex-shrink-0 group">
-        <div class="w-8 h-8 bg-ink-800 rounded-lg flex items-center justify-center group-hover:bg-ink-700 transition-colors">
+        <div v-if="siteConfig?.branding?.logo" class="h-8 flex items-center">
+          <img
+            :src="siteConfig.branding.logo.path"
+            :alt="siteConfig.branding.logo.alt"
+            class="h-8 max-w-[160px] object-contain"
+          />
+        </div>
+        <div v-else class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style="background-color: var(--brand-dark)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
@@ -46,7 +55,7 @@ function goHome() {
             <line x1="9" y1="11" x2="15" y2="11"/>
           </svg>
         </div>
-        <span class="font-serif text-lg text-ink-800 leading-none hidden sm:inline">Glossarist</span>
+        <span v-if="!siteConfig?.branding?.logo" class="font-serif text-lg text-ink-800 leading-none hidden sm:inline">{{ siteConfig?.title || 'Glossarist' }}</span>
       </button>
 
       <!-- Search -->

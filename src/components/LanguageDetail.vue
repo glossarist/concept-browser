@@ -6,6 +6,7 @@ import { renderMath } from '../utils/math';
 import type { XrefResolver } from '../utils/math';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
+import { getFactory } from '../adapters/factory';
 
 const props = defineProps<{
   localizedConcepts: Record<string, LocalizedConcept>;
@@ -79,19 +80,23 @@ function escapeAttr(s: string) {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-const xrefResolver: XrefResolver = (registerId, conceptId, term) => {
-  return `<a href="#" class="xref-link" data-register="${escapeAttr(registerId)}" data-concept="${escapeAttr(conceptId)}">${escapeAttr(term)}</a>`;
+const factory = getFactory();
+
+const xrefResolver: XrefResolver = (uri, term) => {
+  return `<a href="#" class="xref-link" data-uri="${escapeAttr(uri)}">${escapeAttr(term)}</a>`;
 };
 
 function handleContentClick(e: MouseEvent) {
   const target = (e.target as HTMLElement).closest('.xref-link') as HTMLElement | null;
   if (!target) return;
   e.preventDefault();
-  const registerId = target.dataset.register;
-  const conceptId = target.dataset.concept;
-  if (registerId && conceptId) {
-    store.viewConcept(registerId, conceptId);
-    router.push({ name: 'concept', params: { registerId, conceptId } });
+  const uri = target.dataset.uri;
+  if (uri) {
+    const resolution = factory.resolve(uri);
+    if (resolution.type === 'internal') {
+      store.viewConcept(resolution.registerId, resolution.conceptId);
+      router.push({ name: 'concept', params: { registerId: resolution.registerId, conceptId: resolution.conceptId } });
+    }
   }
 }
 </script>

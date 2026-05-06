@@ -8,6 +8,7 @@ import type { XrefResolver } from '../utils/math';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
+import { getFactory } from '../adapters/factory';
 import ConceptTimeline from './ConceptTimeline.vue';
 
 const props = defineProps<{
@@ -21,6 +22,7 @@ const props = defineProps<{
 const router = useRouter();
 const store = useVocabularyStore();
 const { getColor } = useDsStyle();
+const factory = getFactory();
 
 const activeTab = ref<'definition' | 'history'>('definition');
 const activeHistoryLang = ref('eng');
@@ -42,12 +44,6 @@ function copyUri() {
     setTimeout(() => { uriCopied.value = false; }, 2000);
   });
 }
-
-const externalConceptUrl = computed(() => {
-  const template = props.manifest.externalConceptUrlTemplate;
-  if (!template) return null;
-  return template.replace('{conceptId}', conceptId.value);
-});
 
 const languages = computed(() => {
   const order = props.manifest.languageOrder;
@@ -84,8 +80,18 @@ function escapeAttr(s: string) {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-const xrefResolver: XrefResolver = (registerId, conceptId, term) => {
-  return `<a href="#" class="xref-link" data-register="${escapeAttr(registerId)}" data-concept="${escapeAttr(conceptId)}">${escapeAttr(term)}</a>`;
+const xrefResolver: XrefResolver = (uri, term) => {
+  const resolution = factory.resolve(uri, props.registerId);
+  if (resolution.type === 'internal') {
+    return `<a href="#" class="xref-link" data-register="${escapeAttr(resolution.registerId)}" data-concept="${escapeAttr(resolution.conceptId)}">${escapeAttr(term)}</a>`;
+  }
+  if (resolution.type === 'site') {
+    return `<a href="${escapeAttr(resolution.baseUrl)}/resolve/${escapeAttr(encodeURIComponent(uri))}" target="_blank" rel="noopener" class="xref-link xref-external">${escapeAttr(term)}</a>`;
+  }
+  if (resolution.type === 'url') {
+    return `<a href="${escapeAttr(resolution.url)}" target="_blank" rel="noopener" class="xref-link xref-external">${escapeAttr(term)}</a>`;
+  }
+  return escapeAttr(term);
 };
 
 // Handle clicks on cross-reference links via event delegation
@@ -178,16 +184,15 @@ const incomingEdges = computed(() => props.edges.filter(e => e.target === props.
 
 async function navigateEdge(edge: GraphEdge) {
   const uri = edge.source === props.concept['@id'] ? edge.target : edge.source;
-  const match = uri.match(/\/concept\/([^/]+)$/);
-  const regMatch = uri.match(/glossarist\.org\/([^/]+)\/concept\//);
-  if (match && regMatch) {
-    const registerId = regMatch[1];
-    const conceptId = match[1];
-    await store.viewConcept(registerId, conceptId);
-    router.push({
-      name: 'concept',
-      params: { registerId, conceptId },
-    });
+  const resolution = factory.resolve(uri);
+
+  if (resolution.type === 'internal') {
+    await store.viewConcept(resolution.registerId, resolution.conceptId);
+    router.push({ name: 'concept', params: { registerId: resolution.registerId, conceptId: resolution.conceptId } });
+  } else if (resolution.type === 'site') {
+    window.open(`${resolution.baseUrl}/resolve/${encodeURIComponent(uri)}`, '_blank', 'noopener');
+  } else if (resolution.type === 'url') {
+    window.open(resolution.url, '_blank', 'noopener');
   }
 }
 
@@ -494,15 +499,6 @@ function plainTruncate(html: string, max: number = 120): string {
                     <svg v-if="!uriCopied" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10a2 2 0 01-2-2v-1m6 4v-3a2 2 0 00-2-2H8"/></svg>
                     <svg v-else class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                   </button>
-                </dd>
-              </div>
-              <div v-if="externalConceptUrl">
-                <dt class="text-ink-300">Official Source</dt>
-                <dd class="mt-0.5">
-                  <a :href="externalConceptUrl" target="_blank" rel="noopener" class="concept-link text-[11px]">
-                    View on {{ manifest.owner }} site
-                    <svg class="w-3 h-3 inline-block ml-0.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                  </a>
                 </dd>
               </div>
             </dl>

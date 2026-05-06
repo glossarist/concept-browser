@@ -96,14 +96,6 @@ const manifest = computed(() => store.manifests.get(props.registerId));
               </a>
             </dd>
           </div>
-          <div v-if="manifest.existingSiteUrl" class="flex items-start gap-4">
-            <dt class="text-ink-400 text-sm w-32 flex-shrink-0 pt-0.5">Website</dt>
-            <dd>
-              <a :href="manifest.existingSiteUrl" target="_blank" class="concept-link text-sm">
-                {{ manifest.existingSiteUrl.replace(/^https?:\/\//, '') }}
-              </a>
-            </dd>
-          </div>
         </dl>
       </div>
 

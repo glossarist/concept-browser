@@ -89,14 +89,12 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
 
   function seedGraphNodes(registerId: string, adapter: DatasetAdapter, sync = false) {
     const entries = adapter.getConcepts();
-    const uriBase = adapter.manifest?.uriBase ?? 'https://glossarist.org';
 
     if (sync) {
       for (const entry of entries) {
         if (!entry) continue;
-        const uri = `${uriBase}/${registerId}/concept/${entry.id}`;
         graph.value.addNode({
-          uri,
+          uri: factory.router.buildUri(registerId, entry.id),
           register: registerId,
           conceptId: entry.id,
           designations: entry.eng ? { eng: entry.eng } : {},
@@ -119,9 +117,8 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
       for (let i = offset; i < end; i++) {
         const entry = entries[i];
         if (!entry) continue;
-        const uri = `${uriBase}/${registerId}/concept/${entry.id}`;
         graph.value.addNode({
-          uri,
+          uri: factory.router.buildUri(registerId, entry.id),
           register: registerId,
           conceptId: entry.id,
           designations: entry.eng ? { eng: entry.eng } : {},
@@ -245,18 +242,19 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
   }
 
   async function navigateToUri(uri: string) {
-    const resolved = factory.resolveUri(uri);
-    if (!resolved) {
+    const resolution = factory.resolve(uri);
+
+    if (resolution.type !== 'internal') {
       error.value = `Cannot resolve URI: ${uri}`;
       return;
     }
 
-    if (!datasets.value.has(resolved.adapter.registerId)) {
-      await loadDataset(resolved.adapter.registerId);
+    if (!datasets.value.has(resolution.registerId)) {
+      await loadDataset(resolution.registerId);
     }
 
     try {
-      await viewConcept(resolved.adapter.registerId, resolved.conceptId);
+      await viewConcept(resolution.registerId, resolution.conceptId);
     } catch {
       // viewConcept already sets error.value
     }

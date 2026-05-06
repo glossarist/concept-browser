@@ -2,17 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --brand-primary: #2563eb;
+  --brand-primary-rgb: 37, 99, 235;
+  --brand-dark: #1e293b;
+  --font-header: 'DM Serif Display', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+}
+
 @layer base {
   body {
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: var(--font-body);
     @apply antialiased bg-surface text-ink-800;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3 {
-    font-family: 'DM Serif Display', Georgia, serif;
-    font-weight: normal;
+  h1, h2, h3, .font-serif {
+    font-family: var(--font-header);
   }
 
   code, pre, .font-mono {
@@ -42,11 +49,12 @@
 
   /* Buttons */
   .btn-primary {
-    @apply bg-ink-800 text-white px-5 py-2 rounded-lg font-medium text-sm transition-all duration-150;
+    @apply text-white px-5 py-2 rounded-lg font-medium text-sm transition-all duration-150;
+    background-color: var(--brand-dark);
     box-shadow: 0 1px 2px rgba(26, 27, 46, 0.12);
   }
   .btn-primary:hover {
-    @apply bg-ink-700;
+    background-color: var(--brand-primary);
     box-shadow: 0 2px 4px rgba(26, 27, 46, 0.16);
   }
   .btn-primary:disabled {
@@ -91,13 +99,25 @@
     @apply badge bg-purple-50 text-purple-700;
   }
 
+  /* Brand badge — uses primary color from CSS var */
+  .badge-brand {
+    @apply badge;
+    background-color: rgba(var(--brand-primary-rgb), 0.1);
+    color: var(--brand-primary);
+  }
+
   /* Links */
   .concept-link {
-    @apply text-blue-600 hover:text-blue-800 underline-offset-2 hover:underline cursor-pointer transition-colors;
+    color: var(--brand-primary);
+    @apply underline-offset-2 hover:underline cursor-pointer transition-colors;
+  }
+  .concept-link:hover {
+    filter: brightness(0.8);
   }
 
   .xref-link {
-    @apply text-blue-600 hover:text-blue-800 underline-offset-2 hover:underline cursor-pointer transition-colors;
+    color: var(--brand-primary);
+    @apply underline-offset-2 hover:underline cursor-pointer transition-colors;
     font-weight: 500;
   }
 
@@ -120,7 +140,7 @@
   /* Section labels */
   .section-label {
     @apply text-[11px] font-semibold uppercase tracking-widest text-ink-400 mb-2;
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: var(--font-body);
   }
 
   /* Math */
