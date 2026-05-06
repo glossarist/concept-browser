@@ -10,7 +10,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, '..');
+const ROOT = process.cwd();
 const DATA_DIR = join(ROOT, 'public', 'data');
 
 function extractEdgesFromConcept(concept, registerId) {

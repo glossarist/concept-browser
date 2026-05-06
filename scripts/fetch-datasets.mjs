@@ -19,7 +19,7 @@ import yaml from 'js-yaml';
 import { execSync } from 'child_process';
 import { loadSiteConfig } from './load-site-config.mjs';
 
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const ROOT = process.cwd();
 const DATASETS_DIR = path.join(ROOT, '.datasets');
 const GCR_DIR = path.join(ROOT, '.gcr');
 

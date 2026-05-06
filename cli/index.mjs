@@ -7,10 +7,11 @@
  *   fetch      Fetch/update datasets (from GCR packages or source repos)
  *   generate   Convert harmonized YAML concepts to JSON-LD static files
  *   edges      Build cross-reference edges from generated concept data
- *   build      Full pipeline: fetch + generate + edges
+ *   build      Full pipeline: fetch + generate + edges + vite build
+ *   site       Same as build (alias)
  *
  * Options:
- *   --site <id>  Site config to use (looks up configs/<id>.yml)
+ *   --site <id>  Site config to use (looks for site-config.yml in CWD)
  *
  * Environment:
  *   SITE_CONFIG          Path to site config file (overrides --site)
@@ -20,6 +21,12 @@
  */
 
 import { loadSiteConfig } from '../scripts/load-site-config.mjs';
+import { execSync } from 'child_process';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkgRoot = resolve(__dirname, '..');
 
 const commands = {
   fetch: () => import('../scripts/fetch-datasets.mjs'),
@@ -53,10 +60,11 @@ Commands:
   fetch      Fetch/update datasets from GCR packages or source repos
   generate   Convert YAML concepts to JSON-LD static data
   edges      Build cross-reference edges from generated concepts
-  build      Full pipeline (fetch + generate + edges)
+  build      Full pipeline (fetch + generate + edges + vite build)
+  site       Same as build
 
 Options:
-  --site <id>  Site config ID (uses configs/<id>.yml)
+  --site <id>  Site config ID (looks for site-config.yml in CWD)
 
 Environment:
   SITE_CONFIG          Site config file path (highest priority)
@@ -72,11 +80,26 @@ Environment:
   }
   loadSiteConfig(named.site ? [named.site] : []);
 
-  if (cmd === 'build') {
+  if (cmd === 'build' || cmd === 'site') {
     for (const step of ['fetch', 'generate', 'edges']) {
       console.log(`\n=== ${step.toUpperCase()} ===\n`);
       await commands[step]();
     }
+
+    // Run vite build using the package's vite.config.ts
+    console.log(`\n=== BUILD SPA ===\n`);
+    const viteConfig = resolve(pkgRoot, 'vite.config.ts');
+    execSync(`npx vite build --config ${viteConfig}`, {
+      stdio: 'inherit',
+      env: { ...process.env },
+    });
+
+    // Run postbuild (404 page)
+    try {
+      const postbuild = resolve(pkgRoot, 'scripts', 'generate-404.js');
+      execSync(`node ${postbuild}`, { stdio: 'inherit' });
+    } catch {}
+
     return;
   }
 

@@ -5,7 +5,7 @@ import { naturalSort } from 'glossarist';
 import { loadSiteConfig } from './load-site-config.mjs';
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
 const DATA = path.join(PUBLIC, 'data');
 
@@ -358,26 +358,41 @@ writeJson(path.join(PUBLIC, 'datasets.json'), registry);
 writeJson(path.join(PUBLIC, 'routing.json'), config.routing || []);
 console.log('Generated routing.json');
 
-// Download logos
-async function downloadLogo(logoConfig, filename) {
-  if (!logoConfig?.remoteUrl) return;
+// Copy/download logos
+async function processLogo(logoConfig, filename) {
+  if (!logoConfig) return;
   const destDir = path.join(PUBLIC, 'logos');
   fs.mkdirSync(destDir, { recursive: true });
   const destPath = path.join(destDir, filename);
-  try {
-    console.log(`  Downloading logo: ${logoConfig.remoteUrl}`);
-    const resp = await fetch(logoConfig.remoteUrl);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const buf = Buffer.from(await resp.arrayBuffer());
-    fs.writeFileSync(destPath, buf);
-    console.log(`  Saved logo: ${destPath}`);
-  } catch (e) {
-    console.warn(`  Logo download failed: ${e.message}`);
+
+  // Local file in deployment repo
+  if (logoConfig.localPath) {
+    const src = path.resolve(process.cwd(), logoConfig.localPath);
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, destPath);
+      console.log(`  Copied logo: ${src} → ${destPath}`);
+      return;
+    }
+    console.warn(`  Logo not found at: ${src}`);
+  }
+
+  // Remote URL
+  if (logoConfig.remoteUrl) {
+    try {
+      console.log(`  Downloading logo: ${logoConfig.remoteUrl}`);
+      const resp = await fetch(logoConfig.remoteUrl);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const buf = Buffer.from(await resp.arrayBuffer());
+      fs.writeFileSync(destPath, buf);
+      console.log(`  Saved logo: ${destPath}`);
+    } catch (e) {
+      console.warn(`  Logo download failed: ${e.message}`);
+    }
   }
 }
 
-await downloadLogo(config.branding?.logo, `${config.id}-logo.svg`);
-await downloadLogo(config.branding?.footerLogo, `${config.id}-footer-logo.svg`);
+await processLogo(config.branding?.logo, `${config.id}-logo.svg`);
+await processLogo(config.branding?.footerLogo, `${config.id}-footer-logo.svg`);
 
 // Generate site-config.json from site config
 const siteBranding = { ...config.branding };
@@ -409,6 +424,54 @@ writeJson(path.join(PUBLIC, 'site-config.json'), {
   email: config.email,
 });
 console.log('Generated site-config.json');
+
+// Process news posts
+if (config.newsDir) {
+  const newsDir = path.resolve(process.cwd(), config.newsDir);
+  if (fs.existsSync(newsDir)) {
+    const posts = [];
+    const postFiles = fs.readdirSync(newsDir).filter(f => f.endsWith('.adoc') || f.endsWith('.md')).sort().reverse();
+    for (const file of postFiles) {
+      const content = fs.readFileSync(path.join(newsDir, file), 'utf8');
+      const frontmatter = {};
+      const body = [];
+
+      // Parse AsciiDoc frontmatter (--- delimited)
+      let inFm = false;
+      let fmLines = [];
+      const lines = content.split('\n');
+      if (lines[0] === '---') {
+        inFm = true;
+        for (let i = 1; i < lines.length; i++) {
+          if (lines[i] === '---') { inFm = false; continue; }
+          if (inFm) {
+            const m = lines[i].match(/^(\w[\w\s]*):\s*(.*)/);
+            if (m) frontmatter[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, '');
+          } else {
+            body.push(lines[i]);
+          }
+        }
+      } else {
+        body.push(...lines);
+      }
+
+      // Extract slug from filename: 2018-11-23-welcome-to-geolexica.adoc → welcome-to-geolexica
+      const slug = file.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.(adoc|md)$/, '');
+
+      posts.push({
+        slug,
+        title: frontmatter.title || slug,
+        date: frontmatter.date || '',
+        categories: frontmatter.categories ? frontmatter.categories.split(',').map(s => s.trim()) : [],
+        excerpt: body.join('\n').trim().split('\n')[0].slice(0, 200),
+      });
+    }
+    writeJson(path.join(PUBLIC, 'news.json'), posts);
+    console.log(`Generated news.json: ${posts.length} posts`);
+  } else {
+    console.warn(`News directory not found: ${newsDir}`);
+  }
+}
 
 const total = Object.values(counts).reduce((s, n) => s + n, 0);
 console.log(`\nDone! Generated data for ${total} concepts across ${registry.length} datasets.`);

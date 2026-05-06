@@ -3,7 +3,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const dist = join(__dirname, '..', 'dist');
+const dist = join(process.cwd(), 'dist');
 const indexHtml = join(dist, 'index.html');
 const notFoundHtml = join(dist, '404.html');
 
