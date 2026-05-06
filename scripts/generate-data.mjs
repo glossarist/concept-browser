@@ -178,6 +178,49 @@ function getGroups(conceptYaml) {
   return [];
 }
 
+function escapeTurtle(s) {
+  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+}
+
+function conceptJsonToTurtle(concept) {
+  const uri = concept['@id'] || '';
+  const id = concept['gl:identifier'] || '';
+  const lines = [
+    '@prefix skos: <http://www.w3.org/2004/02/skos/core#> .',
+    '@prefix dcterms: <http://purl.org/dc/terms/> .',
+    '',
+  ];
+
+  const props = ['  a skos:Concept'];
+  props.push(`  skos:notation "${escapeTurtle(id)}"`);
+
+  for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
+    if (lc['gl:designation']) {
+      for (const d of lc['gl:designation']) {
+        const term = d['gl:term'];
+        if (!term) continue;
+        const pred = d['gl:normativeStatus'] === 'preferred' ? 'skos:prefLabel' : 'skos:altLabel';
+        props.push(`  ${pred} "${escapeTurtle(term)}"@${lang}`);
+      }
+    }
+    if (lc['gl:definition']) {
+      for (const d of lc['gl:definition']) {
+        if (d['gl:content']) props.push(`  skos:definition "${escapeTurtle(d['gl:content'])}"@${lang}`);
+      }
+    }
+    if (lc['gl:notes']) {
+      for (const d of lc['gl:notes']) {
+        if (d['gl:content']) props.push(`  skos:scopeNote "${escapeTurtle(d['gl:content'])}"@${lang}`);
+      }
+    }
+  }
+
+  lines.push(`<${uri}>`);
+  lines.push(props.join(' ;\n'));
+  lines.push(' .');
+  return lines.join('\n');
+}
+
 function processDataset(dir, register, opts) {
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.yaml')).sort((a, b) => naturalSort(a.replace('.yaml', ''), b.replace('.yaml', '')));
 
@@ -187,6 +230,7 @@ function processDataset(dir, register, opts) {
   const concepts = [];
   const langTermCounts = {};
   const langDefCounts = {};
+  const availableFormats = ['ttl', 'yaml'];
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -197,6 +241,13 @@ function processDataset(dir, register, opts) {
       const termid = String(conceptYaml.termid);
       const jsonld = yamlToJsonLd(conceptYaml, register);
       writeJson(path.join(conceptsDir, `${termid}.json`), jsonld);
+
+      // Generate Turtle format
+      const ttlContent = conceptJsonToTurtle(jsonld);
+      fs.writeFileSync(path.join(conceptsDir, `${termid}.ttl`), ttlContent);
+
+      // Copy source YAML
+      fs.copyFileSync(path.join(dir, file), path.join(conceptsDir, `${termid}.yaml`));
 
       concepts.push({
         id: termid,
@@ -304,6 +355,7 @@ function processDataset(dir, register, opts) {
     chunkSize: CHUNK_SIZE,
     color: opts.color,
     languageStats: langStats,
+    availableFormats,
   };
   if (opts.languageOrder) manifest.languageOrder = opts.languageOrder;
   writeJson(path.join(DATA, register, 'manifest.json'), manifest);
@@ -394,6 +446,127 @@ async function processLogo(logoConfig, filename) {
 await processLogo(config.branding?.logo, `${config.id}-logo.svg`);
 await processLogo(config.branding?.footerLogo, `${config.id}-footer-logo.svg`);
 
+// === Page processors ===
+
+function processNewsPage(config, page) {
+  const newsDir = page.source
+    ? path.resolve(process.cwd(), page.source)
+    : config.newsDir
+      ? path.resolve(process.cwd(), config.newsDir)
+      : null;
+
+  if (!newsDir || !fs.existsSync(newsDir)) {
+    if (newsDir) console.warn(`News directory not found: ${newsDir}`);
+    return;
+  }
+
+  const index = [];
+  const newsOutDir = path.join(PUBLIC, 'news');
+  fs.mkdirSync(newsOutDir, { recursive: true });
+  const postFiles = fs.readdirSync(newsDir).filter(f => f.endsWith('.adoc') || f.endsWith('.md')).sort().reverse();
+
+  for (const file of postFiles) {
+    const content = fs.readFileSync(path.join(newsDir, file), 'utf8');
+    const frontmatter = {};
+    const bodyLines = [];
+
+    let inFm = false;
+    const lines = content.split('\n');
+    if (lines[0] === '---') {
+      inFm = true;
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i] === '---') { inFm = false; continue; }
+        if (inFm) {
+          const m = lines[i].match(/^(\w[\w\s]*):\s*(.*)/);
+          if (m) frontmatter[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, '');
+        } else {
+          bodyLines.push(lines[i]);
+        }
+      }
+    } else {
+      bodyLines.push(...lines);
+    }
+
+    const slug = file.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.(adoc|md)$/, '');
+    const body = bodyLines.join('\n').trim();
+
+    const ext = path.extname(file);
+    const destFile = path.join(newsOutDir, `${slug}${ext}`);
+    fs.copyFileSync(path.join(newsDir, file), destFile);
+
+    index.push({
+      slug,
+      title: frontmatter.title || slug,
+      date: frontmatter.date || '',
+      categories: frontmatter.categories ? frontmatter.categories.split(',').map(s => s.trim()) : [],
+      file: `/news/${slug}${ext}`,
+      excerpt: body.split('\n').find(l => l.trim())?.slice(0, 200) || '',
+    });
+  }
+
+  writeJson(path.join(PUBLIC, 'news.json'), index);
+  console.log(`Generated news index: ${index.length} posts, ${postFiles.length} files copied to public/news/`);
+}
+
+function processContributorsPage(config, page) {
+  const contributors = { register: config.id, contributors: [] };
+
+  for (const ds of config.datasets) {
+    const infoYamlPath = path.join(ROOT, '.datasets', ds.id, 'info.yaml');
+    if (!fs.existsSync(infoYamlPath)) continue;
+
+    try {
+      const info = readYaml(infoYamlPath);
+      if (info.header) {
+        contributors.owner = info.header['register-owner'];
+        contributors.manager = info.header['register-manager'];
+      }
+      if (info.languages) {
+        for (const [lang, data] of Object.entries(info.languages)) {
+          contributors.contributors.push({
+            language: lang,
+            registerName: data['register-name'] || '',
+            organization: data['submitting-organisation-name'] || '',
+            contact: data['submitting-organisation-contact'] || '',
+            email: data['submitting-organisation-contact-email'] || '',
+            uri: data['uniform-resource-identifier-uri'] || '',
+            country: data['operating-language-country'] || '',
+          });
+        }
+      }
+    } catch (e) {
+      console.warn(`  Skipping contributors for ${ds.id}: ${e.message}`);
+    }
+  }
+
+  if (contributors.contributors.length > 0 || contributors.owner) {
+    writeJson(path.join(PUBLIC, 'contributors.json'), contributors);
+    console.log(`Generated contributors: ${contributors.contributors.length} languages`);
+  }
+}
+
+const pageProcessors = {
+  news: processNewsPage,
+  contributors: processContributorsPage,
+};
+
+function synthesizePages(config) {
+  const pages = [];
+  if (config.newsDir) pages.push({ type: 'news', route: 'news', title: 'News', icon: 'newspaper' });
+  return pages;
+}
+
+function processPages(config) {
+  const pages = config.pages || synthesizePages(config);
+  for (const page of pages) {
+    const processor = pageProcessors[page.type];
+    if (processor) processor(config, page);
+  }
+  return pages;
+}
+
+const processedPages = processPages(config);
+
 // Generate site-config.json from site config
 const siteBranding = { ...config.branding };
 // Rewrite logo paths to downloaded filenames
@@ -422,56 +595,9 @@ writeJson(path.join(PUBLIC, 'site-config.json'), {
   footerNav: config.footerNav,
   defaults: config.defaults,
   email: config.email,
+  pages: processedPages.length > 0 ? processedPages : undefined,
 });
 console.log('Generated site-config.json');
-
-// Process news posts
-if (config.newsDir) {
-  const newsDir = path.resolve(process.cwd(), config.newsDir);
-  if (fs.existsSync(newsDir)) {
-    const posts = [];
-    const postFiles = fs.readdirSync(newsDir).filter(f => f.endsWith('.adoc') || f.endsWith('.md')).sort().reverse();
-    for (const file of postFiles) {
-      const content = fs.readFileSync(path.join(newsDir, file), 'utf8');
-      const frontmatter = {};
-      const body = [];
-
-      // Parse AsciiDoc frontmatter (--- delimited)
-      let inFm = false;
-      let fmLines = [];
-      const lines = content.split('\n');
-      if (lines[0] === '---') {
-        inFm = true;
-        for (let i = 1; i < lines.length; i++) {
-          if (lines[i] === '---') { inFm = false; continue; }
-          if (inFm) {
-            const m = lines[i].match(/^(\w[\w\s]*):\s*(.*)/);
-            if (m) frontmatter[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, '');
-          } else {
-            body.push(lines[i]);
-          }
-        }
-      } else {
-        body.push(...lines);
-      }
-
-      // Extract slug from filename: 2018-11-23-welcome-to-geolexica.adoc → welcome-to-geolexica
-      const slug = file.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.(adoc|md)$/, '');
-
-      posts.push({
-        slug,
-        title: frontmatter.title || slug,
-        date: frontmatter.date || '',
-        categories: frontmatter.categories ? frontmatter.categories.split(',').map(s => s.trim()) : [],
-        excerpt: body.join('\n').trim().split('\n')[0].slice(0, 200),
-      });
-    }
-    writeJson(path.join(PUBLIC, 'news.json'), posts);
-    console.log(`Generated news.json: ${posts.length} posts`);
-  } else {
-    console.warn(`News directory not found: ${newsDir}`);
-  }
-}
 
 const total = Object.values(counts).reduce((s, n) => s + n, 0);
 console.log(`\nDone! Generated data for ${total} concepts across ${registry.length} datasets.`);
