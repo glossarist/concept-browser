@@ -75,6 +75,14 @@ glossarist_version: 2.5.0                     # required — glossarist gem vers
 created_at: "2026-04-28T12:00:00+09:00"       # required — ISO 8601
 created_by: glossarist CLI                    # required — tool identity
 
+uri: "urn:iec:std:iec:60050:*"                # required — dataset identity URI pattern (glob with *)
+uri_aliases:                                  # optional — additional URI patterns that identify this dataset
+  - "https://glossarist.org/iev/*"
+
+dependencies:                                 # optional — auto-derived from concept references during packaging
+  - uri: "urn:iso:std:iso:14812:*"            # URI pattern of the referenced dataset
+    refCount: 45
+
 statistics:                                   # required
   total_concepts: 22228
   languages: [eng, ara, deu, fra, ...]
@@ -107,6 +115,7 @@ schema_version: "1.0.0"                       # required — GCR format version
 | `glossarist_version` | string | Version of glossarist gem that produced this package |
 | `created_at` | string | ISO 8601 timestamp of package creation |
 | `created_by` | string | Tool that created the package |
+| `uri` | string | Dataset identity URI pattern (glob with `*` wildcard). e.g., `"urn:iec:std:iec:60050:*"` or `"https://glossarist.org/iev/*"` |
 | `statistics.total_concepts` | number | Total number of concepts |
 | `statistics.languages` | string[] | ISO 639-2 language codes present |
 | `schema_version` | string | GCR format version (currently `"1.0.0"`) |
@@ -115,6 +124,8 @@ schema_version: "1.0.0"                       # required — GCR format version
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `uri_aliases` | string[] | Additional URI patterns that identify this dataset (e.g., both URN and URL forms) |
+| `dependencies` | {uri: string, refCount: number}[] | Other datasets this package references. Auto-derived from concept references during packaging. |
 | `owner` | string | Owning organization |
 | `homepage` | string | URL to original site |
 | `repository` | string | URL to source repo |
@@ -127,11 +138,12 @@ schema_version: "1.0.0"                       # required — GCR format version
 A valid `.gcr` file must satisfy:
 
 1. **Structure**: ZIP contains `metadata.yaml` and `concepts/` directory
-2. **Metadata**: `metadata.yaml` has all required fields (`shortname`, `version`, `title`, `description`, `glossarist_version`, `created_at`, `statistics`, `schema_version`)
+2. **Metadata**: `metadata.yaml` has all required fields (`shortname`, `version`, `title`, `description`, `glossarist_version`, `created_at`, `uri`, `statistics`, `schema_version`)
 3. **Concepts**: `concepts/` has ≥1 YAML file
 4. **Canonical format**: Each concept conforms to `docs/dataset-schema.md`
 5. **No duplicates**: No duplicate `termid` values
 6. **Version**: `version` in metadata matches filename (if extractable)
+7. **Valid references**: All cross-references in concept data must use proper URNs or absolute URIs. Ad-hoc prefixes (e.g., `IEV:103-01-02`) are rejected — use `urn:iec:std:iec:60050:103-01-02` instead. Packaging reports all invalid references and refuses to build.
 
 ## Creating GCR Files
 

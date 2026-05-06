@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Glossarist Vocabulary Browser — a Vue 3 SPA that browses ISO terminology datasets. Concepts are stored as static JSON files served from `public/data/` and loaded client-side. No backend server; all data is pre-built and fetched at runtime. Designed to support any number of Glossarist datasets — add a new entry to `datasets.yml` to include a new dataset. No code changes required.
+Glossarist Concept Browser (`@glossarist/concept-browser`) — a Vue 3 SPA that browses ISO terminology datasets. Concepts are stored as static JSON files served from `public/data/` and loaded client-side. No backend server; all data is pre-built and fetched at runtime. Designed to support any number of Glossarist datasets — add a new entry to `datasets.yml` to include a new dataset. No code changes required.
 
 ## Commands
 
@@ -18,6 +18,7 @@ Glossarist Vocabulary Browser — a Vue 3 SPA that browses ISO terminology datas
 - `npm run generate-data` — Convert harmonized YAML concepts to JSON-LD. Reads from `.datasets/` (populated by fetch-datasets) and `datasets.yml`.
 - `node scripts/build-edges.js` — Pre-compute cross-reference edges from generated concept JSON files (run after `generate-data`)
 - `npm run build:full` — Full pipeline: fetch + generate + build-edges + build
+- `npx concept-browser <command>` — CLI: fetch, generate, edges, build
 
 ## Architecture
 
@@ -35,24 +36,26 @@ The target architecture uses GCR (Glossarist Concept Repository) files — seale
 
 ### Key Layers
 
-- **Adapters** (`src/adapters/`) — Data access layer. `DatasetAdapter` handles manifest loading, index parsing (with chunked index support for large datasets), concept fetching with caching, search, and edge extraction from pre-computed `gl:references`. `AdapterFactory` is a singleton that discovers and manages adapters. `UriRouter` maps concept URIs to register/concept-id pairs for cross-register navigation.
+- **Adapters** (`src/adapters/`) — Data access layer. `DatasetAdapter` handles manifest loading, index parsing (with chunked index support for large datasets), concept fetching with caching, search, and edge extraction from pre-computed `gl:references`. `AdapterFactory` is a singleton that discovers and manages adapters. `UriRouter` maps concept URIs to register/concept-id pairs (also provides `parseUri()` static for URI parsing without registration). `ReferenceResolver` provides unified resolution for URIs, URNs, and prefixed refs through a single `Resolution` type (`internal | external | unresolved`).
 
-- **Graph Engine** (`src/graph/GraphEngine.ts`) — Directed multigraph for concept relationships. Supports cross-register edges, stub nodes for unresolved targets, BFS subgraph extraction, and forward/reverse adjacency. Used by the vocabulary store and rendered in `GraphPanel`/`GraphView` via D3.
+- **Graph Engine** (`src/graph/GraphEngine.ts`) — Directed multigraph for concept relationships. Supports cross-register edges with correct register derivation from URIs, edge deduplication, stub node creation with auto-upgrade, BFS subgraph extraction, and forward/reverse adjacency. Used by the vocabulary store and rendered in `GraphPanel`/`GraphView` via D3.
+
+- **Config** (`src/config/`) — `SiteConfig` model and `useSiteConfig()` composable for domain-based multi-tenant branding. Reads `site-config.json` at runtime, filters datasets and applies branding per hostname.
 
 - **Stores** (Pinia) — `vocabulary` store is the central data orchestrator: manages dataset lifecycle, seeds graph nodes from index entries, extracts edges from concept documents, and handles URI-based navigation. `ui` store holds sidebar state, selected language, and search query.
 
-- **Router** — Vue Router with routes: `/` (home), `/dataset/:registerId`, `/dataset/:registerId/concept/:conceptId`, `/search`, `/graph`. Uses `import.meta.env.BASE_URL` for GitHub Pages deployment.
+- **Router** — Vue Router with routes: `/` (home), `/dataset/:registerId`, `/dataset/:registerId/concept/:conceptId`, `/search`, `/graph`, `/resolve/:uri(.*)` (universal deep-link). Uses `import.meta.env.BASE_URL` for GitHub Pages deployment.
 
 - **Views/Components** — Standard Vue 3 SFC structure. Views are in `src/views/`, reusable components in `src/components/`.
 
-### URI Scheme
-Concepts use URIs like `https://glossarist.org/{registerId}/concept/{conceptId}`. Cross-register references are resolved by the UriRouter. Inline cross-references are extracted during harmonization (in `fetch-datasets.mjs`) and stored as `references` in each concept's YAML.
+### URI Scheme and Resolution
+Concepts use URIs like `https://glossarist.org/{registerId}/concept/{conceptId}`. Resolution flows through `AdapterFactory.resolve()` → `ReferenceResolver.resolveUri()` → `UriRouter`. URNs (`urn:iso:std:iso:NNNN:id`) and prefixed refs (`IEV:xxx`) are resolved via `urnStandardMap` and `refPrefixMap` from manifest data. External references resolve to configurable URL templates. The `/resolve/{uri}` route provides universal concept deep-linking.
 
 ### Dataset Styling
-Each dataset gets a dynamic color from its `manifest.json` `color` field (set via `datasets.yml`). Colors are used via `useDsStyle()` composable with inline styles. No hardcoded per-dataset CSS classes — all dataset colors are data-driven.
+Each dataset gets a dynamic color from its `manifest.json` `color` field (set via `datasets.yml`). Colors are used via `useDsStyle()` composable with per-register caching. No hardcoded per-dataset CSS classes — all dataset colors are data-driven.
 
 ### Content Rendering
-`src/utils/math.ts` renders `stem:[...]` AsciiMath notation to KaTeX HTML, plus inline formatting (italic, subscript, cross-reference cleanup).
+`src/utils/math.ts` renders `stem:[...]` AsciiMath notation to KaTeX HTML, plus inline formatting (italic, subscript, cross-reference resolution). `renderMath` is a pure function that accepts `RenderOptions` (urnMap, refPrefixMap) — no module-level state. `cleanContent` strips formatting for plain-text display.
 
 ## Tech Stack
 

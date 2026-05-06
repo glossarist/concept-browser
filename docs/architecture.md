@@ -1,8 +1,8 @@
-# Glossarist Vocabulary Browser — Architecture Guide
+# Glossarist Concept Browser — Architecture Guide
 
 ## Overview
 
-The Glossarist Vocabulary Browser is a **statically deployed single-page application** (SPA) for browsing ISO terminology datasets. It renders concepts from multiple terminology registers with full multilingual support, cross-reference graphs, and review history timelines.
+The Glossarist Concept Browser (`@glossarist/concept-browser`) is a **statically deployed single-page application** (SPA) for browsing ISO terminology datasets. It renders concepts from multiple terminology registers with full multilingual support, cross-reference graphs, and review history timelines.
 
 Built with **Vue 3 + TypeScript + Vite**, it compiles to static assets deployable to any web host (GitHub Pages, Netlify, S3, etc.). No server runtime is required.
 
@@ -81,6 +81,8 @@ graph TB
 graph LR
     subgraph "Adapter Layer (open/closed)"
         Factory["AdapterFactory<br/>(singleton)"]
+        Factory --> Router["UriRouter<br/>(URI ↔ register)"]
+        Factory --> Resolver["ReferenceResolver<br/>(URI/URN/prefix → Resolution)"]
         Factory --> Adapter1["DatasetAdapter<br/>(iev)"]
         Factory --> Adapter2["DatasetAdapter<br/>(isotc211)"]
         Factory --> Adapter3["DatasetAdapter<br/>(isotc204)"]
@@ -100,19 +102,43 @@ graph LR
     Adapter2 --> Store
     Adapter3 --> Store
     Store --> Engine
+    Resolver --> Router
 
     subgraph "Static Data"
         M["manifest.json"]
         I["index.json"]
         C["concepts/*.json"]
         E["edges.json"]
+        SC["site-config.json"]
     end
 
     M --> Adapter1
     I --> Adapter1
     C --> Adapter1
     E --> Adapter1
+    SC --> SiteConfig["useSiteConfig()"]
 ```
+
+### Resolution Model
+
+All concept references (URIs, URNs, prefixed refs) are resolved through a single unified model:
+
+```typescript
+type Resolution =
+  | { type: 'internal'; registerId: string; conceptId: string }
+  | { type: 'external'; url: string; label: string }
+  | { type: 'unresolved'; uri: string };
+```
+
+Resolution flow:
+1. `AdapterFactory.resolve(uri)` → `ReferenceResolver.resolveUri(uri)`
+2. Try `UriRouter.resolveUri()` → internal (loaded dataset)
+3. Try `UriRouter.parseUri()` → external template lookup
+4. Fallback → unresolved
+
+URN resolution: `urn:iso:std:iso:NNNN:conceptId` → look up NNNN in `urnStandardMap` → get registerId → resolve as above.
+
+Prefix resolution: `IEV:103-01-02` → look up `IEV` in `refPrefixMap` → get registerId → resolve as above.
 
 ---
 
@@ -360,9 +386,12 @@ The cross-reference mapping tables are defined in `datasets.yml` under `crossRef
 ## File Reference
 
 ```
-glossarist-vocabulary-browser/
+concept-browser/
+├── cli/
+│   └── index.mjs             ← CLI entry point (fetch/generate/edges/build)
 ├── public/
-│   ├── datasets.json                          ← Dataset registry (generated)
+│   ├── datasets.json         ← Dataset registry (generated)
+│   ├── site-config.json      ← Site branding config (generated)
 │   └── data/
 │       ├── iev/
 │       │   ├── manifest.json
@@ -371,50 +400,59 @@ glossarist-vocabulary-browser/
 │       │   ├── concepts/  (22,228 files)
 │       │   └── chunks/    (45 files)
 │       ├── isotc211/
-│       │   ├── manifest.json
-│       │   ├── index.json
-│       │   ├── edges.json
-│       │   └── concepts/  (1,302 files)
 │       ├── isotc204/
-│       │   ├── manifest.json
-│       │   ├── index.json
-│       │   ├── edges.json
-│       │   └── concepts/  (312 files)
 │       └── osgeo/
-│           ├── manifest.json
-│           ├── index.json
-│           ├── edges.json
-│           └── concepts/  (444 files)
 ├── src/
 │   ├── adapters/
-│   │   ├── types.ts          ← TypeScript interfaces
-│   │   ├── DatasetAdapter.ts ← Data loading + edge extraction
-│   │   ├── AdapterFactory.ts ← Singleton factory
-│   │   └── UriRouter.ts      ← URI → concept resolution
+│   │   ├── types.ts          ← TypeScript interfaces + Resolution type
+│   │   ├── DatasetAdapter.ts ← Data loading + chunked index + edge extraction
+│   │   ├── AdapterFactory.ts ← Singleton factory + resolver wiring
+│   │   ├── UriRouter.ts      ← URI ↔ register resolution + parseUri()
+│   │   └── ReferenceResolver.ts ← Unified URI/URN/prefix resolution
+│   ├── config/
+│   │   ├── types.ts          ← SiteConfig + SiteBranding interfaces
+│   │   └── use-site-config.ts ← Domain-based site config composable
 │   ├── graph/
-│   │   ├── GraphEngine.ts    ← Directed multigraph
+│   │   ├── GraphEngine.ts    ← Directed multigraph with dedup + stub upgrade
 │   │   └── index.ts
 │   ├── stores/
-│   │   ├── vocabulary.ts     ← Main data store
-│   │   └── ui.ts             ← UI state (search query)
-│   ├── views/                ← Page-level components
-│   ├── components/           ← Reusable components
+│   │   ├── vocabulary.ts     ← Main data store (datasets, concepts, graph)
+│   │   └── ui.ts             ← UI state (sidebar, language, search)
+│   ├── views/
+│   │   ├── HomeView.vue      ← Dataset cards (site-config filtered)
+│   │   ├── DatasetView.vue   ← Concept grid + pagination
+│   │   ├── ConceptView.vue   ← Concept loader
+│   │   ├── ResolveView.vue   ← /resolve/{uri} universal deep-link
+│   │   ├── SearchView.vue
+│   │   ├── GraphView.vue
+│   │   ├── StatsView.vue
+│   │   └── AboutView.vue
+│   ├── components/
+│   │   ├── ConceptDetail.vue ← Full concept display with xref resolution
+│   │   ├── ConceptTimeline.vue
+│   │   ├── GraphPanel.vue    ← D3 force graph
+│   │   ├── ConceptCard.vue
+│   │   ├── SearchBar.vue
+│   │   ├── AppHeader.vue
+│   │   └── AppSidebar.vue
 │   ├── utils/
-│   │   ├── lang.ts           ← Language names + flags
-│   │   ├── math.ts           ← KaTeX rendering + stem: parsing
-│   │   └── dataset-style.ts  ← Dynamic dataset colors
+│   │   ├── lang.ts           ← Language names + label formatting
+│   │   ├── math.ts           ← KaTeX rendering, stem: parsing, xref cleanup
+│   │   ├── dataset-style.ts  ← Dynamic dataset colors with caching
+│   │   └── index.ts
 │   ├── style.css             ← Tailwind layers + custom components
 │   ├── main.ts               ← App entry point
-│   └── App.vue               ← Root component
+│   └── App.vue               ← Root component (skeleton loading)
 ├── scripts/
-│   ├── fetch-datasets.mjs    ← Clone + harmonize source repos
-│   ├── generate-data.mjs     ← Generate manifest/index/concept files
-│   ├── build-edges.js        ← Pre-compute edge indexes
+│   ├── fetch-datasets.mjs    ← Fetch GCR packages or clone source repos
+│   ├── generate-data.mjs     ← YAML → JSON-LD + manifest + site-config
+│   ├── build-edges.js        ← Pre-compute cross-reference edges
 │   └── generate-404.js       ← SPA fallback for GitHub Pages
 ├── .github/workflows/
 │   └── deploy.yml            ← CI/CD pipeline
-├── datasets.yml              ← Dataset registry (source of truth)
-├── tailwind.config.js        ← Tailwind theme + colors
-├── index.html                ← HTML entry with Google Fonts
-└── vite.config.ts            ← Vite configuration
+├── datasets.yml              ← Dataset registry + cross-ref maps
+├── site-configs.yml          ← Per-domain branding config
+├── tailwind.config.js
+├── index.html
+└── vite.config.ts
 ```
