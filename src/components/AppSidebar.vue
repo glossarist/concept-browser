@@ -5,13 +5,14 @@ import { useUiStore } from '../stores/ui';
 import { useRoute, useRouter } from 'vue-router';
 import { useDsStyle } from '../utils/dataset-style';
 import { useSiteConfig } from '../config/use-site-config';
+import NavIcon from './NavIcon.vue';
 
 const store = useVocabularyStore();
 const ui = useUiStore();
 const router = useRouter();
 const route = useRoute();
 const { getColor } = useDsStyle();
-const { config: siteConfig } = useSiteConfig();
+const { globalPages, datasetPages } = useSiteConfig();
 
 const currentDataset = computed(() => (route.params as any).registerId ?? '');
 
@@ -37,10 +38,20 @@ function goToDataset(id: string) {
   router.push({ name: 'dataset', params: { registerId: id } });
   closeMobile();
 }
-function goHome() { router.push({ name: 'home' }); closeMobile(); }
-function goSearch() { router.push({ name: 'search' }); closeMobile(); }
-function goGraph() { router.push({ name: 'graph' }); closeMobile(); }
-function goNews() { router.push({ name: 'news' }); closeMobile(); }
+
+function pageRoute(page: { route: string; datasetScoped?: boolean }): string {
+  if (!page.route) return '/';
+  if (page.datasetScoped) {
+    return `/dataset/${currentDataset.value}/${page.route}`;
+  }
+  return `/${page.route}`;
+}
+
+function isActive(page: { route: string; datasetScoped?: boolean }): boolean {
+  if (!page.route) return route.name === 'home';
+  if (page.datasetScoped) return route.name === page.route;
+  return route.name === page.route;
+}
 </script>
 
 <template>
@@ -57,22 +68,17 @@ function goNews() { router.push({ name: 'news' }); closeMobile(); }
       <!-- Navigation -->
       <div class="section-label">Navigation</div>
       <nav class="space-y-0.5 mb-6">
-        <button @click="goHome" :class="route.name === 'home' ? 'active' : ''" class="btn-ghost w-full text-left flex items-center gap-2">
-          <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>
-          Home
-        </button>
-        <button @click="goSearch" :class="route.name === 'search' ? 'active' : ''" class="btn-ghost w-full text-left flex items-center gap-2">
-          <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-          Search
-        </button>
-        <button @click="goGraph" :class="route.name === 'graph' ? 'active' : ''" class="btn-ghost w-full text-left flex items-center gap-2">
-          <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-          Graph
-        </button>
-        <button v-if="siteConfig?.features?.news" @click="goNews" :class="route.name === 'news' ? 'active' : ''" class="btn-ghost w-full text-left flex items-center gap-2">
-          <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
-          News
-        </button>
+        <router-link
+          v-for="page in globalPages"
+          :key="page.route || 'home'"
+          :to="pageRoute(page)"
+          class="btn-ghost w-full text-left flex items-center gap-2"
+          :class="isActive(page) ? 'active' : ''"
+          @click="closeMobile"
+        >
+          <NavIcon :name="page.icon" />
+          {{ page.title }}
+        </router-link>
       </nav>
 
       <!-- Dataset-level navigation (shown when viewing a dataset) -->
@@ -80,31 +86,15 @@ function goNews() { router.push({ name: 'news' }); closeMobile(); }
         <div class="section-label">{{ currentManifest.title }}</div>
         <nav class="space-y-0.5">
           <router-link
-            :to="{ name: 'dataset', params: { registerId: currentDataset } }"
+            v-for="page in datasetPages"
+            :key="page.route || 'concepts'"
+            :to="pageRoute(page)"
             class="btn-ghost w-full text-left flex items-center gap-2"
-            :class="route.name === 'dataset' ? 'active' : ''"
+            :class="isActive(page) ? 'active' : ''"
             @click="closeMobile"
           >
-            <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-            Concepts
-          </router-link>
-          <router-link
-            :to="{ name: 'stats', params: { registerId: currentDataset } }"
-            class="btn-ghost w-full text-left flex items-center gap-2"
-            :class="route.name === 'stats' ? 'active' : ''"
-            @click="closeMobile"
-          >
-            <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-            Statistics
-          </router-link>
-          <router-link
-            :to="{ name: 'about', params: { registerId: currentDataset } }"
-            class="btn-ghost w-full text-left flex items-center gap-2"
-            :class="route.name === 'about' ? 'active' : ''"
-            @click="closeMobile"
-          >
-            <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            About
+            <NavIcon :name="page.icon" />
+            {{ page.title }}
           </router-link>
         </nav>
       </div>
