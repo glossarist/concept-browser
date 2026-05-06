@@ -609,14 +609,14 @@ const processedPages = processPages(config);
 
 // Generate site-config.json from site config
 const siteBranding = { ...config.branding };
-// Rewrite logo paths to downloaded filenames
-if (siteBranding.logo?.remoteUrl) {
-  siteBranding.logo = { ...siteBranding.logo, path: `/logos/${config.id}-logo.svg` };
-  delete siteBranding.logo.remoteUrl;
-}
-if (siteBranding.footerLogo?.remoteUrl) {
-  siteBranding.footerLogo = { ...siteBranding.footerLogo, path: `/logos/${config.id}-footer-logo.svg` };
-  delete siteBranding.footerLogo.remoteUrl;
+// Rewrite logo paths to destination filenames and strip build-time fields
+for (const key of ['logo', 'footerLogo']) {
+  const suffix = key === 'logo' ? 'logo.svg' : 'footer-logo.svg';
+  if (siteBranding[key]) {
+    siteBranding[key] = { ...siteBranding[key], path: `/logos/${config.id}-${suffix}` };
+    delete siteBranding[key].localPath;
+    delete siteBranding[key].remoteUrl;
+  }
 }
 
 writeJson(path.join(PUBLIC, 'site-config.json'), {
