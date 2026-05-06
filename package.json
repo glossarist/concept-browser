@@ -66,11 +66,10 @@
   },
   "files": [
     "cli",
+    "configs",
     "scripts",
     "src",
     "public",
-    "datasets.yml",
-    "site-configs.yml",
     "vite.config.ts",
     "tsconfig.json",
     "tailwind.config.js",
