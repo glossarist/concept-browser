@@ -1,23 +1,11 @@
 import katex from 'katex';
 
-/**
- * Cross-reference resolver: given register, concept ID, and display term,
- * returns HTML (typically a clickable link).
- */
-export type XrefResolver = (registerId: string, conceptId: string, term: string) => string;
-
-// URN standard number → register ID (from datasets.yml crossReferences.urnStandardMap)
-const URN_STANDARD_MAP: Record<string, string> = {
-  "14812": "isotc204",
-};
+export type XrefResolver = (uri: string, term: string) => string;
 
 /**
  * Convert `* item` lines into <ul><li> blocks.
- * Must run after stem:[...] processing so math inside list items is already rendered.
- * Lines starting with *stem:[ are bold-math, not list bullets — skip those.
  */
 function convertLists(text: string): string {
-  // Match one or more bullet lines (possibly separated by blank lines)
   return text.replace(/(?:^|\n\n)((?:[ \t]*\* [^\n]+)(?:\n\n[ \t]*\* [^\n]+)*)/g, (_, block) => {
     if (/^\*stem:\[/.test(block.trimStart())) return _;
     const items: string[] = [];
@@ -34,60 +22,37 @@ function convertLists(text: string): string {
 
 /**
  * Render stem:[...] math notation to KaTeX HTML.
- * Also handles cross-references ({{term, IEV:xxx}} and {{urn:iso:...,term}}).
- *
- * The stem:[...] notation is AsciiMath-like. We pass it to KaTeX in text mode
- * as a fallback — many IEV expressions are simple enough for this to work well.
+ * Also handles cross-reference inline patterns (URN refs).
  */
 export function renderMath(text: string, xrefResolver?: XrefResolver): string {
   if (!text) return '';
   let result = text;
 
-  // Replace stem:[...] blocks with KaTeX-rendered spans
-  // Handle *stem:[...]* (bold wrapper around math)
   result = result.replace(/\*stem:\[([^\]]*)\]\*/g, (_, math) => {
     return renderKatexSpan(math, true);
   });
 
-  // Handle standalone stem:[...]
   result = result.replace(/stem:\[([^\]]*)\]/g, (_, math) => {
     return renderKatexSpan(math, false);
   });
 
-  // Convert * item lines to <ul><li> (after math, before italic)
   result = convertLists(result);
 
-  // Handle italic markup *text* (non-math)
   result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-
-  // Handle subscript ~text~
   result = result.replace(/~([^~]+)~/g, '<sub>$1</sub>');
 
-  // Handle URN inline refs FIRST (double-braced {{urn:...}})
-  // Pattern: {{urn:iso:std:iso:NNN:conceptId,term}}
-  result = result.replace(/\{\{urn:iso:std:iso:(\d+):([^,}]+),([^}]+)\}\}/g, (_, stdNum, conceptId, term) => {
-    const registerId = URN_STANDARD_MAP[stdNum];
-    if (xrefResolver && registerId) {
-      return xrefResolver(registerId, conceptId, term.trim());
-    }
-    return term.trim();
-  });
-
-  // Handle single-braced URN inline refs (legacy format)
-  // Pattern: {urn:iso:std:iso:NNN:conceptId,term}
-  result = result.replace(/\{urn:iso:std:iso:(\d+):([^,}]+),([^}]+)\}/g, (_, stdNum, conceptId, term) => {
-    const registerId = URN_STANDARD_MAP[stdNum];
-    if (xrefResolver && registerId) {
-      return xrefResolver(registerId, conceptId, term.trim());
-    }
-    return term.trim();
-  });
-
-  // Handle IEV inline refs
-  // Pattern: {{term, IEV:conceptId}}
-  result = result.replace(/\{\{([^,}]+),\s*IEV:([^}]+)\}\}/g, (_, term, conceptId) => {
+  // Handle URN inline refs: {{urn:...,term}} (double-braced)
+  result = result.replace(/\{\{(urn:[^,}]+),([^}]+)\}\}/g, (_, uri, term) => {
     if (xrefResolver) {
-      return xrefResolver('iev', conceptId.trim(), term.trim());
+      return xrefResolver(uri, term.trim());
+    }
+    return term.trim();
+  });
+
+  // Handle URN inline refs: {urn:...,term} (single-braced)
+  result = result.replace(/\{(urn:[^,}]+),([^}]+)\}/g, (_, uri, term) => {
+    if (xrefResolver) {
+      return xrefResolver(uri, term.trim());
     }
     return term.trim();
   });
@@ -107,7 +72,6 @@ function renderKatexSpan(math: string, bold: boolean): string {
     });
     return `<span class="math-inline${bold ? ' math-bold' : ''}">${html}</span>`;
   } catch {
-    // Fallback: show raw math text
     return `<code class="math-fallback">${escapeHtml(math)}</code>`;
   }
 }
@@ -130,8 +94,7 @@ export function cleanContent(text: string): string {
     .replace(/\*([^*]+)\*/g, '$1')
     .replace(/~([^~]+)~/g, '_$1')
     .replace(/\n[ \t]*\* /g, '; ')
-    .replace(/\{\{urn:iso:std:iso:\d+:([^,}]+),([^}]+)\}\}/g, '$2')
-    .replace(/\{urn:iso:std:iso:\d+:([^,}]+),([^}]+)\}/g, '$2')
-    .replace(/\{\{([^,}]+),\s*IEV:([^}]+)\}\}/g, '$1')
+    .replace(/\{\{urn:[^,}]+,([^}]+)\}\}/g, '$1')
+    .replace(/\{urn:[^,}]+,([^}]+)\}/g, '$1')
     .replace(/\{\{([^,}]+)(?:,\s*[^}]+)?\}\}/g, '$1');
 }
