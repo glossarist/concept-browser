@@ -221,6 +221,42 @@ function conceptJsonToTurtle(concept) {
   return lines.join('\n');
 }
 
+function conceptJsonToSkosJsonLd(concept) {
+  const uri = concept['@id'] || '';
+  const id = concept['gl:identifier'] || '';
+
+  const doc = {
+    '@context': {
+      skos: 'http://www.w3.org/2004/02/skos/core#',
+      dcterms: 'http://purl.org/dc/terms/',
+      '@language': { '@container': '@language' },
+    },
+    '@id': uri,
+    '@type': 'skos:Concept',
+    'skos:notation': id,
+  };
+
+  const prefLabels = {}, altLabels = {}, definitions = {}, scopeNotes = {};
+  for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
+    const descs = lc['gl:designation'] || [];
+    const pref = descs.find(d => d['gl:normativeStatus'] === 'preferred' && d['gl:term']);
+    const alt = descs.find(d => d['gl:normativeStatus'] !== 'preferred' && d['gl:term']);
+    if (pref) prefLabels[lang] = pref['gl:term'];
+    if (alt) altLabels[lang] = alt['gl:term'];
+    const def = (lc['gl:definition'] || [])[0];
+    if (def?.['gl:content']) definitions[lang] = def['gl:content'];
+    const note = (lc['gl:notes'] || [])[0];
+    if (note?.['gl:content']) scopeNotes[lang] = note['gl:content'];
+  }
+
+  if (Object.keys(prefLabels).length) doc['skos:prefLabel'] = prefLabels;
+  if (Object.keys(altLabels).length) doc['skos:altLabel'] = altLabels;
+  if (Object.keys(definitions).length) doc['skos:definition'] = definitions;
+  if (Object.keys(scopeNotes).length) doc['skos:scopeNote'] = scopeNotes;
+
+  return JSON.stringify(doc, null, 2);
+}
+
 function processDataset(dir, register, opts) {
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.yaml')).sort((a, b) => naturalSort(a.replace('.yaml', ''), b.replace('.yaml', '')));
 
@@ -230,7 +266,7 @@ function processDataset(dir, register, opts) {
   const concepts = [];
   const langTermCounts = {};
   const langDefCounts = {};
-  const availableFormats = ['ttl', 'yaml'];
+  const availableFormats = ['ttl', 'jsonld', 'yaml'];
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -245,6 +281,10 @@ function processDataset(dir, register, opts) {
       // Generate Turtle format
       const ttlContent = conceptJsonToTurtle(jsonld);
       fs.writeFileSync(path.join(conceptsDir, `${termid}.ttl`), ttlContent);
+
+      // Generate SKOS JSON-LD format
+      const skosJsonLd = conceptJsonToSkosJsonLd(jsonld);
+      fs.writeFileSync(path.join(conceptsDir, `${termid}.jsonld`), skosJsonLd);
 
       // Copy source YAML
       fs.copyFileSync(path.join(dir, file), path.join(conceptsDir, `${termid}.yaml`));

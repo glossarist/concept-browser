@@ -1,9 +1,4 @@
-/**
- * Format registry and converters for per-concept format downloads.
- *
- * Open/closed: add a new format by adding an entry to FORMAT_REGISTRY
- * and a converter function. No changes to components needed.
- */
+import type { ConceptDocument, LocalizedConcept } from '../adapters/types';
 
 export interface FormatDescriptor {
   extension: string;
@@ -13,33 +8,8 @@ export interface FormatDescriptor {
 
 export const FORMAT_REGISTRY: Record<string, FormatDescriptor> = {
   ttl: { extension: 'ttl', label: 'Turtle RDF', mediaType: 'text/turtle' },
-  jsonld: { extension: 'jsonld', label: 'JSON-LD (SKOS)', mediaType: 'application/ld+json' },
+  jsonld: { extension: 'jsonld', label: 'JSON-LD', mediaType: 'application/ld+json' },
   yaml: { extension: 'yaml', label: 'YAML', mediaType: 'text/yaml' },
-  tbx: { extension: 'tbx', label: 'TBX', mediaType: 'application/xml' },
-};
-
-export type ConceptDesignation = {
-  '@type'?: string;
-  'gl:normativeStatus'?: string;
-  'gl:term'?: string;
-};
-
-export type ConceptDefinition = {
-  'gl:content'?: string;
-};
-
-export type ConceptLocalized = {
-  'gl:languageCode'?: string;
-  'gl:designation'?: ConceptDesignation[];
-  'gl:definition'?: ConceptDefinition[];
-  'gl:notes'?: ConceptDefinition[];
-  'gl:source'?: any[];
-};
-
-export type ConceptDocument = {
-  '@id'?: string;
-  'gl:identifier'?: string;
-  'gl:localizedConcept'?: Record<string, ConceptLocalized>;
 };
 
 function getLocalizedData(concept: ConceptDocument) {
@@ -77,9 +47,6 @@ function escapeTurtle(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
 }
 
-/**
- * Convert a concept document to SKOS Turtle.
- */
 export function conceptToTurtle(concept: ConceptDocument): string {
   const uri = concept['@id'] || '';
   const id = concept['gl:identifier'] || '';
@@ -88,7 +55,6 @@ export function conceptToTurtle(concept: ConceptDocument): string {
   const lines: string[] = [
     '@prefix skos: <http://www.w3.org/2004/02/skos/core#> .',
     '@prefix dcterms: <http://purl.org/dc/terms/> .',
-    '@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .',
     '',
   ];
 
@@ -117,9 +83,6 @@ export function conceptToTurtle(concept: ConceptDocument): string {
   return lines.join('\n');
 }
 
-/**
- * Convert a concept document to SKOS JSON-LD.
- */
 export function conceptToSkosJsonLd(concept: ConceptDocument): string {
   const uri = concept['@id'] || '';
   const id = concept['gl:identifier'] || '';
