@@ -6,6 +6,7 @@ import { buildPageRoutes } from './router/page-routes';
 import router from './router';
 import AppHeader from './components/AppHeader.vue';
 import AppSidebar from './components/AppSidebar.vue';
+import AppFooter from './components/AppFooter.vue';
 
 const store = useVocabularyStore();
 const { loadConfig, config, globalPages, datasetPages } = useSiteConfig();
@@ -48,7 +49,7 @@ onUnmounted(() => {
     <AppHeader />
     <div class="flex flex-1 overflow-hidden">
       <AppSidebar />
-      <main class="flex-1 overflow-y-auto bg-surface">
+      <main class="flex-1 overflow-y-auto bg-surface flex flex-col">
         <div v-if="!appReady" class="flex items-center justify-center h-[70vh]">
           <div class="w-full max-w-md px-6 space-y-6">
             <!-- Title skeleton -->
@@ -85,6 +86,7 @@ onUnmounted(() => {
             </transition>
           </router-view>
         </template>
+        <AppFooter />
       </main>
     </div>
     <!-- Scroll-to-top -->

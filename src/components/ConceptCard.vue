@@ -35,6 +35,7 @@ const manifestLanguages = computed(() => store.manifests.get(props.registerId)?.
   <button
     @click="viewConcept"
     class="card-hover p-4 text-left w-full border-l-2 group"
+    :class="(entry.status === 'superseded' || entry.status === 'withdrawn') ? 'opacity-70' : ''"
     :style="{ borderLeftColor: getColor(registerId) }"
   >
     <div class="flex items-start justify-between gap-2">
@@ -51,15 +52,18 @@ const manifestLanguages = computed(() => store.manifests.get(props.registerId)?.
         {{ entry.status === 'Standard' ? 'valid' : entry.status }}
       </span>
     </div>
-    <!-- Language coverage dots -->
-    <div class="flex gap-0.5 mt-2.5" :aria-label="`${manifestLanguages.length} languages`" role="img">
-      <span
-        v-for="lang in manifestLanguages"
-        :key="lang"
-        class="w-1.5 h-1.5 rounded-full"
-        :style="{ backgroundColor: getColor(registerId) + '60' }"
-        :aria-label="lang"
-      ></span>
+    <!-- Language coverage -->
+    <div class="flex items-center gap-1.5 mt-2.5" :aria-label="`${manifestLanguages.length} languages`">
+      <span class="text-[11px] text-ink-300">{{ manifestLanguages.length }} lang</span>
+      <div class="flex gap-0.5">
+        <span
+          v-for="lang in manifestLanguages"
+          :key="lang"
+          class="w-1.5 h-1.5 rounded-full"
+          :style="{ backgroundColor: getColor(registerId) + '40' }"
+          :aria-label="lang"
+        ></span>
+      </div>
     </div>
   </button>
 </template>

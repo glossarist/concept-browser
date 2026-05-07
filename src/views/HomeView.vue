@@ -80,8 +80,7 @@ function goToGraph() { router.push({ name: 'graph' }); }
         <template v-if="!siteConfig?.subtitle">Terminology<br class="hidden sm:block" /> Register</template>
       </h1>
       <p class="text-base text-ink-400 max-w-lg leading-relaxed">
-        Explore standardized terminology datasets from ISO and IEC technical committees.
-        Browse concepts, definitions, and cross-references across multilingual vocabularies.
+        {{ siteConfig?.description || 'Explore standardized terminology datasets from ISO and IEC technical committees. Browse concepts, definitions, and cross-references across multilingual vocabularies.' }}
       </p>
       <div class="flex flex-wrap gap-3 mt-7">
         <button @click="goToSearch" class="btn-primary flex items-center gap-2">
@@ -121,7 +120,12 @@ function goToGraph() { router.push({ name: 'graph' }); }
       <div class="section-label mb-0">Available Datasets</div>
       <span class="text-xs text-ink-300">Click to browse</span>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div :class="[
+      filteredDatasets.length === 1 ? 'max-w-md' : '',
+      filteredDatasets.length === 2 ? 'max-w-3xl' : '',
+      'grid gap-4',
+      filteredDatasets.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+    ]">
       <button
         v-for="(ds, idx) in filteredDatasets"
         :key="ds.id"

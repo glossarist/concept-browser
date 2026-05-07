@@ -53,7 +53,7 @@ onMounted(async () => {
       <p class="text-ink-500 mb-2">The following concept URI could not be resolved:</p>
       <code class="text-sm text-ink-600 break-all bg-ink-50 px-3 py-2 rounded">{{ uri }}</code>
       <div class="mt-8">
-        <router-link :to="{ name: 'home' }" class="text-blue-600 hover:underline">Return to home</router-link>
+        <router-link :to="{ name: 'home' }" class="concept-link">Return to home</router-link>
       </div>
     </template>
     <template v-else>

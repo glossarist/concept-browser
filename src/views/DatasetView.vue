@@ -224,10 +224,15 @@ function goToPage(p: number) {
           </svg>
         </div>
         <span class="text-sm text-ink-400">
-          {{ filter.trim()
-            ? `${filtered.length.toLocaleString()} of ${totalConceptCount.toLocaleString()} concepts`
-            : `${totalConceptCount.toLocaleString()} concepts`
-          }}
+          <template v-if="filter.trim()">
+            {{ filtered.length.toLocaleString() }} of {{ totalConceptCount.toLocaleString() }} concepts
+          </template>
+          <template v-else-if="totalPages > 1">
+            {{ ((page - 1) * perPage + 1).toLocaleString() }}–{{ Math.min(page * perPage, totalConceptCount).toLocaleString() }} of {{ totalConceptCount.toLocaleString() }} concepts
+          </template>
+          <template v-else>
+            {{ totalConceptCount.toLocaleString() }} concepts
+          </template>
         </span>
       </div>
 

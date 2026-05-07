@@ -224,8 +224,10 @@ onMounted(() => {
               <div class="min-w-0">
                 <span class="font-medium text-ink-800 group-hover:text-ink-900 transition-colors">{{ hit.designation }}</span>
                 <span class="text-xs text-ink-300 ml-2 font-mono">{{ hit.conceptId }}</span>
+                <span v-if="hit.snippet" class="block text-xs text-ink-300 mt-0.5 truncate">{{ hit.snippet }}</span>
               </div>
               <div class="flex items-center gap-2 flex-shrink-0">
+                <span v-if="hit.matchField === 'id'" class="badge badge-gray text-[10px]">ID match</span>
                 <span class="text-xs font-semibold text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">{{ langName(hit.language) }}</span>
               </div>
             </button>

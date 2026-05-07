@@ -214,13 +214,21 @@ export class DatasetAdapter {
     for (const entry of arr) {
       if (!entry) continue;
       const term = entry.eng || '';
-      if (term.toLowerCase().includes(q) || entry.id.toLowerCase().includes(q)) {
+      const termMatch = term.toLowerCase().includes(q);
+      const idMatch = entry.id.toLowerCase().includes(q);
+      if (termMatch || idMatch) {
+        const matchField = termMatch ? 'designation' as const : 'id' as const;
+        let snippet: string | undefined;
+        if (!termMatch && idMatch) {
+          snippet = `ID: ${entry.id}`;
+        }
         hits.push({
           conceptId: entry.id,
           registerId: this.registerId,
           designation: term,
           language: lang,
-          matchField: 'designation',
+          matchField,
+          snippet,
         });
       }
     }

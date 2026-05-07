@@ -9,6 +9,7 @@ export interface FormatDescriptor {
 export const FORMAT_REGISTRY: Record<string, FormatDescriptor> = {
   ttl: { extension: 'ttl', label: 'Turtle RDF', mediaType: 'text/turtle' },
   jsonld: { extension: 'jsonld', label: 'JSON-LD', mediaType: 'application/ld+json' },
+  tbx: { extension: 'tbx', label: 'TBX-XML', mediaType: 'application/xml' },
   yaml: { extension: 'yaml', label: 'YAML', mediaType: 'text/yaml' },
 };
 

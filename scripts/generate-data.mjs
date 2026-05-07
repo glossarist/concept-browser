@@ -257,6 +257,105 @@ function conceptJsonToSkosJsonLd(concept) {
   return JSON.stringify(doc, null, 2);
 }
 
+function escapeXml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function conceptJsonToTbx(concept) {
+  const id = concept['gl:identifier'] || '';
+  const uri = concept['@id'] || '';
+  const localized = concept['gl:localizedConcept'] || {};
+
+  const langSections = [];
+  for (const [lang, lc] of Object.entries(localized)) {
+    const descs = lc['gl:designation'] || [];
+    const definitions = (lc['gl:definition'] || []).filter(d => d['gl:content']);
+    const notes = (lc['gl:notes'] || []).filter(d => d['gl:content']);
+    const examples = (lc['gl:examples'] || []).filter(d => d['gl:content']);
+    const sources = lc['gl:source'] || [];
+    const entryStatus = lc['gl:entryStatus'] || '';
+
+    if (!descs.length && !definitions.length) continue;
+
+    const termEntries = [];
+    for (const d of descs) {
+      const term = d['gl:term'];
+      if (!term) continue;
+      const status = d['gl:normativeStatus'] || '';
+      const type = d['@type'] || '';
+      let gramGrp = '';
+      if (d['gl:gender']) gramGrp = `\n            <grammaticalGender>${escapeXml(d['gl:gender'])}</grammaticalGender>`;
+      let partOfSpeech = '';
+      if (type.includes('Abbreviation')) partOfSpeech = '\n            <partOfSpeech>abbreviation</partOfSpeech>';
+      if (type.includes('Symbol')) partOfSpeech = '\n            <partOfSpeech>symbol</partOfSpeech>';
+
+      termEntries.push(`          <termEntry>
+            <langSet xml:lang="${lang}">
+              <tig>
+                <term>${escapeXml(term)}</term>${gramGrp}${partOfSpeech}
+              </tig>
+            </langSet>
+          </termEntry>`);
+    }
+
+    let defBlock = '';
+    if (definitions.length) {
+      const defParts = definitions.map(d => `            <p>${escapeXml(d['gl:content'])}</p>`).join('\n');
+      defBlock = `\n          <descrip type="definition">\n${defParts}\n          </descrip>`;
+    }
+
+    let noteBlock = '';
+    for (let i = 0; i < notes.length; i++) {
+      noteBlock += `\n          <note type="note">${escapeXml(notes[i]['gl:content'])}</note>`;
+    }
+    for (let i = 0; i < examples.length; i++) {
+      noteBlock += `\n          <note type="example">${escapeXml(examples[i]['gl:content'])}</note>`;
+    }
+
+    let sourceBlock = '';
+    for (const src of sources) {
+      const origin = src['gl:origin'] || {};
+      const parts = [];
+      if (origin['gl:ref']) parts.push(origin['gl:ref']);
+      if (origin['gl:clause']) parts.push(origin['gl:clause']);
+      if (parts.length) {
+        sourceBlock += `\n          <ref>${escapeXml(parts.join(', '))}</ref>`;
+      }
+    }
+
+    let statusBlock = '';
+    if (entryStatus) {
+      statusBlock += `\n          <descrip type="entryStatus">${escapeXml(entryStatus)}</descrip>`;
+    }
+
+    const termEntriesBlock = termEntries.length ? '\n' + termEntries.join('\n') : '';
+    langSections.push({ lang, termEntries, blocks: [defBlock, noteBlock, sourceBlock, statusBlock].filter(b => b).join('') });
+  }
+
+  if (!langSections.length) return '';
+
+  const bodyEntries = langSections.map(ls => {
+    return `      <languageSection xml:lang="${ls.lang}">${ls.blocks}\n      </languageSection>`;
+  }).join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<tbx style="dca" type="TBX-Basic" xml:lang="en" xmlns="urn:iso:std:iso:30042:ed-2">
+  <tbxHeader>
+    <fileDesc>
+      <source>${escapeXml(uri)}</source>
+    </fileDesc>
+  </tbxHeader>
+  <text>
+    <body>
+      <conceptEntry id="${escapeXml(id)}">
+${bodyEntries}
+      </conceptEntry>
+    </body>
+  </text>
+</tbx>
+`;
+}
+
 function processDataset(dir, register, opts) {
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.yaml')).sort((a, b) => naturalSort(a.replace('.yaml', ''), b.replace('.yaml', '')));
 
@@ -266,7 +365,7 @@ function processDataset(dir, register, opts) {
   const concepts = [];
   const langTermCounts = {};
   const langDefCounts = {};
-  const availableFormats = ['ttl', 'jsonld', 'yaml'];
+  const availableFormats = ['ttl', 'jsonld', 'yaml', 'tbx'];
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -285,6 +384,12 @@ function processDataset(dir, register, opts) {
       // Generate SKOS JSON-LD format
       const skosJsonLd = conceptJsonToSkosJsonLd(jsonld);
       fs.writeFileSync(path.join(conceptsDir, `${termid}.jsonld`), skosJsonLd);
+
+      // Generate TBX-XML format
+      const tbxContent = conceptJsonToTbx(jsonld);
+      if (tbxContent) {
+        fs.writeFileSync(path.join(conceptsDir, `${termid}.tbx`), tbxContent);
+      }
 
       // Copy source YAML
       fs.copyFileSync(path.join(dir, file), path.join(conceptsDir, `${termid}.yaml`));

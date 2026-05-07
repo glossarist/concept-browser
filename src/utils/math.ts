@@ -4,9 +4,11 @@ export type XrefResolver = (uri: string, term: string) => string;
 
 /**
  * Convert `* item` lines into <ul><li> blocks.
+ * Also handles `1)` and `1.` numbered items into ordered lists.
  */
 function convertLists(text: string): string {
-  return text.replace(/(?:^|\n\n)((?:[ \t]*\* [^\n]+)(?:\n\n[ \t]*\* [^\n]+)*)/g, (_, block) => {
+  // Unordered: * item (separated by \n or \n\n)
+  let result = text.replace(/(?:^|\n)((?:[ \t]*\* [^\n]+)(?:\n[ \t]*\* [^\n]+)*)/g, (_, block) => {
     if (/^\*stem:\[/.test(block.trimStart())) return _;
     const items: string[] = [];
     const re = /[ \t]*\* ([^\n]+)/g;
@@ -16,8 +18,23 @@ function convertLists(text: string): string {
     }
     if (!items.length) return _;
     const lis = items.map(item => `<li>${item}</li>`).join('');
-    return `<ul class="concept-list">${lis}</ul>`;
+    return `\n<ul class="concept-list">${lis}</ul>`;
   });
+
+  // Ordered: 1) item or 1. item (numbered items)
+  result = result.replace(/(?:^|\n)((?:[ \t]*\d+[).][ \t]+[^\n]+)(?:\n[ \t]*\d+[).][ \t]+[^\n]+)*)/g, (_, block) => {
+    const items: string[] = [];
+    const re = /[ \t]*\d+[).][ \t]+([^\n]+)/g;
+    let m;
+    while ((m = re.exec(block)) !== null) {
+      items.push(m[1].trim());
+    }
+    if (!items.length) return _;
+    const lis = items.map(item => `<li>${item}</li>`).join('');
+    return `\n<ol class="concept-list concept-list-ordered">${lis}</ol>`;
+  });
+
+  return result;
 }
 
 /**

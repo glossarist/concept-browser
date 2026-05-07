@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ConceptDocument, LocalizedConcept, GraphEdge } from '../adapters/types';
 import type { Manifest } from '../adapters/types';
-import { computed, ref, nextTick } from 'vue';
+import { computed, ref, nextTick, watch } from 'vue';
 import { langName, langLabel } from '../utils/lang';
 import { renderMath, cleanContent } from '../utils/math';
 import type { XrefResolver } from '../utils/math';
@@ -64,6 +64,9 @@ const languages = computed(() => {
     return a.localeCompare(b);
   });
 });
+
+// Initialize collapsed state when languages change
+watch(languages, (langs) => { initCollapsed(langs); }, { immediate: true });
 
 const engConcept = computed((): LocalizedConcept | null => {
   return props.concept['gl:localizedConcept']?.['eng'] ?? null;
@@ -146,8 +149,14 @@ const allLangContent = computed(() => {
   return result;
 });
 
-// Collapsible language sections — all expanded by default
+// Collapsible language sections — auto-collapse non-eng when 6+ languages
 const collapsedLangs = ref(new Set<string>());
+
+function initCollapsed(langs: string[]) {
+  if (langs.length >= 6) {
+    collapsedLangs.value = new Set(langs.filter(l => l !== 'eng'));
+  }
+}
 
 function hasContent(lc: LangContent): boolean {
   return !!(lc.definition || lc.notes.length || lc.examples.length || lc.sources.length);
@@ -185,6 +194,17 @@ function scrollToLang(lang: string) {
 
 const outgoingEdges = computed(() => props.edges.filter(e => e.source === props.concept['@id']));
 const incomingEdges = computed(() => props.edges.filter(e => e.target === props.concept['@id']));
+
+function edgeDatasetBadge(uri: string): { id: string; title: string } | null {
+  const resolution = factory.resolve(uri, props.registerId);
+  if (resolution.type === 'internal' && resolution.registerId !== props.registerId) {
+    const m = store.manifests.get(resolution.registerId);
+    return { id: resolution.registerId, title: m?.shortname || m?.title || resolution.registerId };
+  }
+  if (resolution.type === 'site') return { id: '', title: resolution.label };
+  if (resolution.type === 'url') return { id: '', title: resolution.label };
+  return null;
+}
 
 async function navigateEdge(edge: GraphEdge) {
   const uri = edge.source === props.concept['@id'] ? edge.target : edge.source;
@@ -299,7 +319,7 @@ function plainTruncate(html: string, max: number = 120): string {
           </button>
         </div>
       </div>
-      <h1 class="font-serif text-2xl sm:text-3xl text-ink-800 leading-snug mb-3" v-html="renderMath(cleanContent(primaryTerm))"></h1>
+      <h1 class="font-serif text-2xl sm:text-3xl text-ink-800 leading-snug mb-3" v-html="renderMath(primaryTerm)"></h1>
       <div class="flex flex-wrap gap-2">
         <span class="badge badge-blue font-mono">{{ conceptId }}</span>
         <span class="badge" :class="entryStatusColor(engConcept?.['gl:entryStatus'] ?? '')" v-if="engConcept?.['gl:entryStatus']">
@@ -369,12 +389,17 @@ function plainTruncate(html: string, max: number = 120): string {
             <div v-else class="w-full flex items-center gap-2.5 px-3 sm:px-4 py-3">
               <span class="text-xs font-semibold text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">{{ langName(lc.lang) }}</span>
               <span class="font-medium text-ink-800 text-sm" v-html="renderMath(getTermForLang(lc.lang))"></span>
-              <span class="text-xs text-ink-200 ml-2">No definition provided</span>
+              <span class="text-xs text-ink-200 ml-2 italic">designation only</span>
               <span v-if="lc.entryStatus" class="badge text-[10px] ml-auto" :class="entryStatusColor(lc.entryStatus)">{{ lc.entryStatus }}</span>
             </div>
             <!-- Collapsed preview -->
-            <div v-if="hasContent(lc) && collapsedLangs.has(lc.lang) && lc.definition" class="px-3 sm:px-4 pb-3 -mt-0.5">
-              <p class="text-xs text-ink-300 leading-relaxed pl-[22px]">{{ plainTruncate(lc.definition) }}</p>
+            <div v-if="hasContent(lc) && collapsedLangs.has(lc.lang)" class="px-3 sm:px-4 pb-3 -mt-0.5">
+              <p v-if="lc.definition" class="text-xs text-ink-300 leading-relaxed pl-[22px]">{{ plainTruncate(lc.definition) }}</p>
+              <p v-else class="text-xs text-ink-200 leading-relaxed pl-[22px]">
+                <template v-if="lc.notes.length">{{ lc.notes.length }} note{{ lc.notes.length > 1 ? 's' : '' }}</template>
+                <template v-if="lc.notes.length && lc.examples.length"> &middot; </template>
+                <template v-if="lc.examples.length">{{ lc.examples.length }} example{{ lc.examples.length > 1 ? 's' : '' }}</template>
+              </p>
             </div>
 
             <!-- Expandable content -->
@@ -440,9 +465,10 @@ function plainTruncate(html: string, max: number = 120): string {
                   v-for="edge in outgoingEdges"
                   :key="edge.target"
                   @click="navigateEdge(edge)"
-                  class="text-sm concept-link block truncate w-full text-left"
+                  class="text-sm concept-link block truncate w-full text-left flex items-center gap-1.5"
                 >
                   {{ edge.label || edge.target.split('/').pop() }}
+                  <span v-if="edgeDatasetBadge(edge.target)" class="badge badge-gray text-[9px] flex-shrink-0 truncate max-w-[100px]">{{ edgeDatasetBadge(edge.target)!.title }}</span>
                 </button>
               </div>
             </div>
@@ -453,9 +479,10 @@ function plainTruncate(html: string, max: number = 120): string {
                   v-for="edge in incomingEdges"
                   :key="edge.source"
                   @click="navigateEdge(edge)"
-                  class="text-sm concept-link block truncate w-full text-left"
+                  class="text-sm concept-link block truncate w-full text-left flex items-center gap-1.5"
                 >
                   {{ edge.label || edge.source.split('/').pop() }}
+                  <span v-if="edgeDatasetBadge(edge.source)" class="badge badge-gray text-[9px] flex-shrink-0 truncate max-w-[100px]">{{ edgeDatasetBadge(edge.source)!.title }}</span>
                 </button>
               </div>
             </div>

@@ -12,7 +12,7 @@ const ui = useUiStore();
 const router = useRouter();
 const route = useRoute();
 const { getColor } = useDsStyle();
-const { globalPages, datasetPages } = useSiteConfig();
+const { globalPages, datasetPages, config: siteConfig } = useSiteConfig();
 
 const currentDataset = computed(() => (route.params as any).registerId ?? '');
 
@@ -121,11 +121,16 @@ function isActive(page: { route: string; datasetScoped?: boolean }): boolean {
         </button>
       </nav>
 
-      <!-- Graph stats -->
+      <!-- Powered by -->
       <div class="mt-6 pt-4 border-t border-ink-100/60">
-        <div class="text-[11px] text-ink-300 space-y-0.5">
-          <div>{{ store.graph.nodeCount.toLocaleString() }} graph nodes</div>
-          <div>{{ store.graph.edgeCount.toLocaleString() }} edges</div>
+        <div class="text-[11px] text-ink-300">
+          Powered by
+          <a
+            :href="(siteConfig?.features?.poweredBy as any)?.url || 'https://glossarist.org'"
+            target="_blank"
+            rel="noopener"
+            class="concept-link"
+          >{{ (siteConfig?.features?.poweredBy as any)?.title || 'Glossarist' }}</a>
         </div>
       </div>
     </div>

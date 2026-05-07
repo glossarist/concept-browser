@@ -43,10 +43,10 @@ onMounted(async () => {
 <template>
   <div class="flex flex-col" style="height: calc(100vh - 56px)">
     <div class="px-4 sm:px-6 py-3 border-b border-ink-100/60 bg-surface-raised flex items-center gap-3 flex-shrink-0">
-      <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm">
-        <router-link :to="{ name: 'home' }" class="text-ink-400 hover:text-ink-700 transition-colors">Home</router-link>
+      <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400">
+        <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">Home</router-link>
         <span class="text-ink-200">/</span>
-        <span class="text-ink-700 font-medium">Graph View</span>
+        <span class="text-ink-700">Graph View</span>
       </nav>
       <span class="text-xs text-ink-300 ml-1">
         {{ graphEdges.length.toLocaleString() }} edges

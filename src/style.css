@@ -127,6 +127,9 @@
     padding-left: 1.25rem;
     margin: 0.5rem 0;
   }
+  .concept-list-ordered {
+    list-style: decimal;
+  }
   .concept-list li {
     margin: 0.25rem 0;
   }

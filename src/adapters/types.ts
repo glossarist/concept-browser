@@ -143,7 +143,7 @@ export interface SearchHit {
   registerId: string;
   designation: string;
   language: string;
-  matchField: 'designation' | 'definition';
+  matchField: 'designation' | 'id';
   snippet?: string;
 }
 

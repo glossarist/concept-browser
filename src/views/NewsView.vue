@@ -75,6 +75,11 @@ function formatDate(dateStr: string) {
 
 <template>
   <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400 mb-6">
+      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">Home</router-link>
+      <span class="text-ink-200">/</span>
+      <span class="text-ink-700">News</span>
+    </nav>
     <h1 class="font-serif text-3xl text-ink-800 mb-2">News</h1>
     <p class="text-ink-400 mb-8">
       Updates from {{ config?.branding?.ownerName || config?.title || 'Glossarist' }}.
