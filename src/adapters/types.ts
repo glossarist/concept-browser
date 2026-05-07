@@ -25,6 +25,7 @@ export interface Manifest {
   languageOrder?: string[];
   languageStats?: Record<string, { terms: number; definitions: number }>;
   availableFormats?: string[];
+  bulkFormats?: { file: string; format: string; size: number }[];
 }
 
 export interface ConceptIndex {

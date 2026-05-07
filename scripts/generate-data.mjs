@@ -373,6 +373,30 @@ function processDataset(dir, register, opts) {
     };
   }
 
+  // Copy bulk format files from compiled/ directory (full GCR)
+  const compiledDir = path.join(ROOT, '.datasets', register, 'compiled');
+  const bulkFormats = [];
+  if (fs.existsSync(compiledDir)) {
+    for (const file of fs.readdirSync(compiledDir)) {
+      const src = path.join(compiledDir, file);
+      const dest = path.join(DATA, register, file);
+      fs.copyFileSync(src, dest);
+      const ext = path.extname(file);
+      const formatMap = {
+        '.ttl': 'turtle',
+        '.jsonld': 'jsonld',
+        '.xml': 'tbx',
+        '.jsonl': 'jsonl',
+        '.yaml': 'yaml',
+      };
+      const formatName = formatMap[ext] || ext.slice(1);
+      bulkFormats.push({ file, format: formatName, size: fs.statSync(src).size });
+    }
+    if (bulkFormats.length) {
+      console.log(`  Copied ${bulkFormats.length} bulk format files`);
+    }
+  }
+
   const manifest = {
     id: register,
     datasetUri: opts.datasetUri,
@@ -396,6 +420,7 @@ function processDataset(dir, register, opts) {
     color: opts.color,
     languageStats: langStats,
     availableFormats,
+    bulkFormats,
   };
   if (opts.languageOrder) manifest.languageOrder = opts.languageOrder;
   writeJson(path.join(DATA, register, 'manifest.json'), manifest);

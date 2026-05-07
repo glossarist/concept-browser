@@ -90,7 +90,24 @@ export interface DatasetConfig {
   color?: string;
   tags?: string[];
   languageOrder?: string[];
+  downloads?: string[];
 }
+
+// === Downloads ===
+
+export interface BulkFormatInfo {
+  file: string;
+  format: string;
+  size: number;
+}
+
+export const FORMAT_LABELS: Record<string, string> = {
+  turtle: 'Turtle (RDF)',
+  jsonld: 'JSON-LD (SKOS)',
+  tbx: 'TBX-XML',
+  jsonl: 'JSONL',
+  yaml: 'YAML',
+};
 
 // === Pages ===
 
