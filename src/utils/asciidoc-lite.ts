@@ -53,11 +53,14 @@ export function renderAsciiDocLite(text: string): string {
     }
 
     // Unordered list item
-    if (trimmed.match(/^\*\s+/)) {
+    if (trimmed.match(/^\*+\s+/)) {
       flushParagraph(output);
       const items: string[] = [];
-      while (i < lines.length && lines[i].trim().match(/^\*\s+/)) {
-        items.push(`<li>${inlineFormat(lines[i].trim().replace(/^\*\s+/, ''))}</li>`);
+      while (i < lines.length && lines[i].trim().match(/^\*+\s+/)) {
+        const itemLine = lines[i].trim();
+        const stars = itemLine.match(/^(\*+)\s+/)?.[1].length ?? 1;
+        const text = itemLine.replace(/^\*+\s+/, '');
+        items.push(`<li class="list-level-${stars}">${inlineFormat(text)}</li>`);
         i++;
       }
       output.push(`<ul>${items.join('')}</ul>`);

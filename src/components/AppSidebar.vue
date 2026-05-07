@@ -31,6 +31,7 @@ const datasetEntries = computed(() => {
 });
 
 const currentManifest = computed(() => store.manifests.get(currentDataset.value));
+const showDatasetNav = computed(() => !!currentManifest.value || !!siteConfig.value?.defaultDataset);
 
 function closeMobile() { ui.sidebarOpen = false; }
 
@@ -42,7 +43,8 @@ function goToDataset(id: string) {
 function pageRoute(page: { route: string; datasetScoped?: boolean }): string {
   if (!page.route) return '/';
   if (page.datasetScoped) {
-    return `/dataset/${currentDataset.value}/${page.route}`;
+    const dsId = currentDataset.value || siteConfig.value?.defaultDataset || '';
+    return `/dataset/${dsId}/${page.route}`;
   }
   return `/${page.route}`;
 }
@@ -84,8 +86,8 @@ function isActive(page: { route: string; datasetScoped?: boolean }): boolean {
       </nav>
 
       <!-- Dataset-level navigation (shown when viewing a dataset) -->
-      <div v-if="currentManifest" class="mb-6">
-        <div class="section-label">{{ currentManifest.title }}</div>
+      <div v-if="showDatasetNav" class="mb-6">
+        <div class="section-label">{{ currentManifest?.title || siteConfig?.title || 'Dataset' }}</div>
         <nav class="space-y-0.5">
           <router-link
             v-for="page in datasetPages"
@@ -126,13 +128,13 @@ function isActive(page: { route: string; datasetScoped?: boolean }): boolean {
       <!-- Powered by -->
       <div class="mt-6 pt-4 border-t border-ink-100/60">
         <div class="text-[11px] text-ink-300">
-          Powered by
+          Built with the
           <a
             :href="(siteConfig?.features?.poweredBy as any)?.url || 'https://glossarist.org'"
             target="_blank"
             rel="noopener"
             class="concept-link"
-          >{{ (siteConfig?.features?.poweredBy as any)?.title || 'Glossarist' }}</a>
+          >{{ (siteConfig?.features?.poweredBy as any)?.title || 'Glossarist Concept Browser' }}</a>
         </div>
       </div>
     </div>

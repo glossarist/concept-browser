@@ -64,7 +64,11 @@ function stripFrontmatter(text: string): string {
 function formatDate(dateStr: string) {
   if (!dateStr) return '';
   try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    // Handle Jekyll-style dates: "2024-06-19 00:00:00 +0800"
+    const normalized = dateStr
+      .replace(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+([+-]\d{2})(\d{2})$/, '$1T$2$3:$4')
+      .replace(/^(\d{4}-\d{2}-\d{2})\s+([+-]\d{2})(\d{2})$/, '$1T00:00:00$2:$3');
+    return new Date(normalized).toLocaleDateString('en-US', {
       year: 'numeric', month: 'long', day: 'numeric',
     });
   } catch {
@@ -136,7 +140,7 @@ function formatDate(dateStr: string) {
             <p v-if="activeSlug !== post.slug && post.excerpt" class="text-ink-500 text-sm mt-2 leading-relaxed">{{ post.excerpt }}</p>
           </button>
 
-          <div v-if="activeSlug === post.slug" class="card border-t-0 rounded-t-none p-6 pt-2 -mt-1">
+          <div v-if="activeSlug === post.slug" class="card rounded-t-none -mt-1 p-6 pt-3 border-t border-ink-100/40">
             <div v-if="activeLoading" class="animate-pulse space-y-2">
               <div class="h-4 bg-ink-100 rounded w-full"></div>
               <div class="h-4 bg-ink-100 rounded w-5/6"></div>

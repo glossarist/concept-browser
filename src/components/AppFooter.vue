@@ -6,7 +6,7 @@ const { config } = useSiteConfig();
 
 const poweredBy = computed(() => {
   const pb = config.value?.features?.poweredBy as { title?: string; url?: string } | undefined;
-  return { title: pb?.title || 'Glossarist', url: pb?.url || 'https://glossarist.org' };
+  return { title: pb?.title || 'Glossarist Concept Browser', url: pb?.url || 'https://github.com/glossarist/concept-browser' };
 });
 
 const socialLinks = computed(() => {
@@ -51,7 +51,7 @@ const ownerUrl = computed(() => config.value?.branding?.ownerUrl || '/');
           >{{ link.label }}</a>
           <span class="text-ink-200">|</span>
           <span class="text-xs">
-            Powered by <a :href="poweredBy.url" target="_blank" rel="noopener" class="concept-link">{{ poweredBy.title }}</a>
+            Built with the <a :href="poweredBy.url" target="_blank" rel="noopener" class="concept-link">{{ poweredBy.title }}</a>
           </span>
         </div>
       </div>

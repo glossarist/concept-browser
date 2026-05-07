@@ -196,6 +196,10 @@
   .prose-news li {
     @apply mb-1;
   }
+  .prose-news li.list-level-2 {
+    @apply pl-3;
+    list-style-type: circle;
+  }
   .prose-page a,
   .prose-news a {
     @apply concept-link;
