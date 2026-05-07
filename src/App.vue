@@ -23,6 +23,9 @@ function scrollToTop() {
 
 onMounted(async () => {
   const [, cfg] = await Promise.all([store.discoverDatasets(), loadConfig()]);
+  if (cfg?.title) {
+    document.title = cfg.title;
+  }
   const allPages = [...globalPages.value, ...datasetPages.value];
   if (allPages.length > 0) {
     for (const route of buildPageRoutes(allPages)) {
