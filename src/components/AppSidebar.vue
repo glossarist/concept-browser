@@ -48,8 +48,10 @@ function pageRoute(page: { route: string; datasetScoped?: boolean }): string {
 }
 
 function isActive(page: { route: string; datasetScoped?: boolean }): boolean {
-  if (!page.route) return route.name === 'home';
-  if (page.datasetScoped) return route.name === page.route;
+  if (!page.route) {
+    if (page.datasetScoped) return route.name === 'dataset' || route.name === 'concept';
+    return route.name === 'home';
+  }
   return route.name === page.route;
 }
 </script>

@@ -678,46 +678,8 @@ function processNewsPage(config, page) {
   console.log(`Generated news index: ${index.length} posts, ${postFiles.length} files copied to public/news/`);
 }
 
-function processContributorsPage(config, page) {
-  const contributors = { register: config.id, contributors: [] };
-
-  for (const ds of config.datasets) {
-    const infoYamlPath = path.join(ROOT, '.datasets', ds.id, 'info.yaml');
-    if (!fs.existsSync(infoYamlPath)) continue;
-
-    try {
-      const info = readYaml(infoYamlPath);
-      if (info.header) {
-        contributors.owner = info.header['register-owner'];
-        contributors.manager = info.header['register-manager'];
-      }
-      if (info.languages) {
-        for (const [lang, data] of Object.entries(info.languages)) {
-          contributors.contributors.push({
-            language: lang,
-            registerName: data['register-name'] || '',
-            organization: data['submitting-organisation-name'] || '',
-            contact: data['submitting-organisation-contact'] || '',
-            email: data['submitting-organisation-contact-email'] || '',
-            uri: data['uniform-resource-identifier-uri'] || '',
-            country: data['operating-language-country'] || '',
-          });
-        }
-      }
-    } catch (e) {
-      console.warn(`  Skipping contributors for ${ds.id}: ${e.message}`);
-    }
-  }
-
-  if (contributors.contributors.length > 0 || contributors.owner) {
-    writeJson(path.join(PUBLIC, 'contributors.json'), contributors);
-    console.log(`Generated contributors: ${contributors.contributors.length} languages`);
-  }
-}
-
 const pageProcessors = {
   news: processNewsPage,
-  contributors: processContributorsPage,
 };
 
 function synthesizePages(config) {
@@ -766,6 +728,7 @@ writeJson(path.join(PUBLIC, 'site-config.json'), {
   defaults: config.defaults,
   email: config.email,
   pages: processedPages.length > 0 ? processedPages : undefined,
+  contributors: config.contributors || undefined,
 });
 console.log('Generated site-config.json');
 

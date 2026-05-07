@@ -93,6 +93,16 @@ export interface DatasetConfig {
   downloads?: string[];
 }
 
+// === Contributors ===
+
+export interface Contributor {
+  name: string;
+  role?: string;
+  organization?: string;
+  url?: string;
+  email?: string;
+}
+
 // === Downloads ===
 
 export interface BulkFormatInfo {
@@ -144,4 +154,5 @@ export interface SiteConfig {
   };
   email?: string;
   pages?: PageConfig[];
+  contributors?: Contributor[];
 }

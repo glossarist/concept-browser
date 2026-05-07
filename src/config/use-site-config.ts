@@ -29,6 +29,7 @@ export interface RuntimeSiteConfig {
   defaults?: { language?: string; languageOrder?: string[] };
   email?: string;
   pages?: PageConfig[];
+  contributors?: { name: string; role?: string; organization?: string; url?: string; email?: string }[];
 }
 
 const siteConfig = ref<RuntimeSiteConfig | null>(null);
@@ -103,24 +104,36 @@ async function loadConfig(): Promise<RuntimeSiteConfig | null> {
   return siteConfig.value;
 }
 
-const BUILTIN_GLOBAL_PAGES: PageConfig[] = [
-  { type: 'custom', route: '', title: 'Home', icon: 'home' },
-  { type: 'custom', route: 'search', title: 'Search', icon: 'search' },
-  { type: 'custom', route: 'graph', title: 'Graph', icon: 'graph' },
-];
+function synthesizeGlobalPages(features?: Record<string, unknown>, pages?: PageConfig[]): PageConfig[] {
+  if (pages && pages.length > 0) return pages.filter(p => !p.datasetScoped);
 
-const BUILTIN_DATASET_PAGES: PageConfig[] = [
-  { type: 'custom', route: '', title: 'Concepts', icon: 'list' },
-  { type: 'stats', route: 'stats', title: 'Statistics', icon: 'chart' },
-  { type: 'about', route: 'about', title: 'About', icon: 'info' },
-];
-
-function synthesizePages(features?: Record<string, unknown>, pages?: PageConfig[]) {
-  if (pages && pages.length > 0) return pages;
-
-  const result = [...BUILTIN_GLOBAL_PAGES];
+  const result: PageConfig[] = [
+    { type: 'custom', route: '', title: 'Home', icon: 'home' },
+  ];
+  if (features?.search !== false) {
+    result.push({ type: 'custom', route: 'search', title: 'Search', icon: 'search' });
+  }
+  if (features?.graph !== false) {
+    result.push({ type: 'custom', route: 'graph', title: 'Graph', icon: 'graph' });
+  }
   if (features?.news) {
     result.push({ type: 'news', route: 'news', title: 'News', icon: 'newspaper' });
+  }
+  return result;
+}
+
+function synthesizeDatasetPages(features?: Record<string, unknown>, pages?: PageConfig[]): PageConfig[] {
+  const declared = pages?.filter(p => p.datasetScoped) ?? [];
+  if (declared.length > 0) return declared;
+
+  const result: PageConfig[] = [
+    { type: 'custom', route: '', title: 'Concepts', icon: 'list', datasetScoped: true },
+  ];
+  if (features?.stats !== false) {
+    result.push({ type: 'stats', route: 'stats', title: 'Statistics', icon: 'chart', datasetScoped: true });
+  }
+  if (features?.about !== false) {
+    result.push({ type: 'about', route: 'about', title: 'About', icon: 'info', datasetScoped: true });
   }
   return result;
 }
@@ -130,15 +143,12 @@ export function useSiteConfig() {
   const visibleDatasets = computed(() => siteConfig.value?.datasets ?? []);
 
   const globalPages = computed<PageConfig[]>(() =>
-    synthesizePages(siteConfig.value?.features, siteConfig.value?.pages)
-      .filter(p => !p.datasetScoped),
+    synthesizeGlobalPages(siteConfig.value?.features, siteConfig.value?.pages),
   );
 
-  const datasetPages = computed<PageConfig[]>(() => {
-    const declared = siteConfig.value?.pages?.filter(p => p.datasetScoped) ?? [];
-    if (declared.length > 0) return declared;
-    return BUILTIN_DATASET_PAGES;
-  });
+  const datasetPages = computed<PageConfig[]>(() =>
+    synthesizeDatasetPages(siteConfig.value?.features, siteConfig.value?.pages),
+  );
 
   return { config, visibleDatasets, loadConfig, globalPages, datasetPages };
 }
