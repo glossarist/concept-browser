@@ -1,13 +1,18 @@
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useVocabularyStore } from '../stores/vocabulary';
+import { useSiteConfig } from '../config/use-site-config';
 
-export function useDatasetLoader(registerId: () => string) {
+export function useDatasetLoader(registerId: () => string | undefined) {
   const store = useVocabularyStore();
+  const { config } = useSiteConfig();
   const loading = ref(false);
   const localError = ref<string | null>(null);
 
+  const resolvedId = computed(() => registerId() || config.value?.defaultDataset || '');
+
   async function ensureLoaded() {
-    const id = registerId();
+    const id = resolvedId.value;
+    if (!id) return;
     const adapter = store.datasets.get(id);
     if (adapter?.index) return;
     loading.value = true;
@@ -21,7 +26,7 @@ export function useDatasetLoader(registerId: () => string) {
   }
 
   onMounted(ensureLoaded);
-  watch(registerId, ensureLoaded);
+  watch(resolvedId, ensureLoaded);
 
-  return { loading, localError, ensureLoaded };
+  return { loading, localError, ensureLoaded, resolvedId };
 }

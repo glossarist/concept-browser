@@ -5,13 +5,13 @@ import { useDsStyle } from '../utils/dataset-style';
 import { useDatasetLoader } from '../composables/use-dataset-loader';
 import { langName, langLabel } from '../utils/lang';
 
-const props = defineProps<{ registerId: string }>();
+const props = defineProps<{ registerId?: string }>();
 
 const store = useVocabularyStore();
 const { getColor } = useDsStyle();
-const { loading, localError, ensureLoaded } = useDatasetLoader(() => props.registerId);
+const { loading, localError, ensureLoaded, resolvedId } = useDatasetLoader(() => props.registerId);
 
-const manifest = computed(() => store.manifests.get(props.registerId));
+const manifest = computed(() => store.manifests.get(resolvedId.value));
 
 interface LangStat {
   lang: string;
@@ -49,7 +49,7 @@ const maxTerms = computed(() => Math.max(...stats.value.langs.map(l => l.terms),
     <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400 mb-6">
       <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">Home</router-link>
       <span class="text-ink-200">/</span>
-      <router-link :to="{ name: 'dataset', params: { registerId } }" class="hover:text-ink-700 transition-colors">{{ manifest?.title || registerId }}</router-link>
+      <router-link :to="{ name: 'dataset', params: { registerId: resolvedId } }" class="hover:text-ink-700 transition-colors">{{ manifest?.title || resolvedId }}</router-link>
       <span class="text-ink-200">/</span>
       <span class="text-ink-700">Statistics</span>
     </nav>
@@ -105,7 +105,7 @@ const maxTerms = computed(() => Math.max(...stats.value.langs.map(l => l.terms),
                       class="h-full rounded-full transition-all duration-500"
                       :style="{
                         width: (s.terms / maxTerms * 100) + '%',
-                        backgroundColor: getColor(registerId),
+                        backgroundColor: getColor(resolvedId),
                       }"
                     ></div>
                   </div>

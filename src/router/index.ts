@@ -51,6 +51,16 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/ContributorsView.vue'),
   },
   {
+    path: '/about',
+    name: 'about-global',
+    component: () => import('../views/AboutView.vue'),
+  },
+  {
+    path: '/stats',
+    name: 'stats-global',
+    component: () => import('../views/StatsView.vue'),
+  },
+  {
     path: '/resolve/:uri(.*)',
     name: 'resolve',
     component: () => import('../views/ResolveView.vue'),

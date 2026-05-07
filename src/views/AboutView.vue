@@ -5,13 +5,13 @@ import { useDsStyle } from '../utils/dataset-style';
 import { useDatasetLoader } from '../composables/use-dataset-loader';
 import { langName, langLabel } from '../utils/lang';
 
-const props = defineProps<{ registerId: string }>();
+const props = defineProps<{ registerId?: string }>();
 
 const store = useVocabularyStore();
 const { getColor } = useDsStyle();
-const { loading, localError, ensureLoaded } = useDatasetLoader(() => props.registerId);
+const { loading, localError, ensureLoaded, resolvedId } = useDatasetLoader(() => props.registerId);
 
-const manifest = computed(() => store.manifests.get(props.registerId));
+const manifest = computed(() => store.manifests.get(resolvedId.value));
 </script>
 
 <template>
@@ -20,7 +20,7 @@ const manifest = computed(() => store.manifests.get(props.registerId));
     <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400 mb-6">
       <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">Home</router-link>
       <span class="text-ink-200">/</span>
-      <router-link :to="{ name: 'dataset', params: { registerId } }" class="hover:text-ink-700 transition-colors">{{ manifest?.title || registerId }}</router-link>
+      <router-link :to="{ name: 'dataset', params: { registerId: resolvedId } }" class="hover:text-ink-700 transition-colors">{{ manifest?.title || resolvedId }}</router-link>
       <span class="text-ink-200">/</span>
       <span class="text-ink-700">About</span>
     </nav>
@@ -109,8 +109,8 @@ const manifest = computed(() => store.manifests.get(props.registerId));
             :key="tag"
             class="badge"
             :style="{
-              backgroundColor: getColor(registerId) + '15',
-              color: getColor(registerId),
+              backgroundColor: getColor(resolvedId) + '15',
+              color: getColor(resolvedId),
             }"
           >
             {{ tag }}
