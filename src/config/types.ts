@@ -121,7 +121,7 @@ export const FORMAT_LABELS: Record<string, string> = {
 
 // === Pages ===
 
-export type PageType = 'news' | 'contributors' | 'about' | 'stats' | 'custom';
+export type PageType = 'page' | 'news' | 'contributors' | 'about' | 'stats' | 'custom';
 
 export interface PageConfig {
   type: PageType;

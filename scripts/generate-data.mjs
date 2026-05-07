@@ -678,8 +678,103 @@ function processNewsPage(config, page) {
   console.log(`Generated news index: ${index.length} posts, ${postFiles.length} files copied to public/news/`);
 }
 
+// --- Markdown-lite renderer (isomorphic, same logic as src/utils/markdown-lite.ts) ---
+
+function renderMarkdown(input) {
+  const INLINE_PATTERNS = [
+    [/\*\*(.+?)\*\*/g, m => `<strong>${m[1]}</strong>`],
+    [/(?<!\*)\*([^*]+?)\*(?!\*)/g, m => `<em>${m[1]}</em>`],
+    [/`([^`]+?)`/g, m => `<code>${m[1]}</code>`],
+    [/\[([^\]]+)\]\(([^)]+)\)/g, m => `<a href="${m[2]}" target="_blank">${m[1]}</a>`],
+  ];
+  function renderInline(text) {
+    for (const [re, fn] of INLINE_PATTERNS) {
+      text = text.replace(re, (...args) => fn(args));
+    }
+    return text;
+  }
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  const blocks = [];
+  const lines = input.split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.trimStart().startsWith('```')) {
+      const lang = line.trim().slice(3);
+      const codeLines = [];
+      i++;
+      while (i < lines.length && !lines[i].trimStart().startsWith('```')) { codeLines.push(lines[i]); i++; }
+      i++;
+      blocks.push(`<pre><code${lang ? ` class="language-${lang}"` : ''}>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+      continue;
+    }
+    const hm = line.match(/^(#{1,4})\s+(.+)/);
+    if (hm) { blocks.push(`<h${hm[1].length + 1}>${renderInline(hm[2])}</h${hm[1].length + 1}>`); i++; continue; }
+    if (/^---+\s*$/.test(line)) { blocks.push('<hr>'); i++; continue; }
+    if (/^\s*[-*]\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) { items.push(`<li>${renderInline(lines[i].replace(/^\s*[-*]\s+/, ''))}</li>`); i++; }
+      blocks.push(`<ul>${items.join('')}</ul>`); continue;
+    }
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) { items.push(`<li>${renderInline(lines[i].replace(/^\s*\d+\.\s+/, ''))}</li>`); i++; }
+      blocks.push(`<ol>${items.join('')}</ol>`); continue;
+    }
+    if (/^>\s?/.test(line)) {
+      const ql = [];
+      while (i < lines.length && /^>\s?/.test(lines[i])) { ql.push(lines[i].replace(/^>\s?/, '')); i++; }
+      blocks.push(`<blockquote>${renderInline(ql.join(' '))}</blockquote>`); continue;
+    }
+    if (!line.trim()) { i++; continue; }
+    const pl = [];
+    while (i < lines.length && lines[i].trim() && !/^#{1,4}\s/.test(lines[i]) && !/^\s*[-*]\s+/.test(lines[i]) && !/^\s*\d+\.\s+/.test(lines[i]) && !/^>\s?/.test(lines[i]) && !lines[i].trimStart().startsWith('```')) { pl.push(lines[i]); i++; }
+    if (pl.length) blocks.push(`<p>${renderInline(pl.join(' '))}</p>`);
+  }
+  return blocks.join('\n');
+}
+
+function processContentPage(config, page) {
+  if (!page.source) {
+    console.warn(`  Skipping content page '${page.route}': no source file`);
+    return;
+  }
+  const srcPath = path.resolve(ROOT, page.source);
+  if (!fs.existsSync(srcPath)) {
+    console.warn(`  Skipping content page '${page.route}': source not found (${srcPath})`);
+    return;
+  }
+  const raw = fs.readFileSync(srcPath, 'utf8');
+  const ext = path.extname(srcPath).toLowerCase();
+  let html;
+  if (ext === '.html' || ext === '.htm') {
+    html = raw;
+  } else {
+    const stripped = stripFrontmatter(raw);
+    html = renderMarkdown(stripped);
+  }
+
+  const pagesDir = path.join(PUBLIC, 'pages');
+  fs.mkdirSync(pagesDir, { recursive: true });
+  writeJson(path.join(pagesDir, `${page.route}.json`), { title: page.title, html });
+  console.log(`  Generated content page: ${page.route} (${ext})`);
+}
+
+function stripFrontmatter(text) {
+  const lines = text.split('\n');
+  if (lines[0] !== '---') return text;
+  let end = -1;
+  for (let i = 1; i < lines.length; i++) { if (lines[i] === '---') { end = i; break; } }
+  if (end < 0) return text;
+  return lines.slice(end + 1).join('\n').trim();
+}
+
 const pageProcessors = {
   news: processNewsPage,
+  page: processContentPage,
 };
 
 function synthesizePages(config) {

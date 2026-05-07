@@ -55,6 +55,18 @@ const routes: RouteRecordRaw[] = [
     name: 'resolve',
     component: () => import('../views/ResolveView.vue'),
   },
+  // Catch-all for custom content pages (lowest priority)
+  {
+    path: '/dataset/:registerId/:page',
+    name: 'dataset-page',
+    component: () => import('../views/PageView.vue'),
+    props: true,
+  },
+  {
+    path: '/:slug',
+    name: 'page',
+    component: () => import('../views/PageView.vue'),
+  },
 ];
 
 const router = createRouter({
