@@ -2,14 +2,12 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useVocabularyStore } from './stores/vocabulary';
 import { useSiteConfig } from './config/use-site-config';
-import { buildPageRoutes } from './router/page-routes';
-import router from './router';
 import AppHeader from './components/AppHeader.vue';
 import AppSidebar from './components/AppSidebar.vue';
 import AppFooter from './components/AppFooter.vue';
 
 const store = useVocabularyStore();
-const { loadConfig, config, globalPages, datasetPages } = useSiteConfig();
+const { loadConfig, config } = useSiteConfig();
 const appReady = ref(false);
 const showScrollTop = ref(false);
 let mainEl: HTMLElement | null = null;
@@ -26,12 +24,6 @@ onMounted(async () => {
   const [, cfg] = await Promise.all([store.discoverDatasets(), loadConfig()]);
   if (cfg?.title) {
     document.title = cfg.title;
-  }
-  const allPages = [...globalPages.value, ...datasetPages.value];
-  if (allPages.length > 0) {
-    for (const route of buildPageRoutes(allPages)) {
-      router.addRoute(route);
-    }
   }
   appReady.value = true;
   // Watch scroll on main content area
