@@ -8,7 +8,7 @@ import AppHeader from './components/AppHeader.vue';
 import AppSidebar from './components/AppSidebar.vue';
 
 const store = useVocabularyStore();
-const { loadConfig, config } = useSiteConfig();
+const { loadConfig, config, globalPages, datasetPages } = useSiteConfig();
 const appReady = ref(false);
 const showScrollTop = ref(false);
 let mainEl: HTMLElement | null = null;
@@ -23,8 +23,9 @@ function scrollToTop() {
 
 onMounted(async () => {
   const [, cfg] = await Promise.all([store.discoverDatasets(), loadConfig()]);
-  if (cfg?.pages) {
-    for (const route of buildPageRoutes(cfg.pages)) {
+  const allPages = [...globalPages.value, ...datasetPages.value];
+  if (allPages.length > 0) {
+    for (const route of buildPageRoutes(allPages)) {
       router.addRoute(route);
     }
   }
