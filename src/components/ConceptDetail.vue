@@ -4,11 +4,12 @@ import type { Manifest } from '../adapters/types';
 import { computed, ref, nextTick, watch } from 'vue';
 import { langName, langLabel } from '../utils/lang';
 import { renderMath, cleanContent } from '../utils/math';
-import type { XrefResolver } from '../utils/math';
+import type { RenderOptions } from '../utils/math';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
 import { getFactory } from '../adapters/factory';
+import { useRenderOptions } from '../composables/use-render-options';
 import ConceptTimeline from './ConceptTimeline.vue';
 import FormatDownloads from './FormatDownloads.vue';
 
@@ -87,19 +88,27 @@ function escapeAttr(s: string) {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-const xrefResolver: XrefResolver = (uri, term) => {
-  const resolution = factory.resolve(uri, props.registerId);
-  if (resolution.type === 'internal') {
-    return `<a href="#" class="xref-link" data-register="${escapeAttr(resolution.registerId)}" data-concept="${escapeAttr(resolution.conceptId)}">${escapeAttr(term)}</a>`;
-  }
-  if (resolution.type === 'site') {
-    return `<a href="${escapeAttr(resolution.baseUrl)}/resolve/${escapeAttr(encodeURIComponent(uri))}" target="_blank" rel="noopener" class="xref-link xref-external">${escapeAttr(term)}</a>`;
-  }
-  if (resolution.type === 'url') {
-    return `<a href="${escapeAttr(resolution.url)}" target="_blank" rel="noopener" class="xref-link xref-external">${escapeAttr(term)}</a>`;
-  }
-  return escapeAttr(term);
+const { ensureBibLoaded, bibResolver, figResolver } = useRenderOptions(() => props.registerId);
+
+const renderOpts: RenderOptions = {
+  xrefResolver: (uri, term) => {
+    const resolution = factory.resolve(uri, props.registerId);
+    if (resolution.type === 'internal') {
+      return `<a href="#" class="xref-link" data-register="${escapeAttr(resolution.registerId)}" data-concept="${escapeAttr(resolution.conceptId)}">${escapeAttr(term)}</a>`;
+    }
+    if (resolution.type === 'site') {
+      return `<a href="${escapeAttr(resolution.baseUrl)}/resolve/${escapeAttr(encodeURIComponent(uri))}" target="_blank" rel="noopener" class="xref-link xref-external">${escapeAttr(term)}</a>`;
+    }
+    if (resolution.type === 'url') {
+      return `<a href="${escapeAttr(resolution.url)}" target="_blank" rel="noopener" class="xref-link xref-external">${escapeAttr(term)}</a>`;
+    }
+    return escapeAttr(term);
+  },
+  bibResolver,
+  figResolver,
 };
+
+watch(() => props.registerId, () => { ensureBibLoaded(); }, { immediate: true });
 
 // Handle clicks on cross-reference links via event delegation
 function handleContentClick(e: MouseEvent) {
@@ -415,14 +424,14 @@ function plainTruncate(html: string, max: number = 120): string {
 
               <!-- Definition -->
               <div v-if="lc.definition" class="p-4 rounded-lg bg-surface border-l-2" :style="{ borderLeftColor: getColor(manifest.id) }">
-                <div class="text-ink-800 leading-relaxed" v-html="renderMath(lc.definition, xrefResolver)"></div>
+                <div class="text-ink-800 leading-relaxed" v-html="renderMath(lc.definition, renderOpts)"></div>
               </div>
 
               <!-- Notes -->
               <div v-if="lc.notes.length" class="space-y-2">
                 <div v-for="(note, i) in lc.notes" :key="i" class="text-ink-600 text-sm leading-relaxed">
                   <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">Note {{ i + 1 }}</span>
-                  <div class="mt-1" v-html="renderMath(note, xrefResolver)"></div>
+                  <div class="mt-1" v-html="renderMath(note, renderOpts)"></div>
                 </div>
               </div>
 
@@ -430,7 +439,7 @@ function plainTruncate(html: string, max: number = 120): string {
               <div v-if="lc.examples.length" class="space-y-2">
                 <div v-for="(ex, i) in lc.examples" :key="i" class="text-ink-600 text-sm leading-relaxed">
                   <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">Example {{ i + 1 }}</span>
-                  <div class="mt-1" v-html="renderMath(ex, xrefResolver)"></div>
+                  <div class="mt-1" v-html="renderMath(ex, renderOpts)"></div>
                 </div>
               </div>
 

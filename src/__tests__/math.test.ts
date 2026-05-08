@@ -63,6 +63,29 @@ describe('renderMath', () => {
     expect(result).toBe('a entity ref');
   });
 
+  it('uses display text from three-part URN refs', () => {
+    const result = renderMath('a {{urn:iso:std:iso:14812:3.1.1.6,person,Person}} ref');
+    expect(result).toBe('a Person ref');
+  });
+
+  it('resolves three-part URN refs with display text via xrefResolver', () => {
+    const resolver = (uri: string, term: string) => `[${term}→${uri}]`;
+    const result = renderMath(
+      '{{urn:iso:std:iso:14812:3.1.1.6,person,Person}}, object, event',
+      resolver,
+    );
+    expect(result).toBe('[Person→urn:iso:std:iso:14812:3.1.1.6], object, event');
+  });
+
+  it('resolves single-braced three-part URN refs', () => {
+    const resolver = (uri: string, term: string) => `[${term}→${uri}]`;
+    const result = renderMath(
+      '{urn:iso:std:iso:14812:3.5.3.4,user,users} are people',
+      resolver,
+    );
+    expect(result).toBe('[users→urn:iso:std:iso:14812:3.5.3.4] are people');
+  });
+
   it('strips remaining {{...}} to just the term', () => {
     const result = renderMath('see {{some term, unknown ref}}');
     expect(result).toBe('see some term');
@@ -104,6 +127,10 @@ describe('cleanContent', () => {
 
   it('strips URN refs to just the term', () => {
     expect(cleanContent('a {{urn:iso:std:iso:14812:3.1.1.1,entity}} ref')).toBe('a entity ref');
+  });
+
+  it('strips three-part URN refs to the linked term (not display text)', () => {
+    expect(cleanContent('{{urn:iso:std:iso:14812:3.1.1.6,person,Person}}, object')).toBe('person, object');
   });
 
   it('handles empty input', () => {

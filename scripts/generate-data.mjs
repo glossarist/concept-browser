@@ -98,9 +98,72 @@ function refsToJsonLd(refs) {
   })).filter(r => r['@id']);
 }
 
+function buildRefMaps(config) {
+  const refPrefixMap = {};
+  const urnStandardMap = {};
+
+  for (const ds of config.datasets) {
+    const uri = ds.uri || '';
+    const urnMatch = uri.match(/^urn:iso:std:iso:(\d+):\*$/);
+    if (urnMatch) urnStandardMap[urnMatch[1]] = ds.id;
+  }
+
+  for (const route of config.routing || []) {
+    if (route.uri && route.uri.includes('iec') && route.uri.includes('60050')) {
+      const mapped = route.targetDataset;
+      if (mapped) refPrefixMap['IEV'] = mapped;
+    }
+  }
+
+  const xref = config.crossReferences || {};
+  if (xref.refPrefixMap) Object.assign(refPrefixMap, xref.refPrefixMap);
+  if (xref.urnStandardMap) Object.assign(urnStandardMap, xref.urnStandardMap);
+
+  return { refPrefixMap, urnStandardMap };
+}
+
+function extractInlineRefs(localizedData, refPrefixMap, urnStandardMap) {
+  const refs = [];
+  const texts = [];
+
+  if (localizedData.definition) {
+    const defs = Array.isArray(localizedData.definition) ? localizedData.definition : [localizedData.definition];
+    for (const d of defs) texts.push(typeof d === 'string' ? d : (d.content || ''));
+  }
+  if (localizedData.notes) {
+    for (const n of localizedData.notes) texts.push(typeof n === 'string' ? n : (n.content || ''));
+  }
+  if (localizedData.examples) {
+    for (const e of localizedData.examples) texts.push(typeof e === 'string' ? e : (e.content || ''));
+  }
+  const fullText = texts.join(' ');
+
+  for (const m of fullText.matchAll(/\{\{([^,}]+),\s*IEV:([^}]+)\}\}/g)) {
+    const datasetId = refPrefixMap['IEV'];
+    if (datasetId) refs.push({ id: `https://glossarist.org/${datasetId}/concept/${m[2]}`, term: m[1].trim() });
+  }
+
+  for (const m of fullText.matchAll(/\{urn:iso:std:iso:(\d+):([^,}]+),([^,}]+)(?:,([^}]+))?\}/g)) {
+    const datasetId = urnStandardMap[m[1]];
+    if (datasetId) refs.push({ id: `https://glossarist.org/${datasetId}/concept/${m[2]}`, term: (m[4] || m[3]).trim() });
+  }
+
+  for (const m of fullText.matchAll(/\{\{urn:iso:std:iso:(\d+):([^,}]+),([^,}]+)(?:,([^}]+))?\}\}/g)) {
+    const datasetId = urnStandardMap[m[1]];
+    if (datasetId) refs.push({ id: `https://glossarist.org/${datasetId}/concept/${m[2]}`, term: (m[4] || m[3]).trim() });
+  }
+
+  const seen = new Set();
+  return refs.filter(r => {
+    if (seen.has(r.id)) return false;
+    seen.add(r.id);
+    return true;
+  });
+}
+
 const LANG_CODES = ['eng', 'ara', 'deu', 'fra', 'spa', 'ita', 'jpn', 'kor', 'pol', 'por', 'srp', 'swe', 'zho', 'rus', 'fin', 'dan', 'nld', 'msa', 'nob', 'nno', 'zho'];
 
-function yamlToJsonLd(conceptYaml, register) {
+function yamlToJsonLd(conceptYaml, register, refMaps) {
   const termid = String(conceptYaml.termid);
   const doc = {
     '@context': 'https://glossarist.org/ns/context.jsonld',
@@ -142,6 +205,11 @@ function yamlToJsonLd(conceptYaml, register) {
     }
     if (lc.references && lc.references.length > 0) {
       lDoc['gl:references'] = refsToJsonLd(lc.references);
+    } else if (refMaps) {
+      const inlineRefs = extractInlineRefs(lc, refMaps.refPrefixMap, refMaps.urnStandardMap);
+      if (inlineRefs.length > 0) {
+        lDoc['gl:references'] = refsToJsonLd(inlineRefs);
+      }
     }
 
     localizations[lang] = lDoc;
@@ -374,7 +442,7 @@ function processDataset(dir, register, opts) {
       if (!conceptYaml || !conceptYaml.termid) continue;
 
       const termid = String(conceptYaml.termid);
-      const jsonld = yamlToJsonLd(conceptYaml, register);
+      const jsonld = yamlToJsonLd(conceptYaml, register, refMaps);
       writeJson(path.join(conceptsDir, `${termid}.json`), jsonld);
 
       // Generate Turtle format
@@ -526,9 +594,35 @@ function processDataset(dir, register, opts) {
     languageStats: langStats,
     availableFormats,
     bulkFormats,
+    hasBibliography: opts.hasBibliography,
+    hasImages: opts.hasImages,
   };
   if (opts.languageOrder) manifest.languageOrder = opts.languageOrder;
   writeJson(path.join(DATA, register, 'manifest.json'), manifest);
+
+  // Copy bibliography.yaml → bibliography.json
+  const bibPath = path.join(ROOT, '.datasets', register, 'bibliography.yaml');
+  if (fs.existsSync(bibPath)) {
+    const bibData = readYaml(bibPath);
+    writeJson(path.join(DATA, register, 'bibliography.json'), bibData);
+    console.log(`  Copied bibliography (${Object.keys(bibData).length} entries)`);
+  }
+
+  // Copy images/
+  const imagesSrcDir = path.join(ROOT, '.datasets', register, 'images');
+  if (fs.existsSync(imagesSrcDir) && fs.statSync(imagesSrcDir).isDirectory()) {
+    const imagesDestDir = path.join(DATA, register, 'images');
+    fs.mkdirSync(imagesDestDir, { recursive: true });
+    let imgCount = 0;
+    for (const file of fs.readdirSync(imagesSrcDir)) {
+      const src = path.join(imagesSrcDir, file);
+      if (fs.statSync(src).isFile()) {
+        fs.copyFileSync(src, path.join(imagesDestDir, file));
+        imgCount++;
+      }
+    }
+    console.log(`  Copied ${imgCount} images`);
+  }
 
   console.log(`  Generated ${concepts.length} concepts, manifest, ${chunks.length} index chunks`);
   return concepts.length;
@@ -538,6 +632,7 @@ function processDataset(dir, register, opts) {
 console.log('Generating Glossarist vocabulary browser data...\n');
 
 const { config } = loadSiteConfig();
+const refMaps = buildRefMaps(config);
 const counts = {};
 const registry = [];
 
@@ -571,6 +666,8 @@ for (let i = 0; i < config.datasets.length; i++) {
     color: ds.color || DS_PALETTE[i % DS_PALETTE.length],
     datasetUri: ds.uri,
     uriAliases: ds.uriAliases,
+    hasBibliography: fs.existsSync(path.join(ROOT, '.datasets', ds.id, 'bibliography.yaml')),
+    hasImages: fs.existsSync(path.join(ROOT, '.datasets', ds.id, 'images')),
   });
   registry.push({ id: ds.id, manifestUrl: `/data/${ds.id}/manifest.json` });
 }
@@ -824,6 +921,7 @@ writeJson(path.join(PUBLIC, 'site-config.json'), {
   email: config.email,
   pages: processedPages.length > 0 ? processedPages : undefined,
   contributors: config.contributors || undefined,
+  copyright: config.copyright || undefined,
 });
 console.log('Generated site-config.json');
 
