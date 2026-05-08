@@ -204,6 +204,31 @@ function scrollToLang(lang: string) {
 const outgoingEdges = computed(() => props.edges.filter(e => e.source === props.concept['@id']));
 const incomingEdges = computed(() => props.edges.filter(e => e.target === props.concept['@id']));
 
+function isLocalRef(uri: string): boolean {
+  const resolution = factory.resolve(uri, props.registerId);
+  return resolution.type === 'internal' && resolution.registerId === props.registerId;
+}
+
+function edgeConceptId(uri: string): string {
+  const m = uri.match(/\/concept\/([^/]+)$/);
+  return m ? m[1] : uri.split('/').pop() || uri;
+}
+
+function edgeNodeData(uri: string) {
+  return store.graph.getNode(uri);
+}
+
+function edgeTooltip(uri: string): string {
+  const node = edgeNodeData(uri);
+  const lines: string[] = [uri];
+  if (node) {
+    for (const [lang, designation] of Object.entries(node.designations)) {
+      lines.push(`${langLabel(lang)}: ${designation}`);
+    }
+  }
+  return lines.join('\n');
+}
+
 function edgeDatasetBadge(uri: string): { id: string; title: string } | null {
   const resolution = factory.resolve(uri, props.registerId);
   if (resolution.type === 'internal' && resolution.registerId !== props.registerId) {
@@ -474,10 +499,14 @@ function plainTruncate(html: string, max: number = 120): string {
                   v-for="edge in outgoingEdges"
                   :key="edge.target"
                   @click="navigateEdge(edge)"
+                  :title="edgeTooltip(edge.target)"
                   class="text-sm concept-link block truncate w-full text-left flex items-center gap-1.5"
+                  :class="isLocalRef(edge.target) ? '' : 'xref-external'"
                 >
-                  {{ edge.label || edge.target.split('/').pop() }}
+                  {{ edgeConceptId(edge.target) }}
                   <span v-if="edgeDatasetBadge(edge.target)" class="badge badge-gray text-[9px] flex-shrink-0 truncate max-w-[100px]">{{ edgeDatasetBadge(edge.target)!.title }}</span>
+                  <span v-if="isLocalRef(edge.target)" class="text-[9px] text-ink-200 flex-shrink-0">local</span>
+                  <span v-else class="text-[9px] text-amber-500 flex-shrink-0">external</span>
                 </button>
               </div>
             </div>
@@ -488,10 +517,14 @@ function plainTruncate(html: string, max: number = 120): string {
                   v-for="edge in incomingEdges"
                   :key="edge.source"
                   @click="navigateEdge(edge)"
+                  :title="edgeTooltip(edge.source)"
                   class="text-sm concept-link block truncate w-full text-left flex items-center gap-1.5"
+                  :class="isLocalRef(edge.source) ? '' : 'xref-external'"
                 >
-                  {{ edge.label || edge.source.split('/').pop() }}
+                  {{ edgeConceptId(edge.source) }}
                   <span v-if="edgeDatasetBadge(edge.source)" class="badge badge-gray text-[9px] flex-shrink-0 truncate max-w-[100px]">{{ edgeDatasetBadge(edge.source)!.title }}</span>
+                  <span v-if="isLocalRef(edge.source)" class="text-[9px] text-ink-200 flex-shrink-0">local</span>
+                  <span v-else class="text-[9px] text-amber-500 flex-shrink-0">external</span>
                 </button>
               </div>
             </div>
