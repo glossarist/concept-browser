@@ -27,7 +27,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/dataset/:registerId/about',
     name: 'about',
-    component: () => import('../views/AboutView.vue'),
+    component: () => import('../views/PageView.vue'),
     props: true,
   },
   {
@@ -53,7 +53,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/about',
     name: 'about-global',
-    component: () => import('../views/AboutView.vue'),
+    component: () => import('../views/PageView.vue'),
   },
   {
     path: '/stats',

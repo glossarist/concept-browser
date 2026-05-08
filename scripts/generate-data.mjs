@@ -872,6 +872,7 @@ function stripFrontmatter(text) {
 const pageProcessors = {
   news: processNewsPage,
   page: processContentPage,
+  about: processContentPage,
 };
 
 function synthesizePages(config) {
