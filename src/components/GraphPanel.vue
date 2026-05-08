@@ -27,6 +27,7 @@ const svgRef = ref<SVGSVGElement | null>(null);
 const containerRef = ref<HTMLDivElement | null>(null);
 const selectedNode = ref<GraphNode | null>(null);
 const detailCloseRef = ref<HTMLButtonElement | null>(null);
+const labelMode = ref<'designation' | 'identifier'>('designation');
 
 // Dataset enable/disable state
 const registerEnabled = reactive<Record<string, boolean>>({});
@@ -219,7 +220,7 @@ function buildSimulation(width: number, height: number) {
     .attr('font-weight', '500')
     .attr('fill', '#636588') // ink-400
     .attr('pointer-events', 'none')
-    .text(d => d.designation.slice(0, 18));
+    .text(d => (labelMode.value === 'identifier' ? d.conceptId : d.designation).slice(0, 18));
 
   const dragBehavior = drag<SVGGElement, SimNode>()
     .on('start', (event: D3DragEvent<SVGGElement, SimNode, SimNode>, d) => {
@@ -432,6 +433,22 @@ function selectedNodeColor(): string {
           <div v-if="nodeCount > 0" class="flex gap-4 mt-3 pt-3 border-t border-ink-100/40">
             <button @click="resetZoom" class="text-[10px] font-semibold text-ink-500 hover:text-ink-700 uppercase tracking-wide transition-colors">Reset zoom</button>
             <button @click="rebuildGraph" class="text-[10px] font-semibold text-ink-500 hover:text-ink-700 uppercase tracking-wide transition-colors">Re-layout</button>
+          </div>
+
+          <div v-if="nodeCount > 0" class="mt-3 pt-3 border-t border-ink-100/40">
+            <div class="text-[10px] font-semibold text-ink-400 uppercase tracking-wide mb-2">Node labels</div>
+            <div class="flex gap-1">
+              <button
+                @click="labelMode = 'designation'; rebuildGraph()"
+                class="text-[10px] px-2 py-1 rounded font-medium transition-colors"
+                :class="labelMode === 'designation' ? 'bg-ink-800 text-white' : 'text-ink-500 hover:bg-ink-50'"
+              >Designation</button>
+              <button
+                @click="labelMode = 'identifier'; rebuildGraph()"
+                class="text-[10px] px-2 py-1 rounded font-medium transition-colors"
+                :class="labelMode === 'identifier' ? 'bg-ink-800 text-white' : 'text-ink-500 hover:bg-ink-50'"
+              >Identifier</button>
+            </div>
           </div>
 
           <div v-if="nodeCount === 0" class="text-xs text-ink-300 mt-3 leading-relaxed">

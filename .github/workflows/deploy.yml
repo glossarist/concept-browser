@@ -1,4 +1,4 @@
-name: Build
+name: CI
 
 on:
   push:
@@ -7,17 +7,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 concurrency:
-  group: build-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,50 +24,6 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run fetch-datasets
-        env:
-          SITE_ID: geolexica
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npm test
 
-      - run: npm run generate-data
-        env:
-          SITE_ID: geolexica
-
-      - run: node scripts/build-edges.js
-
-      - run: npm run build
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist
-          retention-days: 30
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  deploy-pages:
-    if: github.ref == 'refs/heads/main'
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
-
-  trigger-geolexica:
-    if: github.ref == 'refs/heads/main'
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger geolexica.org deployment
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.PAT_TOKEN }}
-          repository: geolexica/geolexica.org
-          event-type: deploy
-          client-payload: '{"source": "vocabulary-browser", "ref": "${{ github.sha }}"}'
+      - run: npx vue-tsc --noEmit
