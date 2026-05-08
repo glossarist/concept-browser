@@ -56,6 +56,7 @@ describe('AdapterFactory', () => {
       mockFetch.mockReturnValueOnce(mockJsonResponse({
         id: 'test',
         datasetUri: 'https://glossarist.org/test/*',
+        uriBase: 'https://glossarist.org',
         title: 'Test',
         languages: ['eng'],
         chunkSize: 500,
@@ -106,7 +107,7 @@ describe('AdapterFactory', () => {
 
       // Load IEV
       mockFetch.mockReturnValueOnce(mockJsonResponse({
-        id: 'iev', datasetUri: 'urn:iec:std:iec:60050:*', title: 'IEV', languages: ['eng'], chunkSize: 500,
+        id: 'iev', datasetUri: 'urn:iec:std:iec:60050:*', uriBase: 'https://glossarist.org', title: 'IEV', languages: ['eng'], chunkSize: 500,
       }));
       mockFetch.mockReturnValueOnce(mockJsonResponse({
         registerId: 'iev', conceptCount: 0, chunkSize: 500, chunks: [], concepts: [],
@@ -115,7 +116,7 @@ describe('AdapterFactory', () => {
 
       // Load TC 204
       mockFetch.mockReturnValueOnce(mockJsonResponse({
-        id: 'isotc204', datasetUri: 'urn:iso:std:iso:14812:*', title: 'TC 204', languages: ['eng'], chunkSize: 500,
+        id: 'isotc204', datasetUri: 'urn:iso:std:iso:14812:*', uriBase: 'https://glossarist.org', title: 'TC 204', languages: ['eng'], chunkSize: 500,
       }));
       mockFetch.mockReturnValueOnce(mockJsonResponse({
         registerId: 'isotc204', conceptCount: 0, chunkSize: 500, chunks: [], concepts: [],

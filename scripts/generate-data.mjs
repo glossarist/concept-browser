@@ -103,19 +103,20 @@ function refsToJsonLd(refs, refMaps) {
 }
 
 function resolveRefUri(term, refMaps) {
+  const base = refMaps.uriBase;
   const urnPrefix = 'urn:iso:std:iso:';
   if (term.startsWith(urnPrefix)) {
     const rest = term.slice(urnPrefix.length);
     const match = rest.match(/^(\d+):(.+)$/);
     if (match) {
       const dsId = refMaps.urnStandardMap[match[1]];
-      if (dsId) return `https://glossarist.org/${dsId}/concept/${match[2]}`;
+      if (dsId) return `${base}/${dsId}/concept/${match[2]}`;
     }
   }
   const ievMatch = term.match(/^IEV:(\d+[-\d]+)$/);
   if (ievMatch) {
     const dsId = refMaps.refPrefixMap['IEV'];
-    if (dsId) return `https://glossarist.org/${dsId}/concept/${ievMatch[1]}`;
+    if (dsId) return `${base}/${dsId}/concept/${ievMatch[1]}`;
   }
   return null;
 }
@@ -141,12 +142,14 @@ function buildRefMaps(config) {
   if (xref.refPrefixMap) Object.assign(refPrefixMap, xref.refPrefixMap);
   if (xref.urnStandardMap) Object.assign(urnStandardMap, xref.urnStandardMap);
 
-  return { refPrefixMap, urnStandardMap };
+  const uriBase = config.uriBase || `https://${config.domain}`;
+  return { refPrefixMap, urnStandardMap, uriBase };
 }
 
-function extractInlineRefs(localizedData, refPrefixMap, urnStandardMap) {
+function extractInlineRefs(localizedData, refMaps) {
   const refs = [];
   const texts = [];
+  const { refPrefixMap, urnStandardMap, uriBase } = refMaps;
 
   if (localizedData.definition) {
     const defs = Array.isArray(localizedData.definition) ? localizedData.definition : [localizedData.definition];
@@ -162,17 +165,17 @@ function extractInlineRefs(localizedData, refPrefixMap, urnStandardMap) {
 
   for (const m of fullText.matchAll(/\{\{([^,}]+),\s*IEV:([^}]+)\}\}/g)) {
     const datasetId = refPrefixMap['IEV'];
-    if (datasetId) refs.push({ id: `https://glossarist.org/${datasetId}/concept/${m[2]}`, term: m[1].trim() });
+    if (datasetId) refs.push({ id: `${uriBase}/${datasetId}/concept/${m[2]}`, term: m[1].trim() });
   }
 
   for (const m of fullText.matchAll(/\{urn:iso:std:iso:(\d+):([^,}]+),([^,}]+)(?:,([^}]+))?\}/g)) {
     const datasetId = urnStandardMap[m[1]];
-    if (datasetId) refs.push({ id: `https://glossarist.org/${datasetId}/concept/${m[2]}`, term: (m[4] || m[3]).trim() });
+    if (datasetId) refs.push({ id: `${uriBase}/${datasetId}/concept/${m[2]}`, term: (m[4] || m[3]).trim() });
   }
 
   for (const m of fullText.matchAll(/\{\{urn:iso:std:iso:(\d+):([^,}]+),([^,}]+)(?:,([^}]+))?\}\}/g)) {
     const datasetId = urnStandardMap[m[1]];
-    if (datasetId) refs.push({ id: `https://glossarist.org/${datasetId}/concept/${m[2]}`, term: (m[4] || m[3]).trim() });
+    if (datasetId) refs.push({ id: `${uriBase}/${datasetId}/concept/${m[2]}`, term: (m[4] || m[3]).trim() });
   }
 
   const seen = new Set();
@@ -187,9 +190,10 @@ const LANG_CODES = ['eng', 'ara', 'deu', 'fra', 'spa', 'ita', 'jpn', 'kor', 'pol
 
 function yamlToJsonLd(conceptYaml, register, refMaps) {
   const termid = String(conceptYaml.termid);
+  const base = refMaps.uriBase;
   const doc = {
     '@context': 'https://glossarist.org/ns/context.jsonld',
-    '@id': `https://glossarist.org/${register}/concept/${termid}`,
+    '@id': `${base}/${register}/concept/${termid}`,
     '@type': 'gl:Concept',
     'gl:identifier': termid,
   };
@@ -200,7 +204,7 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
     if (!lc) continue;
 
     const lDoc = {
-      '@id': `https://glossarist.org/${register}/concept/${termid}/${lang}`,
+      '@id': `${base}/${register}/concept/${termid}/${lang}`,
       '@type': 'gl:LocalizedConcept',
       'gl:languageCode': lang,
     };
@@ -228,7 +232,7 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
     if (lc.references && lc.references.length > 0) {
       lDoc['gl:references'] = refsToJsonLd(lc.references, refMaps);
     } else if (refMaps) {
-      const inlineRefs = extractInlineRefs(lc, refMaps.refPrefixMap, refMaps.urnStandardMap);
+      const inlineRefs = extractInlineRefs(lc, refMaps);
       if (inlineRefs.length > 0) {
         lDoc['gl:references'] = refsToJsonLd(inlineRefs, refMaps);
       }
@@ -537,7 +541,7 @@ function processDataset(dir, register, opts) {
   fs.writeFileSync(
     path.join(DATA, register, 'graph-nodes.json'),
     JSON.stringify({
-      uriPrefix: `https://glossarist.org/${register}/concept/`,
+      uriPrefix: `${refMaps.uriBase}/${register}/concept/`,
       registerId: register,
       nodes: graphNodeEntries,
     }),
@@ -605,7 +609,7 @@ function processDataset(dir, register, opts) {
     conceptUrlTemplate: '{baseUrl}/concepts/{conceptId}.json',
     indexUrl: '{baseUrl}/index.json',
     contextUrl: 'https://glossarist.org/ns/context.jsonld',
-    uriBase: 'https://glossarist.org',
+    uriBase: refMaps.uriBase,
     status: 'valid',
     schemaVersion: '1.0.0',
     tags: opts.tags,

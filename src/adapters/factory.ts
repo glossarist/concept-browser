@@ -50,8 +50,8 @@ export class AdapterFactory {
     const uriPatterns = [
       manifest.datasetUri,
       ...(manifest.uriAliases ?? []),
-      `https://glossarist.org/${registerId}/*`,
-    ];
+      manifest.uriBase ? `${manifest.uriBase}/${registerId}/*` : undefined,
+    ].filter(Boolean) as string[];
     this.resolver.registerDataset(registerId, uriPatterns);
 
     return adapter;
