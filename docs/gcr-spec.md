@@ -75,8 +75,10 @@ The full variant adds pre-built whole-vocabulary format outputs (Turtle, JSON-LD
 │   ├── 102-01-01.yaml
 │   ├── 102-01-02.yaml
 │   └── ...
-└── concepts_data/             # Pre-serialized (optional, for fast loading)
-    └── ...                    # Future: JSON or Marshal serialized concepts
+├── bibliography.yaml          # Bibliographic references (OPTIONAL)
+└── images/                    # Figure images referenced by concepts (OPTIONAL)
+    ├── fig_A.1.png
+    └── ...
 ```
 
 ### Full Package
@@ -88,6 +90,10 @@ The full variant adds pre-built whole-vocabulary format outputs (Turtle, JSON-LD
 ├── concepts/                  # Harmonized concept YAML files (canonical format)
 │   ├── 102-01-01.yaml
 │   └── ...
+├── bibliography.yaml          # Bibliographic references (OPTIONAL)
+├── images/                    # Figure images referenced by concepts (OPTIONAL)
+│   ├── fig_A.1.png
+│   └── ...
 └── compiled/                  # Whole-vocabulary format outputs
     ├── {shortname}.ttl        # SKOS Turtle (whole vocabulary)
     ├── {shortname}.jsonld     # SKOS JSON-LD (whole vocabulary)
@@ -96,6 +102,32 @@ The full variant adds pre-built whole-vocabulary format outputs (Turtle, JSON-LD
 ```
 
 Every GCR package MUST contain `metadata.yaml` and `concepts/`. Full packages MUST also contain `compiled/` with at least one format file.
+
+## bibliography.yaml (Optional)
+
+Maps AsciiDoc cross-reference IDs to bibliographic entries. Referenced from concept content via `<<ref_XX,title>>` patterns.
+
+```yaml
+ref_1:
+  reference: ISO 704
+  title: Terminology work — Principles and methods
+ref_16:
+  reference: ISO 21217
+  title: Intelligent transport systems — Station and communication architecture
+ref_25:
+  reference: ARC-IT
+  title: 'United States Department of Transportation Architecture Reference...'
+  link: https://www.arc-it.net
+```
+
+Each entry has:
+- `reference` (required) — Short identifier (e.g., "ISO 21217")
+- `title` (optional) — Full title
+- `link` (optional) — URL to the referenced document
+
+## images/ (Optional)
+
+Figure images referenced from concept content via `<<fig_XX>>` AsciiDoc cross-references. Files are named to match the reference pattern (e.g., `fig_A.23.png` for `<<fig_A.23>>`).
 
 ## metadata.yaml Schema
 

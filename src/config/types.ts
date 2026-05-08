@@ -155,4 +155,5 @@ export interface SiteConfig {
   email?: string;
   pages?: PageConfig[];
   contributors?: Contributor[];
+  copyright?: string;
 }

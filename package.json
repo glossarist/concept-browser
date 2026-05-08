@@ -22,7 +22,7 @@
     "@vitejs/plugin-vue": "^5.2.3",
     "autoprefixer": "^10.4.21",
     "d3": "^7.9.0",
-    "glossarist": "^0.1.1",
+    "glossarist": "^0.2.0",
     "js-yaml": "^4.1.0",
     "katex": "^0.16.45",
     "pinia": "^2.3.1",

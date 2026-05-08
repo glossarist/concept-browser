@@ -121,6 +121,18 @@
     font-weight: 500;
   }
 
+  .bib-link {
+    @apply text-ink-600 hover:text-ink-800 underline-offset-2 hover:underline transition-colors;
+  }
+
+  .bib-ref {
+    @apply text-ink-500 italic;
+  }
+
+  .fig-ref a {
+    @apply text-ink-600 hover:text-ink-800 underline-offset-2 hover:underline transition-colors;
+  }
+
   /* Concept definition lists */
   .concept-list {
     list-style: disc;

@@ -30,6 +30,7 @@ export interface RuntimeSiteConfig {
   email?: string;
   pages?: PageConfig[];
   contributors?: { name: string; role?: string; organization?: string; url?: string; email?: string }[];
+  copyright?: string;
 }
 
 const siteConfig = ref<RuntimeSiteConfig | null>(null);

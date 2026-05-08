@@ -19,6 +19,7 @@ const socialLinks = computed(() => {
 });
 
 const footerNav = computed(() => config.value?.footerNav ?? []);
+const copyrightOwner = computed(() => config.value?.copyright || '');
 const ownerName = computed(() => config.value?.branding?.ownerName || config.value?.title || '');
 const ownerUrl = computed(() => config.value?.branding?.ownerUrl || '/');
 </script>
@@ -28,7 +29,10 @@ const ownerUrl = computed(() => config.value?.branding?.ownerUrl || '/');
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div class="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-ink-400">
         <div class="flex items-center gap-3">
-          <span v-if="ownerName">
+          <span v-if="copyrightOwner">
+            &copy; {{ new Date().getFullYear() }} {{ copyrightOwner }}
+          </span>
+          <span v-else-if="ownerName">
             &copy; {{ new Date().getFullYear() }}
             <a v-if="ownerUrl" :href="ownerUrl" target="_blank" rel="noopener" class="concept-link">{{ ownerName }}</a>
             <span v-else>{{ ownerName }}</span>

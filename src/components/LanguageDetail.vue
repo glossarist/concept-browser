@@ -3,7 +3,7 @@ import type { LocalizedConcept, Designation, ConceptSource } from '../adapters/t
 import { computed } from 'vue';
 import { langName, langLabel } from '../utils/lang';
 import { renderMath } from '../utils/math';
-import type { XrefResolver } from '../utils/math';
+import type { RenderOptions } from '../utils/math';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { getFactory } from '../adapters/factory';
@@ -82,8 +82,16 @@ function escapeAttr(s: string) {
 
 const factory = getFactory();
 
-const xrefResolver: XrefResolver = (uri, term) => {
-  return `<a href="#" class="xref-link" data-uri="${escapeAttr(uri)}">${escapeAttr(term)}</a>`;
+const renderOpts: RenderOptions = {
+  xrefResolver: (uri, term) => {
+    return `<a href="#" class="xref-link" data-uri="${escapeAttr(uri)}">${escapeAttr(term)}</a>`;
+  },
+  bibResolver: (refId, title) => {
+    return `<span class="bib-ref">${escapeAttr(title)}</span>`;
+  },
+  figResolver: (figId) => {
+    return `<span class="fig-ref">${escapeAttr(figId)}</span>`;
+  },
 };
 
 function handleContentClick(e: MouseEvent) {
@@ -145,7 +153,7 @@ function handleContentClick(e: MouseEvent) {
       <!-- Definition -->
       <div v-if="definition" class="card p-5">
         <div class="section-label">Definition</div>
-        <div class="text-ink-800 leading-relaxed mt-3" v-html="renderMath(definition, xrefResolver)"></div>
+        <div class="text-ink-800 leading-relaxed mt-3" v-html="renderMath(definition, renderOpts)"></div>
       </div>
 
       <!-- Notes -->
@@ -154,7 +162,7 @@ function handleContentClick(e: MouseEvent) {
         <div class="space-y-3 mt-3">
           <div v-for="(note, i) in notes" :key="i" class="text-ink-600 text-sm leading-relaxed">
             <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">Note {{ i + 1 }}</span>
-            <div class="mt-1" v-html="renderMath(note, xrefResolver)"></div>
+            <div class="mt-1" v-html="renderMath(note, renderOpts)"></div>
           </div>
         </div>
       </div>
@@ -165,7 +173,7 @@ function handleContentClick(e: MouseEvent) {
         <div class="space-y-3 mt-3">
           <div v-for="(ex, i) in examples" :key="i" class="text-ink-600 text-sm leading-relaxed">
             <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">Example {{ i + 1 }}</span>
-            <div class="mt-1" v-html="renderMath(ex, xrefResolver)"></div>
+            <div class="mt-1" v-html="renderMath(ex, renderOpts)"></div>
           </div>
         </div>
       </div>

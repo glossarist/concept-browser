@@ -1,6 +1,14 @@
 import katex from 'katex';
 
 export type XrefResolver = (uri: string, term: string) => string;
+export type BibResolver = (refId: string, title: string) => string;
+export type FigResolver = (figId: string) => string;
+
+export interface RenderOptions {
+  xrefResolver?: XrefResolver;
+  bibResolver?: BibResolver;
+  figResolver?: FigResolver;
+}
 
 /**
  * Convert `* item` lines into <ul><li> blocks.
@@ -39,11 +47,15 @@ function convertLists(text: string): string {
 
 /**
  * Render stem:[...] math notation to KaTeX HTML.
- * Also handles cross-reference inline patterns (URN refs).
+ * Also handles cross-reference inline patterns (URN refs, bibliography, figures).
  */
-export function renderMath(text: string, xrefResolver?: XrefResolver): string {
+export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | RenderOptions): string {
   if (!text) return '';
   let result = text;
+
+  const opts: RenderOptions = typeof xrefResolverOrOpts === 'function'
+    ? { xrefResolver: xrefResolverOrOpts }
+    : (xrefResolverOrOpts ?? {});
 
   result = result.replace(/\*stem:\[([^\]]*)\]\*/g, (_, math) => {
     return renderKatexSpan(math, true);
@@ -58,20 +70,38 @@ export function renderMath(text: string, xrefResolver?: XrefResolver): string {
   result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>');
   result = result.replace(/~([^~]+)~/g, '<sub>$1</sub>');
 
-  // Handle URN inline refs: {{urn:...,term}} (double-braced)
-  result = result.replace(/\{\{(urn:[^,}]+),([^}]+)\}\}/g, (_, uri, term) => {
-    if (xrefResolver) {
-      return xrefResolver(uri, term.trim());
+  // Handle AsciiDoc bibliography xrefs: <<ref_XX,title>>
+  result = result.replace(/<<([^,>]+),([^>]+)>>/g, (_, refId, title) => {
+    if (opts.bibResolver) {
+      return opts.bibResolver(refId.trim(), title.trim());
     }
-    return term.trim();
+    return `<span class="bib-ref">${escapeHtml(title.trim())}</span>`;
   });
 
-  // Handle URN inline refs: {urn:...,term} (single-braced)
-  result = result.replace(/\{(urn:[^,}]+),([^}]+)\}/g, (_, uri, term) => {
-    if (xrefResolver) {
-      return xrefResolver(uri, term.trim());
+  // Handle AsciiDoc figure xrefs: <<fig_XX>>
+  result = result.replace(/<<(fig_[^>]+)>>/g, (_, figId) => {
+    if (opts.figResolver) {
+      return opts.figResolver(figId.trim());
     }
-    return term.trim();
+    return `<span class="fig-ref">${escapeHtml(figId.trim())}</span>`;
+  });
+
+  // Handle URN inline refs: {{urn:...,term[,displayText]}} (double-braced)
+  result = result.replace(/\{\{(urn:[^,}]+),([^,}]+)(?:,([^}]+))?\}\}/g, (_, uri, term, display) => {
+    const text = (display || term).trim();
+    if (opts.xrefResolver) {
+      return opts.xrefResolver(uri, text);
+    }
+    return text;
+  });
+
+  // Handle URN inline refs: {urn:...,term[,displayText]} (single-braced)
+  result = result.replace(/\{(urn:[^,}]+),([^,}]+)(?:,([^}]+))?\}/g, (_, uri, term, display) => {
+    const text = (display || term).trim();
+    if (opts.xrefResolver) {
+      return opts.xrefResolver(uri, text);
+    }
+    return text;
   });
 
   // Handle any remaining {{...}} refs (fallback: show term before comma)
@@ -111,7 +141,9 @@ export function cleanContent(text: string): string {
     .replace(/\*([^*]+)\*/g, '$1')
     .replace(/~([^~]+)~/g, '_$1')
     .replace(/\n[ \t]*\* /g, '; ')
-    .replace(/\{\{urn:[^,}]+,([^}]+)\}\}/g, '$1')
-    .replace(/\{urn:[^,}]+,([^}]+)\}/g, '$1')
+    .replace(/<<([^,>]+),([^>]+)>>/g, '$2')
+    .replace(/<<(fig_[^>]+)>>/g, '$1')
+    .replace(/\{\{urn:[^,}]+,([^,}]+)(?:,[^}]+)?\}\}/g, '$1')
+    .replace(/\{urn:[^,}]+,([^,}]+)(?:,[^}]+)?\}/g, '$1')
     .replace(/\{\{([^,}]+)(?:,\s*[^}]+)?\}\}/g, '$1');
 }

@@ -15,7 +15,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import yaml from 'js-yaml';
+import { loadGcr } from 'glossarist';
 import { execSync } from 'child_process';
 import { loadSiteConfig } from './load-site-config.mjs';
 
@@ -58,11 +58,17 @@ function extractGcr(gcrPath, targetDir) {
   console.log(`  Extracted to ${targetDir}`);
 }
 
-// --- Read GCR metadata from extracted dir ---
-function readGcrMetadata(targetDir) {
-  const metaPath = path.join(targetDir, 'metadata.yaml');
-  if (!fs.existsSync(metaPath)) return null;
-  return yaml.load(fs.readFileSync(metaPath, 'utf8'));
+// --- Read GCR metadata from ZIP without extraction ---
+async function readGcrMetadata(gcrPath) {
+  if (!fs.existsSync(gcrPath)) return null;
+  try {
+    const buf = fs.readFileSync(gcrPath);
+    const pkg = await loadGcr(buf);
+    const meta = await pkg.metadata();
+    return meta ? meta.toJSON() : null;
+  } catch {
+    return null;
+  }
 }
 
 // --- Dependency validation ---
@@ -167,11 +173,11 @@ for (const ds of config.datasets) {
       }
     }
 
-    // Read metadata for dependency validation
-    const meta = readGcrMetadata(targetDir);
+    // Read metadata for dependency validation (from GCR ZIP, not extracted dir)
+    const meta = await readGcrMetadata(gcrPath);
     if (meta) {
       gcrMetadata[ds.id] = meta;
-      console.log(`  ${meta.statistics?.total_concepts || '?'} concepts, ${meta.uri || 'no uri'}`);
+      console.log(`  ${meta.concept_count || '?'} concepts, ${meta.uri_prefix || 'no uri'}`);
     }
   } catch (e) {
     console.warn(`  Failed: ${e.message}`);
