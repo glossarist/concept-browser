@@ -90,12 +90,34 @@ function sourcesToJsonLd(sources) {
   });
 }
 
-function refsToJsonLd(refs) {
+function refsToJsonLd(refs, refMaps) {
   if (!refs || !Array.isArray(refs)) return [];
-  return refs.map(r => ({
-    '@id': r.id,
-    'gl:term': r.term,
-  })).filter(r => r['@id']);
+  return refs.map(r => {
+    if (r.id) return { '@id': r.id, 'gl:term': r.term };
+    if (r.term && refMaps) {
+      const uri = resolveRefUri(r.term, refMaps);
+      if (uri) return { '@id': uri, 'gl:term': r.term };
+    }
+    return { '@id': r.id || r.term, 'gl:term': r.term };
+  }).filter(r => r['@id']);
+}
+
+function resolveRefUri(term, refMaps) {
+  const urnPrefix = 'urn:iso:std:iso:';
+  if (term.startsWith(urnPrefix)) {
+    const rest = term.slice(urnPrefix.length);
+    const match = rest.match(/^(\d+):(.+)$/);
+    if (match) {
+      const dsId = refMaps.urnStandardMap[match[1]];
+      if (dsId) return `https://glossarist.org/${dsId}/concept/${match[2]}`;
+    }
+  }
+  const ievMatch = term.match(/^IEV:(\d+[-\d]+)$/);
+  if (ievMatch) {
+    const dsId = refMaps.refPrefixMap['IEV'];
+    if (dsId) return `https://glossarist.org/${dsId}/concept/${ievMatch[1]}`;
+  }
+  return null;
 }
 
 function buildRefMaps(config) {
@@ -204,11 +226,11 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
       }));
     }
     if (lc.references && lc.references.length > 0) {
-      lDoc['gl:references'] = refsToJsonLd(lc.references);
+      lDoc['gl:references'] = refsToJsonLd(lc.references, refMaps);
     } else if (refMaps) {
       const inlineRefs = extractInlineRefs(lc, refMaps.refPrefixMap, refMaps.urnStandardMap);
       if (inlineRefs.length > 0) {
-        lDoc['gl:references'] = refsToJsonLd(inlineRefs);
+        lDoc['gl:references'] = refsToJsonLd(inlineRefs, refMaps);
       }
     }
 
