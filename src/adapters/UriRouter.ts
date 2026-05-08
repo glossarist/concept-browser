@@ -9,7 +9,7 @@ export class UriRouter {
     this.registerMap.set(registerId, {
       baseUrl,
       manifest: manifest ?? null,
-      uriBase: manifest?.uriBase ?? 'https://glossarist.org',
+      uriBase: manifest?.uriBase ?? '',
     });
   }
 
@@ -31,7 +31,7 @@ export class UriRouter {
 
   buildUri(registerId: string, conceptId: string): string {
     const info = this.registerMap.get(registerId);
-    const uriBase = info?.uriBase ?? 'https://glossarist.org';
+    const uriBase = info?.uriBase ?? '';
     return `${uriBase}/${registerId}/concept/${conceptId}`;
   }
 

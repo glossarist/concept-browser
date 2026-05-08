@@ -130,7 +130,7 @@ function isActive(page: { route: string; datasetScoped?: boolean }): boolean {
         <div class="text-[11px] text-ink-300">
           Built with the
           <a
-            :href="(siteConfig?.features?.poweredBy as any)?.url || 'https://glossarist.org'"
+            :href="(siteConfig?.features?.poweredBy as any)?.url || 'https://github.com/glossarist/concept-browser'"
             target="_blank"
             rel="noopener"
             class="concept-link"

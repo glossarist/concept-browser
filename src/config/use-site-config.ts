@@ -4,6 +4,7 @@ import type { PageConfig } from './types';
 export interface RuntimeSiteConfig {
   id: string;
   domain: string;
+  uriBase?: string;
   title: string;
   subtitle?: string;
   description?: string;

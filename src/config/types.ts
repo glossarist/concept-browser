@@ -137,6 +137,7 @@ export interface PageConfig {
 export interface SiteConfig {
   id: string;
   domain: string;
+  uriBase?: string;
   title: string;
   subtitle?: string;
   description?: string;
