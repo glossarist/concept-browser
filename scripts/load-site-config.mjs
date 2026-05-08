@@ -23,26 +23,13 @@ function findConfigFile(args = []) {
     return resolve(process.env.SITE_CONFIG);
   }
 
-  const siteId = process.env.SITE_ID || args.find(a => !a.startsWith('-')) || null;
-  if (siteId) {
-    // Check project configs/ dir first
-    const p = resolve(projectRoot, 'configs', `${siteId}.yml`);
-    if (existsSync(p)) return p;
-    // Check CWD (deployment repo may have configs locally)
-    for (const name of [`${siteId}.yml`, 'site-config.yml']) {
-      const cwdP = resolve(process.cwd(), name);
-      if (existsSync(cwdP)) return cwdP;
-    }
-    throw new Error(`Site config not found for '${siteId}'. Checked configs/${siteId}.yml, ${siteId}.yml, site-config.yml in CWD`);
-  }
-
   // Check CWD first (deployment repos), then project root
   for (const dir of [process.cwd(), projectRoot]) {
     const p = resolve(dir, 'site-config.yml');
     if (existsSync(p)) return p;
   }
 
-  throw new Error('No site config found. Set SITE_CONFIG, SITE_ID, or create site-config.yml');
+  throw new Error('No site config found. Set SITE_CONFIG or create site-config.yml');
 }
 
 export function loadSiteConfig(args = []) {
