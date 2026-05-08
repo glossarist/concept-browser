@@ -364,6 +364,10 @@ function selectOnly(registerId: string) {
   }
 }
 
+function registerTitle(id: string): string {
+  return props.registers.find(r => r.id === id)?.title ?? id;
+}
+
 function selectedNodeColor(): string {
   if (!selectedNode.value) return STUB_COLOR;
   if (!selectedNode.value.loaded) return STUB_COLOR;
@@ -458,15 +462,15 @@ function selectedNodeColor(): string {
       </div>
     </div>
 
-    <!-- Legend -->
-    <div v-if="nodeCount > 0" class="absolute top-4 right-4 z-10 bg-surface-raised/90 backdrop-blur rounded-lg px-3 py-2.5 border border-ink-100/60 text-xs" style="box-shadow: 0 2px 6px rgba(26, 27, 46, 0.04);">
+    <!-- Legend (only when multiple registers) -->
+    <div v-if="nodeCount > 0 && registers.length > 1" class="absolute top-4 right-4 z-10 bg-surface-raised/90 backdrop-blur rounded-lg px-3 py-2.5 border border-ink-100/60 text-xs" style="box-shadow: 0 2px 6px rgba(26, 27, 46, 0.04);">
       <div class="font-semibold text-ink-400 text-[10px] uppercase tracking-wide mb-2">Datasets</div>
       <div v-for="reg in registers" :key="reg.id" class="flex items-center gap-2 mb-1.5 last:mb-0">
         <span
           class="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0"
           :style="{ backgroundColor: registerColor(reg.id) }"
         ></span>
-        <span class="text-ink-500">{{ reg.id }}</span>
+        <span class="text-ink-500">{{ reg.title }}</span>
       </div>
       <div class="flex items-center gap-2 mt-2 pt-2 border-t border-ink-100/40">
         <span class="w-2 h-2 rounded-full inline-block" :style="{ backgroundColor: STUB_COLOR }"></span>
@@ -495,7 +499,7 @@ function selectedNodeColor(): string {
               :style="{ backgroundColor: selectedNodeColor() }"
             ></span>
             <span class="text-[10px] text-ink-400 uppercase tracking-wide">
-              {{ selectedNode.register || 'unknown' }} &middot;
+              {{ registerTitle(selectedNode.register) }} &middot;
               {{ selectedNode.loaded ? 'loaded' : 'stub' }}
             </span>
           </div>
