@@ -106,37 +106,40 @@ async function loadConfig(): Promise<RuntimeSiteConfig | null> {
 }
 
 function synthesizeGlobalPages(features?: Record<string, unknown>, pages?: PageConfig[]): PageConfig[] {
-  if (pages && pages.length > 0) return pages.filter(p => !p.datasetScoped);
+  const declared = pages?.filter(p => !p.datasetScoped) ?? [];
+  const declaredRoutes = new Set(declared.map(p => p.route));
 
   const result: PageConfig[] = [
     { type: 'custom', route: '', title: 'Home', icon: 'home' },
   ];
-  if (features?.search !== false) {
+  if (features?.search !== false && !declaredRoutes.has('search')) {
     result.push({ type: 'custom', route: 'search', title: 'Search', icon: 'search' });
   }
-  if (features?.graph !== false) {
+  if (features?.graph !== false && !declaredRoutes.has('graph')) {
     result.push({ type: 'custom', route: 'graph', title: 'Graph', icon: 'graph' });
   }
-  if (features?.news) {
+  if (features?.news && !declaredRoutes.has('news')) {
     result.push({ type: 'news', route: 'news', title: 'News', icon: 'newspaper' });
   }
-  return result;
+
+  return [...result, ...declared];
 }
 
 function synthesizeDatasetPages(features?: Record<string, unknown>, pages?: PageConfig[]): PageConfig[] {
   const declared = pages?.filter(p => p.datasetScoped) ?? [];
-  if (declared.length > 0) return declared;
+  const declaredRoutes = new Set(declared.map(p => p.route));
 
   const result: PageConfig[] = [
     { type: 'custom', route: '', title: 'Concepts', icon: 'list', datasetScoped: true },
   ];
-  if (features?.stats !== false) {
+  if (features?.stats !== false && !declaredRoutes.has('stats')) {
     result.push({ type: 'stats', route: 'stats', title: 'Statistics', icon: 'chart', datasetScoped: true });
   }
-  if (features?.about !== false) {
+  if (features?.about !== false && !declaredRoutes.has('about')) {
     result.push({ type: 'about', route: 'about', title: 'About', icon: 'info', datasetScoped: true });
   }
-  return result;
+
+  return [...result, ...declared];
 }
 
 export function useSiteConfig() {

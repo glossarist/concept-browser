@@ -8,7 +8,14 @@ interface PageData {
 }
 
 const route = useRoute();
-const slug = computed(() => (route.params.slug || route.params.page || '') as string);
+const slug = computed(() => {
+  if (route.params.slug) return route.params.slug as string;
+  if (route.params.page) return route.params.page as string;
+  if (route.name === 'about' || route.name === 'about-global') return 'about';
+  const path = route.path.replace(/^\//, '').replace(/\/$/, '');
+  const lastSegment = path.split('/').pop() || '';
+  return lastSegment;
+});
 const data = ref<PageData | null>(null);
 const loading = ref(true);
 const notFound = ref(false);
