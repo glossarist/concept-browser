@@ -20,6 +20,9 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  optimizeDeps: {
+    include: ['@plurimath/plurimath'],
+  },
   test: {
     environment: 'happy-dom',
     globals: true,

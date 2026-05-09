@@ -1,4 +1,16 @@
-import katex from 'katex';
+import Plurimath from '@plurimath/plurimath';
+
+type MathFormat = 'asciimath' | 'latex' | 'mathml' | 'html' | 'mahtml' | 'omml';
+
+function renderMathSpan(math: string, format: MathFormat, bold: boolean): string {
+  try {
+    const p = new Plurimath(math, format);
+    const mathml = p.toMathml();
+    return `<span class="math-inline${bold ? ' math-bold' : ''}">${mathml}</span>`;
+  } catch {
+    return `<code class="math-fallback">${escapeHtml(math)}</code>`;
+  }
+}
 
 export type XrefResolver = (uri: string, term: string) => string;
 export type BibResolver = (refId: string, title: string) => string;
@@ -110,8 +122,8 @@ export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | Ren
     ? { xrefResolver: xrefResolverOrOpts }
     : (xrefResolverOrOpts ?? {});
 
-  result = replaceBracketed(result, 'stem:', renderKatexSpan);
-  result = replaceBracketed(result, 'latexmath:', renderKatexSpan);
+  result = replaceBracketed(result, 'stem:', (math, bold) => renderMathSpan(math, 'asciimath', bold));
+  result = replaceBracketed(result, 'latexmath:', (math, bold) => renderMathSpan(math, 'latex', bold));
 
   result = convertLists(result);
 
@@ -156,19 +168,6 @@ export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | Ren
   result = result.replace(/\{\{([^,}]+)(?:,\s*[^}]+)?\}\}/g, '$1');
 
   return result;
-}
-
-function renderKatexSpan(math: string, bold: boolean): string {
-  try {
-    const html = katex.renderToString(math, {
-      throwOnError: false,
-      displayMode: false,
-      output: 'html',
-    });
-    return `<span class="math-inline${bold ? ' math-bold' : ''}">${html}</span>`;
-  } catch {
-    return `<code class="math-fallback">${escapeHtml(math)}</code>`;
-  }
 }
 
 function escapeHtml(text: string): string {
