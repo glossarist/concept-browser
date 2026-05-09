@@ -46,6 +46,59 @@ function convertLists(text: string): string {
 }
 
 /**
+ * Replace `prefix:[content]` where content may contain nested brackets.
+ * Handles `*prefix:[content]*` (bold) too.
+ */
+function replaceBracketed(
+  text: string,
+  prefix: string,
+  render: (math: string, bold: boolean) => string,
+): string {
+  let result = '';
+  let i = 0;
+  const boldPrefix = '*' + prefix;
+  while (i < text.length) {
+    // Check for bold variant: *prefix:[...]
+    if (text.startsWith(boldPrefix + '[', i)) {
+      const start = i;
+      i += boldPrefix.length + 1; // skip *prefix:[
+      const depth = 1;
+      let j = i;
+      let d = 1;
+      while (j < text.length && d > 0) {
+        if (text[j] === '[') d++;
+        else if (text[j] === ']') d--;
+        j++;
+      }
+      const content = text.slice(i, j - 1);
+      // Check for closing *
+      let end = j;
+      if (end < text.length && text[end] === '*') end++;
+      result += render(content, true);
+      i = end;
+    }
+    // Check for normal variant: prefix:[...]
+    else if (text.startsWith(prefix + '[', i)) {
+      i += prefix.length + 1;
+      let j = i;
+      let d = 1;
+      while (j < text.length && d > 0) {
+        if (text[j] === '[') d++;
+        else if (text[j] === ']') d--;
+        j++;
+      }
+      const content = text.slice(i, j - 1);
+      result += render(content, false);
+      i = j;
+    } else {
+      result += text[i];
+      i++;
+    }
+  }
+  return result;
+}
+
+/**
  * Render stem:[...] math notation to KaTeX HTML.
  * Also handles cross-reference inline patterns (URN refs, bibliography, figures).
  */
@@ -57,13 +110,8 @@ export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | Ren
     ? { xrefResolver: xrefResolverOrOpts }
     : (xrefResolverOrOpts ?? {});
 
-  result = result.replace(/\*stem:\[([^\]]*)\]\*/g, (_, math) => {
-    return renderKatexSpan(math, true);
-  });
-
-  result = result.replace(/stem:\[([^\]]*)\]/g, (_, math) => {
-    return renderKatexSpan(math, false);
-  });
+  result = replaceBracketed(result, 'stem:', renderKatexSpan);
+  result = replaceBracketed(result, 'latexmath:', renderKatexSpan);
 
   result = convertLists(result);
 
@@ -135,9 +183,7 @@ function escapeHtml(text: string): string {
  */
 export function cleanContent(text: string): string {
   if (!text) return '';
-  return text
-    .replace(/\*stem:\[([^\]]*)\]\*/g, '$1')
-    .replace(/stem:\[([^\]]*)\]/g, '$1')
+  let result = text
     .replace(/\*([^*]+)\*/g, '$1')
     .replace(/~([^~]+)~/g, '_$1')
     .replace(/\n[ \t]*\* /g, '; ')
@@ -146,4 +192,7 @@ export function cleanContent(text: string): string {
     .replace(/\{\{urn:[^,}]+,([^,}]+)(?:,[^}]+)?\}\}/g, '$1')
     .replace(/\{urn:[^,}]+,([^,}]+)(?:,[^}]+)?\}/g, '$1')
     .replace(/\{\{([^,}]+)(?:,\s*[^}]+)?\}\}/g, '$1');
+  result = replaceBracketed(result, 'stem:', (math) => math);
+  result = replaceBracketed(result, 'latexmath:', (math) => math);
+  return result;
 }
