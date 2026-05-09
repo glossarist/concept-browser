@@ -6,24 +6,24 @@ describe('renderMath', () => {
     expect(renderMath('hello world')).toBe('hello world');
   });
 
-  it('renders stem:[x^2] to KaTeX span', () => {
-    const result = renderMath('the value stem:[x^2]');
-    expect(result).toContain('math-inline');
-    expect(result).toContain('katex');
-    expect(result).not.toContain('math-bold');
+  it('passes through pre-rendered MathML unchanged', () => {
+    const preRendered = 'value <span class="math-inline"><math><mi>x</mi></math></span> here';
+    expect(renderMath(preRendered)).toBe(preRendered);
   });
 
-  it('renders *stem:[x]* (bold math) with math-bold class', () => {
-    const result = renderMath('the value *stem:[x]*');
-    expect(result).toContain('math-inline');
-    expect(result).toContain('math-bold');
+  it('still converts italic in mixed pre-rendered MathML content', () => {
+    const preRendered = '<span class="math-inline"><math><mi>x</mi></math></span> and *italic*';
+    expect(renderMath(preRendered)).toBe(
+      '<span class="math-inline"><math><mi>x</mi></math></span> and <em>italic</em>',
+    );
   });
 
-  it('renders latexmath:[...] with nested brackets', () => {
-    const result = renderMath('coords latexmath:[[u_0, u_1] \\leq 1.0] here');
-    expect(result).toContain('math-inline');
-    expect(result).toContain('katex');
-    expect(result).not.toContain('latexmath:');
+  it('converts *text* to <em> (italic) for non-pre-rendered content', () => {
+    expect(renderMath('some *italic* text')).toBe('some <em>italic</em> text');
+  });
+
+  it('converts ~text~ to <sub> (subscript)', () => {
+    expect(renderMath('H~2~O')).toBe('H<sub>2</sub>O');
   });
 
   it('converts bullet lines to <ul><li>', () => {
@@ -31,20 +31,6 @@ describe('renderMath', () => {
     expect(result).toContain('<ul class="concept-list">');
     expect(result).toContain('<li>first item</li>');
     expect(result).toContain('<li>second item</li>');
-  });
-
-  it('does NOT convert *stem:[...] lines to list items', () => {
-    const result = renderMath('*stem:[x]*');
-    expect(result).not.toContain('<ul');
-    expect(result).toContain('math-bold');
-  });
-
-  it('converts *text* to <em> (italic)', () => {
-    expect(renderMath('some *italic* text')).toBe('some <em>italic</em> text');
-  });
-
-  it('converts ~text~ to <sub> (subscript)', () => {
-    expect(renderMath('H~2~O')).toBe('H<sub>2</sub>O');
   });
 
   it('resolves URN inline refs via xrefResolver', () => {
@@ -98,6 +84,14 @@ describe('renderMath', () => {
     expect(result).toBe('see some term');
   });
 
+  it('resolves cross-refs even in pre-rendered content', () => {
+    const resolver = (uri: string, term: string) => `[${term}→${uri}]`;
+    const preRendered = '<span class="math-inline"><math><mi>x</mi></math></span> and {{urn:iso:std:iso:14812:3.1.1.1,entity}}';
+    expect(renderMath(preRendered, resolver)).toBe(
+      '<span class="math-inline"><math><mi>x</mi></math></span> and [entity→urn:iso:std:iso:14812:3.1.1.1]',
+    );
+  });
+
   it('handles empty input', () => {
     expect(renderMath('')).toBe('');
   });
@@ -109,16 +103,9 @@ describe('renderMath', () => {
 });
 
 describe('cleanContent', () => {
-  it('strips stem:[...] to raw math text', () => {
-    expect(cleanContent('value stem:[x^2] here')).toBe('value x^2 here');
-  });
-
-  it('strips bold stem', () => {
-    expect(cleanContent('value *stem:[x]* here')).toBe('value x here');
-  });
-
-  it('strips latexmath:[...] with nested brackets', () => {
-    expect(cleanContent('coords latexmath:[[u_0, u_1] \\leq 1.0] end')).toBe('coords [u_0, u_1] \\leq 1.0 end');
+  it('strips pre-rendered HTML/MathML tags', () => {
+    expect(cleanContent('value <span class="math-inline"><math><mi>x</mi></math></span> here'))
+      .toBe('value x here');
   });
 
   it('strips *text* to plain text', () => {

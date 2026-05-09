@@ -3,6 +3,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { naturalSort } from 'glossarist';
 import { loadSiteConfig } from './load-site-config.mjs';
+import { preRenderMath } from './math-prerender.mjs';
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = process.cwd();
@@ -55,7 +56,7 @@ function termToDesignation(term) {
       : term.type === 'abbreviation' ? 'gl:Abbreviation'
       : 'gl:Designation',
     'gl:normativeStatus': term.normative_status || 'preferred',
-    'gl:term': term.designation,
+    'gl:term': preRenderMath(term.designation),
   };
   if (term.gender) doc['gl:gender'] = term.gender;
   if (term.plurality) doc['gl:plurality'] = term.plurality;
@@ -68,7 +69,7 @@ function defsToJsonLd(defs) {
   return defs
     .map(d => ({
       '@type': 'gl:DetailedDefinition',
-      'gl:content': d.content || '',
+      'gl:content': preRenderMath(d.content || ''),
     }))
     .filter(d => d['gl:content']);
 }
@@ -255,7 +256,7 @@ function getPrimaryDesignation(conceptYaml) {
     if (lc && lc.terms && lc.terms.length > 0) {
       const preferredExpr = lc.terms.find(t => t.normative_status === 'preferred' && t.type === 'expression');
       const preferred = preferredExpr || lc.terms.find(t => t.normative_status === 'preferred') || lc.terms[0];
-      descs[lang] = preferred.designation;
+      descs[lang] = preRenderMath(preferred.designation);
     }
   }
   return descs;
@@ -531,11 +532,17 @@ function processDataset(dir, register, opts) {
     status: c.status,
   }));
 
+  // Strip HTML from index summary for text display
+  const plainSummary = summary.map(c => ({
+    ...c,
+    eng: c.eng.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(),
+  }));
+
   const graphNodeEntries = concepts.map(c => {
     let term = '', lang = '';
     if (c.designations.eng) { term = c.designations.eng; lang = 'eng'; }
     else { for (const [l, t] of Object.entries(c.designations)) { if (t) { term = t; lang = l; break; } } }
-    return [c.id, term, lang, c.status];
+    return [c.id, term.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(), lang, c.status];
   });
   fs.mkdirSync(path.join(DATA, register), { recursive: true });
   fs.writeFileSync(
@@ -553,7 +560,7 @@ function processDataset(dir, register, opts) {
     conceptCount: concepts.length,
     chunkSize: CHUNK_SIZE,
     chunks,
-    concepts: summary,
+    concepts: plainSummary,
   });
 
   writeJson(path.join(DATA, register, 'index-meta.json'), {

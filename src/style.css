@@ -159,12 +159,13 @@
   }
 
   /* Math */
-  .math-inline .katex {
+  .math-inline {
+    display: inline;
+  }
+  .math-inline math {
     font-size: 1.05em;
   }
-  .math-bold .katex .mord,
-  .math-bold .katex .mbin,
-  .math-bold .katex .mrel {
+  .math-bold .math-inline math {
     font-weight: bold;
   }
   .math-fallback {
