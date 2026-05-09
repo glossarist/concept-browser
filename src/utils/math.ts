@@ -1,16 +1,4 @@
-import Plurimath from '@plurimath/plurimath';
-
-type MathFormat = 'asciimath' | 'latex' | 'mathml' | 'html' | 'mahtml' | 'omml';
-
-function renderMathSpan(math: string, format: MathFormat, bold: boolean): string {
-  try {
-    const p = new Plurimath(math, format);
-    const mathml = p.toMathml();
-    return `<span class="math-inline${bold ? ' math-bold' : ''}">${mathml}</span>`;
-  } catch {
-    return `<code class="math-fallback">${escapeHtml(math)}</code>`;
-  }
-}
+import katex from 'katex';
 
 export type XrefResolver = (uri: string, term: string) => string;
 export type BibResolver = (refId: string, title: string) => string;
@@ -22,12 +10,7 @@ export interface RenderOptions {
   figResolver?: FigResolver;
 }
 
-/**
- * Convert `* item` lines into <ul><li> blocks.
- * Also handles `1)` and `1.` numbered items into ordered lists.
- */
 function convertLists(text: string): string {
-  // Unordered: * item (separated by \n or \n\n)
   let result = text.replace(/(?:^|\n)((?:[ \t]*\* [^\n]+)(?:\n[ \t]*\* [^\n]+)*)/g, (_, block) => {
     if (/^\*stem:\[/.test(block.trimStart())) return _;
     const items: string[] = [];
@@ -41,7 +24,6 @@ function convertLists(text: string): string {
     return `\n<ul class="concept-list">${lis}</ul>`;
   });
 
-  // Ordered: 1) item or 1. item (numbered items)
   result = result.replace(/(?:^|\n)((?:[ \t]*\d+[).][ \t]+[^\n]+)(?:\n[ \t]*\d+[).][ \t]+[^\n]+)*)/g, (_, block) => {
     const items: string[] = [];
     const re = /[ \t]*\d+[).][ \t]+([^\n]+)/g;
@@ -57,10 +39,6 @@ function convertLists(text: string): string {
   return result;
 }
 
-/**
- * Replace `prefix:[content]` where content may contain nested brackets.
- * Handles `*prefix:[content]*` (bold) too.
- */
 function replaceBracketed(
   text: string,
   prefix: string,
@@ -70,11 +48,8 @@ function replaceBracketed(
   let i = 0;
   const boldPrefix = '*' + prefix;
   while (i < text.length) {
-    // Check for bold variant: *prefix:[...]
     if (text.startsWith(boldPrefix + '[', i)) {
-      const start = i;
-      i += boldPrefix.length + 1; // skip *prefix:[
-      const depth = 1;
+      i += boldPrefix.length + 1;
       let j = i;
       let d = 1;
       while (j < text.length && d > 0) {
@@ -83,13 +58,11 @@ function replaceBracketed(
         j++;
       }
       const content = text.slice(i, j - 1);
-      // Check for closing *
       let end = j;
       if (end < text.length && text[end] === '*') end++;
       result += render(content, true);
       i = end;
     }
-    // Check for normal variant: prefix:[...]
     else if (text.startsWith(prefix + '[', i)) {
       i += prefix.length + 1;
       let j = i;
@@ -110,10 +83,6 @@ function replaceBracketed(
   return result;
 }
 
-/**
- * Render stem:[...] math notation to KaTeX HTML.
- * Also handles cross-reference inline patterns (URN refs, bibliography, figures).
- */
 export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | RenderOptions): string {
   if (!text) return '';
   let result = text;
@@ -122,15 +91,14 @@ export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | Ren
     ? { xrefResolver: xrefResolverOrOpts }
     : (xrefResolverOrOpts ?? {});
 
-  result = replaceBracketed(result, 'stem:', (math, bold) => renderMathSpan(math, 'asciimath', bold));
-  result = replaceBracketed(result, 'latexmath:', (math, bold) => renderMathSpan(math, 'latex', bold));
+  result = replaceBracketed(result, 'stem:', renderKatexSpan);
+  result = replaceBracketed(result, 'latexmath:', renderKatexSpan);
 
   result = convertLists(result);
 
   result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>');
   result = result.replace(/~([^~]+)~/g, '<sub>$1</sub>');
 
-  // Handle AsciiDoc bibliography xrefs: <<ref_XX,title>>
   result = result.replace(/<<([^,>]+),([^>]+)>>/g, (_, refId, title) => {
     if (opts.bibResolver) {
       return opts.bibResolver(refId.trim(), title.trim());
@@ -138,7 +106,6 @@ export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | Ren
     return `<span class="bib-ref">${escapeHtml(title.trim())}</span>`;
   });
 
-  // Handle AsciiDoc figure xrefs: <<fig_XX>>
   result = result.replace(/<<(fig_[^>]+)>>/g, (_, figId) => {
     if (opts.figResolver) {
       return opts.figResolver(figId.trim());
@@ -146,28 +113,38 @@ export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | Ren
     return `<span class="fig-ref">${escapeHtml(figId.trim())}</span>`;
   });
 
-  // Handle URN inline refs: {{urn:...,term[,displayText]}} (double-braced)
   result = result.replace(/\{\{(urn:[^,}]+),([^,}]+)(?:,([^}]+))?\}\}/g, (_, uri, term, display) => {
-    const text = (display || term).trim();
+    const t = (display || term).trim();
     if (opts.xrefResolver) {
-      return opts.xrefResolver(uri, text);
+      return opts.xrefResolver(uri, t);
     }
-    return text;
+    return t;
   });
 
-  // Handle URN inline refs: {urn:...,term[,displayText]} (single-braced)
   result = result.replace(/\{(urn:[^,}]+),([^,}]+)(?:,([^}]+))?\}/g, (_, uri, term, display) => {
-    const text = (display || term).trim();
+    const t = (display || term).trim();
     if (opts.xrefResolver) {
-      return opts.xrefResolver(uri, text);
+      return opts.xrefResolver(uri, t);
     }
-    return text;
+    return t;
   });
 
-  // Handle any remaining {{...}} refs (fallback: show term before comma)
   result = result.replace(/\{\{([^,}]+)(?:,\s*[^}]+)?\}\}/g, '$1');
 
   return result;
+}
+
+function renderKatexSpan(math: string, bold: boolean): string {
+  try {
+    const html = katex.renderToString(math, {
+      throwOnError: false,
+      displayMode: false,
+      output: 'html',
+    });
+    return `<span class="math-inline${bold ? ' math-bold' : ''}">${html}</span>`;
+  } catch {
+    return `<code class="math-fallback">${escapeHtml(math)}</code>`;
+  }
 }
 
 function escapeHtml(text: string): string {
@@ -177,9 +154,6 @@ function escapeHtml(text: string): string {
     .replace(/>/g, '&gt;');
 }
 
-/**
- * Clean content for plain text display (no math rendering).
- */
 export function cleanContent(text: string): string {
   if (!text) return '';
   let result = text
