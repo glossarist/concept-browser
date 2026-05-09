@@ -158,16 +158,13 @@
     font-family: var(--font-body);
   }
 
-  /* Math (Plurimath MathML output) */
-  .math-inline {
-    display: inline;
-  }
-  .math-inline math {
+  /* Math */
+  .math-inline .katex {
     font-size: 1.05em;
   }
-  .math-bold math mi,
-  .math-bold math mn,
-  .math-bold math mo {
+  .math-bold .katex .mord,
+  .math-bold .katex .mbin,
+  .math-bold .katex .mrel {
     font-weight: bold;
   }
   .math-fallback {

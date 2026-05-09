@@ -1,22 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
-
-// Mock @plurimath/plurimath for test environment
-vi.mock('@plurimath/plurimath', () => {
-  return {
-    default: class MockPlurimath {
-      private data: string;
-      private format: string;
-      constructor(data: string, format: string) {
-        this.data = data;
-        this.format = format;
-      }
-      toMathml() {
-        return `<math xmlns="http://www.w3.org/1998/Math/MathML"><mi>${this.data}</mi></math>`;
-      }
-    },
-  };
-});
-
+import { describe, it, expect } from 'vitest';
 import { renderMath, cleanContent } from '../utils/math';
 
 describe('renderMath', () => {
@@ -24,10 +6,10 @@ describe('renderMath', () => {
     expect(renderMath('hello world')).toBe('hello world');
   });
 
-  it('renders stem:[x^2] to MathML span', () => {
+  it('renders stem:[x^2] to KaTeX span', () => {
     const result = renderMath('the value stem:[x^2]');
     expect(result).toContain('math-inline');
-    expect(result).toContain('<math');
+    expect(result).toContain('katex');
     expect(result).not.toContain('math-bold');
   });
 
@@ -40,8 +22,7 @@ describe('renderMath', () => {
   it('renders latexmath:[...] with nested brackets', () => {
     const result = renderMath('coords latexmath:[[u_0, u_1] \\leq 1.0] here');
     expect(result).toContain('math-inline');
-    expect(result).toContain('<math');
-    expect(result).toContain('u_0');
+    expect(result).toContain('katex');
     expect(result).not.toContain('latexmath:');
   });
 
