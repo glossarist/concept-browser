@@ -1,4 +1,22 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// Mock @plurimath/plurimath for test environment
+vi.mock('@plurimath/plurimath', () => {
+  return {
+    default: class MockPlurimath {
+      private data: string;
+      private format: string;
+      constructor(data: string, format: string) {
+        this.data = data;
+        this.format = format;
+      }
+      toMathml() {
+        return `<math xmlns="http://www.w3.org/1998/Math/MathML"><mi>${this.data}</mi></math>`;
+      }
+    },
+  };
+});
+
 import { renderMath, cleanContent } from '../utils/math';
 
 describe('renderMath', () => {
@@ -6,10 +24,10 @@ describe('renderMath', () => {
     expect(renderMath('hello world')).toBe('hello world');
   });
 
-  it('renders stem:[x^2] to KaTeX span', () => {
+  it('renders stem:[x^2] to MathML span', () => {
     const result = renderMath('the value stem:[x^2]');
     expect(result).toContain('math-inline');
-    expect(result).toContain('katex');
+    expect(result).toContain('<math');
     expect(result).not.toContain('math-bold');
   });
 
@@ -17,6 +35,14 @@ describe('renderMath', () => {
     const result = renderMath('the value *stem:[x]*');
     expect(result).toContain('math-inline');
     expect(result).toContain('math-bold');
+  });
+
+  it('renders latexmath:[...] with nested brackets', () => {
+    const result = renderMath('coords latexmath:[[u_0, u_1] \\leq 1.0] here');
+    expect(result).toContain('math-inline');
+    expect(result).toContain('<math');
+    expect(result).toContain('u_0');
+    expect(result).not.toContain('latexmath:');
   });
 
   it('converts bullet lines to <ul><li>', () => {
@@ -108,6 +134,10 @@ describe('cleanContent', () => {
 
   it('strips bold stem', () => {
     expect(cleanContent('value *stem:[x]* here')).toBe('value x here');
+  });
+
+  it('strips latexmath:[...] with nested brackets', () => {
+    expect(cleanContent('coords latexmath:[[u_0, u_1] \\leq 1.0] end')).toBe('coords [u_0, u_1] \\leq 1.0 end');
   });
 
   it('strips *text* to plain text', () => {
