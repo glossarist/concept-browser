@@ -1,28 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { createPinia, setActivePinia } from 'pinia';
-import { createRouter, createMemoryHistory } from 'vue-router';
 import AppFooter from '../components/AppFooter.vue';
-
-async function createTestRouter() {
-  return createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: '/', name: 'home', component: { template: '<div/>' } },
-    ],
-  });
-}
+import { createTestRouter, setupPinia } from './test-helpers';
 
 describe('AppFooter', () => {
-  let pinia: ReturnType<typeof createPinia>;
+  let pinia: ReturnType<typeof setupPinia>;
   let router: Awaited<ReturnType<typeof createTestRouter>>;
 
   beforeEach(async () => {
-    pinia = createPinia();
-    setActivePinia(pinia);
-    router = await createTestRouter();
-    router.push('/');
-    await router.isReady();
+    pinia = setupPinia();
+    router = await createTestRouter('minimal', '/');
   });
 
   function mountFooter() {

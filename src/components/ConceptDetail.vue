@@ -5,6 +5,8 @@ import { computed, ref, nextTick, watch } from 'vue';
 import { langName, langLabel } from '../utils/lang';
 import { renderMath, cleanContent } from '../utils/math';
 import type { RenderOptions } from '../utils/math';
+import { escapeAttr } from '../utils/escape';
+import { entryStatusColor, designationTypeLabel, designationTypeColor, getPreferredTerm } from '../utils/concept-helpers';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
@@ -81,20 +83,9 @@ const engConcept = computed((): LocalizedConcept | null => {
   return props.concept['gl:localizedConcept']?.['eng'] ?? null;
 });
 
-const primaryTerm = computed(() => {
-  const eng = engConcept.value;
-  if (!eng?.['gl:designation']?.length) return conceptId.value;
-  const desigs = eng['gl:designation'];
-  const preferredExpr = desigs.find(d => d['gl:normativeStatus'] === 'preferred' && d['@type'] === 'gl:Expression');
-  if (preferredExpr) return preferredExpr['gl:term'];
-  const preferred = desigs.find(d => d['gl:normativeStatus'] === 'preferred');
-  return preferred?.['gl:term'] ?? desigs[0]?.['gl:term'] ?? conceptId.value;
-});
+const primaryTerm = computed(() => getPreferredTerm(engConcept.value, conceptId.value));
 
 // Cross-reference resolver: generates clickable links for inline refs
-function escapeAttr(s: string) {
-  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 
 const { ensureBibLoaded, bibResolver, figResolver } = useRenderOptions(() => props.registerId);
 
@@ -255,12 +246,7 @@ async function navigateEdge(edge: GraphEdge) {
 
 function getTermForLang(lang: string): string {
   const lc = props.concept['gl:localizedConcept']?.[lang];
-  if (!lc?.['gl:designation']?.length) return '\u2014';
-  const desigs = lc['gl:designation'];
-  const preferredExpr = desigs.find(d => d['gl:normativeStatus'] === 'preferred' && d['@type'] === 'gl:Expression');
-  if (preferredExpr) return preferredExpr['gl:term'];
-  const preferred = desigs.find(d => d['gl:normativeStatus'] === 'preferred');
-  return preferred?.['gl:term'] ?? desigs[0]?.['gl:term'] ?? '\u2014';
+  return getPreferredTerm(lc);
 }
 
 function getDesignationsForLang(lang: string) {
@@ -280,30 +266,6 @@ function hasDefinition(lang: string): boolean {
   const lc = props.concept['gl:localizedConcept']?.[lang];
   if (!lc) return false;
   return lc['gl:definition']?.some((d: any) => d['gl:content']) ?? false;
-}
-
-function designationTypeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    'gl:Expression': 'Expression',
-    'gl:Symbol': 'Symbol',
-    'gl:Abbreviation': 'Abbreviation',
-    'gl:GraphicalSymbol': 'Graphical',
-  };
-  return labels[type] ?? type;
-}
-
-function designationTypeColor(type: string): string {
-  if (type === 'gl:Symbol') return 'badge-purple';
-  if (type === 'gl:Abbreviation') return 'badge-yellow';
-  return 'badge-blue';
-}
-
-function entryStatusColor(status: string): string {
-  if (status === 'valid' || status === 'Standard') return 'badge-green';
-  if (status === 'superseded') return 'bg-red-50 text-red-700';
-  if (status === 'withdrawn') return 'bg-red-100 text-red-800';
-  if (status === 'draft') return 'badge-yellow';
-  return 'badge-gray';
 }
 
 function goAdjacent(id: string) {

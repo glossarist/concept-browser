@@ -1,65 +1,29 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import { createPinia, setActivePinia } from 'pinia';
-import { createRouter, createMemoryHistory } from 'vue-router';
 import StatsView from '../views/StatsView.vue';
 import { useVocabularyStore } from '../stores/vocabulary';
-import type { Manifest } from '../adapters/types';
+import { createTestRouter, setupPinia, makeManifest, makeAdapterStub } from './test-helpers';
 
-function makeManifest(): Manifest {
-  return {
-    id: 'test',
-    datasetUri: 'https://glossarist.org/test/concept',
-    title: 'Test Dataset',
-    description: 'A test dataset',
-    owner: 'ISO',
-    baseUrl: '/data/test',
-    languages: ['eng', 'fra', 'deu'],
-    conceptCount: 100,
-    conceptUrlTemplate: '/data/test/concepts/{id}.json',
-    indexUrl: '/data/test/index.json',
-    contextUrl: '/data/test/context.json',
-    uriBase: 'https://glossarist.org',
-    status: 'published',
-    schemaVersion: '1.0',
-    tags: [],
-    lastUpdated: '2025-01-01',
-    sourceRepo: 'https://example.com/repo',
-    chunkSize: 1000,
-    color: '#3366ff',
-    languageStats: {
-      eng: { terms: 100, definitions: 95 },
-      fra: { terms: 80, definitions: 70 },
-      deu: { terms: 60, definitions: 50 },
-    },
-  };
-}
-
-async function createTestRouter() {
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: '/', name: 'home', component: { template: '<div/>' } },
-      { path: '/dataset/:registerId', name: 'dataset', component: { template: '<div/>' } },
-      { path: '/dataset/:registerId/stats', name: 'stats', component: { template: '<div/>' } },
-    ],
-  });
-  router.push('/dataset/test/stats');
-  await router.isReady();
-  return router;
-}
+const testManifest = makeManifest({
+  languages: ['eng', 'fra', 'deu'],
+  conceptCount: 100,
+  languageStats: {
+    eng: { terms: 100, definitions: 95 },
+    fra: { terms: 80, definitions: 70 },
+    deu: { terms: 60, definitions: 50 },
+  },
+});
 
 describe('StatsView', () => {
-  let pinia: ReturnType<typeof createPinia>;
+  let pinia: ReturnType<typeof setupPinia>;
   let router: Awaited<ReturnType<typeof createTestRouter>>;
 
   beforeEach(async () => {
-    pinia = createPinia();
-    setActivePinia(pinia);
-    router = await createTestRouter();
+    pinia = setupPinia();
+    router = await createTestRouter('dataset', '/dataset/test/stats');
     const store = useVocabularyStore();
-    store.manifests.set('test', makeManifest());
-    store.datasets.set('test', { index: [], getConceptCount: () => 0, getConcepts: () => [] } as any);
+    store.manifests.set('test', testManifest);
+    store.datasets.set('test', makeAdapterStub());
   });
 
   function mountStats() {

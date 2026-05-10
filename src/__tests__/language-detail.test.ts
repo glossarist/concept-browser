@@ -1,68 +1,20 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import { createPinia, setActivePinia } from 'pinia';
-import { createRouter, createMemoryHistory } from 'vue-router';
 import LanguageDetail from '../components/LanguageDetail.vue';
 import { useVocabularyStore } from '../stores/vocabulary';
-import type { Manifest, LocalizedConcept } from '../adapters/types';
-
-function makeManifest(): Manifest {
-  return {
-    id: 'test',
-    datasetUri: 'https://glossarist.org/test/concept',
-    title: 'Test Dataset',
-    description: 'A test dataset',
-    owner: 'ISO',
-    baseUrl: '/data/test',
-    languages: ['eng', 'fra'],
-    conceptCount: 10,
-    conceptUrlTemplate: '/data/test/concepts/{id}.json',
-    indexUrl: '/data/test/index.json',
-    contextUrl: '/data/test/context.json',
-    uriBase: 'https://glossarist.org',
-    status: 'published',
-    schemaVersion: '1.0',
-    tags: [],
-    lastUpdated: '2025-01-01',
-    sourceRepo: 'https://example.com/repo',
-    chunkSize: 1000,
-    color: '#3366ff',
-  };
-}
-
-function makeLC(overrides: Partial<LocalizedConcept> = {}): LocalizedConcept {
-  return {
-    '@id': 'https://glossarist.org/test/concept/1/eng',
-    '@type': 'gl:LocalizedConcept',
-    'gl:languageCode': 'eng',
-    'gl:entryStatus': 'valid',
-    ...overrides,
-  };
-}
-
-async function createTestRouter() {
-  return createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: '/', name: 'home', component: { template: '<div/>' } },
-      { path: '/dataset/:registerId/concept/:conceptId', name: 'concept', component: { template: '<div/>' } },
-    ],
-  });
-}
+import type { LocalizedConcept } from '../adapters/types';
+import { createTestRouter, setupPinia, makeManifest, makeLocalizedConcept, makeAdapterStub } from './test-helpers';
 
 describe('LanguageDetail', () => {
-  let pinia: ReturnType<typeof createPinia>;
+  let pinia: ReturnType<typeof setupPinia>;
   let router: Awaited<ReturnType<typeof createTestRouter>>;
 
   beforeEach(async () => {
-    pinia = createPinia();
-    setActivePinia(pinia);
-    router = await createTestRouter();
-    router.push('/');
-    await router.isReady();
+    pinia = setupPinia();
+    router = await createTestRouter('dataset', '/');
     const store = useVocabularyStore();
-    store.manifests.set('test', makeManifest());
-    store.datasets.set('test', { index: [], getConceptCount: () => 0, getConcepts: () => [] } as any);
+    store.manifests.set('test', makeManifest({ languages: ['eng', 'fra'] }));
+    store.datasets.set('test', makeAdapterStub());
   });
 
   function mountDetail(lcs: Record<string, LocalizedConcept>, activeLang = 'eng') {
@@ -73,24 +25,24 @@ describe('LanguageDetail', () => {
   }
 
   it('renders language selector buttons', () => {
-    const eng = makeLC();
-    const fra = makeLC({ '@id': '.../fra', 'gl:languageCode': 'fra' });
+    const eng = makeLocalizedConcept();
+    const fra = makeLocalizedConcept({ '@id': '.../fra', 'gl:languageCode': 'fra' });
     const wrapper = mountDetail({ eng, fra });
     expect(wrapper.text()).toContain('English');
     expect(wrapper.text()).toContain('French');
   });
 
   it('highlights active language button', () => {
-    const eng = makeLC();
-    const fra = makeLC({ '@id': '.../fra', 'gl:languageCode': 'fra' });
+    const eng = makeLocalizedConcept();
+    const fra = makeLocalizedConcept({ '@id': '.../fra', 'gl:languageCode': 'fra' });
     const wrapper = mountDetail({ eng, fra }, 'eng');
     const buttons = wrapper.findAll('button').filter(b => b.text().includes('English'));
     expect(buttons[0].classes()).toContain('bg-ink-800');
   });
 
   it('emits update:activeLang on language click', async () => {
-    const eng = makeLC();
-    const fra = makeLC({ '@id': '.../fra', 'gl:languageCode': 'fra' });
+    const eng = makeLocalizedConcept();
+    const fra = makeLocalizedConcept({ '@id': '.../fra', 'gl:languageCode': 'fra' });
     const wrapper = mountDetail({ eng, fra }, 'eng');
     const fraBtn = wrapper.findAll('button').find(b => b.text().includes('French'));
     expect(fraBtn).toBeDefined();
@@ -99,13 +51,13 @@ describe('LanguageDetail', () => {
   });
 
   it('shows entry status badge', () => {
-    const eng = makeLC({ 'gl:entryStatus': 'valid' });
+    const eng = makeLocalizedConcept({ 'gl:entryStatus': 'valid' });
     const wrapper = mountDetail({ eng });
     expect(wrapper.text()).toContain('valid');
   });
 
   it('shows designations', () => {
-    const eng = makeLC({
+    const eng = makeLocalizedConcept({
       'gl:designation': [
         { '@type': 'gl:Expression', 'gl:term': 'road', 'gl:normativeStatus': 'preferred' },
       ],
@@ -117,7 +69,7 @@ describe('LanguageDetail', () => {
   });
 
   it('shows definition', () => {
-    const eng = makeLC({
+    const eng = makeLocalizedConcept({
       'gl:definition': [{ '@type': 'gl:Definition', 'gl:content': 'A paved surface for vehicles.' }],
     });
     const wrapper = mountDetail({ eng });
@@ -126,7 +78,7 @@ describe('LanguageDetail', () => {
   });
 
   it('shows notes', () => {
-    const eng = makeLC({
+    const eng = makeLocalizedConcept({
       'gl:notes': [{ '@type': 'gl:Note', 'gl:content': 'This is a note.' }],
     });
     const wrapper = mountDetail({ eng });
@@ -135,7 +87,7 @@ describe('LanguageDetail', () => {
   });
 
   it('shows examples', () => {
-    const eng = makeLC({
+    const eng = makeLocalizedConcept({
       'gl:examples': [{ '@type': 'gl:Example', 'gl:content': 'A highway is a road.' }],
     });
     const wrapper = mountDetail({ eng });
@@ -144,7 +96,7 @@ describe('LanguageDetail', () => {
   });
 
   it('shows sources', () => {
-    const eng = makeLC({
+    const eng = makeLocalizedConcept({
       'gl:source': [{ '@type': 'gl:Source', 'gl:sourceType': 'authoritative', 'gl:origin': { '@type': 'gl:Origin', 'gl:ref': 'ISO 7010' } }],
     });
     const wrapper = mountDetail({ eng });
@@ -153,7 +105,7 @@ describe('LanguageDetail', () => {
   });
 
   it('shows term-only state for language without definition', () => {
-    const eng = makeLC({
+    const eng = makeLocalizedConcept({
       'gl:designation': [{ '@type': 'gl:Expression', 'gl:term': 'test', 'gl:normativeStatus': 'preferred' }],
     });
     delete (eng as any)['gl:definition'];
@@ -164,13 +116,13 @@ describe('LanguageDetail', () => {
   });
 
   it('shows no data message for missing language', () => {
-    const eng = makeLC();
+    const eng = makeLocalizedConcept();
     const wrapper = mountDetail({ eng }, 'zho');
     expect(wrapper.text()).toContain('No data available');
   });
 
   it('shows designation type badges', () => {
-    const eng = makeLC({
+    const eng = makeLocalizedConcept({
       'gl:designation': [
         { '@type': 'gl:Symbol', 'gl:term': 'H₂O', 'gl:normativeStatus': 'preferred' },
         { '@type': 'gl:Abbreviation', 'gl:term': 'abbr', 'gl:normativeStatus': 'admitted' },
@@ -182,7 +134,7 @@ describe('LanguageDetail', () => {
   });
 
   it('shows gender and plurality when present', () => {
-    const eng = makeLC({
+    const eng = makeLocalizedConcept({
       'gl:designation': [
         { '@type': 'gl:Expression', 'gl:term': 'route', 'gl:normativeStatus': 'preferred', 'gl:gender': 'f', 'gl:plurality': 'singular' },
       ],

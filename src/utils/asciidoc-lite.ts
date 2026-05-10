@@ -2,10 +2,21 @@
  * Lightweight AsciiDoc-to-HTML converter for news posts.
  * Handles: paragraphs, headings, bold, italic, monospace, links, lists, source blocks.
  */
+
+import { escapeHtml, escapeAttr } from './escape';
+
 export function renderAsciiDocLite(text: string): string {
   if (!text) return '';
 
   const output: string[] = [];
+  let paragraphBuf: string[] = [];
+
+  function flushParagraph() {
+    if (paragraphBuf.length > 0) {
+      output.push(`<p>${paragraphBuf.join(' ')}</p>`);
+      paragraphBuf = [];
+    }
+  }
   const lines = text.split('\n');
   let i = 0;
   let inSourceBlock = false;
@@ -22,7 +33,7 @@ export function renderAsciiDocLite(text: string): string {
         sourceLines = [];
         inSourceBlock = false;
       } else {
-        flushParagraph(output);
+        flushParagraph();
         inSourceBlock = true;
       }
       i++;
@@ -37,7 +48,7 @@ export function renderAsciiDocLite(text: string): string {
 
     // Empty line — paragraph break
     if (!trimmed) {
-      flushParagraph(output);
+      flushParagraph();
       i++;
       continue;
     }
@@ -45,7 +56,7 @@ export function renderAsciiDocLite(text: string): string {
     // Headings
     const headingMatch = trimmed.match(/^(={1,5})\s+(.+)$/);
     if (headingMatch) {
-      flushParagraph(output);
+      flushParagraph();
       const level = headingMatch[1].length + 1;
       output.push(`<h${level}>${inlineFormat(headingMatch[2])}</h${level}>`);
       i++;
@@ -54,7 +65,7 @@ export function renderAsciiDocLite(text: string): string {
 
     // Unordered list item
     if (trimmed.match(/^\*+\s+/)) {
-      flushParagraph(output);
+      flushParagraph();
       const items: string[] = [];
       while (i < lines.length && lines[i].trim().match(/^\*+\s+/)) {
         const itemLine = lines[i].trim();
@@ -69,7 +80,7 @@ export function renderAsciiDocLite(text: string): string {
 
     // Ordered list item
     if (trimmed.match(/^\.\s+/)) {
-      flushParagraph(output);
+      flushParagraph();
       const items: string[] = [];
       while (i < lines.length && lines[i].trim().match(/^\.\s+/)) {
         items.push(`<li>${inlineFormat(lines[i].trim().replace(/^\.\s+/, ''))}</li>`);
@@ -84,18 +95,9 @@ export function renderAsciiDocLite(text: string): string {
     i++;
   }
 
-  flushParagraph(output);
+  flushParagraph();
 
   return output.join('\n');
-}
-
-let paragraphBuf: string[] = [];
-
-function flushParagraph(output: string[]) {
-  if (paragraphBuf.length > 0) {
-    output.push(`<p>${paragraphBuf.join(' ')}</p>`);
-    paragraphBuf = [];
-  }
 }
 
 function inlineFormat(text: string): string {
@@ -119,8 +121,4 @@ function inlineFormat(text: string): string {
   text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
 
   return text;
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

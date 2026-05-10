@@ -2,6 +2,7 @@
 import type { LocalizedConcept } from '../adapters/types';
 import { computed } from 'vue';
 import { langName, langLabel } from '../utils/lang';
+import { entryStatusColor } from '../utils/concept-helpers';
 
 const props = defineProps<{
   localizedConcepts: Record<string, LocalizedConcept>;
@@ -214,14 +215,6 @@ function eventRingColor(type: string): string {
     review: 'ring-ink-100',
   };
   return colors[type] || 'ring-ink-100';
-}
-
-function entryStatusColor(status: string): string {
-  if (status === 'valid' || status === 'Standard') return 'badge-green';
-  if (status === 'superseded') return 'bg-red-50 text-red-700';
-  if (status === 'withdrawn') return 'bg-red-100 text-red-800';
-  if (status === 'draft') return 'badge-yellow';
-  return 'badge-gray';
 }
 
 function eventIconPath(type: string): string {

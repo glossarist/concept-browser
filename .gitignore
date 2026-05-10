@@ -7,6 +7,7 @@ public/data/
 .DS_Store
 .env
 .env.local
+.env.*
 
 # Site-specific generated files (produced by generate-data per SITE_ID)
 public/datasets.json
@@ -18,3 +19,8 @@ TODO*
 site-configs.yml
 TODO.update-browser/
 *.gem
+coverage/
+*.log
+*.tgz
+.idea/
+.vscode/

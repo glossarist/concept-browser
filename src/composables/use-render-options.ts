@@ -1,6 +1,7 @@
 import { ref, watch } from 'vue';
 import type { RenderOptions, BibResolver, FigResolver } from '../utils/math';
 import { getFactory } from '../adapters/factory';
+import { escapeAttr } from '../utils/escape';
 
 interface BibEntry {
   reference: string;
@@ -51,8 +52,4 @@ export function useRenderOptions(registerId: () => string) {
   };
 
   return { bibData, ensureBibLoaded, bibResolver, figResolver };
-}
-
-function escapeAttr(s: string) {
-  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

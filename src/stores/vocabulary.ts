@@ -58,8 +58,8 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
         }
       }
       initialized.value = true;
-    } catch (e: any) {
-      error.value = `Failed to discover datasets: ${e.message}`;
+    } catch (e: unknown) {
+      error.value = `Failed to discover datasets: ${e instanceof Error ? e.message : String(e)}`;
     } finally {
       loading.value = false;
     }
@@ -81,8 +81,8 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
 
       // Seed graph nodes lazily — don't block UI for large datasets
       seedGraphNodes(registerId, adapter);
-    } catch (e: any) {
-      error.value = `Failed to load dataset ${registerId}: ${e.message}`;
+    } catch (e: unknown) {
+      error.value = `Failed to load dataset ${registerId}: ${e instanceof Error ? e.message : String(e)}`;
       throw e;
     }
   }
@@ -234,8 +234,8 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
 
       touchGraph();
       conceptEdges.value = graph.value.getEdges(uri);
-    } catch (e: any) {
-      error.value = `Failed to load concept ${conceptId}: ${e.message}`;
+    } catch (e: unknown) {
+      error.value = `Failed to load concept ${conceptId}: ${e instanceof Error ? e.message : String(e)}`;
       currentConcept.value = null;
       throw e;
     }
@@ -275,7 +275,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
     const loaded = [...datasets.value.values()].filter(a => a.index);
     if (!loaded.length) return null;
     const adapter = loaded[Math.floor(Math.random() * loaded.length)];
-    const concepts = adapter.getConcepts() as (import('../adapters/types').ConceptSummary | undefined)[];
+    const concepts = adapter.getConcepts();
     const dense = concepts.filter((c): c is import('../adapters/types').ConceptSummary => c != null);
     if (!dense.length) return null;
     const pick = dense[Math.floor(Math.random() * dense.length)];

@@ -67,7 +67,7 @@ watch(filter, async (q) => {
 
 // Dense array: only loaded (non-undefined) entries
 const loadedConcepts = computed(() => {
-  const arr = adapter.value?.getConcepts() as (import('../adapters/types').ConceptSummary | undefined)[] | undefined;
+  const arr = adapter.value?.getConcepts();
   if (!arr) return [];
   return arr.filter((c): c is import('../adapters/types').ConceptSummary => c != null);
 });
@@ -98,7 +98,7 @@ const paged = computed(() => {
   }
   // When not filtering, slice directly from the pre-allocated index (may contain undefined)
   const start = (page.value - 1) * perPage;
-  const arr = adapter.value?.getConcepts() as (import('../adapters/types').ConceptSummary | undefined)[] | undefined;
+  const arr = adapter.value?.getConcepts();
   if (!arr) return [];
   return arr.slice(start, start + perPage).filter((c): c is import('../adapters/types').ConceptSummary => c != null);
 });
