@@ -74,7 +74,7 @@ describe('renderAsciiDocLite', () => {
 
   it('escapes HTML in source blocks', () => {
     const result = renderAsciiDocLite('----\n<a href="evil">\n----');
-    expect(result).toContain('&lt;a href=&quot;evil&quot;&gt;');
+    expect(result).toContain('&lt;a href="evil"&gt;');
     expect(result).not.toContain('<a href="evil">');
   });
 

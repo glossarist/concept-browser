@@ -1,3 +1,5 @@
+import { escapeHtml } from './escape';
+
 type PlurimathCtor = new (data: string, format: string) => {
   toAsciimath(): string;
   toLatex(): string;
@@ -28,13 +30,6 @@ export function renderToMathML(expr: string, format: string): string | null {
   } catch {
     return null;
   }
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
 }
 
 export function mathToHtml(expr: string, format: string, bold: boolean): string {

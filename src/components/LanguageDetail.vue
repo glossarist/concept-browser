@@ -4,6 +4,8 @@ import { computed } from 'vue';
 import { langName, langLabel } from '../utils/lang';
 import { renderMath } from '../utils/math';
 import type { RenderOptions } from '../utils/math';
+import { escapeAttr } from '../utils/escape';
+import { entryStatusColor, designationTypeLabel, designationTypeColor } from '../utils/concept-helpers';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { getFactory } from '../adapters/factory';
@@ -51,34 +53,9 @@ function normativeColor(status: string): string {
   if (status === 'deprecated') return 'bg-red-50 text-red-700';
   return 'bg-amber-50 text-amber-700';
 }
-function entryStatusColor(status: string): string {
-  if (status === 'valid' || status === 'Standard') return 'badge-green';
-  if (status === 'superseded') return 'bg-red-50 text-red-700';
-  if (status === 'withdrawn') return 'bg-red-100 text-red-800';
-  if (status === 'draft') return 'badge-yellow';
-  return 'badge-gray';
-}
-function designationTypeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    'gl:Expression': 'Expression',
-    'gl:Symbol': 'Symbol',
-    'gl:Abbreviation': 'Abbreviation',
-    'gl:GraphicalSymbol': 'Graphical',
-  };
-  return labels[type] ?? type;
-}
-function designationTypeColor(type: string): string {
-  if (type === 'gl:Symbol') return 'badge-purple';
-  if (type === 'gl:Abbreviation') return 'badge-yellow';
-  return 'badge-blue';
-}
 
 const router = useRouter();
 const store = useVocabularyStore();
-
-function escapeAttr(s: string) {
-  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 
 const factory = getFactory();
 

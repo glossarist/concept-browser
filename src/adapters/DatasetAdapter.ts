@@ -44,13 +44,20 @@ export class DatasetAdapter {
     const resp = await fetch(`${this.baseUrl}/index.json`);
     if (!resp.ok) throw new Error(`Failed to load index for ${this.registerId}: ${resp.status}`);
     this.index = (await resp.json()) as ConceptIndex;
+    this.buildSummaryIndex();
+    return this.index;
+  }
+
+  private buildSummaryIndex() {
     this.summaryMap.clear();
     this.positionIndex.clear();
-    for (let i = 0; i < this.index.concepts.length; i++) {
-      this.summaryMap.set(this.index.concepts[i].id, this.index.concepts[i]);
-      this.positionIndex.set(this.index.concepts[i].id, i);
+    for (let i = 0; i < this.index!.concepts.length; i++) {
+      const entry = this.index!.concepts[i];
+      if (entry) {
+        this.summaryMap.set(entry.id, entry);
+        this.positionIndex.set(entry.id, i);
+      }
     }
-    return this.index;
   }
 
   private async loadIndexChunked(): Promise<ConceptIndex> {
@@ -62,12 +69,7 @@ export class DatasetAdapter {
       const resp = await fetch(`${this.baseUrl}/index.json`);
       if (!resp.ok) throw new Error(`Failed to load index for ${this.registerId}`);
       this.index = (await resp.json()) as ConceptIndex;
-      this.summaryMap.clear();
-      this.positionIndex.clear();
-      for (let i = 0; i < this.index.concepts.length; i++) {
-        this.summaryMap.set(this.index.concepts[i].id, this.index.concepts[i]);
-        this.positionIndex.set(this.index.concepts[i].id, i);
-      }
+      this.buildSummaryIndex();
       return this.index;
     }
 
@@ -121,7 +123,7 @@ export class DatasetAdapter {
         eng: entry.designations?.eng || Object.values(entry.designations || {})[0] || '',
         status: entry.status,
       };
-      (this.index!.concepts as (ConceptSummary | undefined)[])[startPos + i] = summary;
+      this.index!.concepts[startPos + i] = summary;
       this.summaryMap.set(entry.id, summary);
       this.positionIndex.set(entry.id, startPos + i);
     }
@@ -153,7 +155,7 @@ export class DatasetAdapter {
 
   isRangeLoaded(offset: number, limit: number): boolean {
     if (!this.index?.concepts) return false;
-    const arr = this.index.concepts as (ConceptSummary | undefined)[];
+    const arr = this.index.concepts;
     for (let i = offset; i < Math.min(offset + limit, arr.length); i++) {
       if (arr[i] === undefined) return false;
     }
@@ -175,7 +177,7 @@ export class DatasetAdapter {
     return this.summaryMap.get(conceptId);
   }
 
-  getConcepts(): ConceptSummary[] {
+  getConcepts(): (ConceptSummary | undefined)[] {
     return this.index?.concepts ?? [];
   }
 
@@ -188,7 +190,7 @@ export class DatasetAdapter {
   }
 
   getAdjacentConcepts(conceptId: string): { prev: string | null; next: string | null } {
-    const concepts = this.index?.concepts as (ConceptSummary | undefined)[] | undefined;
+    const concepts = this.index?.concepts;
     if (!concepts) return { prev: null, next: null };
     const idx = this.getConceptPosition(conceptId);
     if (idx === -1) return { prev: null, next: null };
@@ -208,7 +210,7 @@ export class DatasetAdapter {
   search(query: string, lang: string = 'eng'): SearchHit[] {
     const q = query.toLowerCase();
     const hits: SearchHit[] = [];
-    const arr = this.index?.concepts as (ConceptSummary | undefined)[] | undefined;
+    const arr = this.index?.concepts;
     if (!arr) return hits;
 
     for (const entry of arr) {

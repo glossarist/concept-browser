@@ -34,7 +34,7 @@ export interface ConceptIndex {
   conceptCount: number;
   chunkSize: number;
   chunks: { file: string; count: number }[];
-  concepts: ConceptSummary[];
+  concepts: (ConceptSummary | undefined)[];
 }
 
 export interface ConceptSummary {

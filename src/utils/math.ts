@@ -1,3 +1,5 @@
+import { escapeHtml, escapeAttr } from './escape';
+
 export type XrefResolver = (uri: string, term: string) => string;
 export type BibResolver = (refId: string, title: string) => string;
 export type FigResolver = (figId: string) => string;
@@ -6,10 +8,6 @@ export interface RenderOptions {
   xrefResolver?: XrefResolver;
   bibResolver?: BibResolver;
   figResolver?: FigResolver;
-}
-
-function escapeAttr(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function replaceBracketed(text: string, prefix: string, handler: (content: string, bold: boolean) => string): string {
@@ -82,13 +80,6 @@ function convertLists(text: string): string {
   });
 
   return result;
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
 }
 
 export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | RenderOptions): string {

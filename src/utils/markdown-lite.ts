@@ -104,6 +104,4 @@ export function renderMarkdown(input: string): string {
   return blocks.join('\n');
 }
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+import { escapeHtml } from './escape';
