@@ -5,6 +5,13 @@ import { createRouter, createMemoryHistory } from 'vue-router';
 import ConceptDetail from '../components/ConceptDetail.vue';
 import { useVocabularyStore } from '../stores/vocabulary';
 import type { Manifest, ConceptDocument, LocalizedConcept } from '../adapters/types';
+// Prevent the 2.7MB Opal runtime from loading in tests
+vi.mock('../utils/plurimath', () => ({
+  loadPlurimath: () => new Promise(() => {}),
+  mathToHtml: () => '<code class="math-fallback">x</code>',
+  renderToMathML: () => null,
+}));
+
 import { vMath } from '../directives/v-math';
 
 function makeManifest(): Manifest {

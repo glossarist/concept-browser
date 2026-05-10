@@ -1,32 +1,13 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
-
-const mockResolve = vi.fn(() => ({ type: 'unresolved' }));
-const mockGetAdapters = vi.fn(() => []);
-
-vi.mock('../adapters/factory', () => ({
-  getFactory: () => ({
-    getAdapters: mockGetAdapters,
-    resolve: mockResolve,
-  }),
-}));
-
-const storeMock = {
-  discoverDatasets: vi.fn(),
-  loadDataset: vi.fn(),
-  datasets: new Map(),
-  initialized: false,
-};
-
-vi.mock('../stores/vocabulary', () => ({
-  useVocabularyStore: () => storeMock,
-}));
-
+import { resetFactory, getFactory } from '../adapters/factory';
 import ResolveView from '../views/ResolveView.vue';
 
-async function createTestRouter(uri = 'https://glossarist.org/test/concept/1') {
+const TEST_URI = 'https://glossarist.org/test/concept/1';
+
+async function createTestRouter(uri = TEST_URI) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -45,11 +26,14 @@ describe('ResolveView', () => {
   let router: Awaited<ReturnType<typeof createTestRouter>>;
 
   beforeEach(async () => {
+    resetFactory();
     pinia = createPinia();
     setActivePinia(pinia);
     router = await createTestRouter();
-    mockResolve.mockReturnValue({ type: 'unresolved' });
-    mockGetAdapters.mockReturnValue([]);
+    // Pre-seed the factory with a stub adapter so discoverDatasets is skipped
+    const factory = getFactory();
+    const adapter = { registerId: 'test', manifest: null };
+    (factory as any).adapters.set('test', adapter);
   });
 
   function mountResolve() {
@@ -82,9 +66,12 @@ describe('ResolveView', () => {
     expect(link).toBeDefined();
   });
 
-  it('calls factory resolve with the URI', async () => {
-    mountResolve();
-    await flushPromises();
-    expect(mockResolve).toHaveBeenCalledWith('https://glossarist.org/test/concept/1');
+  it('resolves the URI via the factory resolver', async () => {
+    const factory = getFactory();
+    factory.resolver.registerDataset('test', ['https://glossarist.org/test/*']);
+    const resolution = factory.resolve(TEST_URI);
+    expect(resolution.type).toBe('internal');
+    expect(resolution).toHaveProperty('registerId', 'test');
+    expect(resolution).toHaveProperty('conceptId', '1');
   });
 });
