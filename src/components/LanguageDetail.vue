@@ -110,7 +110,7 @@ function handleContentClick(e: MouseEvent) {
 </script>
 
 <template>
-  <div class="space-y-5" @click="handleContentClick">
+  <div v-math class="space-y-5" @click="handleContentClick">
     <!-- Language selector -->
     <div class="flex flex-wrap gap-1.5">
       <button

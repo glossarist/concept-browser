@@ -100,6 +100,52 @@ describe('renderMath', () => {
     expect(renderMath(null as any)).toBe('');
     expect(renderMath(undefined as any)).toBe('');
   });
+
+  // stem:[...] placeholder tests
+  it('outputs math-pending placeholder for stem:[expr]', () => {
+    const result = renderMath('value stem:[x^2] here');
+    expect(result).toContain('class="math-pending"');
+    expect(result).toContain('data-expr="x^2"');
+    expect(result).toContain('data-format="asciimath"');
+    expect(result).toContain('x^2');
+  });
+
+  it('outputs math-pending with math-bold for *stem:[expr]', () => {
+    const result = renderMath('*stem:[alpha]');
+    expect(result).toContain('class="math-pending math-bold"');
+    expect(result).toContain('data-expr="alpha"');
+  });
+
+  it('outputs math-pending placeholder for latexmath:[expr]', () => {
+    const result = renderMath('equation latexmath:[\\frac{a}{b}] end');
+    expect(result).toContain('class="math-pending"');
+    expect(result).toContain('data-expr="\\frac{a}{b}"');
+    expect(result).toContain('data-format="latex"');
+  });
+
+  it('handles multiple stem: expressions in one string', () => {
+    const result = renderMath('stem:[m] out of stem:[n] redundancy');
+    const matches = result.match(/class="math-pending"/g);
+    expect(matches).toHaveLength(2);
+    expect(result).toContain('data-expr="m"');
+    expect(result).toContain('data-expr="n"');
+  });
+
+  it('handles nested brackets in stem:', () => {
+    const result = renderMath('stem:[a_[i]]');
+    expect(result).toContain('data-expr="a_[i]"');
+  });
+
+  it('handles stem: in designation text', () => {
+    const result = renderMath('stem:[n]-ary digit');
+    expect(result).toContain('data-expr="n"');
+    expect(result).toContain('-ary digit');
+  });
+
+  it('escapes special HTML in stem: expressions', () => {
+    const result = renderMath('stem:[a<b]');
+    expect(result).toContain('data-expr="a&lt;b"');
+  });
 });
 
 describe('cleanContent', () => {
@@ -134,5 +180,21 @@ describe('cleanContent', () => {
   it('handles empty input', () => {
     expect(cleanContent('')).toBe('');
     expect(cleanContent(null as any)).toBe('');
+  });
+
+  it('strips stem: notation to plain expression', () => {
+    expect(cleanContent('stem:[x^2]')).toBe('x^2');
+  });
+
+  it('strips *stem: bold notation', () => {
+    expect(cleanContent('*stem:[alpha]')).toBe('alpha');
+  });
+
+  it('strips latexmath: notation', () => {
+    expect(cleanContent('latexmath:[\\frac{a}{b}]')).toBe('\\frac{a}{b}');
+  });
+
+  it('strips stem: in running text', () => {
+    expect(cleanContent('value stem:[m] out of stem:[n]')).toBe('value m out of n');
   });
 });

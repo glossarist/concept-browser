@@ -8,6 +8,53 @@ export interface RenderOptions {
   figResolver?: FigResolver;
 }
 
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function replaceBracketed(text: string, prefix: string, handler: (content: string, bold: boolean) => string): string {
+  let result = '';
+  let i = 0;
+  const boldPrefix = '*' + prefix;
+  while (i < text.length) {
+    if (text.startsWith(boldPrefix + '[', i)) {
+      i += boldPrefix.length + 1;
+      let j = i;
+      let d = 1;
+      while (j < text.length && d > 0) {
+        if (text[j] === '[') d++;
+        else if (text[j] === ']') d--;
+        j++;
+      }
+      const content = text.slice(i, j - 1);
+      let end = j;
+      if (end < text.length && text[end] === '*') end++;
+      result += handler(content, true);
+      i = end;
+    } else if (text.startsWith(prefix + '[', i)) {
+      i += prefix.length + 1;
+      let j = i;
+      let d = 1;
+      while (j < text.length && d > 0) {
+        if (text[j] === '[') d++;
+        else if (text[j] === ']') d--;
+        j++;
+      }
+      const content = text.slice(i, j - 1);
+      result += handler(content, false);
+      i = j;
+    } else {
+      result += text[i];
+      i++;
+    }
+  }
+  return result;
+}
+
+function mathPlaceholder(expr: string, format: string, bold: boolean): string {
+  return `<span class="math-pending${bold ? ' math-bold' : ''}" data-expr="${escapeAttr(expr)}" data-format="${format}">${escapeAttr(expr)}</span>`;
+}
+
 function convertLists(text: string): string {
   let result = text.replace(/(?:^|\n)((?:[ \t]*\* [^\n]+)(?:\n[ \t]*\* [^\n]+)*)/g, (_, block) => {
     if (/^\*stem:\[/.test(block.trimStart())) return _;
@@ -37,6 +84,13 @@ function convertLists(text: string): string {
   return result;
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | RenderOptions): string {
   if (!text) return '';
   let result = text;
@@ -45,7 +99,10 @@ export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | Ren
     ? { xrefResolver: xrefResolverOrOpts }
     : (xrefResolverOrOpts ?? {});
 
-  // Math (stem/latexmath) is pre-rendered at build time. Only process text formatting.
+  // Math expressions: output placeholders for v-math directive to upgrade
+  result = replaceBracketed(result, 'stem:', (expr, bold) => mathPlaceholder(expr, 'asciimath', bold));
+  result = replaceBracketed(result, 'latexmath:', (expr, bold) => mathPlaceholder(expr, 'latex', bold));
+
   result = convertLists(result);
   result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>');
   result = result.replace(/~([^~]+)~/g, '<sub>$1</sub>');
@@ -85,17 +142,10 @@ export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | Ren
   return result;
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
 export function cleanContent(text: string): string {
   if (!text) return '';
   let result = text
-    .replace(/<[^>]+>/g, '') // strip pre-rendered HTML/MathML
+    .replace(/<[^>]+>/g, '')
     .replace(/\*([^*]+)\*/g, '$1')
     .replace(/~([^~]+)~/g, '_$1')
     .replace(/\n[ \t]*\* /g, '; ')
@@ -103,6 +153,8 @@ export function cleanContent(text: string): string {
     .replace(/<<(fig_[^>]+)>>/g, '$1')
     .replace(/\{\{urn:[^,}]+,([^,}]+)(?:,[^}]+)?\}\}/g, '$1')
     .replace(/\{urn:[^,}]+,([^,}]+)(?:,[^}]+)?\}/g, '$1')
-    .replace(/\{\{([^,}]+)(?:,\s*[^}]+)?\}\}/g, '$1');
+    .replace(/\{\{([^,}]+)(?:,\s*[^}]+)?\}\}/g, '$1')
+    .replace(/(?:\*?)stem:\[([^\]]*)\]/g, '$1')
+    .replace(/(?:\*?)latexmath:\[([^\]]*)\]/g, '$1');
   return result;
 }

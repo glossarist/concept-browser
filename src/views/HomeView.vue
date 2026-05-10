@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref } from 'vue';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useRouter } from 'vue-router';
 import { useDsStyle } from '../utils/dataset-style';
@@ -8,19 +8,8 @@ import { useSiteConfig } from '../config/use-site-config';
 const store = useVocabularyStore();
 const router = useRouter();
 const { getStyle } = useDsStyle();
-const { config: siteConfig, loadConfig } = useSiteConfig();
+const { config: siteConfig } = useSiteConfig();
 const exploring = ref(false);
-
-onMounted(async () => {
-  await loadConfig();
-  if (siteConfig.value?.defaultDataset) {
-    const targetId = siteConfig.value.defaultDataset;
-    if (!store.initialized) await store.discoverDatasets();
-    if (store.datasets.has(targetId)) {
-      router.replace({ name: 'dataset', params: { registerId: targetId } });
-    }
-  }
-});
 
 async function exploreRandom() {
   exploring.value = true;
@@ -115,58 +104,88 @@ function goToGraph() { router.push({ name: 'graph' }); }
       </div>
     </div>
 
-    <!-- Dataset cards -->
-    <div class="flex items-center justify-between mb-5">
-      <div class="section-label mb-0">Available Datasets</div>
-      <span class="text-xs text-ink-300">Click to browse</span>
-    </div>
-    <div :class="[
-      filteredDatasets.length === 1 ? 'max-w-md' : '',
-      filteredDatasets.length === 2 ? 'max-w-3xl' : '',
-      'grid gap-4',
-      filteredDatasets.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-    ]">
+    <!-- Dataset section -->
+    <template v-if="filteredDatasets.length === 1">
       <button
-        v-for="(ds, idx) in filteredDatasets"
-        :key="ds.id"
-        @click="goToDataset(ds.id)"
-        class="card-hover p-6 text-left group animate-entrance"
-        :style="{ borderLeft: `3px solid ${getStyle(ds.id).color}`, animationDelay: `${idx * 60}ms` }"
+        @click="goToDataset(filteredDatasets[0].id)"
+        class="card-hover p-8 text-left group animate-entrance max-w-md"
+        :style="{ borderLeft: `3px solid ${getStyle(filteredDatasets[0].id).color}` }"
       >
-        <div class="flex items-start gap-3 mb-4">
-          <span class="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" :style="{ backgroundColor: getStyle(ds.id).color }"></span>
-          <div class="min-w-0">
-            <h2 class="font-serif text-xl text-ink-800 leading-snug group-hover:text-ink-900 transition-colors">
-              {{ ds.manifest.title }}
-            </h2>
-          </div>
+        <div class="flex items-center gap-3 mb-3">
+          <span class="w-3 h-3 rounded-full flex-shrink-0" :style="{ backgroundColor: getStyle(filteredDatasets[0].id).color }"></span>
+          <h2 class="font-serif text-xl text-ink-800 group-hover:text-ink-900 transition-colors">
+            {{ filteredDatasets[0].manifest.title }}
+          </h2>
         </div>
-
-        <p class="text-sm text-ink-400 mb-5 line-clamp-2 leading-relaxed pl-[22px]">
-          {{ ds.manifest.description }}
+        <p v-if="filteredDatasets[0].manifest.description" class="text-sm text-ink-400 mb-4 line-clamp-2 leading-relaxed pl-6">
+          {{ filteredDatasets[0].manifest.description }}
         </p>
-
-        <div class="flex items-center gap-3 pl-[22px] mb-3">
-          <span :style="{ color: getStyle(ds.id).color }" class="text-sm font-semibold tabular-nums">{{ ds.manifest.conceptCount.toLocaleString() }}</span>
+        <div class="flex items-center gap-3 pl-6 mb-4">
+          <span :style="{ color: getStyle(filteredDatasets[0].id).color }" class="text-sm font-semibold tabular-nums">{{ filteredDatasets[0].manifest.conceptCount.toLocaleString() }}</span>
           <span class="text-xs text-ink-300">concepts</span>
           <span class="text-ink-200 text-xs">&middot;</span>
-          <span class="text-sm text-ink-500 tabular-nums">{{ ds.manifest.languages.length }}</span>
+          <span class="text-sm text-ink-500 tabular-nums">{{ filteredDatasets[0].manifest.languages.length }}</span>
           <span class="text-xs text-ink-300">languages</span>
         </div>
-
-        <div class="flex flex-wrap gap-1.5 pl-[22px] mb-3">
-          <span v-for="tag in (ds.manifest.tags ?? []).slice(0, 3)" :key="tag" class="badge text-[10px]" :style="{ backgroundColor: getStyle(ds.id).light, color: getStyle(ds.id).dark }">
-            {{ tag }}
+        <div class="pl-6">
+          <span class="btn-primary inline-flex items-center gap-2">
+            Browse concepts
+            <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
           </span>
         </div>
-
-        <div class="flex items-center justify-between pl-[22px]">
-          <span class="text-[11px] text-ink-300">{{ ds.manifest.owner }}</span>
-          <svg class="w-4 h-4 text-ink-200 group-hover:text-ink-400 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-          </svg>
-        </div>
       </button>
-    </div>
+    </template>
+    <template v-else-if="filteredDatasets.length > 1">
+      <div class="flex items-center justify-between mb-5">
+        <div class="section-label mb-0">Available Datasets</div>
+        <span class="text-xs text-ink-300">Click to browse</span>
+      </div>
+      <div :class="[
+        filteredDatasets.length === 2 ? 'max-w-3xl' : '',
+        'grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+      ]">
+        <button
+          v-for="(ds, idx) in filteredDatasets"
+          :key="ds.id"
+          @click="goToDataset(ds.id)"
+          class="card-hover p-6 text-left group animate-entrance"
+          :style="{ borderLeft: `3px solid ${getStyle(ds.id).color}`, animationDelay: `${idx * 60}ms` }"
+        >
+          <div class="flex items-start gap-3 mb-4">
+            <span class="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" :style="{ backgroundColor: getStyle(ds.id).color }"></span>
+            <div class="min-w-0">
+              <h2 class="font-serif text-xl text-ink-800 leading-snug group-hover:text-ink-900 transition-colors">
+                {{ ds.manifest.title }}
+              </h2>
+            </div>
+          </div>
+
+          <p class="text-sm text-ink-400 mb-5 line-clamp-2 leading-relaxed pl-[22px]">
+            {{ ds.manifest.description }}
+          </p>
+
+          <div class="flex items-center gap-3 pl-[22px] mb-3">
+            <span :style="{ color: getStyle(ds.id).color }" class="text-sm font-semibold tabular-nums">{{ ds.manifest.conceptCount.toLocaleString() }}</span>
+            <span class="text-xs text-ink-300">concepts</span>
+            <span class="text-ink-200 text-xs">&middot;</span>
+            <span class="text-sm text-ink-500 tabular-nums">{{ ds.manifest.languages.length }}</span>
+            <span class="text-xs text-ink-300">languages</span>
+          </div>
+
+          <div class="flex flex-wrap gap-1.5 pl-[22px] mb-3">
+            <span v-for="tag in (ds.manifest.tags ?? []).slice(0, 3)" :key="tag" class="badge text-[10px]" :style="{ backgroundColor: getStyle(ds.id).light, color: getStyle(ds.id).dark }">
+              {{ tag }}
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between pl-[22px]">
+            <span class="text-[11px] text-ink-300">{{ ds.manifest.owner }}</span>
+            <svg class="w-4 h-4 text-ink-200 group-hover:text-ink-400 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </div>
+        </button>
+      </div>
+    </template>
   </div>
 </template>

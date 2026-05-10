@@ -318,7 +318,7 @@ function plainTruncate(html: string, max: number = 120): string {
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+  <div v-math class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
     <!-- Header -->
     <div class="mb-6">
       <!-- Breadcrumb + nav row -->
