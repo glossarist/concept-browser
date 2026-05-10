@@ -23,5 +23,11 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     globals: true,
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
   },
 })
