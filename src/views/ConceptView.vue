@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, watch, ref } from 'vue';
+import { computed, watch, ref, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import ConceptDetail from '../components/ConceptDetail.vue';
 
@@ -9,6 +10,7 @@ const props = defineProps<{
 }>();
 
 const store = useVocabularyStore();
+const router = useRouter();
 const conceptLoading = ref(false);
 const localError = ref<string | null>(null);
 
@@ -55,6 +57,25 @@ async function loadAdjacent() {
 }
 
 watch(() => props.conceptId, () => { loadAdjacent(); });
+
+function goAdjacent(id: string) {
+  router.push({ name: 'concept', params: { registerId: props.registerId, conceptId: id } });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+  if (e.key === 'ArrowLeft' && adjacent.value.prev) {
+    e.preventDefault();
+    goAdjacent(adjacent.value.prev);
+  } else if (e.key === 'ArrowRight' && adjacent.value.next) {
+    e.preventDefault();
+    goAdjacent(adjacent.value.next);
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown));
+onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 </script>
 
 <template>

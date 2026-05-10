@@ -308,6 +308,7 @@ function entryStatusColor(status: string): string {
 
 function goAdjacent(id: string) {
   router.push({ name: 'concept', params: { registerId: props.registerId, conceptId: id } });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function plainTruncate(html: string, max: number = 120): string {
@@ -338,7 +339,7 @@ function plainTruncate(html: string, max: number = 120): string {
             v-if="adjacent.prev"
             @click="goAdjacent(adjacent.prev)"
             class="p-1.5 rounded-md text-ink-300 hover:text-ink-600 hover:bg-ink-50 transition-colors"
-            title="Previous concept"
+            title="Previous concept (←)"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
           </button>
@@ -346,7 +347,7 @@ function plainTruncate(html: string, max: number = 120): string {
             v-if="adjacent.next"
             @click="goAdjacent(adjacent.next)"
             class="p-1.5 rounded-md text-ink-300 hover:text-ink-600 hover:bg-ink-50 transition-colors"
-            title="Next concept"
+            title="Next concept (→)"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
           </button>
