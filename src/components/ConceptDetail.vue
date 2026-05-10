@@ -66,7 +66,15 @@ const languages = computed(() => {
   });
 });
 
-// Initialize collapsed state when languages change
+// Collapsible language sections — auto-collapse non-eng when 6+ languages
+const collapsedLangs = ref(new Set<string>());
+
+function initCollapsed(langs: string[]) {
+  if (langs.length >= 6) {
+    collapsedLangs.value = new Set(langs.filter(l => l !== 'eng'));
+  }
+}
+
 watch(languages, (langs) => { initCollapsed(langs); }, { immediate: true });
 
 const engConcept = computed((): LocalizedConcept | null => {
@@ -157,15 +165,6 @@ const allLangContent = computed(() => {
   }
   return result;
 });
-
-// Collapsible language sections — auto-collapse non-eng when 6+ languages
-const collapsedLangs = ref(new Set<string>());
-
-function initCollapsed(langs: string[]) {
-  if (langs.length >= 6) {
-    collapsedLangs.value = new Set(langs.filter(l => l !== 'eng'));
-  }
-}
 
 function hasContent(lc: LangContent): boolean {
   return !!(lc.definition || lc.notes.length || lc.examples.length || lc.sources.length);
