@@ -20,10 +20,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Bump version (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          npm version "$VERSION" --no-git-tag-version
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "Release v${VERSION}"
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
+
+      - name: Determine version
+        id: version
+        run: echo "version=$(node -p 'require("./package.json").version')" >> $GITHUB_OUTPUT
+
       - run: npm ci
       - run: npm test
       - run: npx vue-tsc --noEmit
@@ -40,4 +58,5 @@ jobs:
       - uses: actions/checkout@v4
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ format('v{0}', github.event.inputs.version || github.ref_name) }}
           generate_release_notes: true
