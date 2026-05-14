@@ -1,7 +1,7 @@
 /**
- * Pre-computes cross-reference edges for each dataset.
- * Reads all concept JSON files, extracts structured and inline references,
- * and writes edges.json for each dataset.
+ * Pre-computes cross-reference and domain edges for each dataset.
+ * Reads all concept JSON files, extracts structured references and
+ * authoritative sources (domains), and writes edges.json + domain-nodes.json.
  *
  * Usage: node scripts/build-edges.js
  */
@@ -13,12 +13,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = process.cwd();
 const DATA_DIR = join(ROOT, 'public', 'data');
 
-function extractEdgesFromConcept(concept, registerId) {
+// --- Normalization ---
+
+function slugify(text) {
+  return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s/]+/g, '-');
+}
+
+// --- Extractors (open/closed: add new extractors to EXTRACTORS array) ---
+
+function extractReferences(concept, registerId) {
   const edges = [];
   const sourceUri = concept['@id'];
-
-  for (const [_lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
-    // Structured cross-references (gl:references array, pre-computed during data generation)
+  for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
     if (lc['gl:references']) {
       for (const ref of lc['gl:references']) {
         if (ref['@id'] && ref['@id'] !== sourceUri) {
@@ -28,14 +34,41 @@ function extractEdgesFromConcept(concept, registerId) {
             type: 'references',
             label: ref['gl:term'] || undefined,
             register: registerId,
+            lang,
           });
         }
       }
     }
   }
-
   return edges;
 }
+
+function extractDomains(concept, registerId) {
+  const edges = [];
+  const sourceUri = concept['@id'];
+  for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
+    const domain = lc['gl:domain'];
+    if (domain) {
+      edges.push({
+        source: sourceUri,
+        target: `https://glossarist.org/${registerId}/domain/${slugify(domain)}`,
+        type: 'domain',
+        label: domain,
+        register: registerId,
+        lang,
+      });
+    }
+  }
+  return edges;
+}
+
+const EXTRACTORS = [extractReferences, extractDomains];
+
+function extractAllEdges(concept, registerId) {
+  return EXTRACTORS.flatMap(fn => fn(concept, registerId));
+}
+
+// --- Build ---
 
 function buildEdgesForDataset(datasetDir, registerId) {
   const conceptsDir = join(datasetDir, 'concepts');
@@ -48,13 +81,20 @@ function buildEdgesForDataset(datasetDir, registerId) {
   console.log(`  Processing ${files.length} concepts...`);
 
   const allEdges = [];
+  const domainConceptCount = new Map();
   let processed = 0;
 
   for (const file of files) {
     try {
       const data = JSON.parse(readFileSync(join(conceptsDir, file), 'utf-8'));
-      const edges = extractEdgesFromConcept(data, registerId);
+      const edges = extractAllEdges(data, registerId);
       allEdges.push(...edges);
+
+      for (const edge of edges) {
+        if (edge.type === 'domain') {
+          domainConceptCount.set(edge.target, (domainConceptCount.get(edge.target) || 0) + 1);
+        }
+      }
     } catch (e) {
       console.error(`  Error processing ${file}: ${e.message}`);
     }
@@ -64,11 +104,11 @@ function buildEdgesForDataset(datasetDir, registerId) {
     }
   }
 
-  // Deduplicate edges by source+target pair
+  // Deduplicate edges by source+target+type+lang
   const seen = new Set();
   const deduped = [];
   for (const edge of allEdges) {
-    const key = `${edge.source}→${edge.target}`;
+    const key = `${edge.source}→${edge.target}→${edge.type}→${edge.lang || ''}`;
     if (!seen.has(key)) {
       seen.add(key);
       deduped.push(edge);
@@ -84,6 +124,31 @@ function buildEdgesForDataset(datasetDir, registerId) {
   const outputPath = join(datasetDir, 'edges.json');
   writeFileSync(outputPath, JSON.stringify(output, null, 2));
   console.log(`  Written ${deduped.length} edges to edges.json (${(JSON.stringify(output).length / 1024).toFixed(1)} KB)`);
+
+  // Build domain-nodes.json
+  const domainEdgeMap = new Map();
+  for (const edge of deduped) {
+    if (edge.type === 'domain') {
+      const existing = domainEdgeMap.get(edge.target);
+      if (existing) {
+        existing.labels.add(edge.label);
+      } else {
+        domainEdgeMap.set(edge.target, { uri: edge.target, labels: new Set([edge.label]), registerId });
+      }
+    }
+  }
+
+  const domainNodes = [...domainEdgeMap.values()].map(d => ({
+    uri: d.uri,
+    label: [...d.labels][0],
+    registerId: d.registerId,
+    conceptCount: domainConceptCount.get(d.uri) || 0,
+  })).sort((a, b) => b.conceptCount - a.conceptCount);
+
+  const domainOutput = { registerId, domainNodes };
+  const domainPath = join(datasetDir, 'domain-nodes.json');
+  writeFileSync(domainPath, JSON.stringify(domainOutput, null, 2));
+  console.log(`  Written ${domainNodes.length} domain nodes to domain-nodes.json`);
 }
 
 // Main

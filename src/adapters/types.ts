@@ -63,12 +63,17 @@ export interface LocalizedConcept {
   '@type': string;
   'gl:languageCode': string;
   'gl:entryStatus'?: string;
+  'gl:classification'?: string;
+  'gl:reviewType'?: string;
+  'gl:script'?: string;
+  'gl:system'?: string;
   'gl:designation'?: Designation[];
   'gl:definition'?: DetailedDefinition[];
   'gl:notes'?: DetailedDefinition[];
   'gl:examples'?: DetailedDefinition[];
   'gl:source'?: ConceptSource[];
-  'gl:release'?: number;
+  'gl:release'?: string;
+  'gl:lineageSourceSimilarity'?: number;
   'gl:reviewDate'?: string;
   'gl:reviewDecisionDate'?: string;
   'gl:reviewDecisionEvent'?: string;
@@ -77,15 +82,37 @@ export interface LocalizedConcept {
   'gl:reviewDecisionNotes'?: string;
   'gl:dates'?: ConceptDate[];
   'gl:references'?: CrossReference[];
+  'gl:domain'?: string;
+}
+
+export interface GrammarInfo {
+  'gl:gender'?: string;
+  'gl:number'?: string;
+  'gl:noun'?: boolean;
+  'gl:verb'?: boolean;
+  'gl:adj'?: boolean;
+  'gl:adverb'?: boolean;
+  'gl:preposition'?: boolean;
+  'gl:participle'?: boolean;
 }
 
 export interface Designation {
   '@type': string;
   'gl:normativeStatus': string;
   'gl:term': string;
-  'gl:gender'?: string;
-  'gl:plurality'?: string;
+  'gl:grammarInfo'?: GrammarInfo[];
   'gl:international'?: boolean;
+  'gl:termType'?: string;
+  'gl:absent'?: boolean;
+  'gl:geographicalArea'?: string;
+  'gl:prefix'?: string;
+  'gl:usageInfo'?: string;
+  'gl:fieldOfApplication'?: string;
+  'gl:acronym'?: boolean;
+  'gl:initialism'?: boolean;
+  'gl:truncation'?: boolean;
+  'gl:text'?: string;
+  'gl:image'?: string;
 }
 
 export interface DetailedDefinition {
@@ -121,12 +148,18 @@ export interface DatasetRegistry {
   manifestUrl: string;
 }
 
+export const EDGE_TYPE = {
+  REFERENCES: 'references',
+  DOMAIN: 'domain',
+} as const;
+
 export interface GraphEdge {
-  source: string; // concept URI
-  target: string; // concept URI
+  source: string;
+  target: string;
   type: string;
   label?: string;
   register: string;
+  lang?: string;
 }
 
 export interface GraphNode {
@@ -136,6 +169,7 @@ export interface GraphNode {
   designations: Record<string, string>;
   status: string;
   loaded: boolean;
+  nodeType?: 'concept' | 'domain';
 }
 
 export interface SearchHit {

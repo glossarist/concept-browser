@@ -43,6 +43,7 @@ export interface AdapterStubOptions {
   ensureChunksForRange?: () => Promise<void>;
   ensureAllChunksLoaded?: () => Promise<void>;
   extractEdges?: () => any[];
+  extractDomainEdges?: () => any[];
   getIndexEntry?: () => any;
 }
 
@@ -61,6 +62,7 @@ export function makeAdapterStub(options: AdapterStubOptions = {}): any {
     ensureChunksForRange: options.ensureChunksForRange ?? (() => Promise.resolve()),
     ensureAllChunksLoaded: options.ensureAllChunksLoaded ?? (() => Promise.resolve()),
     extractEdges: options.extractEdges ?? (() => []),
+    extractDomainEdges: options.extractDomainEdges ?? (() => []),
     getIndexEntry: options.getIndexEntry ?? (() => null),
   };
 }

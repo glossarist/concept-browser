@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick, reactive } from
 import type { GraphNode, GraphEdge } from '../adapters/types';
 import type { SimulationNodeDatum, SimulationLinkDatum } from 'd3';
 import { useDsStyle } from '../utils/dataset-style';
+import { useUiStore } from '../stores/ui';
 import {
   forceSimulation,
   forceLink,
@@ -51,6 +52,7 @@ watch(() => props.registers, (regs) => {
 });
 
 const { getColor } = useDsStyle();
+const uiStore = useUiStore();
 
 const STUB_COLOR = '#b8b9cc'; // ink-200
 const HIGHLIGHT_COLOR = '#1a1b2e'; // ink-800
@@ -81,7 +83,11 @@ const visibleNodeUris = computed(() => {
 
 const visibleEdges = computed(() => {
   const uris = visibleNodeUris.value;
-  return props.edges.filter(e => uris.has(e.source) && uris.has(e.target));
+  const lang = uiStore.selectedLang;
+  return props.edges.filter(e =>
+    uris.has(e.source) && uris.has(e.target) &&
+    (!lang || !e.lang || e.lang === lang)
+  );
 });
 
 const nodeCount = computed(() => visibleNodes.value.length);
@@ -110,6 +116,7 @@ interface SimNode extends SimulationNodeDatum {
   conceptId: string;
   designation: string;
   loaded: boolean;
+  nodeType?: 'concept' | 'domain';
 }
 
 interface SimLink extends SimulationLinkDatum<SimNode> {
@@ -117,6 +124,7 @@ interface SimLink extends SimulationLinkDatum<SimNode> {
   target: SimNode | string;
   type: string;
   label?: string;
+  lang?: string;
 }
 
 let simulation: ReturnType<typeof forceSimulation<SimNode>> | null = null;
@@ -172,6 +180,7 @@ function buildSimulation(width: number, height: number) {
     conceptId: n.conceptId,
     designation: Object.values(n.designations)[0] || n.conceptId,
     loaded: n.loaded,
+    nodeType: n.nodeType,
     x: width / 2 + (Math.random() - 0.5) * 200,
     y: height / 2 + (Math.random() - 0.5) * 200,
   }));
@@ -185,6 +194,7 @@ function buildSimulation(width: number, height: number) {
       target: e.target,
       type: e.type,
       label: e.label,
+      lang: e.lang,
     }));
 
   g.selectAll('*').remove();
@@ -194,9 +204,10 @@ function buildSimulation(width: number, height: number) {
     .selectAll('line')
     .data(simLinks)
     .join('line')
-    .attr('stroke', '#dddde6')
-    .attr('stroke-width', 0.8)
-    .attr('marker-end', 'url(#arrowhead)');
+    .attr('stroke', l => l.type === 'domain' ? '#c4b5fd' : '#dddde6')
+    .attr('stroke-width', l => l.type === 'domain' ? 0.6 : 0.8)
+    .attr('stroke-dasharray', l => l.type === 'domain' ? '3,2' : 'none')
+    .attr('marker-end', l => l.type === 'domain' ? null : 'url(#arrowhead)');
 
   const nodeSel = g.append('g')
     .attr('class', 'nodes')
@@ -206,13 +217,38 @@ function buildSimulation(width: number, height: number) {
     .attr('class', 'node')
     .style('cursor', 'pointer');
 
-  nodeSel.append('circle')
+  const domainNodes = nodeSel.filter(d => d.nodeType === 'domain');
+  const conceptNodes = nodeSel.filter(d => d.nodeType !== 'domain');
+
+  // Domain: rounded rectangle with standard name inside
+  domainNodes.append('rect')
+    .attr('width', d => Math.max(48, d.designation.length * 5.5 + 10))
+    .attr('height', 14)
+    .attr('rx', 3)
+    .attr('x', d => -(Math.max(48, d.designation.length * 5.5 + 10) / 2))
+    .attr('y', -7)
+    .attr('fill', '#ede9fe')
+    .attr('stroke', '#8b5cf6')
+    .attr('stroke-width', 1);
+
+  domainNodes.append('text')
+    .attr('text-anchor', 'middle')
+    .attr('dy', 4)
+    .attr('font-size', '7px')
+    .attr('font-family', '"DM Sans", system-ui, sans-serif')
+    .attr('font-weight', '600')
+    .attr('fill', '#6d28d9')
+    .attr('pointer-events', 'none')
+    .text(d => d.designation);
+
+  // Concept: circle
+  conceptNodes.append('circle')
     .attr('r', d => d.loaded ? 5 : 3)
     .attr('fill', d => d.loaded ? registerColor(d.register) : STUB_COLOR)
-    .attr('stroke', '#faf9f6') // surface
+    .attr('stroke', '#faf9f6')
     .attr('stroke-width', 1.5);
 
-  nodeSel.append('text')
+  conceptNodes.append('text')
     .attr('dy', -9)
     .attr('text-anchor', 'middle')
     .attr('font-size', '8px')
@@ -259,14 +295,22 @@ function buildSimulation(width: number, height: number) {
         const tgt = typeof l.target === 'object' ? l.target.uri : l.target;
         return src === d.uri || tgt === d.uri ? 1.5 : 0.8;
       });
-    nodeSel.select('circle')
+    conceptNodes.select('circle')
       .attr('r', n => n.uri === d.uri ? 8 : n.loaded ? 5 : 3)
       .attr('fill', n => n.uri === d.uri ? HIGHLIGHT_COLOR : n.loaded ? registerColor(n.register) : STUB_COLOR);
+    domainNodes.select('rect')
+      .attr('stroke', n => n.uri === d.uri ? '#6d28d9' : '#8b5cf6')
+      .attr('stroke-width', n => n.uri === d.uri ? 2 : 1);
   }).on('mouseleave', () => {
-    linkSel.attr('stroke', '#dddde6').attr('stroke-width', 0.8);
-    nodeSel.select('circle')
+    linkSel
+      .attr('stroke', l => l.type === 'domain' ? '#c4b5fd' : '#dddde6')
+      .attr('stroke-width', l => l.type === 'domain' ? 0.6 : 0.8);
+    conceptNodes.select('circle')
       .attr('r', n => n.loaded ? 5 : 3)
       .attr('fill', n => n.loaded ? registerColor(n.register) : STUB_COLOR);
+    domainNodes.select('rect')
+      .attr('stroke', '#8b5cf6')
+      .attr('stroke-width', 1);
   });
 
   const count = simNodes.length;
@@ -280,7 +324,9 @@ function buildSimulation(width: number, height: number) {
       .strength(count < 50 ? -200 : count < 200 ? -100 : -50)
     )
     .force('center', forceCenter(width / 2, height / 2))
-    .force('collide', forceCollide<SimNode>().radius(count > 1000 ? 6 : 12))
+    .force('collide', forceCollide<SimNode>().radius(d =>
+      d.nodeType === 'domain' ? 35 : (count > 1000 ? 6 : 12)
+    ))
     .alpha(1)
     .alphaDecay(count > 500 ? 0.05 : 0.02)
     .on('tick', () => {
@@ -462,19 +508,25 @@ function selectedNodeColor(): string {
       </div>
     </div>
 
-    <!-- Legend (only when multiple registers) -->
-    <div v-if="nodeCount > 0 && registers.length > 1" class="absolute top-4 right-4 z-10 bg-surface-raised/90 backdrop-blur rounded-lg px-3 py-2.5 border border-ink-100/60 text-xs" style="box-shadow: 0 2px 6px rgba(26, 27, 46, 0.04);">
-      <div class="font-semibold text-ink-400 text-[10px] uppercase tracking-wide mb-2">Datasets</div>
-      <div v-for="reg in registers" :key="reg.id" class="flex items-center gap-2 mb-1.5 last:mb-0">
-        <span
-          class="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0"
-          :style="{ backgroundColor: registerColor(reg.id) }"
-        ></span>
-        <span class="text-ink-500">{{ reg.title }}</span>
+    <!-- Legend -->
+    <div v-if="nodeCount > 0" class="absolute top-4 right-4 z-10 bg-surface-raised/90 backdrop-blur rounded-lg px-3 py-2.5 border border-ink-100/60 text-xs" style="box-shadow: 0 2px 6px rgba(26, 27, 46, 0.04);">
+      <div v-if="registers.length > 1">
+        <div class="font-semibold text-ink-400 text-[10px] uppercase tracking-wide mb-2">Datasets</div>
+        <div v-for="reg in registers" :key="reg.id" class="flex items-center gap-2 mb-1.5 last:mb-0">
+          <span
+            class="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0"
+            :style="{ backgroundColor: registerColor(reg.id) }"
+          ></span>
+          <span class="text-ink-500">{{ reg.title }}</span>
+        </div>
       </div>
       <div class="flex items-center gap-2 mt-2 pt-2 border-t border-ink-100/40">
         <span class="w-2 h-2 rounded-full inline-block" :style="{ backgroundColor: STUB_COLOR }"></span>
         <span class="text-ink-300">Stub (not loaded)</span>
+      </div>
+      <div class="flex items-center gap-2 mt-2 pt-2 border-t border-ink-100/40">
+        <span class="w-4 h-2 rounded inline-block flex-shrink-0" style="background: #ede9fe; border: 1px solid #8b5cf6;"></span>
+        <span class="text-ink-300">Domain (standard)</span>
       </div>
     </div>
 
@@ -509,7 +561,7 @@ function selectedNodeColor(): string {
         </button>
       </div>
       <router-link
-        v-if="selectedNode.register"
+        v-if="selectedNode.register && selectedNode.nodeType !== 'domain'"
         :to="{ name: 'concept', params: { registerId: selectedNode.register, conceptId: selectedNode.conceptId } }"
         class="btn-primary text-xs mt-4 inline-block"
       >

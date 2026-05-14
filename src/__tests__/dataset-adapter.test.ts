@@ -218,6 +218,24 @@ describe('DatasetAdapter', () => {
       expect(edges[0].label).toBe('functional');
     });
 
+    it('tags reference edges with language', () => {
+      const concept = {
+        '@id': 'https://glossarist.org/test/concept/1',
+        'gl:localizedConcept': {
+          eng: { 'gl:references': [
+            { '@id': 'https://glossarist.org/test/concept/2', 'gl:term': 'other' },
+          ]},
+          fra: { 'gl:references': [
+            { '@id': 'https://glossarist.org/test/concept/3', 'gl:term': 'autre' },
+          ]},
+        },
+      };
+      const edges = adapter.extractEdges(concept as any);
+      expect(edges.length).toBe(2);
+      expect(edges.find(e => e.lang === 'eng')?.target).toContain('/concept/2');
+      expect(edges.find(e => e.lang === 'fra')?.target).toContain('/concept/3');
+    });
+
     it('skips self-references', () => {
       const concept = {
         '@id': 'https://glossarist.org/test/concept/102-01-01',
@@ -315,6 +333,81 @@ describe('DatasetAdapter', () => {
       expect(edges.length).toBe(1);
       expect(edges[0].target).toBe('https://glossarist.org/isotc204/concept/3.1.1.6');
       expect(edges[0].label).toBe('entity');
+    });
+  });
+
+  describe('extractDomainEdges', () => {
+    it('extracts domain edges from gl:domain field per language', () => {
+      const concept = {
+        '@id': 'https://glossarist.org/test/concept/3',
+        'gl:localizedConcept': {
+          eng: { 'gl:domain': 'geometry' },
+          fra: { 'gl:domain': 'géométrie' },
+        },
+      };
+      const edges = adapter.extractDomainEdges(concept as any);
+      expect(edges.length).toBe(2);
+      expect(edges.every(e => e.type === 'domain')).toBe(true);
+      expect(edges.find(e => e.lang === 'eng')?.target).toContain('/domain/geometry');
+      expect(edges.find(e => e.lang === 'fra')?.target).toContain('/domain/gomtrie');
+      expect(edges.find(e => e.lang === 'eng')?.label).toBe('geometry');
+      expect(edges.find(e => e.lang === 'fra')?.label).toBe('géométrie');
+    });
+
+    it('handles same domain across languages', () => {
+      const concept = {
+        '@id': 'https://glossarist.org/test/concept/1',
+        'gl:localizedConcept': {
+          eng: { 'gl:domain': 'metadata' },
+          fra: { 'gl:domain': 'metadata' },
+        },
+      };
+      const edges = adapter.extractDomainEdges(concept as any);
+      expect(edges.length).toBe(2);
+      expect(edges[0].target).toBe(edges[1].target);
+      expect(edges[0].target).toContain('/domain/metadata');
+    });
+
+    it('skips concepts without gl:domain', () => {
+      const concept = {
+        '@id': 'https://glossarist.org/test/concept/1',
+        'gl:localizedConcept': { eng: {} },
+      };
+      const edges = adapter.extractDomainEdges(concept as any);
+      expect(edges.length).toBe(0);
+    });
+
+    it('handles empty localizedConcept', () => {
+      const concept = {
+        '@id': 'https://glossarist.org/test/concept/1',
+        'gl:localizedConcept': {},
+      };
+      const edges = adapter.extractDomainEdges(concept as any);
+      expect(edges.length).toBe(0);
+    });
+  });
+
+  describe('loadDomainNodes', () => {
+    it('loads domain nodes from domain-nodes.json', async () => {
+      mockFetch.mockReturnValue(mockJsonResponse({
+        registerId: 'test',
+        domainNodes: [
+          { uri: 'https://glossarist.org/test/domain/iso-19107', label: 'ISO 19107', registerId: 'test', conceptCount: 147 },
+        ],
+      }));
+      const nodes = await adapter.loadDomainNodes();
+      expect(nodes.length).toBe(1);
+      expect(nodes[0].nodeType).toBe('domain');
+      expect(nodes[0].status).toBe('domain');
+      expect(nodes[0].loaded).toBe(true);
+      expect(nodes[0].designations.eng).toBe('ISO 19107');
+      expect(mockFetch).toHaveBeenCalledWith('/data/test/domain-nodes.json');
+    });
+
+    it('returns empty array on fetch failure', async () => {
+      mockFetch.mockReturnValue(Promise.resolve({ ok: false, status: 404 } as Response));
+      const nodes = await adapter.loadDomainNodes();
+      expect(nodes).toEqual([]);
     });
   });
 
