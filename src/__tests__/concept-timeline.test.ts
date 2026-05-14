@@ -120,7 +120,7 @@ describe('ConceptTimeline', () => {
       'gl:reviewStatus': 'final',
       'gl:reviewDecision': 'accepted',
       'gl:entryStatus': 'valid',
-      'gl:release': 3,
+      'gl:release': '3',
     });
     const wrapper = mountTimeline({ eng: lc });
     expect(wrapper.text()).toContain('Review Details');

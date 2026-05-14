@@ -121,8 +121,13 @@ function handleContentClick(e: MouseEvent) {
             <span class="font-medium text-ink-800 text-lg" v-html="renderMath(d['gl:term'])"></span>
             <span class="badge text-[10px]" :class="designationTypeColor(d['@type'])">{{ designationTypeLabel(d['@type']) }}</span>
             <span class="badge text-[10px]" :class="normativeColor(d['gl:normativeStatus'])">{{ normativeStatus(d['gl:normativeStatus']) }}</span>
-            <span v-if="d['gl:gender']" class="text-xs text-ink-300">{{ d['gl:gender'] }}</span>
-            <span v-if="d['gl:plurality']" class="text-xs text-ink-300">{{ d['gl:plurality'] }}</span>
+            <span v-if="d['gl:termType']" class="text-xs text-ink-300">{{ d['gl:termType'] }}</span>
+            <template v-if="d['gl:grammarInfo']">
+              <span v-for="(gi, giIdx) in d['gl:grammarInfo']" :key="giIdx" class="text-xs text-ink-300">
+                <span v-if="gi['gl:gender']">{{ gi['gl:gender'] }}</span><span v-if="gi['gl:gender'] && gi['gl:number']">, </span><span v-if="gi['gl:number']">{{ gi['gl:number'] }}</span>
+              </span>
+            </template>
+            <span v-if="d['gl:geographicalArea']" class="text-xs text-ink-300">{{ d['gl:geographicalArea'] }}</span>
           </div>
         </div>
       </div>

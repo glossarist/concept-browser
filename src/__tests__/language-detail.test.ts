@@ -133,10 +133,10 @@ describe('LanguageDetail', () => {
     expect(wrapper.text()).toContain('Abbreviation');
   });
 
-  it('shows gender and plurality when present', () => {
+  it('shows grammar info when present', () => {
     const eng = makeLocalizedConcept({
       'gl:designation': [
-        { '@type': 'gl:Expression', 'gl:term': 'route', 'gl:normativeStatus': 'preferred', 'gl:gender': 'f', 'gl:plurality': 'singular' },
+        { '@type': 'gl:Expression', 'gl:term': 'route', 'gl:normativeStatus': 'preferred', 'gl:grammarInfo': [{ 'gl:gender': 'f', 'gl:number': 'singular' }] },
       ],
     });
     const wrapper = mountDetail({ eng });

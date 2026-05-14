@@ -49,17 +49,46 @@ function writeJson(filePath, data) {
 }
 
 function termToDesignation(term) {
+  const typeMap = {
+    expression: 'gl:Expression',
+    abbreviation: 'gl:Abbreviation',
+    symbol: 'gl:Symbol',
+    letter_symbol: 'gl:LetterSymbol',
+    'graphical symbol': 'gl:GraphicalSymbol',
+  };
   const doc = {
-    '@type': term.type === 'expression' ? 'gl:Expression'
-      : term.type === 'symbol' ? 'gl:Symbol'
-      : term.type === 'abbreviation' ? 'gl:Abbreviation'
-      : 'gl:Designation',
+    '@type': typeMap[term.type] || 'gl:Designation',
     'gl:normativeStatus': term.normative_status || 'preferred',
     'gl:term': term.designation,
   };
-  if (term.gender) doc['gl:gender'] = term.gender;
-  if (term.plurality) doc['gl:plurality'] = term.plurality;
+
+  if (term.grammar_info && term.grammar_info.length > 0) {
+    doc['gl:grammarInfo'] = term.grammar_info.map(gi => {
+      const g = {};
+      if (gi.gender) g['gl:gender'] = gi.gender;
+      if (gi.number) g['gl:number'] = gi.number;
+      for (const pos of ['noun', 'verb', 'adj', 'adverb', 'preposition', 'participle']) {
+        if (gi[pos]) g[`gl:${pos}`] = gi[pos];
+      }
+      return g;
+    });
+  }
+
   if (term.international !== undefined) doc['gl:international'] = term.international;
+  if (term.absent !== undefined) doc['gl:absent'] = term.absent;
+  if (term.geographical_area) doc['gl:geographicalArea'] = term.geographical_area;
+  if (term.term_type) doc['gl:termType'] = term.term_type;
+  if (term.prefix) doc['gl:prefix'] = term.prefix;
+  if (term.usage_info) doc['gl:usageInfo'] = term.usage_info;
+  if (term.field_of_application) doc['gl:fieldOfApplication'] = term.field_of_application;
+
+  if (term.acronym !== undefined) doc['gl:acronym'] = term.acronym;
+  if (term.initialism !== undefined) doc['gl:initialism'] = term.initialism;
+  if (term.truncation !== undefined) doc['gl:truncation'] = term.truncation;
+
+  if (term.text) doc['gl:text'] = term.text;
+  if (term.image) doc['gl:image'] = term.image;
+
   return doc;
 }
 
@@ -210,6 +239,10 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
     };
 
     if (lc.entry_status) lDoc['gl:entryStatus'] = lc.entry_status;
+    if (lc.classification) lDoc['gl:classification'] = lc.classification;
+    if (lc.review_type) lDoc['gl:reviewType'] = lc.review_type;
+    if (lc.script) lDoc['gl:script'] = lc.script;
+    if (lc.system) lDoc['gl:system'] = lc.system;
     if (lc.terms && lc.terms.length > 0) lDoc['gl:designation'] = lc.terms.map(termToDesignation);
     if (lc.definition) lDoc['gl:definition'] = defsToJsonLd(lc.definition);
     if (lc.notes && lc.notes.length > 0) lDoc['gl:notes'] = defsToJsonLd(lc.notes);
@@ -223,6 +256,7 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
     if (lc.review_status) lDoc['gl:reviewStatus'] = lc.review_status;
     if (lc.review_decision) lDoc['gl:reviewDecision'] = lc.review_decision;
     if (lc.review_decision_notes) lDoc['gl:reviewDecisionNotes'] = lc.review_decision_notes;
+    if (lc.domain) lDoc['gl:domain'] = lc.domain;
     if (lc.dates && lc.dates.length > 0) {
       lDoc['gl:dates'] = lc.dates.map(d => ({
         'gl:dateType': d.type,
@@ -378,15 +412,22 @@ function conceptJsonToTbx(concept) {
       const status = d['gl:normativeStatus'] || '';
       const type = d['@type'] || '';
       let gramGrp = '';
-      if (d['gl:gender']) gramGrp = `\n            <grammaticalGender>${escapeXml(d['gl:gender'])}</grammaticalGender>`;
-      let partOfSpeech = '';
-      if (type.includes('Abbreviation')) partOfSpeech = '\n            <partOfSpeech>abbreviation</partOfSpeech>';
-      if (type.includes('Symbol')) partOfSpeech = '\n            <partOfSpeech>symbol</partOfSpeech>';
+      if (d['gl:grammarInfo'] && d['gl:grammarInfo'].length > 0) {
+        const gi = d['gl:grammarInfo'][0];
+        if (gi['gl:gender']) gramGrp = `\n            <grammaticalGender>${escapeXml(gi['gl:gender'])}</grammaticalGender>`;
+        if (gi['gl:number']) gramGrp += `\n            <grammaticalNumber>${escapeXml(gi['gl:number'])}</grammaticalNumber>`;
+        for (const pos of ['noun', 'verb', 'adj', 'adverb', 'preposition', 'participle']) {
+          if (gi[`gl:${pos}`]) gramGrp += `\n            <partOfSpeech>${pos}</partOfSpeech>`;
+        }
+      }
+      let posBlock = '';
+      if (type.includes('Abbreviation')) posBlock = '\n            <partOfSpeech>abbreviation</partOfSpeech>';
+      if (type.includes('Symbol')) posBlock = '\n            <partOfSpeech>symbol</partOfSpeech>';
 
       termEntries.push(`          <termEntry>
             <langSet xml:lang="${lang}">
               <tig>
-                <term>${escapeXml(term)}</term>${gramGrp}${partOfSpeech}
+                <term>${escapeXml(term)}</term>${gramGrp}${posBlock}
               </tig>
             </langSet>
           </termEntry>`);
