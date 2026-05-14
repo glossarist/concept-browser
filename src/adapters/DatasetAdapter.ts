@@ -6,8 +6,13 @@ import type {
   ConceptDocument,
   SearchHit,
   GraphEdge,
+  GraphNode,
 } from './types';
 import { UriRouter } from './UriRouter';
+
+function slugify(text: string): string {
+  return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s/]+/g, '-');
+}
 
 export class DatasetAdapter {
   private positionIndex = new Map<string, number>();
@@ -241,7 +246,7 @@ export class DatasetAdapter {
     const edges: GraphEdge[] = [];
     const sourceUri = concept['@id'];
 
-    for (const [_lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
+    for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
       if (lc['gl:references']) {
         for (const ref of lc['gl:references']) {
           if (ref['@id'] && ref['@id'] !== sourceUri) {
@@ -252,6 +257,7 @@ export class DatasetAdapter {
               type: 'references',
               label: ref['gl:term'],
               register: parsed?.registerId ?? this.registerId,
+              lang,
             });
           }
         }
@@ -259,6 +265,40 @@ export class DatasetAdapter {
     }
 
     return edges;
+  }
+
+  extractDomainEdges(concept: ConceptDocument): GraphEdge[] {
+    const edges: GraphEdge[] = [];
+    const sourceUri = concept['@id'];
+    for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
+      const domain = lc['gl:domain'];
+      if (domain) {
+        edges.push({
+          source: sourceUri,
+          target: `https://glossarist.org/${this.registerId}/domain/${slugify(domain)}`,
+          type: 'domain',
+          label: domain,
+          register: this.registerId,
+          lang,
+        });
+      }
+    }
+    return edges;
+  }
+
+  async loadDomainNodes(): Promise<GraphNode[]> {
+    const resp = await fetch(`${this.baseUrl}/domain-nodes.json`);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return (data.domainNodes || []).map((dn: any) => ({
+      uri: dn.uri,
+      register: dn.registerId,
+      conceptId: dn.uri.split('/domain/')[1] || '',
+      designations: { eng: dn.label },
+      status: 'domain',
+      loaded: true,
+      nodeType: 'domain' as const,
+    }));
   }
 
   async loadEdgeIndex(): Promise<GraphEdge[]> {

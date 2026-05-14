@@ -277,6 +277,27 @@ function plainTruncate(html: string, max: number = 120): string {
   const text = cleanContent(html).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
   return text.length <= max ? text : text.slice(0, max).trimEnd() + '\u2026';
 }
+
+function slugify(text: string): string {
+  return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s/]+/g, '-');
+}
+
+const conceptDomains = computed(() => {
+  const domainMap = new Map<string, { slug: string; label: string; langs: string[] }>();
+  for (const [lang, lc] of Object.entries(props.concept['gl:localizedConcept'] || {})) {
+    const domain = lc['gl:domain'];
+    if (domain) {
+      const slug = slugify(domain);
+      const existing = domainMap.get(slug);
+      if (existing) {
+        if (!existing.langs.includes(lang)) existing.langs.push(lang);
+      } else {
+        domainMap.set(slug, { slug, label: domain, langs: [lang] });
+      }
+    }
+  }
+  return [...domainMap.values()].sort((a, b) => b.langs.length - a.langs.length);
+});
 </script>
 
 <template>
@@ -434,11 +455,16 @@ function plainTruncate(html: string, max: number = 120): string {
               <div v-if="lc.sources.length" class="space-y-2">
                 <div v-for="(src, i) in lc.sources" :key="i" class="text-sm">
                   <div class="flex items-center gap-1.5 flex-wrap mb-1">
-                    <span v-if="src['gl:sourceType']" class="badge badge-blue text-[10px]">{{ src['gl:sourceType'] }}</span>
+                    <span v-if="src['gl:sourceType']" class="badge text-[10px]"
+                      :class="src['gl:sourceType'] === 'authoritative' ? 'badge-purple' : 'badge-blue'">
+                      {{ src['gl:sourceType'] }}
+                    </span>
                     <span v-if="src['gl:sourceStatus']" class="badge badge-gray text-[10px]">{{ src['gl:sourceStatus'] }}</span>
                   </div>
                   <div class="text-ink-700">
-                    <span v-if="src['gl:origin']?.['gl:ref']" class="font-medium">{{ src['gl:origin']['gl:ref'] }}</span>
+                    <span v-if="src['gl:origin']?.['gl:ref']" class="font-medium"
+                      :class="src['gl:sourceType'] === 'authoritative' ? 'text-ink-900' : ''"
+                    >{{ src['gl:origin']['gl:ref'] }}</span>
                     <span v-if="src['gl:origin']?.['gl:clause']">, {{ src['gl:origin']['gl:clause'] }}</span>
                     <a v-if="src['gl:origin']?.['gl:link']" :href="src['gl:origin']['gl:link']" target="_blank" class="concept-link ml-1">[link]</a>
                   </div>
@@ -488,6 +514,20 @@ function plainTruncate(html: string, max: number = 120): string {
                   <span v-if="isLocalRef(edge.source)" class="text-[9px] text-ink-200 flex-shrink-0">local</span>
                   <span v-else class="text-[9px] text-amber-500 flex-shrink-0">external</span>
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Domains -->
+          <div v-if="conceptDomains.length" class="card p-5">
+            <div class="section-label">Domains</div>
+            <div class="space-y-1 mt-3">
+              <div v-for="domain in conceptDomains" :key="domain.slug" class="flex items-center gap-1.5 text-sm">
+                <span class="w-2 h-1.5 rounded inline-block flex-shrink-0" style="background: #8b5cf6;"></span>
+                <span class="font-medium text-ink-700">{{ domain.label }}</span>
+                <span v-if="domain.langs.length > 1" class="text-[10px] text-ink-300 ml-1">
+                  ({{ domain.langs.map(l => l.toUpperCase()).join(', ') }})
+                </span>
               </div>
             </div>
           </div>

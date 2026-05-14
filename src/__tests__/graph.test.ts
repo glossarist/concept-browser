@@ -91,6 +91,37 @@ describe('GraphEngine', () => {
       expect(g.edgeCount).toBe(1);
     });
 
+    it('keeps separate edges for different languages', () => {
+      const g = new GraphEngine();
+      g.addEdge({ source: 'uri:a', target: 'uri:b', type: 'references', register: 'test', lang: 'eng' });
+      g.addEdge({ source: 'uri:a', target: 'uri:b', type: 'references', register: 'test', lang: 'fra' });
+      expect(g.edgeCount).toBe(2);
+    });
+
+    it('deduplicates edges with same source+target+type+lang', () => {
+      const g = new GraphEngine();
+      g.addEdge({ source: 'uri:a', target: 'uri:b', type: 'references', register: 'test', lang: 'eng' });
+      g.addEdge({ source: 'uri:a', target: 'uri:b', type: 'references', register: 'test', lang: 'eng' });
+      expect(g.edgeCount).toBe(1);
+    });
+
+    it('creates domain stub with correct fields', () => {
+      const g = new GraphEngine();
+      g.addEdge({
+        source: 'https://glossarist.org/isotc211/concept/3',
+        target: 'https://glossarist.org/isotc211/domain/iso-19105',
+        type: 'domain',
+        label: 'ISO 19105',
+        register: 'isotc211',
+        lang: 'eng',
+      });
+      const domainNode = g.getNode('https://glossarist.org/isotc211/domain/iso-19105');
+      expect(domainNode?.register).toBe('isotc211');
+      expect(domainNode?.nodeType).toBe('domain');
+      expect(domainNode?.status).toBe('domain');
+      expect(domainNode?.loaded).toBe(false);
+    });
+
     it('extracts register from URI for stub nodes', () => {
       const g = new GraphEngine();
       g.addEdge({
@@ -171,6 +202,37 @@ describe('GraphEngine', () => {
 
       const sub = g.getSubgraph('uri:a', 5);
       expect(sub.nodes.length).toBe(2);
+    });
+
+    it('does not traverse past domain nodes in getSubgraph', () => {
+      const g = new GraphEngine();
+      g.addNode(makeNode('https://glossarist.org/test/concept/a', 'a'));
+      g.addNode(makeNode('https://glossarist.org/test/concept/b', 'b'));
+      g.addNode(makeNode('https://glossarist.org/test/concept/c', 'c'));
+      g.addNode(makeNode('https://glossarist.org/test/concept/d', 'd'));
+
+      g.addEdge({
+        source: 'https://glossarist.org/test/concept/a',
+        target: 'https://glossarist.org/test/domain/iso-12345',
+        type: 'domain', register: 'test', label: 'ISO 12345', lang: 'eng',
+      });
+      g.addEdge({
+        source: 'https://glossarist.org/test/concept/b',
+        target: 'https://glossarist.org/test/domain/iso-12345',
+        type: 'domain', register: 'test', label: 'ISO 12345', lang: 'eng',
+      });
+      g.addEdge({
+        source: 'https://glossarist.org/test/concept/c',
+        target: 'https://glossarist.org/test/domain/iso-12345',
+        type: 'domain', register: 'test', label: 'ISO 12345', lang: 'eng',
+      });
+
+      const sub = g.getSubgraph('https://glossarist.org/test/concept/a', 3);
+      const nodeUris = sub.nodes.map(n => n.uri);
+      expect(nodeUris).toContain('https://glossarist.org/test/concept/a');
+      expect(nodeUris).toContain('https://glossarist.org/test/domain/iso-12345');
+      expect(nodeUris).not.toContain('https://glossarist.org/test/concept/b');
+      expect(nodeUris).not.toContain('https://glossarist.org/test/concept/c');
     });
   });
 

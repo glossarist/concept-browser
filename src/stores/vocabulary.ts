@@ -143,11 +143,12 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
 
     await Promise.allSettled(adapters.map(async (adapter) => {
       try {
-        const [nodeResult, edgeResult] = await Promise.allSettled([
+        const [nodeResult, edgeResult, domainResult] = await Promise.allSettled([
           adapter.loadGraphNodes(),
           !edgeStatus.value[adapter.registerId]?.loaded
             ? adapter.loadEdgeIndex()
             : Promise.resolve([] as GraphEdge[]),
+          adapter.loadDomainNodes(),
         ]);
 
         if (nodeResult.status === 'fulfilled') {
@@ -170,6 +171,12 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
           }
           edgeStatus.value[adapter.registerId] = { loaded: true, count: edgeResult.value.length };
         }
+
+        if (domainResult.status === 'fulfilled') {
+          for (const dn of domainResult.value) {
+            engine.addNode(dn);
+          }
+        }
       } catch {
         // Individual adapter failures are non-critical for graph view
       }
@@ -180,9 +187,14 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
 
   async function loadEdges(adapter: DatasetAdapter) {
     try {
-      const edges = await adapter.loadEdgeIndex();
+      const [edges, domainNodes] = await Promise.all([
+        adapter.loadEdgeIndex(),
+        adapter.loadDomainNodes(),
+      ]);
+      for (const dn of domainNodes) {
+        graph.value.addNode(dn);
+      }
       for (const edge of edges) {
-        // Mark source node as having edges
         graph.value.addEdge(edge);
       }
       edgeStatus.value[adapter.registerId] = { loaded: true, count: edges.length };
@@ -205,6 +217,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
 
       // Extract and register edges for this specific concept
       const edges = adapter.extractEdges(concept);
+      const domainEdges = adapter.extractDomainEdges(concept);
       const uri = concept['@id'];
 
       // Update graph node with full data
@@ -230,6 +243,22 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
 
       for (const edge of edges) {
         graph.value.addEdge(edge);
+      }
+
+      for (const edge of domainEdges) {
+        graph.value.addEdge(edge);
+        const existing = graph.value.getNode(edge.target);
+        if (!existing || !existing.loaded) {
+          graph.value.addNode({
+            uri: edge.target,
+            register: registerId,
+            conceptId: '',
+            designations: edge.label ? { eng: edge.label } : {},
+            status: 'domain',
+            loaded: true,
+            nodeType: 'domain',
+          });
+        }
       }
 
       touchGraph();

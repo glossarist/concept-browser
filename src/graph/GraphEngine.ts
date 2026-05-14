@@ -22,7 +22,7 @@ export class GraphEngine {
   }
 
   addEdge(edge: GraphEdge): void {
-    const key = `${edge.source}\0${edge.target}\0${edge.type}`;
+    const key = `${edge.source}\0${edge.target}\0${edge.type}\0${edge.lang ?? ''}`;
     if (this.edgeKeys.has(key)) return;
     this.edgeKeys.add(key);
 
@@ -39,13 +39,15 @@ export class GraphEngine {
       });
     }
     if (!this.nodes.has(edge.target)) {
+      const isDomain = edge.type === 'domain';
       this.nodes.set(edge.target, {
         uri: edge.target,
-        register: parsed?.registerId ?? '',
-        conceptId: parsed?.conceptId ?? '',
+        register: isDomain ? edge.register : (parsed?.registerId ?? ''),
+        conceptId: isDomain ? '' : (parsed?.conceptId ?? ''),
         designations: {},
-        status: 'stub',
+        status: isDomain ? 'domain' : 'stub',
         loaded: false,
+        nodeType: isDomain ? 'domain' : undefined,
       });
     }
 
@@ -106,6 +108,7 @@ export class GraphEngine {
 
       const node = this.nodes.get(uri);
       if (node) collectedNodes.push(node);
+      if (node?.nodeType === 'domain') continue;
 
       const outEdges = this.getEdges(uri);
       for (const e of outEdges) {
