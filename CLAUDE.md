@@ -16,7 +16,7 @@ Glossarist Concept Browser (`@glossarist/concept-browser`) — a Vue 3 SPA that 
 - Run a single test: `npx vitest run src/__tests__/graph.test.ts`
 - `npm run fetch-datasets` — Clone/update source repos into `.datasets/`, harmonize concepts to canonical format. Supports `DATASET_SOURCE_{ID}` env var for local path override.
 - `npm run generate-data` — Convert harmonized YAML concepts to JSON-LD. Reads from `.datasets/` (populated by fetch-datasets) and `datasets.yml`.
-- `node scripts/build-edges.js` — Pre-compute cross-reference edges from generated concept JSON files (run after `generate-data`)
+- `node scripts/build-edges.js` — Pre-compute cross-reference and domain edges from generated concept JSON files, writes `edges.json` + `domain-nodes.json` (run after `generate-data`)
 - `npm run build:full` — Full pipeline: fetch + generate + build-edges + build
 - `npx concept-browser <command>` — CLI: fetch, generate, edges, build
 
@@ -32,7 +32,7 @@ All datasets are harmonized to ONE canonical YAML format before `generate-data.m
 The target architecture uses GCR (Glossarist Concept Repository) files — sealed ZIP archives with harmonized concepts + metadata, modeled after LXR from `lutaml-xsd`. See `docs/gcr-spec.md`. Currently, the browser reads from cloned repos; when the glossarist gem provides `glossarist package`, the pipeline will switch to consuming `.gcr` files.
 
 ### Data Flow
-`public/datasets.json` → lists dataset IDs → each maps to `public/data/{id}/` containing `manifest.json`, `index.json`, `edges.json`, and `concepts/*.json`. The `AdapterFactory` discovers datasets at startup, loads manifests and indexes, then concepts are fetched on-demand when a user navigates to one.
+`public/datasets.json` → lists dataset IDs → each maps to `public/data/{id}/` containing `manifest.json`, `index.json`, `edges.json` (cross-reference + domain edges), `domain-nodes.json` (domain classification nodes with concept counts), and `concepts/*.json`. The `AdapterFactory` discovers datasets at startup, loads manifests and indexes, then concepts are fetched on-demand when a user navigates to one.
 
 ### Key Layers
 
