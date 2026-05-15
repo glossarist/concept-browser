@@ -57,9 +57,10 @@ datasets.yml
               └─> public/data/{id}/
                   ├── manifest.json      Dataset metadata
                   ├── index.json         Concept listing (chunked for large sets)
-                  ├── edges.json         Pre-computed cross-references
+                  ├── edges.json         Pre-computed cross-reference + domain edges
+                  ├── domain-nodes.json  Domain classification nodes
                   └── concepts/*.json    Individual concept documents
-                  └─> scripts/build-edges.js  (extract graph edges)
+          └─> scripts/build-edges.js  (extract graph + domain edges)
 ```
 
 ### Step-by-step
