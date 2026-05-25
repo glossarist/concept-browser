@@ -4,7 +4,8 @@ import { createPinia, setActivePinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import ConceptDetail from '../components/ConceptDetail.vue';
 import { useVocabularyStore } from '../stores/vocabulary';
-import type { Manifest, ConceptDocument, LocalizedConcept } from '../adapters/types';
+import type { Manifest } from '../adapters/types';
+import { conceptFromJson } from '../adapters/model-bridge';
 // Prevent the 2.7MB Opal runtime from loading in tests
 vi.mock('../utils/plurimath', () => ({
   loadPlurimath: () => new Promise(() => {}),
@@ -39,7 +40,7 @@ function makeManifest(): Manifest {
   };
 }
 
-function makeConcept(): ConceptDocument {
+function makeConceptJson(overrides: Record<string, any> = {}) {
   return {
     '@context': 'https://glossarist.org/context',
     '@id': 'https://glossarist.org/test/concept/1',
@@ -79,6 +80,7 @@ function makeConcept(): ConceptDocument {
         ],
       },
     },
+    ...overrides,
   };
 }
 
@@ -109,7 +111,8 @@ describe('ConceptDetail interactions', () => {
     store.datasets.set('test', { index: [], getConceptCount: () => 0, getConcepts: () => [], getConceptPosition: () => -1, getIndexEntry: () => undefined } as any);
   });
 
-  function mountDetail(concept = makeConcept()) {
+  function mountDetail(conceptJson: Record<string, any> = makeConceptJson()) {
+    const concept = conceptFromJson(conceptJson);
     return mount(ConceptDetail, {
       global: {
         plugins: [pinia, router],
@@ -130,49 +133,64 @@ describe('ConceptDetail interactions', () => {
     expect(wrapper.find('h1').html()).toContain('test term');
   });
 
+  async function switchToDefinition(wrapper: ReturnType<typeof mountDetail>) {
+    const tabs = wrapper.findAll('button[role="tab"]');
+    const defTab = tabs.find(t => t.text().includes('Definition'));
+    if (defTab) {
+      await defTab.trigger('click');
+      await flushPromises();
+    }
+  }
+
   it('renders concept ID badge', () => {
     const wrapper = mountDetail();
     expect(wrapper.text()).toContain('1');
   });
 
-  it('renders language sections for eng and fra', () => {
+  it('renders language sections for eng and fra', async () => {
     const wrapper = mountDetail();
+    await switchToDefinition(wrapper);
     expect(wrapper.text()).toContain('English');
     expect(wrapper.text()).toContain('French');
   });
 
-  it('renders italic text in definition', () => {
+  it('renders italic text in definition', async () => {
     const wrapper = mountDetail();
+    await switchToDefinition(wrapper);
     expect(wrapper.html()).toContain('<em>italic</em>');
   });
 
-  it('renders stem: notation as math-pending placeholder', () => {
+  it('renders stem: notation as math-pending placeholder', async () => {
     const wrapper = mountDetail();
+    await switchToDefinition(wrapper);
     expect(wrapper.html()).toContain('math-pending');
     expect(wrapper.html()).toContain('data-expr="x"');
   });
 
-  it('renders notes section', () => {
+  it('renders notes section', async () => {
     const wrapper = mountDetail();
+    await switchToDefinition(wrapper);
     expect(wrapper.text()).toContain('Note 1');
     expect(wrapper.text()).toContain('a note');
   });
 
-  it('renders examples section', () => {
+  it('renders examples section', async () => {
     const wrapper = mountDetail();
+    await switchToDefinition(wrapper);
     expect(wrapper.text()).toContain('Example 1');
     expect(wrapper.text()).toContain('an example');
   });
 
-  it('renders designation types as badges', () => {
+  it('renders designation types as badges', async () => {
     const wrapper = mountDetail();
-    expect(wrapper.text()).toContain('Symbol');
+    await switchToDefinition(wrapper);
+    expect(wrapper.text()).toContain('symbol');
   });
 
   it('collapses non-eng languages when 6+ languages present', async () => {
-    const concept = makeConcept();
+    const json = makeConceptJson() as Record<string, any>;
     for (const lang of ['deu', 'spa', 'kor', 'jpn']) {
-      concept['gl:localizedConcept']![lang] = {
+      json['gl:localizedConcept'][lang] = {
         '@id': `https://glossarist.org/test/concept/1/${lang}`,
         '@type': 'gl:LocalizedConcept',
         'gl:languageCode': lang,
@@ -184,13 +202,15 @@ describe('ConceptDetail interactions', () => {
         ],
       };
     }
-    const wrapper = mountDetail(concept);
+    const wrapper = mountDetail(json);
+    await switchToDefinition(wrapper);
     await flushPromises();
     expect(wrapper.text()).toContain('6 languages');
   });
 
   it('toggles language section on click', async () => {
     const wrapper = mountDetail();
+    await switchToDefinition(wrapper);
     const buttons = wrapper.findAll('button');
     const fraButton = buttons.find(b => b.text().includes('French'));
     expect(fraButton).toBeDefined();
@@ -201,6 +221,7 @@ describe('ConceptDetail interactions', () => {
 
   it('switches between definition and history tabs', async () => {
     const wrapper = mountDetail();
+    await switchToDefinition(wrapper);
     expect(wrapper.text()).toContain('a definition with');
 
     const tabs = wrapper.findAll('button[role="tab"]');
@@ -213,9 +234,8 @@ describe('ConceptDetail interactions', () => {
   });
 
   it('renders cross-reference link and navigates on click', async () => {
-    const concept = makeConcept();
-    const eng = concept['gl:localizedConcept']!.eng!;
-    eng['gl:definition'] = [
+    const json = makeConceptJson();
+    json['gl:localizedConcept'].eng['gl:definition'] = [
       { '@type': 'gl:DetailedDefinition', 'gl:content': 'see {{urn:iso:std:iso:14812:3.1.1.1,entity}} here' },
     ];
 
@@ -228,7 +248,8 @@ describe('ConceptDetail interactions', () => {
     });
     factory.resolver.registerDataset('test', ['https://glossarist.org/test/concept/*']);
 
-    const wrapper = mountDetail(concept);
+    const wrapper = mountDetail(json);
+    await switchToDefinition(wrapper);
     await flushPromises();
 
     const xref = wrapper.find('.xref-link');
@@ -244,8 +265,9 @@ describe('ConceptDetail interactions', () => {
     expect(wrapper.text()).toContain('valid');
   });
 
-  it('renders the language quick-jump sidebar with all languages', () => {
+  it('renders the language quick-jump sidebar with all languages', async () => {
     const wrapper = mountDetail();
+    await switchToDefinition(wrapper);
     expect(wrapper.text()).toContain('Languages (2)');
   });
 });

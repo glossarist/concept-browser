@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import type { LocalizedConcept, Designation, ConceptSource } from '../adapters/types';
+import type { Concept, LocalizedConcept, Designation, Expression, Abbreviation as AbbreviationType } from 'glossarist';
 import { computed } from 'vue';
 import { langName, langLabel } from '../utils/lang';
 import { renderMath } from '../utils/math';
 import type { RenderOptions } from '../utils/math';
 import { escapeAttr } from '../utils/escape';
-import { entryStatusColor, designationTypeLabel, designationTypeColor } from '../utils/concept-helpers';
+import { entryStatusColor } from '../utils/concept-helpers';
+import { designationTypeInfo, normativeStatusInfo, grammarBadges, pronunciationLabel, pronunciationTooltip } from '../utils/designation-registry';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { getFactory } from '../adapters/factory';
+import CitationDisplay from './CitationDisplay.vue';
 
 const props = defineProps<{
-  localizedConcepts: Record<string, LocalizedConcept>;
+  concept: Concept;
   activeLang: string;
 }>();
 
@@ -19,40 +21,32 @@ const emit = defineEmits<{
   (e: 'update:activeLang', lang: string): void;
 }>();
 
-const lc = computed(() => props.localizedConcepts[props.activeLang]);
-const availableLangs = computed(() => Object.keys(props.localizedConcepts).sort());
+const lc = computed(() => props.concept.localization(props.activeLang));
+const availableLangs = computed(() => [...props.concept.languages].sort());
 
-const designations = computed(() => lc.value?.['gl:designation'] ?? []);
+const designations = computed(() => lc.value?.terms ?? []);
 const definition = computed(() => {
-  const defs = lc.value?.['gl:definition'];
-  if (defs?.length) {
-    const content = defs.map(d => d['gl:content']).filter(Boolean).join('\n\n');
-    if (content) return content;
-  }
-  return '';
+  if (!lc.value) return '';
+  const content = lc.value.definitions.map(d => d.content).filter(Boolean).join('\n\n');
+  return content;
 });
-const notes = computed(() => {
-  return lc.value?.['gl:notes']?.map(n => n['gl:content']).filter(Boolean) ?? [];
-});
-const examples = computed(() => lc.value?.['gl:examples']?.map(e => e['gl:content']).filter(Boolean) ?? []);
-const sources = computed(() => lc.value?.['gl:source'] ?? []);
+const notes = computed(() => lc.value?.notes.map(n => n.content).filter(Boolean) ?? []);
+const examples = computed(() => lc.value?.examples.map(e => e.content).filter(Boolean) ?? []);
+const sources = computed(() => lc.value?.sources ?? []);
 
 const hasContent = computed(() =>
   definition.value || notes.value.length > 0 || examples.value.length > 0 || designations.value.length > 1
 );
 
+function abbrevInfo(d: Designation): { acronym: boolean; initialism: boolean; truncation: boolean } | null {
+  if (d.type !== 'abbreviation') return null;
+  const a = d as AbbreviationType;
+  return { acronym: !!a.acronym, initialism: !!a.initialism, truncation: !!a.truncation };
+}
+
 const isTermOnly = computed(() =>
   !definition.value && notes.value.length === 0 && examples.value.length === 0
 );
-
-function normativeStatus(status: string): string {
-  return status === 'preferred' ? 'Preferred' : status;
-}
-function normativeColor(status: string): string {
-  if (status === 'preferred') return 'bg-emerald-50 text-emerald-700';
-  if (status === 'deprecated') return 'bg-red-50 text-red-700';
-  return 'bg-amber-50 text-amber-700';
-}
 
 const router = useRouter();
 const store = useVocabularyStore();
@@ -109,8 +103,8 @@ function handleContentClick(e: MouseEvent) {
     <!-- Content for selected language -->
     <div v-if="lc">
       <!-- Entry status -->
-      <div v-if="lc['gl:entryStatus']" class="flex items-center gap-2 mb-4">
-        <span class="badge" :class="entryStatusColor(lc['gl:entryStatus'])">{{ lc['gl:entryStatus'] }}</span>
+      <div v-if="lc.entryStatus" class="flex items-center gap-2 mb-4">
+        <span class="badge" :class="entryStatusColor(lc.entryStatus)">{{ lc.entryStatus }}</span>
       </div>
 
       <!-- Designations -->
@@ -118,16 +112,26 @@ function handleContentClick(e: MouseEvent) {
         <div class="section-label">Designations</div>
         <div class="space-y-2 mt-3">
           <div v-for="(d, i) in designations" :key="i" class="flex items-center gap-2 flex-wrap">
-            <span class="font-medium text-ink-800 text-lg" v-html="renderMath(d['gl:term'])"></span>
-            <span class="badge text-[10px]" :class="designationTypeColor(d['@type'])">{{ designationTypeLabel(d['@type']) }}</span>
-            <span class="badge text-[10px]" :class="normativeColor(d['gl:normativeStatus'])">{{ normativeStatus(d['gl:normativeStatus']) }}</span>
-            <span v-if="d['gl:termType']" class="text-xs text-ink-300">{{ d['gl:termType'] }}</span>
-            <template v-if="d['gl:grammarInfo']">
-              <span v-for="(gi, giIdx) in d['gl:grammarInfo']" :key="giIdx" class="text-xs text-ink-300">
-                <span v-if="gi['gl:gender']">{{ gi['gl:gender'] }}</span><span v-if="gi['gl:gender'] && gi['gl:number']">, </span><span v-if="gi['gl:number']">{{ gi['gl:number'] }}</span>
-              </span>
+            <span class="font-medium text-ink-800 text-lg" v-html="renderMath(d.designation)"></span>
+            <span class="badge text-[10px]" :class="designationTypeInfo(d).color">{{ designationTypeInfo(d).label }}</span>
+            <span class="badge text-[10px]" :class="normativeStatusInfo(d.normativeStatus).color">{{ normativeStatusInfo(d.normativeStatus).label }}</span>
+            <template v-if="d.type === 'expression' && (d as Expression).grammarInfo?.length">
+              <template v-for="(gi, giIdx) in (d as Expression).grammarInfo" :key="giIdx">
+                <span v-for="badge in grammarBadges(gi)" :key="giIdx + '-' + badge.label"
+                  class="badge text-[10px] bg-gray-50 text-gray-600">{{ badge.label }}</span>
+              </template>
             </template>
-            <span v-if="d['gl:geographicalArea']" class="text-xs text-ink-300">{{ d['gl:geographicalArea'] }}</span>
+            <template v-if="abbrevInfo(d)" v-for="(val, key) in abbrevInfo(d)" :key="key">
+              <span v-if="val" class="badge text-[10px] bg-amber-50 text-amber-600">{{ key }}</span>
+            </template>
+            <span v-if="d.geographicalArea" class="badge text-[10px] bg-gray-50 text-gray-600">{{ d.geographicalArea }}</span>
+            <span v-if="d.international" class="badge text-[10px] bg-sky-50 text-sky-600">international</span>
+            <span v-if="d.absent" class="badge text-[10px] bg-red-50 text-red-600">absent</span>
+            <span v-if="d.usageInfo" class="text-xs text-ink-300">{{ d.usageInfo }}</span>
+            <template v-if="d.pronunciations?.length">
+              <span v-for="(p, pi) in d.pronunciations" :key="'p'+pi"
+                class="text-xs text-ink-400 font-mono" :title="pronunciationTooltip(p)">{{ pronunciationLabel(p) }}</span>
+            </template>
           </div>
         </div>
       </div>
@@ -166,12 +170,11 @@ function handleContentClick(e: MouseEvent) {
         <div class="space-y-3 mt-3">
           <div v-for="(src, i) in sources" :key="i" class="text-sm">
             <div class="flex items-center gap-1.5 flex-wrap mb-1">
-              <span v-if="src['gl:sourceType']" class="badge badge-blue text-[10px]">{{ src['gl:sourceType'] }}</span>
-              <span v-if="src['gl:sourceStatus']" class="badge badge-gray text-[10px]">{{ src['gl:sourceStatus'] }}</span>
+              <span v-if="src.type" class="badge badge-blue text-[10px]">{{ src.type }}</span>
+              <span v-if="src.status" class="badge badge-gray text-[10px]">{{ src.status }}</span>
             </div>
             <div class="text-ink-700">
-              <span v-if="src['gl:origin']?.['gl:ref']" class="font-medium">{{ src['gl:origin']['gl:ref'] }}</span>
-              <span v-if="src['gl:origin']?.['gl:clause']">, {{ src['gl:origin']['gl:clause'] }}</span>
+              <CitationDisplay v-if="src.origin" :citation="src.origin" />
             </div>
           </div>
         </div>

@@ -1,0 +1,56 @@
+# datasets.yml — Glossarist Vocabulary Browser dataset registry
+# Add a new dataset by adding an entry below. No code changes required.
+# Run: npm run fetch-datasets && npm run generate-data && npm run build-edges
+
+# Cross-reference mapping tables (used by harmonize-concepts.mjs to resolve inline refs)
+crossReferences:
+  refPrefixMap:
+    IEV: iev
+  urnStandardMap:
+    "14812": isotc204
+
+datasets:
+  - id: iev
+    gcrPackage: https://github.com/glossarist/glossarist-data-iev/releases/latest/download/iev.gcr
+    sourceRepo: https://github.com/glossarist/glossarist-data-iev
+    title: "IEC Electropedia (IEV)"
+    description: "International Electrotechnical Vocabulary — the world's most comprehensive online terminology database for electrotechnology"
+    owner: IEC TC 1
+    existingSiteUrl: https://www.electropedia.org
+    externalConceptUrlTemplate: "https://electropedia.org/iev/iev.nsf/display?openform&ievref={conceptId}"
+    color: "#3366ff"
+    tags: [electrotechnical, iec, multilingual]
+    languageOrder: [eng, fra, deu, spa, kor, jpn, zho, nld, pol, por, srp, swe, ara]
+
+  - id: isotc211
+    gcrPackage: https://github.com/geolexica/isotc211-glossary/releases/latest/download/isotc211.gcr
+    sourceRepo: https://github.com/geolexica/isotc211-glossary
+    title: "ISO/TC 211 Multi-Lingual Glossary"
+    description: "Geographic information terminology from ISO/TC 211, covering GIS, geomatics, and geospatial standards"
+    owner: ISO/TC 211
+    existingSiteUrl: https://isotc211.geolexica.org
+    externalConceptUrlTemplate: "https://isotc211.geolexica.org/concepts/{conceptId}/"
+    color: "#0d9488"
+    tags: [geographic-information, gis, iso, multilingual]
+
+  - id: isotc204
+    gcrPackage: https://github.com/geolexica/isotc204-glossary/releases/latest/download/isotc204.gcr
+    sourceRepo: https://github.com/geolexica/isotc204-glossary
+    title: "ISO/TC 204 ITS Vocabulary"
+    description: "Intelligent transport systems vocabulary from ISO 14812, covering connected and automated driving"
+    owner: ISO/TC 204
+    existingSiteUrl: https://isotc204.geolexica.org
+    externalConceptUrlTemplate: "https://isotc204.geolexica.org/concepts/{conceptId}/"
+    color: "#d97706"
+    tags: [transport, its, iso, automated-driving]
+
+  - id: osgeo
+    gcrPackage: https://github.com/geolexica/osgeo-glossary/releases/latest/download/osgeo.gcr
+    sourceRepo: https://github.com/geolexica/osgeo-glossary
+    title: "OSGeo Lexicon"
+    description: "Open Source Geospatial Foundation glossary of geospatial terms"
+    owner: OSGeo
+    existingSiteUrl: https://osgeo.geolexica.org
+    externalConceptUrlTemplate: "https://osgeo.geolexica.org/concepts/{conceptId}/"
+    color: "#059669"
+    tags: [osgeo, open-source, gis]

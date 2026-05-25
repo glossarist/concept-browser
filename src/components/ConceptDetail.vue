@@ -1,22 +1,28 @@
 <script setup lang="ts">
-import type { ConceptDocument, LocalizedConcept, GraphEdge } from '../adapters/types';
-import type { Manifest } from '../adapters/types';
+import type { Concept, LocalizedConcept, Designation, Expression, ConceptSource } from 'glossarist';
+import type { Manifest, GraphEdge } from '../adapters/types';
 import { computed, ref, nextTick, watch } from 'vue';
 import { langName, langLabel } from '../utils/lang';
 import { renderMath, cleanContent } from '../utils/math';
 import type { RenderOptions } from '../utils/math';
 import { escapeAttr } from '../utils/escape';
-import { entryStatusColor, designationTypeLabel, designationTypeColor, getPreferredTerm } from '../utils/concept-helpers';
+import { entryStatusColor, conceptStatusColor, conceptStatusLabel, conceptStatusDefinition, entryStatusLabel, entryStatusDefinition, getPreferredTerm } from '../utils/concept-helpers';
+import { designationTypeInfo, normativeStatusInfo, grammarBadges, pronunciationLabel, pronunciationTooltip, abbreviationDetails, sourceTypeInfo, sourceStatusInfo, termTypeInfo } from '../utils/designation-registry';
+import { conceptUri } from '../adapters/model-bridge';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
 import { getFactory } from '../adapters/factory';
 import { useRenderOptions } from '../composables/use-render-options';
+import { categorizeRelationship, relationshipLabel, relationshipDefinition } from '../utils/relationship-categories';
 import ConceptTimeline from './ConceptTimeline.vue';
+import ConceptRdfView from './ConceptRdfView.vue';
 import FormatDownloads from './FormatDownloads.vue';
+import NonVerbalRepDisplay from './NonVerbalRepDisplay.vue';
+import CitationDisplay from './CitationDisplay.vue';
 
 const props = defineProps<{
-  concept: ConceptDocument;
+  concept: Concept;
   manifest: Manifest;
   edges: GraphEdge[];
   registerId: string;
@@ -28,10 +34,10 @@ const store = useVocabularyStore();
 const { getColor } = useDsStyle();
 const factory = getFactory();
 
-const activeTab = ref<'definition' | 'history'>('definition');
+const activeTab = ref<'rdf' | 'definition' | 'history'>('definition');
 const activeHistoryLang = ref('eng');
 
-const conceptId = computed(() => props.concept['gl:identifier']);
+const conceptId = computed(() => props.concept.id);
 
 const conceptPosition = computed(() => {
   const adapter = store.datasets.get(props.registerId);
@@ -43,7 +49,8 @@ const conceptPosition = computed(() => {
 
 const uriCopied = ref(false);
 function copyUri() {
-  navigator.clipboard.writeText(props.concept['@id']).then(() => {
+  const uri = conceptUri(props.concept, props.registerId, props.manifest.uriBase);
+  navigator.clipboard.writeText(uri).then(() => {
     uriCopied.value = true;
     setTimeout(() => { uriCopied.value = false; }, 2000);
   });
@@ -51,16 +58,16 @@ function copyUri() {
 
 const languages = computed(() => {
   const order = props.manifest.languageOrder;
-  const keys = Object.keys(props.concept['gl:localizedConcept'] || {});
+  const keys = props.concept.languages;
   if (!order) {
-    return keys.sort((a, b) => {
+    return [...keys].sort((a, b) => {
       if (a === 'eng') return -1;
-      if (b === 'eng') return 1;
+      if (a === 'eng') return 1;
       return a.localeCompare(b);
     });
   }
   const orderIndex = new Map(order.map((lang, i) => [lang, i]));
-  return keys.sort((a, b) => {
+  return [...keys].sort((a, b) => {
     const ai = orderIndex.get(a) ?? order.length;
     const bi = orderIndex.get(b) ?? order.length;
     if (ai !== bi) return ai - bi;
@@ -80,10 +87,22 @@ function initCollapsed(langs: string[]) {
 watch(languages, (langs) => { initCollapsed(langs); }, { immediate: true });
 
 const engConcept = computed((): LocalizedConcept | null => {
-  return props.concept['gl:localizedConcept']?.['eng'] ?? null;
+  return props.concept.localization('eng') ?? null;
 });
 
 const primaryTerm = computed(() => getPreferredTerm(engConcept.value, conceptId.value));
+
+// Managed concept status from Concept.status (7 values from concept-status.ttl)
+const managedStatus = computed(() => props.concept.status);
+
+// ConceptReference domains from managed concept level
+const conceptRefDomains = computed(() => props.concept.domains);
+
+// Managed concept dates
+const conceptDates = computed(() => props.concept.dates);
+
+// Managed concept sources (distinct from localized sources)
+const conceptSources = computed(() => props.concept.sources);
 
 // Cross-reference resolver: generates clickable links for inline refs
 
@@ -125,33 +144,45 @@ function handleContentClick(e: MouseEvent) {
 // Pre-computed content for all languages (sorted eng first)
 interface LangContent {
   lang: string;
+  lc: LocalizedConcept;
   definition: string;
   notes: string[];
   examples: string[];
-  sources: any[];
-  designations: any[];
+  sources: ConceptSource[];
+  designations: Designation[];
   entryStatus: string;
+  classification: string | null;
+  reviewType: string | null;
+  release: string | null;
+  lineageSourceSimilarity: number | null;
+  lcScript: string | null;
+  lcSystem: string | null;
 }
 
 const allLangContent = computed(() => {
   const result: LangContent[] = [];
   for (const lang of languages.value) {
-    const lc = props.concept['gl:localizedConcept']?.[lang];
+    const lc = props.concept.localization(lang);
     if (!lc) continue;
 
-    const defs = lc['gl:definition'];
-    const definition = defs?.length
-      ? defs.map(d => d['gl:content']).filter(Boolean).join('\n\n')
-      : '';
+    const definition = lc.definitions
+      .map(d => d.content).filter(Boolean).join('\n\n');
 
     result.push({
       lang,
+      lc,
       definition,
-      notes: lc['gl:notes']?.map((n: any) => n['gl:content']).filter(Boolean) ?? [],
-      examples: lc['gl:examples']?.map((e: any) => e['gl:content']).filter(Boolean) ?? [],
-      sources: lc['gl:source'] ?? [],
-      designations: lc['gl:designation'] ?? [],
-      entryStatus: lc['gl:entryStatus'] ?? '',
+      notes: lc.notes.map(n => n.content).filter(Boolean),
+      examples: lc.examples.map(e => e.content).filter(Boolean),
+      sources: lc.sources,
+      designations: lc.terms,
+      entryStatus: lc.entryStatus ?? '',
+      classification: lc.classification,
+      reviewType: lc.reviewType,
+      release: lc.release,
+      lineageSourceSimilarity: lc.lineageSourceSimilarity,
+      lcScript: lc.script,
+      lcSystem: lc.system,
     });
   }
   return result;
@@ -178,21 +209,23 @@ function toggleAll() {
 }
 
 function scrollToLang(lang: string) {
-  // Expand if collapsed
   if (collapsedLangs.value.has(lang)) {
     const s = new Set(collapsedLangs.value);
     s.delete(lang);
     collapsedLangs.value = s;
   }
-  // Switch to definition tab if needed
   activeTab.value = 'definition';
   nextTick(() => {
     document.getElementById(`lang-${lang}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 }
 
-const outgoingEdges = computed(() => props.edges.filter(e => e.source === props.concept['@id']));
-const incomingEdges = computed(() => props.edges.filter(e => e.target === props.concept['@id']));
+const conceptUriValue = computed(() =>
+  conceptUri(props.concept, props.registerId, props.manifest.uriBase)
+);
+
+const outgoingEdges = computed(() => props.edges.filter(e => e.source === conceptUriValue.value));
+const incomingEdges = computed(() => props.edges.filter(e => e.target === conceptUriValue.value));
 
 function isLocalRef(uri: string): boolean {
   const resolution = factory.resolve(uri, props.registerId);
@@ -231,7 +264,7 @@ function edgeDatasetBadge(uri: string): { id: string; title: string } | null {
 }
 
 async function navigateEdge(edge: GraphEdge) {
-  const uri = edge.source === props.concept['@id'] ? edge.target : edge.source;
+  const uri = edge.source === conceptUriValue.value ? edge.target : edge.source;
   const resolution = factory.resolve(uri);
 
   if (resolution.type === 'internal') {
@@ -245,27 +278,27 @@ async function navigateEdge(edge: GraphEdge) {
 }
 
 function getTermForLang(lang: string): string {
-  const lc = props.concept['gl:localizedConcept']?.[lang];
+  const lc = props.concept.localization(lang);
   return getPreferredTerm(lc);
 }
 
-function getDesignationsForLang(lang: string) {
-  const lc = props.concept['gl:localizedConcept']?.[lang];
-  return lc?.['gl:designation'] ?? [];
+function getDesignationsForLang(lang: string): Designation[] {
+  const lc = props.concept.localization(lang);
+  return lc?.terms ?? [];
 }
 
-function orderedDesignations(lang: string) {
+function orderedDesignations(lang: string): Designation[] {
   const desigs = getDesignationsForLang(lang);
-  const preferred = desigs.filter(d => d['gl:normativeStatus'] === 'preferred');
-  const admitted = desigs.filter(d => d['gl:normativeStatus'] === 'admitted' || d['gl:normativeStatus'] === 'deprecated');
-  const rest = desigs.filter(d => d['gl:normativeStatus'] !== 'preferred' && d['gl:normativeStatus'] !== 'admitted' && d['gl:normativeStatus'] !== 'deprecated');
+  const preferred = desigs.filter(d => d.normativeStatus === 'preferred');
+  const admitted = desigs.filter(d => d.normativeStatus === 'admitted' || d.normativeStatus === 'deprecated');
+  const rest = desigs.filter(d => d.normativeStatus !== 'preferred' && d.normativeStatus !== 'admitted' && d.normativeStatus !== 'deprecated');
   return [...preferred, ...admitted, ...rest];
 }
 
 function hasDefinition(lang: string): boolean {
-  const lc = props.concept['gl:localizedConcept']?.[lang];
+  const lc = props.concept.localization(lang);
   if (!lc) return false;
-  return lc['gl:definition']?.some((d: any) => d['gl:content']) ?? false;
+  return lc.definitions.some(d => d.content);
 }
 
 function goAdjacent(id: string) {
@@ -275,17 +308,31 @@ function goAdjacent(id: string) {
 
 function plainTruncate(html: string, max: number = 120): string {
   const text = cleanContent(html).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-  return text.length <= max ? text : text.slice(0, max).trimEnd() + '\u2026';
+  return text.length <= max ? text : text.slice(0, max).trimEnd() + '…';
 }
 
 function slugify(text: string): string {
   return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s/]+/g, '-');
 }
 
+// Domain rendering: merge ConceptReference domains and per-localization domain strings
 const conceptDomains = computed(() => {
-  const domainMap = new Map<string, { slug: string; label: string; langs: string[] }>();
-  for (const [lang, lc] of Object.entries(props.concept['gl:localizedConcept'] || {})) {
-    const domain = lc['gl:domain'];
+  const domainMap = new Map<string, { slug: string; label: string; langs: string[]; conceptId?: string }>();
+
+  // Managed concept level ConceptReference domains (authoritative)
+  for (const ref of conceptRefDomains.value) {
+    const id = ref.conceptId ?? '';
+    const label = id || ref.urn || '';
+    if (label) {
+      const slug = slugify(label);
+      domainMap.set(slug, { slug, label, langs: [], conceptId: id });
+    }
+  }
+
+  // Per-localization domain strings
+  for (const lang of props.concept.languages) {
+    const lc = props.concept.localization(lang);
+    const domain = lc?.domain;
     if (domain) {
       const slug = slugify(domain);
       const existing = domainMap.get(slug);
@@ -298,6 +345,19 @@ const conceptDomains = computed(() => {
   }
   return [...domainMap.values()].sort((a, b) => b.langs.length - a.langs.length);
 });
+
+// Non-verbal reps: aggregate across all localizations
+const nonVerbalReps = computed(() => {
+  const reps: typeof import('glossarist').NonVerbRep.prototype[] = [];
+  for (const lang of props.concept.languages) {
+    const lc = props.concept.localization(lang);
+    if (lc?.nonVerbalRep?.length) {
+      reps.push(...lc.nonVerbalRep);
+    }
+  }
+  return reps;
+});
+
 </script>
 
 <template>
@@ -321,7 +381,7 @@ const conceptDomains = computed(() => {
           <button
             v-if="adjacent.prev"
             @click="goAdjacent(adjacent.prev)"
-            class="p-1.5 rounded-md text-ink-300 hover:text-ink-600 hover:bg-ink-50 transition-colors"
+            class="p-2.5 rounded-lg text-ink-300 hover:text-ink-600 hover:bg-ink-50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
             title="Previous concept (←)"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
@@ -329,7 +389,7 @@ const conceptDomains = computed(() => {
           <button
             v-if="adjacent.next"
             @click="goAdjacent(adjacent.next)"
-            class="p-1.5 rounded-md text-ink-300 hover:text-ink-600 hover:bg-ink-50 transition-colors"
+            class="p-2.5 rounded-lg text-ink-300 hover:text-ink-600 hover:bg-ink-50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
             title="Next concept (→)"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
@@ -337,49 +397,71 @@ const conceptDomains = computed(() => {
         </div>
       </div>
       <h1 class="font-serif text-2xl sm:text-3xl text-ink-800 leading-snug mb-3" v-html="renderMath(primaryTerm)"></h1>
-      <div class="flex flex-wrap gap-2">
+      <div class="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:flex-wrap sm:overflow-visible sm:mx-0 sm:pb-0 scrollbar-none">
         <span class="badge badge-blue font-mono">{{ conceptId }}</span>
-        <span class="badge" :class="entryStatusColor(engConcept?.['gl:entryStatus'] ?? '')" v-if="engConcept?.['gl:entryStatus']">
-          {{ engConcept['gl:entryStatus'] }}
+        <span
+          v-if="managedStatus"
+          class="badge text-[10px]"
+          :class="conceptStatusColor(managedStatus)"
+          :title="conceptStatusDefinition(managedStatus) ?? ''"
+        >
+          {{ conceptStatusLabel(managedStatus) }}
+        </span>
+        <span class="badge" :class="entryStatusColor(engConcept?.entryStatus ?? '')" v-if="engConcept?.entryStatus" :title="entryStatusDefinition(engConcept.entryStatus) ?? ''">
+          {{ entryStatusLabel(engConcept.entryStatus) }}
         </span>
         <span class="badge badge-gray" v-if="manifest.owner">{{ manifest.owner }}</span>
         <span class="badge badge-purple">{{ languages.length }} languages</span>
       </div>
     </div>
 
-    <!-- Tab navigation -->
-    <div role="tablist" class="flex border-b border-ink-100/60 mb-6">
+    <!-- Tab navigation: segmented control on mobile, underline on desktop -->
+    <div role="tablist"
+      class="grid grid-cols-3 rounded-xl bg-surface-alt p-1 mb-6 md:bg-transparent md:p-0 md:flex md:border-b md:border-ink-100/60 md:rounded-none">
       <button
         role="tab"
         :aria-selected="activeTab === 'definition'"
         @click="activeTab = 'definition'"
-        :class="activeTab === 'definition' ? 'border-ink-800 text-ink-800' : 'border-transparent text-ink-400 hover:text-ink-600'"
-        class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px"
+        class="py-3 text-sm font-medium rounded-lg transition-colors md:rounded-none md:border-b-2 md:-mb-px md:px-5 md:py-3"
+        :class="activeTab === 'definition'
+          ? 'bg-blue-600 text-white shadow-sm md:bg-transparent md:text-blue-600 md:border-blue-500 md:shadow-none'
+          : 'text-ink-500 hover:text-ink-700 md:text-ink-400 md:border-transparent md:hover:text-ink-600'"
       >
         Definition
       </button>
       <button
         role="tab"
+        :aria-selected="activeTab === 'rdf'"
+        @click="activeTab = 'rdf'"
+        class="py-3 text-sm font-medium rounded-lg transition-colors md:rounded-none md:border-b-2 md:-mb-px md:px-5 md:py-3"
+        :class="activeTab === 'rdf'
+          ? 'bg-blue-600 text-white shadow-sm md:bg-transparent md:text-blue-600 md:border-blue-500 md:shadow-none'
+          : 'text-ink-500 hover:text-ink-700 md:text-ink-400 md:border-transparent md:hover:text-ink-600'"
+      >
+        RDF
+      </button>
+      <button
+        role="tab"
         :aria-selected="activeTab === 'history'"
         @click="activeTab = 'history'"
-        :class="activeTab === 'history' ? 'border-ink-800 text-ink-800' : 'border-transparent text-ink-400 hover:text-ink-600'"
-        class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px"
+        class="py-3 text-sm font-medium rounded-lg transition-colors md:rounded-none md:border-b-2 md:-mb-px md:px-5 md:py-3"
+        :class="activeTab === 'history'
+          ? 'bg-blue-600 text-white shadow-sm md:bg-transparent md:text-blue-600 md:border-blue-500 md:shadow-none'
+          : 'text-ink-500 hover:text-ink-700 md:text-ink-400 md:border-transparent md:hover:text-ink-600'"
       >
         History
-      </button>
-      <!-- Expand/Collapse all toggle (definition tab only) -->
-      <button
-        v-if="activeTab === 'definition'"
-        @click="toggleAll"
-        class="ml-auto px-3 py-2 text-xs text-ink-400 hover:text-ink-600 transition-colors"
-      >
-        {{ allCollapsed ? 'Expand all' : 'Collapse all' }}
-        <span class="text-ink-300 ml-0.5">({{ languages.length }})</span>
       </button>
     </div>
 
     <!-- Tab: Definition -->
     <div v-if="activeTab === 'definition'" role="tabpanel">
+      <!-- Expand/Collapse all toggle -->
+      <div v-if="allLangContent.length > 1" class="flex items-center justify-between mb-3">
+        <span class="text-xs text-ink-400">{{ languages.length }} languages</span>
+        <button @click="toggleAll" class="text-xs text-ink-400 hover:text-ink-600 transition-colors px-3 py-2">
+          {{ allCollapsed ? 'Expand all' : 'Collapse all' }}
+        </button>
+      </div>
       <div class="lg:flex lg:gap-8">
         <!-- Left: all language content -->
         <div class="flex-1 min-w-0 space-y-2" @click="handleContentClick">
@@ -400,14 +482,14 @@ const conceptDomains = computed(() => {
               </svg>
               <span class="text-xs font-semibold text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">{{ langName(lc.lang) }}</span>
               <span class="font-medium text-ink-800 text-sm" v-html="renderMath(getTermForLang(lc.lang))"></span>
-              <span v-if="lc.entryStatus" class="badge text-[10px] ml-auto" :class="entryStatusColor(lc.entryStatus)">{{ lc.entryStatus }}</span>
+              <span v-if="lc.entryStatus" class="badge text-[10px] ml-auto" :class="entryStatusColor(lc.entryStatus)" :title="entryStatusDefinition(lc.entryStatus) ?? ''">{{ entryStatusLabel(lc.entryStatus) }}</span>
             </button>
             <!-- Non-collapsible header (designation only) -->
             <div v-else class="w-full flex items-center gap-2.5 px-3 sm:px-4 py-3">
               <span class="text-xs font-semibold text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">{{ langName(lc.lang) }}</span>
               <span class="font-medium text-ink-800 text-sm" v-html="renderMath(getTermForLang(lc.lang))"></span>
               <span class="text-xs text-ink-200 ml-2 italic">designation only</span>
-              <span v-if="lc.entryStatus" class="badge text-[10px] ml-auto" :class="entryStatusColor(lc.entryStatus)">{{ lc.entryStatus }}</span>
+              <span v-if="lc.entryStatus" class="badge text-[10px] ml-auto" :class="entryStatusColor(lc.entryStatus)" :title="entryStatusDefinition(lc.entryStatus) ?? ''">{{ entryStatusLabel(lc.entryStatus) }}</span>
             </div>
             <!-- Collapsed preview -->
             <div v-if="hasContent(lc) && collapsedLangs.has(lc.lang)" class="px-3 sm:px-4 pb-3 -mt-0.5">
@@ -421,12 +503,59 @@ const conceptDomains = computed(() => {
 
             <!-- Expandable content -->
             <div v-if="hasContent(lc)" v-show="!collapsedLangs.has(lc.lang)" class="lang-content px-3 sm:px-4 pb-4 space-y-3">
-              <!-- Designations -->
-              <div v-if="lc.designations.length > 1" class="space-y-1 pl-[22px]">
-                <div v-for="(d, i) in orderedDesignations(lc.lang)" :key="i" class="flex items-center gap-2 text-sm">
-                  <span :class="d['gl:normativeStatus'] === 'preferred' ? 'font-bold text-ink-800' : 'font-normal text-ink-700'" v-html="renderMath(d['gl:term'])"></span>
-                  <span class="badge text-[10px] flex-shrink-0" :class="designationTypeColor(d['@type'])">{{ designationTypeLabel(d['@type']) }}</span>
-                  <span v-if="d['gl:normativeStatus'] && d['gl:normativeStatus'] !== 'preferred'" class="badge badge-yellow text-[10px] flex-shrink-0">{{ d['gl:normativeStatus'] }}</span>
+              <!-- Designations (show all, with full metadata) -->
+              <div v-if="lc.designations.length > 0" class="space-y-1.5 pl-[22px]">
+                <div v-for="(d, i) in orderedDesignations(lc.lang)" :key="i">
+                  <div class="flex items-center gap-1.5 text-sm flex-wrap">
+                    <span :class="d.normativeStatus === 'preferred' ? 'font-bold text-ink-800' : 'font-normal text-ink-700'" v-html="renderMath(d.designation)"></span>
+                    <span class="badge text-[10px] flex-shrink-0" :class="designationTypeInfo(d).color" :title="designationTypeInfo(d).definition ?? ''">{{ designationTypeInfo(d).label }}</span>
+                    <span class="badge text-[10px] flex-shrink-0" :class="normativeStatusInfo(d.normativeStatus).color" :title="normativeStatusInfo(d.normativeStatus).definition ?? ''">{{ normativeStatusInfo(d.normativeStatus).label }}</span>
+                    <!-- Abbreviation details -->
+                    <template v-if="abbreviationDetails(d).length">
+                      <span v-for="abbr in abbreviationDetails(d)" :key="abbr" class="badge text-[10px] bg-amber-50 text-amber-600">{{ abbr }}</span>
+                    </template>
+                    <!-- Term type (ISO 12620) -->
+                    <span v-if="d.termType" class="badge text-[10px] bg-gray-50 text-gray-600" :title="termTypeInfo(d.termType).definition ?? ''">{{ termTypeInfo(d.termType).label }}</span>
+                    <!-- Grammar info -->
+                    <template v-if="d.type === 'expression' && (d as Expression).grammarInfo?.length">
+                      <template v-for="(gi, giIdx) in (d as Expression).grammarInfo" :key="giIdx">
+                        <span v-for="badge in grammarBadges(gi)" :key="giIdx + '-' + badge.label"
+                          class="badge text-[10px] bg-gray-50 text-gray-600" :title="badge.definition ?? ''">{{ badge.label }}</span>
+                      </template>
+                    </template>
+                    <!-- Pronunciation -->
+                    <template v-if="d.pronunciations?.length">
+                      <span v-for="(p, pi) in d.pronunciations" :key="'p'+pi"
+                        class="text-xs text-ink-400 font-mono" :title="pronunciationTooltip(p)">{{ pronunciationLabel(p) }}</span>
+                    </template>
+                    <!-- Flags -->
+                    <span v-if="d.international" class="badge text-[10px] bg-sky-50 text-sky-600">international</span>
+                    <span v-if="d.absent" class="badge text-[10px] bg-red-50 text-red-600">absent</span>
+                    <span v-if="d.geographicalArea" class="badge text-[10px] bg-gray-50 text-gray-600">{{ d.geographicalArea }}</span>
+                    <span v-if="d.usageInfo" class="text-xs text-ink-300">{{ d.usageInfo }}</span>
+                    <span v-if="d.fieldOfApplication" class="text-xs text-ink-300">field: {{ d.fieldOfApplication }}</span>
+                    <!-- Per-designation language/script/system overrides -->
+                    <template v-if="d.language && d.language !== lc.lang">
+                      <span class="badge text-[10px] bg-teal-50 text-teal-600">lang: {{ langName(d.language) }}</span>
+                    </template>
+                    <span v-if="d.script" class="badge text-[10px] bg-gray-50 text-gray-600">script: {{ d.script }}</span>
+                    <span v-if="d.system" class="badge text-[10px] bg-gray-50 text-gray-600">system: {{ d.system }}</span>
+                  </div>
+                  <!-- Designation sources -->
+                  <div v-if="d.sources?.length" class="mt-1 space-y-0.5">
+                    <div v-for="(ds, dsi) in d.sources" :key="'ds'+dsi" class="text-xs text-ink-400 flex items-center gap-1.5">
+                      <span v-if="ds.type" class="badge text-[9px]" :class="sourceTypeInfo(ds.type).color">{{ sourceTypeInfo(ds.type).label }}</span>
+                      <CitationDisplay v-if="ds.origin" :citation="ds.origin" />
+                      <span v-else-if="ds.modification" class="text-ink-300">{{ ds.modification }}</span>
+                    </div>
+                  </div>
+                  <!-- Designation relationships -->
+                  <div v-if="d.related?.length" class="mt-0.5 space-y-0.5">
+                    <div v-for="(dr, dri) in d.related" :key="'dr'+dri" class="text-xs text-ink-400 flex items-center gap-1.5">
+                      <span class="badge text-[9px] bg-gray-50 text-gray-600">{{ relationshipLabel(dr.type) }}</span>
+                      <span>{{ dr.content || (dr.ref ? `${dr.ref.source || ''} ${dr.ref.id || ''}`.trim() : '') }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -451,28 +580,59 @@ const conceptDomains = computed(() => {
                 </div>
               </div>
 
+              <!-- Non-verbal representations -->
+              <NonVerbalRepDisplay v-if="lc.lc.nonVerbalRep?.length" :reps="lc.lc.nonVerbalRep" />
+
               <!-- Sources -->
               <div v-if="lc.sources.length" class="space-y-2">
                 <div v-for="(src, i) in lc.sources" :key="i" class="text-sm">
                   <div class="flex items-center gap-1.5 flex-wrap mb-1">
-                    <span v-if="src['gl:sourceType']" class="badge text-[10px]"
-                      :class="src['gl:sourceType'] === 'authoritative' ? 'badge-purple' : 'badge-blue'">
-                      {{ src['gl:sourceType'] }}
-                    </span>
-                    <span v-if="src['gl:sourceStatus']" class="badge badge-gray text-[10px]">{{ src['gl:sourceStatus'] }}</span>
+                    <span v-if="src.type" class="badge text-[10px]" :class="sourceTypeInfo(src.type).color" :title="sourceTypeInfo(src.type).definition ?? ''">{{ sourceTypeInfo(src.type).label }}</span>
+                    <span v-if="src.status" class="badge text-[10px]" :title="sourceStatusInfo(src.status).definition ?? ''" :class="sourceStatusInfo(src.status).color">{{ sourceStatusInfo(src.status).label }}</span>
                   </div>
                   <div class="text-ink-700">
-                    <span v-if="src['gl:origin']?.['gl:ref']" class="font-medium"
-                      :class="src['gl:sourceType'] === 'authoritative' ? 'text-ink-900' : ''"
-                    >{{ src['gl:origin']['gl:ref'] }}</span>
-                    <span v-if="src['gl:origin']?.['gl:clause']">, {{ src['gl:origin']['gl:clause'] }}</span>
-                    <a v-if="src['gl:origin']?.['gl:link']" :href="src['gl:origin']['gl:link']" target="_blank" class="concept-link ml-1">[link]</a>
+                    <CitationDisplay v-if="src.origin" :citation="src.origin" />
+                    <span v-if="!src.origin && src.modification" class="text-ink-400">{{ src.modification }}</span>
                   </div>
-                  <div v-if="src['gl:modification']" class="text-xs text-ink-300 mt-1">{{ src['gl:modification'] }}</div>
+                  <div v-if="src.modification" class="text-xs text-ink-300 mt-1">{{ src.modification }}</div>
                 </div>
+              </div>
+
+              <!-- Ontological metadata -->
+              <div v-if="lc.classification || lc.reviewType || lc.release || lc.lineageSourceSimilarity != null || lc.lcScript || lc.lcSystem" class="border-t border-ink-100/60 pt-2 mt-2">
+                <div class="text-[10px] uppercase tracking-wide text-ink-300 font-medium mb-1.5">Ontological metadata</div>
+                <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                  <template v-if="lc.classification">
+                    <dt class="text-ink-300">Classification</dt>
+                    <dd class="text-ink-700">{{ lc.classification }}</dd>
+                  </template>
+                  <template v-if="lc.reviewType">
+                    <dt class="text-ink-300">Review type</dt>
+                    <dd class="text-ink-700">{{ lc.reviewType }}</dd>
+                  </template>
+                  <template v-if="lc.release">
+                    <dt class="text-ink-300">Release</dt>
+                    <dd class="text-ink-700">{{ lc.release }}</dd>
+                  </template>
+                  <template v-if="lc.lineageSourceSimilarity != null">
+                    <dt class="text-ink-300">Lineage similarity</dt>
+                    <dd class="text-ink-700">{{ lc.lineageSourceSimilarity }}%</dd>
+                  </template>
+                  <template v-if="lc.lcScript">
+                    <dt class="text-ink-300">Script</dt>
+                    <dd class="text-ink-700 font-mono">{{ lc.lcScript }}</dd>
+                  </template>
+                  <template v-if="lc.lcSystem">
+                    <dt class="text-ink-300">Conversion system</dt>
+                    <dd class="text-ink-700 font-mono">{{ lc.lcSystem }}</dd>
+                  </template>
+                </dl>
               </div>
             </div>
           </div>
+
+          <!-- Non-verbal reps (concept-level) -->
+          <NonVerbalRepDisplay v-if="nonVerbalReps.length" :reps="nonVerbalReps" />
         </div>
 
         <!-- Right sidebar -->
@@ -481,29 +641,28 @@ const conceptDomains = computed(() => {
           <div v-if="outgoingEdges.length || incomingEdges.length" class="card p-5">
             <div class="section-label">Relations</div>
             <div v-if="outgoingEdges.length" class="mt-3">
-              <div class="text-xs text-ink-300 mb-2">References ({{ outgoingEdges.length }})</div>
-              <div class="space-y-1 max-h-48 overflow-y-auto">
+              <div class="text-xs text-ink-300 mb-2">Outgoing ({{ outgoingEdges.length }})</div>
+              <div class="space-y-1 max-h-64 overflow-y-auto">
                 <button
                   v-for="edge in outgoingEdges"
-                  :key="edge.target"
+                  :key="edge.target + edge.type"
                   @click="navigateEdge(edge)"
                   :title="edgeTooltip(edge.target)"
                   class="text-sm concept-link block truncate w-full text-left flex items-center gap-1.5"
                   :class="isLocalRef(edge.target) ? '' : 'xref-external'"
                 >
-                  {{ edgeConceptId(edge.target) }}
+                  <span class="badge text-[9px] flex-shrink-0" :class="categorizeRelationship(edge.type).color">{{ relationshipLabel(edge.type) }}</span>
+                  {{ edge.label || edgeConceptId(edge.target) }}
                   <span v-if="edgeDatasetBadge(edge.target)" class="badge badge-gray text-[9px] flex-shrink-0 truncate max-w-[100px]">{{ edgeDatasetBadge(edge.target)!.title }}</span>
-                  <span v-if="isLocalRef(edge.target)" class="text-[9px] text-ink-200 flex-shrink-0">local</span>
-                  <span v-else class="text-[9px] text-amber-500 flex-shrink-0">external</span>
                 </button>
               </div>
             </div>
             <div v-if="incomingEdges.length" class="mt-3 pt-3 border-t border-ink-100/60">
-              <div class="text-xs text-ink-300 mb-2">Referenced by ({{ incomingEdges.length }})</div>
+              <div class="text-xs text-ink-300 mb-2">Incoming ({{ incomingEdges.length }})</div>
               <div class="space-y-1 max-h-48 overflow-y-auto">
                 <button
                   v-for="edge in incomingEdges"
-                  :key="edge.source"
+                  :key="edge.source + edge.type"
                   @click="navigateEdge(edge)"
                   :title="edgeTooltip(edge.source)"
                   class="text-sm concept-link block truncate w-full text-left flex items-center gap-1.5"
@@ -511,8 +670,6 @@ const conceptDomains = computed(() => {
                 >
                   {{ edgeConceptId(edge.source) }}
                   <span v-if="edgeDatasetBadge(edge.source)" class="badge badge-gray text-[9px] flex-shrink-0 truncate max-w-[100px]">{{ edgeDatasetBadge(edge.source)!.title }}</span>
-                  <span v-if="isLocalRef(edge.source)" class="text-[9px] text-ink-200 flex-shrink-0">local</span>
-                  <span v-else class="text-[9px] text-amber-500 flex-shrink-0">external</span>
                 </button>
               </div>
             </div>
@@ -525,9 +682,38 @@ const conceptDomains = computed(() => {
               <div v-for="domain in conceptDomains" :key="domain.slug" class="flex items-center gap-1.5 text-sm">
                 <span class="w-2 h-1.5 rounded inline-block flex-shrink-0" style="background: #8b5cf6;"></span>
                 <span class="font-medium text-ink-700">{{ domain.label }}</span>
-                <span v-if="domain.langs.length > 1" class="text-[10px] text-ink-300 ml-1">
+                <span v-if="domain.conceptId" class="text-[10px] text-ink-300 font-mono">{{ domain.conceptId }}</span>
+                <span v-if="domain.langs.length > 0" class="text-[10px] text-ink-300 ml-1">
                   ({{ domain.langs.map(l => l.toUpperCase()).join(', ') }})
                 </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Managed concept dates -->
+          <div v-if="conceptDates.length" class="card p-5">
+            <div class="section-label">Lifecycle dates</div>
+            <dl class="mt-3 space-y-1.5 text-xs">
+              <div v-for="(d, i) in conceptDates" :key="i" class="flex gap-2">
+                <dt class="text-ink-300 min-w-[70px]">{{ d.type }}</dt>
+                <dd class="text-ink-700">{{ d.date }}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <!-- Managed concept sources -->
+          <div v-if="conceptSources.length" class="card p-5">
+            <div class="section-label">Concept sources</div>
+            <div class="space-y-2 mt-3">
+              <div v-for="(src, i) in conceptSources" :key="i" class="text-xs">
+                <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
+                  <span v-if="src.type" class="badge text-[10px]" :class="sourceTypeInfo(src.type).color" :title="sourceTypeInfo(src.type).definition ?? ''">{{ sourceTypeInfo(src.type).label }}</span>
+                  <span v-if="src.status" class="badge text-[10px]" :title="sourceStatusInfo(src.status).definition ?? ''" :class="sourceStatusInfo(src.status).color">{{ sourceStatusInfo(src.status).label }}</span>
+                </div>
+                <div class="text-ink-700">
+                  <CitationDisplay v-if="src.origin" :citation="src.origin" />
+                </div>
+                <div v-if="src.modification" class="text-ink-300 mt-0.5">{{ src.modification }}</div>
               </div>
             </div>
           </div>
@@ -554,11 +740,11 @@ const conceptDomains = computed(() => {
                 <div v-if="getDesignationsForLang(lang).length > 1" class="ml-5 mt-0.5 flex flex-wrap gap-1">
                   <span
                     v-for="d in getDesignationsForLang(lang)"
-                    :key="d['gl:term']"
-                    :class="d['@type'] === 'gl:Symbol' ? 'badge-purple' : 'badge-gray'"
+                    :key="d.designation"
+                    :class="d.type === 'symbol' ? 'badge-purple' : 'badge-gray'"
                     class="badge text-[10px]"
                   >
-                    {{ d['gl:term'] }}
+                    {{ d.designation }}
                   </span>
                 </div>
               </button>
@@ -569,18 +755,24 @@ const conceptDomains = computed(() => {
           <div class="card p-5">
             <div class="section-label">Metadata</div>
             <dl class="space-y-2 text-xs mt-3">
-              <div v-if="engConcept?.['gl:reviewDate']">
-                <dt class="text-ink-300">Review Date</dt>
-                <dd class="text-ink-700 mt-0.5">{{ engConcept['gl:reviewDate'].slice(0, 10) }}</dd>
+              <div v-if="managedStatus">
+                <dt class="text-ink-300">Status</dt>
+                <dd class="mt-0.5">
+                  <span class="badge text-[10px]" :class="conceptStatusColor(managedStatus)" :title="conceptStatusDefinition(managedStatus) ?? ''">{{ conceptStatusLabel(managedStatus) }}</span>
+                </dd>
               </div>
-              <div v-if="engConcept?.['gl:reviewDecisionEvent']">
+              <div v-if="engConcept?.reviewDate">
+                <dt class="text-ink-300">Review Date</dt>
+                <dd class="text-ink-700 mt-0.5">{{ engConcept.reviewDate.slice(0, 10) }}</dd>
+              </div>
+              <div v-if="engConcept?.reviewDecisionEvent">
                 <dt class="text-ink-300">Decision</dt>
-                <dd class="text-ink-700 mt-0.5">{{ engConcept['gl:reviewDecisionEvent'] }}</dd>
+                <dd class="text-ink-700 mt-0.5">{{ engConcept.reviewDecisionEvent }}</dd>
               </div>
               <div>
                 <dt class="text-ink-300">URI</dt>
                 <dd class="font-mono text-ink-600 break-all mt-0.5 text-[11px] flex items-start gap-1.5">
-                  <span class="break-all">{{ concept['@id'] }}</span>
+                  <span class="break-all">{{ conceptUriValue }}</span>
                   <button @click="copyUri" class="flex-shrink-0 p-0.5 rounded text-ink-300 hover:text-ink-600 hover:bg-ink-50 transition-colors" :title="uriCopied ? 'Copied!' : 'Copy URI'" :aria-label="uriCopied ? 'URI copied' : 'Copy URI to clipboard'">
                     <svg v-if="!uriCopied" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10a2 2 0 01-2-2v-1m6 4v-3a2 2 0 00-2-2H8"/></svg>
                     <svg v-else class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
@@ -600,9 +792,18 @@ const conceptDomains = computed(() => {
     </div>
 
     <!-- Tab: History -->
+    <!-- Tab: RDF -->
+    <div v-if="activeTab === 'rdf'" role="tabpanel">
+      <ConceptRdfView
+        :concept="concept"
+        :register-id="registerId"
+        :concept-uri-value="conceptUriValue"
+      />
+    </div>
+
     <div v-if="activeTab === 'history'" role="tabpanel">
       <ConceptTimeline
-        :localized-concepts="concept['gl:localizedConcept'] || {}"
+        :concept="concept"
         :language-order="manifest.languageOrder"
         v-model:active-lang="activeHistoryLang"
       />

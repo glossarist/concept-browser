@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import ConceptView from '../views/ConceptView.vue';
 import { useVocabularyStore } from '../stores/vocabulary';
+import { conceptFromJson } from '../adapters/model-bridge';
 import { createTestRouter, setupPinia, makeManifest, makeAdapterStub } from './test-helpers';
 
 describe('ConceptView', () => {
@@ -52,10 +53,22 @@ describe('ConceptView', () => {
   });
 
   it('renders ConceptDetail when concept loads', async () => {
-    const concept = {
+    const concept = conceptFromJson({
       '@id': 'https://glossarist.org/test/concept/1',
       '@type': 'gl:Concept',
-    };
+      'gl:identifier': '1',
+      'gl:localizedConcept': {
+        eng: {
+          '@type': 'gl:LocalizedConcept',
+          'gl:languageCode': 'eng',
+          'gl:entryStatus': 'valid',
+          'gl:designation': [
+            { '@type': 'gl:Expression', 'gl:term': 'test', 'gl:normativeStatus': 'preferred' },
+          ],
+          'gl:definition': [{ '@type': 'gl:DetailedDefinition', 'gl:content': 'A test concept.' }],
+        },
+      },
+    });
     const store = useVocabularyStore();
     store.datasets.set('test', makeAdapterStub({ fetchConcept: () => Promise.resolve(concept) }));
 

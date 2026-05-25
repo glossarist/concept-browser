@@ -2,14 +2,16 @@ import { defineStore } from 'pinia';
 import { ref, computed, toRaw } from 'vue';
 import { getFactory } from '../adapters/factory';
 import type { DatasetAdapter } from '../adapters/DatasetAdapter';
-import type { Manifest, ConceptDocument, SearchHit, GraphEdge } from '../adapters/types';
+import type { Manifest, SearchHit, GraphEdge } from '../adapters/types';
+import type { Concept } from 'glossarist';
+import { conceptUri } from '../adapters/model-bridge';
 import { GraphEngine } from '../graph';
 
 export const useVocabularyStore = defineStore('vocabulary', () => {
   // State
   const datasets = ref<Map<string, DatasetAdapter>>(new Map());
   const manifests = ref<Map<string, Manifest>>(new Map());
-  const currentConcept = ref<ConceptDocument | null>(null);
+  const currentConcept = ref<Concept | null>(null);
   const currentRegisterId = ref<string>('');
   const currentConceptId = ref<string>('');
   const loading = ref(false);
@@ -97,7 +99,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
           uri: factory.router.buildUri(registerId, entry.id),
           register: registerId,
           conceptId: entry.id,
-          designations: entry.eng ? { eng: entry.eng } : {},
+          designations: entry.designations,
           status: entry.status,
           loaded: false,
         });
@@ -121,7 +123,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
           uri: factory.router.buildUri(registerId, entry.id),
           register: registerId,
           conceptId: entry.id,
-          designations: entry.eng ? { eng: entry.eng } : {},
+          designations: entry.designations,
           status: entry.status,
           loaded: false,
         });
@@ -218,26 +220,30 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
       // Extract and register edges for this specific concept
       const edges = adapter.extractEdges(concept);
       const domainEdges = adapter.extractDomainEdges(concept);
-      const uri = concept['@id'];
+      const uriBase = adapter.manifest?.uriBase || 'https://glossarist.org';
+      const uri = conceptUri(concept, registerId, uriBase);
 
       // Update graph node with full data
+      const designations: Record<string, string> = {};
+      const indexEntry = adapter.getIndexEntry(conceptId);
+      if (indexEntry) {
+        for (const [lang, term] of Object.entries(indexEntry.designations)) {
+          if (term) designations[lang] = term;
+        }
+      }
+      for (const lang of concept.languages) {
+        const lc = concept.localization(lang);
+        if (lc?.primaryDesignation) {
+          designations[lang] = lc.primaryDesignation;
+        }
+      }
+
       graph.value.addNode({
         uri,
         register: registerId,
         conceptId,
-        designations: (() => {
-          const d: Record<string, string> = {};
-          const entry = adapter.getIndexEntry(conceptId);
-          if (entry?.eng) d.eng = entry.eng;
-          for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
-            const preferred = lc['gl:designation']?.find(
-              (dd: any) => dd['gl:normativeStatus'] === 'preferred'
-            );
-            if (preferred?.['gl:term']) d[lang] = preferred['gl:term'];
-          }
-          return d;
-        })(),
-        status: adapter.getIndexEntry(conceptId)?.status ?? 'unknown',
+        designations,
+        status: indexEntry?.status ?? 'unknown',
         loaded: true,
       });
 
@@ -289,15 +295,30 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
     }
   }
 
-  async function searchAcrossDatasets(query: string, lang: string = 'eng'): Promise<SearchHit[]> {
-    const hits: SearchHit[] = [];
+  async function searchAcrossDatasets(query: string): Promise<SearchHit[]> {
+    const allHits: SearchHit[] = [];
     for (const adapter of datasets.value.values()) {
       if (adapter.index || adapter.manifest) {
         await adapter.ensureAllChunksLoaded();
-        hits.push(...adapter.search(query, lang));
+        allHits.push(...adapter.search(query));
       }
     }
-    return hits;
+
+    // Deduplicate: keep the best hit per (registerId, conceptId)
+    const best = new Map<string, SearchHit>();
+    for (const hit of allHits) {
+      const key = `${hit.registerId}:${hit.conceptId}`;
+      const existing = best.get(key);
+      if (!existing) {
+        best.set(key, hit);
+      } else {
+        // Prefer designation match over id match, then prefer shorter language code (eng first)
+        if (hit.matchField === 'designation' && existing.matchField === 'id') {
+          best.set(key, hit);
+        }
+      }
+    }
+    return [...best.values()];
   }
 
   async function getRandomConcept(): Promise<{ registerId: string; conceptId: string } | null> {

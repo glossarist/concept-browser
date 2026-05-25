@@ -8,29 +8,36 @@ interface PageData {
 }
 
 const route = useRoute();
-const slug = computed(() => {
-  if (route.params.slug) return route.params.slug as string;
+const registerId = computed(() => route.params.registerId as string | undefined);
+const pageName = computed(() => {
   if (route.params.page) return route.params.page as string;
-  if (route.name === 'about' || route.name === 'about-global') return 'about';
-  const path = route.path.replace(/^\//, '').replace(/\/$/, '');
-  const lastSegment = path.split('/').pop() || '';
-  return lastSegment;
+  if (route.params.slug) return route.params.slug as string;
+  return 'about';
 });
+
 const data = ref<PageData | null>(null);
 const loading = ref(true);
 const notFound = ref(false);
 
 onMounted(async () => {
-  try {
-    const resp = await fetch(`/pages/${slug.value}.json`);
-    if (resp.ok) {
-      data.value = await resp.json();
-    } else {
-      notFound.value = true;
-    }
-  } catch {
-    notFound.value = true;
+  const page = pageName.value;
+  const dsId = registerId.value;
+
+  const urls = dsId
+    ? [`/pages/${dsId}-${page}.json`, `/pages/${page}.json`]
+    : [`/pages/${page}.json`];
+
+  for (const url of urls) {
+    try {
+      const resp = await fetch(url);
+      if (resp.ok) {
+        data.value = await resp.json();
+        loading.value = false;
+        return;
+      }
+    } catch { /* try next */ }
   }
+  notFound.value = true;
   loading.value = false;
 });
 </script>
@@ -39,8 +46,12 @@ onMounted(async () => {
   <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400 mb-6">
       <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">Home</router-link>
+      <template v-if="registerId">
+        <span class="text-ink-200">/</span>
+        <router-link :to="{ name: 'dataset', params: { registerId } }" class="hover:text-ink-700 transition-colors">{{ registerId }}</router-link>
+      </template>
       <span class="text-ink-200">/</span>
-      <span class="text-ink-700">{{ data?.title || slug }}</span>
+      <span class="text-ink-700">{{ data?.title || pageName }}</span>
     </nav>
 
     <template v-if="loading">
@@ -55,7 +66,7 @@ onMounted(async () => {
     <template v-else-if="notFound">
       <div class="card p-8 text-center">
         <h1 class="font-serif text-2xl text-ink-800 mb-2">Page Not Found</h1>
-        <p class="text-ink-500 mb-4">The page "{{ slug }}" does not exist.</p>
+        <p class="text-ink-500 mb-4">The page "{{ pageName }}" does not exist.</p>
         <router-link :to="{ name: 'home' }" class="btn-primary">Go Home</router-link>
       </div>
     </template>

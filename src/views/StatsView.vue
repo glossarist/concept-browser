@@ -23,11 +23,28 @@ const stats = computed(() => {
   const m = manifest.value;
   if (!m) return { langs: [], total: 0 };
 
+  // Scan the index for actual language coverage
+  const adapter = store.datasets.get(resolvedId.value);
+  const conceptCounts: Record<string, number> = {};
+
+  if (adapter) {
+    const concepts = adapter.getConcepts();
+    for (const c of concepts) {
+      if (!c) continue;
+      for (const lang of Object.keys(c.designations)) {
+        conceptCounts[lang] = (conceptCounts[lang] || 0) + 1;
+      }
+    }
+  }
+
+  // Merge with manifest languageStats (for definition counts)
   const ls = m.languageStats || {};
-  const langs: LangStat[] = m.languages.map(lang => ({
+  const allLangs = new Set([...Object.keys(conceptCounts), ...m.languages]);
+
+  const langs: LangStat[] = [...allLangs].map(lang => ({
     lang,
-    terms: ls[lang]?.terms ?? 0,
-    definitions: ls[lang]?.definitions ?? 0,
+    terms: conceptCounts[lang] ?? ls[lang]?.terms ?? 0,
+    definitions: ls[lang]?.definitions ?? conceptCounts[lang] ?? 0,
   }));
 
   // Sort: eng first, then by term count descending
@@ -41,6 +58,13 @@ const stats = computed(() => {
 });
 
 const maxTerms = computed(() => Math.max(...stats.value.langs.map(l => l.terms), 1));
+
+function coverageColor(ratio: number): string {
+  if (ratio >= 0.8) return 'bg-emerald-500';
+  if (ratio >= 0.5) return 'bg-blue-500';
+  if (ratio >= 0.25) return 'bg-amber-500';
+  return 'bg-red-400';
+}
 </script>
 
 <template>
@@ -80,11 +104,11 @@ const maxTerms = computed(() => Math.max(...stats.value.langs.map(l => l.terms),
       <div class="card -mx-4 sm:mx-0 overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
-            <tr class="border-b border-ink-100/60 bg-ink-50/50">
-              <th class="text-left px-5 py-3 text-ink-500 font-medium">Language</th>
-              <th class="text-right px-5 py-3 text-ink-500 font-medium">Terms</th>
-              <th class="text-right px-5 py-3 text-ink-500 font-medium">Definitions</th>
-              <th class="px-5 py-3 text-ink-500 font-medium w-40"></th>
+            <tr class="border-b border-ink-100/60 bg-ink-50">
+              <th class="text-left px-5 py-3 text-ink-600 font-medium text-xs uppercase tracking-wide">Language</th>
+              <th class="text-right px-5 py-3 text-ink-600 font-medium text-xs uppercase tracking-wide">Terms</th>
+              <th class="text-right px-5 py-3 text-ink-600 font-medium text-xs uppercase tracking-wide">Definitions</th>
+              <th class="px-5 py-3 text-ink-600 font-medium w-40"></th>
             </tr>
           </thead>
           <tbody>
@@ -103,10 +127,8 @@ const maxTerms = computed(() => Math.max(...stats.value.langs.map(l => l.terms),
                   <div class="h-2 rounded-full bg-ink-50 overflow-hidden flex-1">
                     <div
                       class="h-full rounded-full transition-all duration-500"
-                      :style="{
-                        width: (s.terms / maxTerms * 100) + '%',
-                        backgroundColor: getColor(resolvedId),
-                      }"
+                      :class="coverageColor(s.terms / maxTerms)"
+                      :style="{ width: (s.terms / maxTerms * 100) + '%' }"
                     ></div>
                   </div>
                   <span class="text-xs text-ink-300 w-10 text-right tabular-nums">{{ Math.round(s.terms / maxTerms * 100) }}%</span>

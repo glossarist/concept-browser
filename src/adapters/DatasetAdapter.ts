@@ -3,15 +3,27 @@ import type {
   ConceptIndex,
   ConceptSummary,
   ConceptEntry,
-  ConceptDocument,
   SearchHit,
   GraphEdge,
   GraphNode,
 } from './types';
+import type { Concept, LocalizedConcept, Designation } from 'glossarist';
+import { conceptFromJson, conceptUri } from './model-bridge';
 import { UriRouter } from './UriRouter';
 
 function slugify(text: string): string {
   return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s/]+/g, '-');
+}
+
+function resolveRefTarget(rc: any, uriBase: string, registerId: string): string {
+  if (!rc.ref) return '';
+  const ref = rc.ref;
+  if (ref.id) {
+    const reg = (ref.source && !ref.source.startsWith('http')) ? ref.source : registerId;
+    return `${uriBase}/${reg}/concept/${ref.id}`;
+  }
+  if (ref.source && ref.source.startsWith('http')) return ref.source;
+  return ref.source || '';
 }
 
 export class DatasetAdapter {
@@ -21,7 +33,7 @@ export class DatasetAdapter {
   manifest: Manifest | null = null;
   index: ConceptIndex | null = null;
 
-  private conceptCache = new Map<string, ConceptDocument>();
+  private conceptCache = new Map<string, Concept>();
   private summaryMap = new Map<string, ConceptSummary>();
   private loadedChunks = new Set<number>();
   private indexMeta: { conceptCount: number; chunkSize: number; chunks: { file: string; count: number }[] } | null = null;
@@ -48,9 +60,41 @@ export class DatasetAdapter {
 
     const resp = await fetch(`${this.baseUrl}/index.json`);
     if (!resp.ok) throw new Error(`Failed to load index for ${this.registerId}: ${resp.status}`);
-    this.index = (await resp.json()) as ConceptIndex;
+    const data = await resp.json();
+
+    // Handle both old format (with eng/status fields) and new format (with designations map)
+    this.index = this.normalizeIndex(data);
     this.buildSummaryIndex();
     return this.index;
+  }
+
+  private normalizeIndex(data: any): ConceptIndex {
+    const concepts: ConceptSummary[] = (data.concepts || []).map((c: any) => {
+      if (c.designations && typeof c.designations === 'object') {
+        return {
+          id: c.id,
+          designations: c.designations,
+          eng: c.eng || c.designations.eng || Object.values(c.designations)[0] || '',
+          status: c.status,
+        };
+      }
+      // Legacy format: c.eng is a string, no designations map
+      return {
+        id: c.id,
+        designations: c.eng ? { eng: c.eng } : {},
+        eng: c.eng || '',
+        status: c.status,
+      };
+    });
+
+    return {
+      registerId: data.registerId,
+      schemaVersion: data.schemaVersion,
+      conceptCount: data.conceptCount,
+      chunkSize: data.chunkSize,
+      chunks: data.chunks || [],
+      concepts,
+    };
   }
 
   private buildSummaryIndex() {
@@ -73,7 +117,8 @@ export class DatasetAdapter {
     } else {
       const resp = await fetch(`${this.baseUrl}/index.json`);
       if (!resp.ok) throw new Error(`Failed to load index for ${this.registerId}`);
-      this.index = (await resp.json()) as ConceptIndex;
+      const data = await resp.json();
+      this.index = this.normalizeIndex(data);
       this.buildSummaryIndex();
       return this.index;
     }
@@ -84,7 +129,6 @@ export class DatasetAdapter {
       chunks: meta.chunks,
     };
 
-    // Pre-allocate array so positions match concept order — undefined = not loaded yet
     this.index = {
       registerId: meta.registerId,
       schemaVersion: meta.schemaVersion,
@@ -95,7 +139,6 @@ export class DatasetAdapter {
     };
 
     await this.loadChunkAsSummaries(0);
-
     return this.index;
   }
 
@@ -123,9 +166,11 @@ export class DatasetAdapter {
 
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i];
+      const designations = entry.designations || (entry.groups ? {} : { eng: '' });
       const summary: ConceptSummary = {
         id: entry.id,
-        eng: entry.designations?.eng || Object.values(entry.designations || {})[0] || '',
+        designations,
+        eng: designations.eng || Object.values(designations)[0] || '',
         status: entry.status,
       };
       this.index!.concepts[startPos + i] = summary;
@@ -151,7 +196,6 @@ export class DatasetAdapter {
     if (!this.indexMeta) return;
     const { chunks } = this.indexMeta;
     const toLoad = chunks.map((_, i) => i).filter(i => !this.loadedChunks.has(i));
-    // Load in parallel batches of 5 to avoid overwhelming the browser
     for (let i = 0; i < toLoad.length; i += 5) {
       const batch = toLoad.slice(i, i + 5);
       await Promise.all(batch.map(c => this.loadChunkAsSummaries(c)));
@@ -167,15 +211,16 @@ export class DatasetAdapter {
     return true;
   }
 
-  async fetchConcept(conceptId: string): Promise<ConceptDocument> {
+  async fetchConcept(conceptId: string): Promise<Concept> {
     const cached = this.conceptCache.get(conceptId);
     if (cached) return cached;
 
     const resp = await fetch(`${this.baseUrl}/concepts/${conceptId}.json`);
     if (!resp.ok) throw new Error(`Concept ${conceptId} not found in ${this.registerId}`);
-    const doc = (await resp.json()) as ConceptDocument;
-    this.conceptCache.set(conceptId, doc);
-    return doc;
+    const json = await resp.json();
+    const concept = conceptFromJson(json);
+    this.conceptCache.set(conceptId, concept);
+    return concept;
   }
 
   getIndexEntry(conceptId: string): ConceptSummary | undefined {
@@ -199,12 +244,10 @@ export class DatasetAdapter {
     if (!concepts) return { prev: null, next: null };
     const idx = this.getConceptPosition(conceptId);
     if (idx === -1) return { prev: null, next: null };
-    // Scan backward for prev (skip undefined)
     let prev: string | null = null;
     for (let i = idx - 1; i >= 0; i--) {
       if (concepts[i]) { prev = concepts[i]!.id; break; }
     }
-    // Scan forward for next (skip undefined)
     let next: string | null = null;
     for (let i = idx + 1; i < concepts.length; i++) {
       if (concepts[i]) { next = concepts[i]!.id; break; }
@@ -212,54 +255,92 @@ export class DatasetAdapter {
     return { prev, next };
   }
 
-  search(query: string, lang: string = 'eng'): SearchHit[] {
+  search(query: string): SearchHit[] {
     const q = query.toLowerCase();
-    const hits: SearchHit[] = [];
     const arr = this.index?.concepts;
-    if (!arr) return hits;
+    if (!arr) return [];
+
+    type ScoredHit = SearchHit & { _score: number };
+    const scored: ScoredHit[] = [];
 
     for (const entry of arr) {
       if (!entry) continue;
-      const term = entry.eng || '';
-      const termMatch = term.toLowerCase().includes(q);
-      const idMatch = entry.id.toLowerCase().includes(q);
-      if (termMatch || idMatch) {
-        const matchField = termMatch ? 'designation' as const : 'id' as const;
-        let snippet: string | undefined;
-        if (!termMatch && idMatch) {
-          snippet = `ID: ${entry.id}`;
-        }
-        hits.push({
+
+      // ID search — exact match highest, then starts with, then contains
+      const idLow = entry.id.toLowerCase();
+      if (idLow.includes(q)) {
+        const score = idLow === q ? 4 : idLow.startsWith(q) ? 3 : 2;
+        scored.push({
           conceptId: entry.id,
           registerId: this.registerId,
-          designation: term,
-          language: lang,
-          matchField,
-          snippet,
+          designation: entry.eng || '',
+          language: '',
+          matchField: 'id',
+          snippet: `ID: ${entry.id}`,
+          _score: score,
+        });
+        continue;
+      }
+
+      // Multi-language designation search
+      for (const [language, term] of Object.entries(entry.designations)) {
+        if (!term) continue;
+        const tLow = term.toLowerCase();
+        if (tLow.includes(q)) {
+          const score = tLow === q ? 4 : tLow.startsWith(q) ? 3 : 1;
+          scored.push({
+            conceptId: entry.id,
+            registerId: this.registerId,
+            designation: term,
+            language,
+            matchField: 'designation',
+            _score: score,
+          });
+        }
+      }
+    }
+
+    // Sort by score descending, then alphabetically
+    scored.sort((a, b) => b._score - a._score || a.designation.localeCompare(b.designation));
+    return scored;
+  }
+
+  extractEdges(concept: Concept): GraphEdge[] {
+    const edges: GraphEdge[] = [];
+    const uriBase = this.manifest?.uriBase || 'https://glossarist.org';
+    const sourceUri = concept.uri || `${uriBase}/${this.registerId}/concept/${concept.id}`;
+
+    // Managed concept level relationships
+    for (const rc of concept.relatedConcepts) {
+      const target = resolveRefTarget(rc, uriBase, this.registerId);
+      if (target && target !== sourceUri) {
+        const parsed = UriRouter.parseUri(target);
+        edges.push({
+          source: sourceUri,
+          target,
+          type: rc.type || 'references',
+          label: rc.content || undefined,
+          register: parsed?.registerId ?? this.registerId,
         });
       }
     }
-    return hits;
-  }
 
-  extractEdges(concept: ConceptDocument): GraphEdge[] {
-    const edges: GraphEdge[] = [];
-    const sourceUri = concept['@id'];
-
-    for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
-      if (lc['gl:references']) {
-        for (const ref of lc['gl:references']) {
-          if (ref['@id'] && ref['@id'] !== sourceUri) {
-            const parsed = UriRouter.parseUri(ref['@id']);
-            edges.push({
-              source: sourceUri,
-              target: ref['@id'],
-              type: 'references',
-              label: ref['gl:term'],
-              register: parsed?.registerId ?? this.registerId,
-              lang,
-            });
-          }
+    // Per-localization references (from inline extraction in generate-data)
+    for (const lang of concept.languages) {
+      const lc = concept.localization(lang);
+      if (!lc) continue;
+      for (const rc of lc.related) {
+        const target = resolveRefTarget(rc, uriBase, this.registerId);
+        if (target && target !== sourceUri) {
+          const parsed = UriRouter.parseUri(target);
+          edges.push({
+            source: sourceUri,
+            target,
+            type: rc.type || 'references',
+            label: rc.content || undefined,
+            register: parsed?.registerId ?? this.registerId,
+            lang,
+          });
         }
       }
     }
@@ -267,17 +348,19 @@ export class DatasetAdapter {
     return edges;
   }
 
-  extractDomainEdges(concept: ConceptDocument): GraphEdge[] {
+  extractDomainEdges(concept: Concept): GraphEdge[] {
     const edges: GraphEdge[] = [];
-    const sourceUri = concept['@id'];
-    for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
-      const domain = lc['gl:domain'];
-      if (domain) {
+    const uriBase = this.manifest?.uriBase || 'https://glossarist.org';
+    const sourceUri = concept.uri || `${uriBase}/${this.registerId}/concept/${concept.id}`;
+
+    for (const lang of concept.languages) {
+      const lc = concept.localization(lang);
+      if (lc?.domain) {
         edges.push({
           source: sourceUri,
-          target: `https://glossarist.org/${this.registerId}/domain/${slugify(domain)}`,
+          target: `${uriBase}/${this.registerId}/domain/${slugify(lc.domain)}`,
           type: 'domain',
-          label: domain,
+          label: lc.domain,
           register: this.registerId,
           lang,
         });

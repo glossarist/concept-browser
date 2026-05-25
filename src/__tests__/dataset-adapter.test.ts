@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DatasetAdapter } from '../adapters/DatasetAdapter';
+import { conceptFromJson } from '../adapters/model-bridge';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -98,13 +99,13 @@ describe('DatasetAdapter', () => {
       mockFetch.mockReturnValue(mockJsonResponse(concept));
 
       const result = await adapter.fetchConcept('103-01-02');
-      expect(result['gl:identifier']).toBe('103-01-02');
+      expect(result.id).toBe('103-01-02');
       expect(mockFetch).toHaveBeenCalledWith('/data/test/concepts/103-01-02.json');
 
       // Second call should use cache
       mockFetch.mockReset();
       const cached = await adapter.fetchConcept('103-01-02');
-      expect(cached['gl:identifier']).toBe('103-01-02');
+      expect(cached.id).toBe('103-01-02');
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
@@ -195,12 +196,56 @@ describe('DatasetAdapter', () => {
       const hits = adapter.search('xyznotfound');
       expect(hits.length).toBe(0);
     });
+
+    it('ranks exact matches above starts-with above contains', async () => {
+      const index = {
+        registerId: 'test',
+        schemaVersion: '1.0.0',
+        conceptCount: 3,
+        chunkSize: 500,
+        chunks: [],
+        concepts: [
+          { id: '1', designations: { eng: 'mass' }, eng: 'mass', status: 'valid' },
+          { id: '2', designations: { eng: 'mass flow rate' }, eng: 'mass flow rate', status: 'valid' },
+          { id: '3', designations: { eng: 'center of mass' }, eng: 'center of mass', status: 'valid' },
+        ],
+      };
+      mockFetch.mockReturnValue(mockJsonResponse(index));
+      await adapter.loadIndex();
+
+      const hits = adapter.search('mass');
+      // Exact match first, then starts-with, then contains
+      expect(hits[0].conceptId).toBe('1');
+      expect(hits[1].conceptId).toBe('2');
+      expect(hits[2].conceptId).toBe('3');
+    });
+
+    it('ranks ID exact match highest', async () => {
+      const index = {
+        registerId: 'test',
+        schemaVersion: '1.0.0',
+        conceptCount: 2,
+        chunkSize: 500,
+        chunks: [],
+        concepts: [
+          { id: '102-01-01', designations: { eng: 'field' }, eng: 'field', status: 'valid' },
+          { id: '102-01-02', designations: { eng: 'electromagnetic field' }, eng: 'electromagnetic field', status: 'valid' },
+        ],
+      };
+      mockFetch.mockReturnValue(mockJsonResponse(index));
+      await adapter.loadIndex();
+
+      const hits = adapter.search('102-01-01');
+      expect(hits[0].conceptId).toBe('102-01-01');
+      expect(hits[0].matchField).toBe('id');
+    });
   });
 
   describe('extractEdges', () => {
     it('extracts cross-reference edges from gl:references', () => {
-      const concept = {
+      const concept = conceptFromJson({
         '@id': 'https://glossarist.org/test/concept/102-01-01',
+        '@type': 'gl:Concept',
         'gl:localizedConcept': {
           eng: {
             'gl:references': [
@@ -209,9 +254,9 @@ describe('DatasetAdapter', () => {
             ],
           },
         },
-      };
+      });
 
-      const edges = adapter.extractEdges(concept as any);
+      const edges = adapter.extractEdges(concept);
       expect(edges.length).toBe(2);
       expect(edges[0].target).toBe('https://glossarist.org/iev/concept/103-01-02');
       expect(edges[0].type).toBe('references');
@@ -219,8 +264,9 @@ describe('DatasetAdapter', () => {
     });
 
     it('tags reference edges with language', () => {
-      const concept = {
+      const concept = conceptFromJson({
         '@id': 'https://glossarist.org/test/concept/1',
+        '@type': 'gl:Concept',
         'gl:localizedConcept': {
           eng: { 'gl:references': [
             { '@id': 'https://glossarist.org/test/concept/2', 'gl:term': 'other' },
@@ -229,16 +275,17 @@ describe('DatasetAdapter', () => {
             { '@id': 'https://glossarist.org/test/concept/3', 'gl:term': 'autre' },
           ]},
         },
-      };
-      const edges = adapter.extractEdges(concept as any);
+      });
+      const edges = adapter.extractEdges(concept);
       expect(edges.length).toBe(2);
       expect(edges.find(e => e.lang === 'eng')?.target).toContain('/concept/2');
       expect(edges.find(e => e.lang === 'fra')?.target).toContain('/concept/3');
     });
 
     it('skips self-references', () => {
-      const concept = {
+      const concept = conceptFromJson({
         '@id': 'https://glossarist.org/test/concept/102-01-01',
+        '@type': 'gl:Concept',
         'gl:localizedConcept': {
           eng: {
             'gl:references': [
@@ -246,37 +293,40 @@ describe('DatasetAdapter', () => {
             ],
           },
         },
-      };
+      });
 
-      const edges = adapter.extractEdges(concept as any);
+      const edges = adapter.extractEdges(concept);
       expect(edges.length).toBe(0);
     });
 
     it('handles concepts with no references', () => {
-      const concept = {
+      const concept = conceptFromJson({
         '@id': 'https://glossarist.org/test/concept/102-01-01',
+        '@type': 'gl:Concept',
         'gl:localizedConcept': {
           eng: {},
         },
-      };
+      });
 
-      const edges = adapter.extractEdges(concept as any);
+      const edges = adapter.extractEdges(concept);
       expect(edges.length).toBe(0);
     });
 
     it('handles empty localizedConcept', () => {
-      const concept = {
+      const concept = conceptFromJson({
         '@id': 'https://glossarist.org/test/concept/102-01-01',
+        '@type': 'gl:Concept',
         'gl:localizedConcept': {},
-      };
+      });
 
-      const edges = adapter.extractEdges(concept as any);
+      const edges = adapter.extractEdges(concept);
       expect(edges.length).toBe(0);
     });
 
     it('collects references from multiple languages without duplication', () => {
-      const concept = {
+      const concept = conceptFromJson({
         '@id': 'https://glossarist.org/test/concept/102-01-01',
+        '@type': 'gl:Concept',
         'gl:localizedConcept': {
           eng: {
             'gl:references': [
@@ -289,16 +339,17 @@ describe('DatasetAdapter', () => {
             ],
           },
         },
-      };
+      });
 
       // Same target from two languages — both edges are kept (different labels)
-      const edges = adapter.extractEdges(concept as any);
+      const edges = adapter.extractEdges(concept);
       expect(edges.length).toBe(2);
     });
 
     it('extracts inline IEV cross-references from gl:references', () => {
-      const concept = {
+      const concept = conceptFromJson({
         '@id': 'https://glossarist.org/test/concept/112-01-01',
+        '@type': 'gl:Concept',
         'gl:localizedConcept': {
           eng: {
             'gl:references': [
@@ -307,9 +358,9 @@ describe('DatasetAdapter', () => {
             ],
           },
         },
-      };
+      });
 
-      const edges = adapter.extractEdges(concept as any);
+      const edges = adapter.extractEdges(concept);
       expect(edges.length).toBe(2);
       expect(edges[0].target).toBe('https://glossarist.org/iev/concept/102-02-18');
       expect(edges[0].label).toBe('scalar');
@@ -318,8 +369,9 @@ describe('DatasetAdapter', () => {
     });
 
     it('extracts inline URN cross-references from gl:references', () => {
-      const concept = {
+      const concept = conceptFromJson({
         '@id': 'https://glossarist.org/test/concept/3.1.1.1',
+        '@type': 'gl:Concept',
         'gl:localizedConcept': {
           eng: {
             'gl:references': [
@@ -327,9 +379,9 @@ describe('DatasetAdapter', () => {
             ],
           },
         },
-      };
+      });
 
-      const edges = adapter.extractEdges(concept as any);
+      const edges = adapter.extractEdges(concept);
       expect(edges.length).toBe(1);
       expect(edges[0].target).toBe('https://glossarist.org/isotc204/concept/3.1.1.6');
       expect(edges[0].label).toBe('entity');
@@ -338,14 +390,15 @@ describe('DatasetAdapter', () => {
 
   describe('extractDomainEdges', () => {
     it('extracts domain edges from gl:domain field per language', () => {
-      const concept = {
+      const concept = conceptFromJson({
         '@id': 'https://glossarist.org/test/concept/3',
+        '@type': 'gl:Concept',
         'gl:localizedConcept': {
           eng: { 'gl:domain': 'geometry' },
           fra: { 'gl:domain': 'géométrie' },
         },
-      };
-      const edges = adapter.extractDomainEdges(concept as any);
+      });
+      const edges = adapter.extractDomainEdges(concept);
       expect(edges.length).toBe(2);
       expect(edges.every(e => e.type === 'domain')).toBe(true);
       expect(edges.find(e => e.lang === 'eng')?.target).toContain('/domain/geometry');
@@ -355,34 +408,37 @@ describe('DatasetAdapter', () => {
     });
 
     it('handles same domain across languages', () => {
-      const concept = {
+      const concept = conceptFromJson({
         '@id': 'https://glossarist.org/test/concept/1',
+        '@type': 'gl:Concept',
         'gl:localizedConcept': {
           eng: { 'gl:domain': 'metadata' },
           fra: { 'gl:domain': 'metadata' },
         },
-      };
-      const edges = adapter.extractDomainEdges(concept as any);
+      });
+      const edges = adapter.extractDomainEdges(concept);
       expect(edges.length).toBe(2);
       expect(edges[0].target).toBe(edges[1].target);
       expect(edges[0].target).toContain('/domain/metadata');
     });
 
     it('skips concepts without gl:domain', () => {
-      const concept = {
+      const concept = conceptFromJson({
         '@id': 'https://glossarist.org/test/concept/1',
+        '@type': 'gl:Concept',
         'gl:localizedConcept': { eng: {} },
-      };
-      const edges = adapter.extractDomainEdges(concept as any);
+      });
+      const edges = adapter.extractDomainEdges(concept);
       expect(edges.length).toBe(0);
     });
 
     it('handles empty localizedConcept', () => {
-      const concept = {
+      const concept = conceptFromJson({
         '@id': 'https://glossarist.org/test/concept/1',
+        '@type': 'gl:Concept',
         'gl:localizedConcept': {},
-      };
-      const edges = adapter.extractDomainEdges(concept as any);
+      });
+      const edges = adapter.extractDomainEdges(concept);
       expect(edges.length).toBe(0);
     });
   });

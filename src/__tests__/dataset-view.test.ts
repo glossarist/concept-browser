@@ -34,6 +34,7 @@ function makeManifest(overrides: Partial<Manifest> = {}): Manifest {
 function makeConcepts(count: number): ConceptSummary[] {
   return Array.from({ length: count }, (_, i) => ({
     id: String(i + 1),
+    designations: { eng: `term ${i + 1}` },
     eng: `term ${i + 1}`,
     status: i % 10 === 0 ? 'superseded' : 'valid',
   }));
@@ -147,9 +148,9 @@ describe('DatasetView', () => {
 
   it('filters concepts by term', async () => {
     const concepts: ConceptSummary[] = [
-      { id: '1', eng: 'road network', status: 'valid' },
-      { id: '2', eng: 'bridge design', status: 'valid' },
-      { id: '3', eng: 'road user', status: 'valid' },
+      { id: '1', designations: { eng: 'road network' }, eng: 'road network', status: 'valid' },
+      { id: '2', designations: { eng: 'bridge design' }, eng: 'bridge design', status: 'valid' },
+      { id: '3', designations: { eng: 'road user' }, eng: 'road user', status: 'valid' },
     ];
     const wrapper = mountDataset(concepts);
     await flushPromises();
@@ -163,8 +164,8 @@ describe('DatasetView', () => {
 
   it('filters concepts by ID', async () => {
     const concepts: ConceptSummary[] = [
-      { id: '3.1.1.1', eng: 'term one', status: 'valid' },
-      { id: '3.1.1.2', eng: 'term two', status: 'valid' },
+      { id: '3.1.1.1', designations: { eng: 'term one' }, eng: 'term one', status: 'valid' },
+      { id: '3.1.1.2', designations: { eng: 'term two' }, eng: 'term two', status: 'valid' },
     ];
     const wrapper = mountDataset(concepts);
     await flushPromises();

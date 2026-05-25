@@ -46,16 +46,19 @@ function extractReferences(concept, registerId) {
 function extractDomains(concept, registerId) {
   const edges = [];
   const sourceUri = concept['@id'];
-  for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
-    const domain = lc['gl:domain'];
-    if (domain) {
+  const lcs = concept['gl:localizedConcept'] || {};
+  const langs = Object.keys(lcs);
+  const seen = new Set();
+  for (const lang of langs) {
+    const domain = lcs[lang]['gl:domain'];
+    if (domain && !seen.has(domain)) {
+      seen.add(domain);
       edges.push({
         source: sourceUri,
         target: `https://glossarist.org/${registerId}/domain/${slugify(domain)}`,
         type: 'domain',
         label: domain,
         register: registerId,
-        lang,
       });
     }
   }

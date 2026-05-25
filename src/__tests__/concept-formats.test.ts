@@ -1,37 +1,33 @@
 import { describe, it, expect } from 'vitest';
 import { FORMAT_REGISTRY, conceptToTurtle, conceptToSkosJsonLd } from '../utils/concept-formats';
-import type { ConceptDocument } from '../adapters/types';
+import { Concept } from 'glossarist';
 
-function makeConcept(overrides: Partial<ConceptDocument> = {}): ConceptDocument {
-  return {
-    '@context': 'https://glossarist.org/ns/context.jsonld',
-    '@id': 'https://glossarist.org/test/concept/1',
-    '@type': 'gl:Concept',
-    'gl:identifier': '1',
-    'gl:localizedConcept': {
+function makeConcept(overrides: Record<string, unknown> = {}): Concept {
+  return Concept.fromJSON({
+    id: '1',
+    uri: 'https://glossarist.org/test/concept/1',
+    localizations: {
       eng: {
-        '@id': 'https://glossarist.org/test/concept/1/eng',
-        '@type': 'gl:LocalizedConcept',
-        'gl:languageCode': 'eng',
-        'gl:designation': [
-          { '@type': 'gl:Expression', 'gl:normativeStatus': 'preferred', 'gl:term': 'test term' },
-          { '@type': 'gl:Expression', 'gl:normativeStatus': 'admitted', 'gl:term': 'alt term' },
+        language_code: 'eng',
+        entry_status: 'valid',
+        terms: [
+          { type: 'expression', designation: 'test term', normative_status: 'preferred' },
+          { type: 'expression', designation: 'alt term', normative_status: 'admitted' },
         ],
-        'gl:definition': [{ '@type': 'gl:DetailedDefinition', 'gl:content': 'a definition' }],
-        'gl:notes': [{ '@type': 'gl:DetailedDefinition', 'gl:content': 'a note' }],
+        definition: [{ content: 'a definition' }],
+        notes: [{ content: 'a note' }],
       },
       deu: {
-        '@id': 'https://glossarist.org/test/concept/1/deu',
-        '@type': 'gl:LocalizedConcept',
-        'gl:languageCode': 'deu',
-        'gl:designation': [
-          { '@type': 'gl:Expression', 'gl:normativeStatus': 'preferred', 'gl:term': 'Testbegriff' },
+        language_code: 'deu',
+        entry_status: 'valid',
+        terms: [
+          { type: 'expression', designation: 'Testbegriff', normative_status: 'preferred' },
         ],
-        'gl:definition': [{ '@type': 'gl:DetailedDefinition', 'gl:content': 'eine Definition' }],
+        definition: [{ content: 'eine Definition' }],
       },
     },
     ...overrides,
-  };
+  });
 }
 
 describe('FORMAT_REGISTRY', () => {
@@ -64,17 +60,24 @@ describe('conceptToTurtle', () => {
   });
 
   it('escapes special characters in Turtle', () => {
-    const concept = makeConcept();
-    concept['gl:localizedConcept']!.eng!['gl:definition'] = [
-      { '@type': 'gl:DetailedDefinition', 'gl:content': 'has "quotes" and \\backslash' },
-    ];
+    const concept = Concept.fromJSON({
+      id: '1',
+      uri: 'https://glossarist.org/test/concept/1',
+      localizations: {
+        eng: {
+          language_code: 'eng',
+          terms: [{ type: 'expression', designation: 'test', normative_status: 'preferred' }],
+          definition: [{ content: 'has "quotes" and \\backslash' }],
+        },
+      },
+    });
     const ttl = conceptToTurtle(concept);
     expect(ttl).toContain('\\"quotes\\"');
     expect(ttl).toContain('\\\\backslash');
   });
 
   it('handles empty concept gracefully', () => {
-    const ttl = conceptToTurtle({} as ConceptDocument);
+    const ttl = conceptToTurtle(Concept.fromJSON({}));
     expect(ttl).toContain('a skos:Concept');
     expect(ttl).toContain('skos:notation ""');
   });
@@ -100,8 +103,7 @@ describe('conceptToSkosJsonLd', () => {
   });
 
   it('omits empty language maps', () => {
-    const concept = makeConcept();
-    concept['gl:localizedConcept'] = {};
+    const concept = Concept.fromJSON({ id: '1', uri: 'https://glossarist.org/test/concept/1' });
     const parsed = JSON.parse(conceptToSkosJsonLd(concept));
     expect(parsed['skos:prefLabel']).toBeUndefined();
     expect(parsed['skos:definition']).toBeUndefined();
