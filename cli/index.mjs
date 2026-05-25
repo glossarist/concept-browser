@@ -100,7 +100,9 @@ Environment:
     // Run vite build using the package's vite.config.ts
     console.log(`\n=== BUILD SPA ===\n`);
     const viteConfig = resolve(pkgRoot, 'vite.config.ts');
-    const viteBin = resolve(pkgRoot, 'node_modules', '.bin', 'vite');
+    const viteBin = [resolve(pkgRoot, 'node_modules', '.bin', 'vite'), 'vite'].find(p => {
+      try { execSync(`${p} --version`, { stdio: 'pipe' }); return true; } catch { return false; }
+    });
     execSync(`${viteBin} build --config ${viteConfig}`, {
       stdio: 'inherit',
       env: { ...process.env },
