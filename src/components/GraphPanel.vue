@@ -115,6 +115,7 @@ interface SimNode extends SimulationNodeDatum {
   register: string;
   conceptId: string;
   designation: string;
+  hasDesignation: boolean;
   loaded: boolean;
   nodeType?: 'concept' | 'domain';
 }
@@ -174,16 +175,20 @@ function buildSimulation(width: number, height: number) {
   const capped = allVisible.length > MAX_RENDER_NODES;
   const renderNodes = capped ? allVisible.slice(0, MAX_RENDER_NODES) : allVisible;
 
-  const simNodes: SimNode[] = renderNodes.map(n => ({
-    uri: n.uri,
-    register: n.register,
-    conceptId: n.conceptId,
-    designation: Object.values(n.designations)[0] || n.conceptId,
-    loaded: n.loaded,
-    nodeType: n.nodeType,
-    x: width / 2 + (Math.random() - 0.5) * 200,
-    y: height / 2 + (Math.random() - 0.5) * 200,
-  }));
+  const simNodes: SimNode[] = renderNodes.map(n => {
+    const desig = Object.values(n.designations)[0] || '';
+    return {
+      uri: n.uri,
+      register: n.register,
+      conceptId: n.conceptId,
+      designation: desig,
+      hasDesignation: !!desig,
+      loaded: n.loaded,
+      nodeType: n.nodeType,
+      x: width / 2 + (Math.random() - 0.5) * 200,
+      y: height / 2 + (Math.random() - 0.5) * 200,
+    };
+  });
 
   const nodeMap = new Map(simNodes.map(n => [n.uri, n]));
 
@@ -256,7 +261,15 @@ function buildSimulation(width: number, height: number) {
     .attr('font-weight', '500')
     .attr('fill', '#636588') // ink-400
     .attr('pointer-events', 'none')
-    .text(d => (labelMode.value === 'identifier' ? d.conceptId : d.designation).slice(0, 18));
+    .text(d => {
+      if (labelMode.value === 'identifier') return d.conceptId.slice(0, 18);
+      if (!d.hasDesignation) return d.conceptId.slice(0, 18);
+      return d.designation.slice(0, 18);
+    })
+    .attr('fill', d => {
+      if (labelMode.value === 'designation' && !d.hasDesignation) return '#c4c5d6'; // dim for fallback
+      return '#636588';
+    });
 
   const dragBehavior = drag<SVGGElement, SimNode>()
     .on('start', (event: D3DragEvent<SVGGElement, SimNode, SimNode>, d) => {

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { LocalizedConcept } from '../adapters/types';
+import type { Concept, LocalizedConcept } from 'glossarist';
 import { computed } from 'vue';
 import { langName, langLabel } from '../utils/lang';
 import { entryStatusColor } from '../utils/concept-helpers';
 
 const props = defineProps<{
-  localizedConcepts: Record<string, LocalizedConcept>;
+  concept: Concept;
   activeLang: string;
   languageOrder?: string[];
 }>();
@@ -23,7 +23,7 @@ interface TimelineEntry {
   lang: string;
 }
 
-const currentLc = computed(() => props.localizedConcepts[props.activeLang]);
+const currentLc = computed(() => props.concept.localization(props.activeLang));
 
 // Build timeline entries from the localized concept review/history fields
 const timelineEntries = computed((): TimelineEntry[] => {
@@ -32,29 +32,28 @@ const timelineEntries = computed((): TimelineEntry[] => {
 
   const entries: TimelineEntry[] = [];
 
-  // gl:dates array — most structured source
-  if (lc['gl:dates']?.length) {
-    for (const d of lc['gl:dates']) {
-      const dateType = d['gl:dateType'] || 'unknown';
-      const dateStr = d['gl:date'] || '';
-      entries.push({
-        date: dateStr,
-        dateShort: formatDate(dateStr),
-        year: extractYear(dateStr),
-        eventType: dateType,
-        description: dateTypeLabel(dateType),
-        lang: props.activeLang,
-      });
-    }
+  // dates array — most structured source
+  for (const d of lc.dates) {
+    const dateType = d.type || 'unknown';
+    const dateStr = d.date || '';
+    entries.push({
+      date: dateStr,
+      dateShort: formatDate(dateStr),
+      year: extractYear(dateStr),
+      eventType: dateType,
+      description: dateTypeLabel(dateType),
+      lang: props.activeLang,
+    });
   }
 
-  // Review date
-  if (lc['gl:reviewDate']) {
-    if (!entries.some(e => e.date === lc['gl:reviewDate'])) {
+  // Review date (from LocalizedConcept model)
+  const reviewDate = lc.reviewDate;
+  if (reviewDate) {
+    if (!entries.some(e => e.date === reviewDate)) {
       entries.push({
-        date: lc['gl:reviewDate'],
-        dateShort: formatDate(lc['gl:reviewDate']),
-        year: extractYear(lc['gl:reviewDate']),
+        date: reviewDate,
+        dateShort: formatDate(reviewDate),
+        year: extractYear(reviewDate),
         eventType: 'review',
         description: 'Review initiated',
         lang: props.activeLang,
@@ -63,14 +62,15 @@ const timelineEntries = computed((): TimelineEntry[] => {
   }
 
   // Review decision date
-  if (lc['gl:reviewDecisionDate']) {
-    if (!entries.some(e => e.date === lc['gl:reviewDecisionDate'] && e.eventType !== 'review')) {
+  const reviewDecisionDate = lc.reviewDecisionDate;
+  if (reviewDecisionDate) {
+    if (!entries.some(e => e.date === reviewDecisionDate && e.eventType !== 'review')) {
       entries.push({
-        date: lc['gl:reviewDecisionDate'],
-        dateShort: formatDate(lc['gl:reviewDecisionDate']),
-        year: extractYear(lc['gl:reviewDecisionDate']),
+        date: reviewDecisionDate,
+        dateShort: formatDate(reviewDecisionDate),
+        year: extractYear(reviewDecisionDate),
         eventType: 'decision',
-        description: lc['gl:reviewDecisionEvent'] || 'Review decision',
+        description: lc.reviewDecisionEvent || 'Review decision',
         lang: props.activeLang,
       });
     }
@@ -107,11 +107,14 @@ const reviewMeta = computed(() => {
   const lc = currentLc.value;
   if (!lc) return null;
   const fields: { key: string; label: string; value: string }[] = [];
-  if (lc['gl:reviewStatus']) fields.push({ key: 'status', label: 'Review Status', value: lc['gl:reviewStatus'] });
-  if (lc['gl:reviewDecision']) fields.push({ key: 'decision', label: 'Decision', value: lc['gl:reviewDecision'] });
-  if (lc['gl:reviewDecisionNotes']) fields.push({ key: 'notes', label: 'Change Notes', value: lc['gl:reviewDecisionNotes'] });
-  if (lc['gl:entryStatus']) fields.push({ key: 'entry', label: 'Entry Status', value: lc['gl:entryStatus'] });
-  if (lc['gl:release'] != null) fields.push({ key: 'release', label: 'Release', value: String(lc['gl:release']) });
+  const reviewStatus = lc.reviewStatus;
+  const reviewDecision = lc.reviewDecision;
+  const reviewDecisionNotes = lc.reviewDecisionNotes;
+  if (reviewStatus) fields.push({ key: 'status', label: 'Review Status', value: reviewStatus });
+  if (reviewDecision) fields.push({ key: 'decision', label: 'Decision', value: reviewDecision });
+  if (reviewDecisionNotes) fields.push({ key: 'notes', label: 'Change Notes', value: reviewDecisionNotes });
+  if (lc.entryStatus) fields.push({ key: 'entry', label: 'Entry Status', value: lc.entryStatus });
+  if (lc.release != null) fields.push({ key: 'release', label: 'Release', value: String(lc.release) });
   return fields.length ? fields : null;
 });
 
@@ -119,19 +122,21 @@ const reviewMeta = computed(() => {
 const reviewEvent = computed(() => {
   const lc = currentLc.value;
   if (!lc) return null;
-  return lc['gl:reviewDecisionEvent'] || null;
+  return lc.reviewDecisionEvent || null;
 });
 
 // Which languages have any history data
 const languagesWithHistory = computed(() => {
   const langs: string[] = [];
-  for (const [lang, lc] of Object.entries(props.localizedConcepts)) {
+  for (const lang of props.concept.languages) {
+    const lc = props.concept.localization(lang);
+    if (!lc) continue;
     if (
-      lc['gl:dates']?.length ||
-      lc['gl:reviewDate'] ||
-      lc['gl:reviewDecisionDate'] ||
-      lc['gl:reviewDecisionEvent'] ||
-      lc['gl:reviewDecisionNotes']
+      lc.dates.length ||
+      lc.reviewDate ||
+      lc.reviewDecisionDate ||
+      lc.reviewDecisionEvent ||
+      lc.reviewDecisionNotes
     ) {
       langs.push(lang);
     }
@@ -152,7 +157,7 @@ const languagesWithHistory = computed(() => {
 });
 
 function formatDate(isoDate: string): string {
-  if (!isoDate) return '\u2014';
+  if (!isoDate) return '—';
   try {
     const d = new Date(isoDate);
     return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -218,21 +223,20 @@ function eventRingColor(type: string): string {
 }
 
 function eventIconPath(type: string): string {
-  // Returns an SVG path for the event type icon
   switch (type) {
     case 'accepted':
-      return 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'; // circle check
+      return 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z';
     case 'amended':
-      return 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'; // pencil edit
+      return 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z';
     case 'superseded':
     case 'withdrawn':
-      return 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'; // warning
+      return 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z';
     case 'decision':
-      return 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z'; // badge check
+      return 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z';
     case 'review':
-      return 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'; // search
+      return 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z';
     default:
-      return 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'; // info
+      return 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z';
   }
 }
 </script>
@@ -271,7 +275,7 @@ function eventIconPath(type: string): string {
       v-if="reviewEvent && hasHistory"
       class="card p-4 flex items-start gap-3 border-l-2"
       :class="[
-        currentLc?.['gl:entryStatus'] === 'superseded' ? 'border-l-red-400' : 'border-l-purple-400'
+        currentLc?.entryStatus === 'superseded' ? 'border-l-red-400' : 'border-l-purple-400'
       ]"
     >
       <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
@@ -283,8 +287,8 @@ function eventIconPath(type: string): string {
       </div>
       <div class="min-w-0">
         <div class="text-sm font-medium text-ink-800">{{ reviewEvent }}</div>
-        <div v-if="currentLc?.['gl:reviewDecisionDate']" class="text-xs text-ink-300 mt-0.5">
-          {{ formatDate(currentLc['gl:reviewDecisionDate']) }}
+        <div v-if="currentLc?.reviewDecisionDate" class="text-xs text-ink-300 mt-0.5">
+          {{ formatDate(currentLc.reviewDecisionDate) }}
         </div>
       </div>
     </div>

@@ -1,0 +1,543 @@
+{
+  "conceptStatus": {
+    "scheme": "gloss:status",
+    "schemeLabel": "Concept Status",
+    "schemeDefinition": "Lifecycle status of a managed terminology concept.",
+    "concepts": {
+      "draft": {
+        "id": "draft",
+        "iri": "gloss:status/draft",
+        "prefLabel": "draft",
+        "definition": "The concept is in draft form and has not yet been submitted."
+      },
+      "submitted": {
+        "id": "submitted",
+        "iri": "gloss:status/submitted",
+        "prefLabel": "submitted",
+        "definition": "The concept has been submitted for review."
+      },
+      "not_valid": {
+        "id": "not_valid",
+        "iri": "gloss:status/not_valid",
+        "prefLabel": "not valid",
+        "definition": "The concept has been reviewed and is not valid."
+      },
+      "invalid": {
+        "id": "invalid",
+        "iri": "gloss:status/invalid",
+        "prefLabel": "invalid",
+        "definition": "The concept is invalid."
+      },
+      "valid": {
+        "id": "valid",
+        "iri": "gloss:status/valid",
+        "prefLabel": "valid",
+        "definition": "The concept has been reviewed and is valid."
+      },
+      "superseded": {
+        "id": "superseded",
+        "iri": "gloss:status/superseded",
+        "prefLabel": "superseded",
+        "definition": "The concept has been superseded by a newer version."
+      },
+      "retired": {
+        "id": "retired",
+        "iri": "gloss:status/retired",
+        "prefLabel": "retired",
+        "definition": "The concept has been retired from active use."
+      }
+    }
+  },
+  "entryStatus": {
+    "scheme": "gloss:entstatus",
+    "schemeLabel": "Entry Status",
+    "schemeDefinition": "Lifecycle status of a localized concept entry within a glossary.",
+    "concepts": {
+      "valid": {
+        "id": "valid",
+        "iri": "gloss:entstatus/valid",
+        "prefLabel": "valid",
+        "definition": "The localized entry is valid and current."
+      },
+      "not_valid": {
+        "id": "not_valid",
+        "iri": "gloss:entstatus/not_valid",
+        "prefLabel": "not valid",
+        "definition": "The localized entry is not valid."
+      },
+      "superseded": {
+        "id": "superseded",
+        "iri": "gloss:entstatus/superseded",
+        "prefLabel": "superseded",
+        "definition": "The localized entry has been superseded by a newer version."
+      },
+      "retired": {
+        "id": "retired",
+        "iri": "gloss:entstatus/retired",
+        "prefLabel": "retired",
+        "definition": "The localized entry has been retired from active use."
+      }
+    }
+  },
+  "normativeStatus": {
+    "scheme": "gloss:norm",
+    "schemeLabel": "Normative Status",
+    "schemeDefinition": "Normative status of a designation within a concept entry.",
+    "concepts": {
+      "preferred": {
+        "id": "preferred",
+        "iri": "gloss:norm/preferred",
+        "prefLabel": "preferred",
+        "definition": "The preferred designation for this concept in this language."
+      },
+      "admitted": {
+        "id": "admitted",
+        "iri": "gloss:norm/admitted",
+        "prefLabel": "admitted",
+        "definition": "An admitted (accepted but not preferred) designation."
+      },
+      "deprecated": {
+        "id": "deprecated",
+        "iri": "gloss:norm/deprecated",
+        "prefLabel": "deprecated",
+        "definition": "A deprecated designation that should no longer be used."
+      },
+      "superseded": {
+        "id": "superseded",
+        "iri": "gloss:norm/superseded",
+        "prefLabel": "superseded",
+        "definition": "A superseded designation that has been replaced."
+      }
+    }
+  },
+  "sourceType": {
+    "scheme": "gloss:srctype",
+    "schemeLabel": "Source Type",
+    "schemeDefinition": "Type of bibliographic source for a concept or designation.",
+    "concepts": {
+      "authoritative": {
+        "id": "authoritative",
+        "iri": "gloss:srctype/authoritative",
+        "prefLabel": "authoritative",
+        "definition": "The concept is directly sourced from an authoritative standard or document."
+      },
+      "lineage": {
+        "id": "lineage",
+        "iri": "gloss:srctype/lineage",
+        "prefLabel": "lineage",
+        "definition": "The concept's lineage or historical reference."
+      }
+    }
+  },
+  "sourceStatus": {
+    "scheme": "gloss:srcstatus",
+    "schemeLabel": "Source Status",
+    "schemeDefinition": "Status of the concept relative to the bibliographic source.",
+    "concepts": {
+      "identical": {
+        "id": "identical",
+        "iri": "gloss:srcstatus/identical",
+        "prefLabel": "identical",
+        "definition": "The concept is identical to the source."
+      },
+      "similar": {
+        "id": "similar",
+        "iri": "gloss:srcstatus/similar",
+        "prefLabel": "similar",
+        "definition": "The concept is similar to the source."
+      },
+      "modified": {
+        "id": "modified",
+        "iri": "gloss:srcstatus/modified",
+        "prefLabel": "modified",
+        "definition": "The concept has been modified from the source."
+      },
+      "restyle": {
+        "id": "restyle",
+        "iri": "gloss:srcstatus/restyle",
+        "prefLabel": "restyle",
+        "definition": "The concept has been restyled from the source (editorial changes only)."
+      },
+      "context_added": {
+        "id": "context_added",
+        "iri": "gloss:srcstatus/context_added",
+        "prefLabel": "context added",
+        "definition": "Context has been added to the concept beyond the source."
+      },
+      "generalisation": {
+        "id": "generalisation",
+        "iri": "gloss:srcstatus/generalisation",
+        "prefLabel": "generalisation",
+        "definition": "The concept is a generalisation of the source concept."
+      },
+      "specialisation": {
+        "id": "specialisation",
+        "iri": "gloss:srcstatus/specialisation",
+        "prefLabel": "specialisation",
+        "definition": "The concept is a specialisation of the source concept."
+      },
+      "unspecified": {
+        "id": "unspecified",
+        "iri": "gloss:srcstatus/unspecified",
+        "prefLabel": "unspecified",
+        "definition": "The relationship to the source is unspecified."
+      },
+      "related": {
+        "id": "related",
+        "iri": "gloss:srcstatus/related",
+        "prefLabel": "related",
+        "definition": "The concept is related to the source."
+      },
+      "not_equal": {
+        "id": "not_equal",
+        "iri": "gloss:srcstatus/not_equal",
+        "prefLabel": "not equal",
+        "definition": "The concept is not equal to the source."
+      }
+    }
+  },
+  "relationshipType": {
+    "scheme": "gloss:rel",
+    "schemeLabel": "Relationship Type",
+    "schemeDefinition": "Typed relationships between concepts that have no standard SKOS or ISO 25964 equivalent. Standard relationship types (broader, narrower, exactMatch, etc.) are reused directly from SKOS and iso-thes vocabularies.",
+    "concepts": {
+      "deprecates": {
+        "id": "deprecates",
+        "iri": "gloss:rel/deprecates",
+        "prefLabel": "deprecates",
+        "definition": "This concept deprecates another concept."
+      },
+      "supersedes": {
+        "id": "supersedes",
+        "iri": "gloss:rel/supersedes",
+        "prefLabel": "supersedes",
+        "definition": "This concept supersedes another concept."
+      },
+      "superseded_by": {
+        "id": "superseded_by",
+        "iri": "gloss:rel/superseded_by",
+        "prefLabel": "superseded by",
+        "definition": "This concept has been superseded by another concept."
+      },
+      "compare": {
+        "id": "compare",
+        "iri": "gloss:rel/compare",
+        "prefLabel": "compare",
+        "definition": "This concept is compared to another concept (ISO 10241-1)."
+      },
+      "contrast": {
+        "id": "contrast",
+        "iri": "gloss:rel/contrast",
+        "prefLabel": "contrast",
+        "definition": "This concept contrasts with another concept (ISO 10241-1)."
+      },
+      "related_concept_broader": {
+        "id": "related_concept_broader",
+        "iri": "gloss:rel/related_concept_broader",
+        "prefLabel": "related concept (broader)",
+        "definition": "Associative relationship to a concept with broader scope (ISO 25964 / TBX)."
+      },
+      "related_concept_narrower": {
+        "id": "related_concept_narrower",
+        "iri": "gloss:rel/related_concept_narrower",
+        "prefLabel": "related concept (narrower)",
+        "definition": "Associative relationship to a concept with narrower scope (ISO 25964 / TBX)."
+      },
+      "sequentially_related": {
+        "id": "sequentially_related",
+        "iri": "gloss:rel/sequentially_related",
+        "prefLabel": "sequentially related",
+        "definition": "Sequential spatiotemporal relationship (ISO 25964 / TBX)."
+      },
+      "spatially_related": {
+        "id": "spatially_related",
+        "iri": "gloss:rel/spatially_related",
+        "prefLabel": "spatially related",
+        "definition": "Spatial relationship (ISO 25964 / TBX)."
+      },
+      "temporally_related": {
+        "id": "temporally_related",
+        "iri": "gloss:rel/temporally_related",
+        "prefLabel": "temporally related",
+        "definition": "Temporal relationship (ISO 25964 / TBX)."
+      },
+      "homograph": {
+        "id": "homograph",
+        "iri": "gloss:rel/homograph",
+        "prefLabel": "homograph",
+        "definition": "This concept has a homograph in another entry (ISO 12620 / TBX)."
+      },
+      "false_friend": {
+        "id": "false_friend",
+        "iri": "gloss:rel/false_friend",
+        "prefLabel": "false friend",
+        "definition": "This concept has a false friend in another language (ISO 12620 / TBX)."
+      },
+      "abbreviated_form_for": {
+        "id": "abbreviated_form_for",
+        "iri": "gloss:rel/abbreviated_form_for",
+        "prefLabel": "abbreviated form for",
+        "definition": "This designation is an abbreviated form of another designation."
+      },
+      "short_form_for": {
+        "id": "short_form_for",
+        "iri": "gloss:rel/short_form_for",
+        "prefLabel": "short form for",
+        "definition": "This designation is a short form of another designation."
+      }
+    }
+  },
+  "designationType": {
+    "scheme": "gloss:desig",
+    "schemeLabel": "Designation Type",
+    "schemeDefinition": "Type of designation (term, symbol, abbreviation) for a concept.",
+    "concepts": {
+      "expression": {
+        "id": "expression",
+        "iri": "gloss:desig/expression",
+        "prefLabel": "expression",
+        "definition": "A word or phrase used as a designation."
+      },
+      "abbreviation": {
+        "id": "abbreviation",
+        "iri": "gloss:desig/abbreviation",
+        "prefLabel": "abbreviation",
+        "definition": "A shortened form of a word or phrase (acronym, initialism, or truncation).",
+        "broader": "expression"
+      },
+      "symbol": {
+        "id": "symbol",
+        "iri": "gloss:desig/symbol",
+        "prefLabel": "symbol",
+        "definition": "A non-letter symbol representing a concept."
+      },
+      "letter_symbol": {
+        "id": "letter_symbol",
+        "iri": "gloss:desig/letter_symbol",
+        "prefLabel": "letter symbol",
+        "definition": "A single letter used as a symbol.",
+        "broader": "symbol"
+      },
+      "graphical_symbol": {
+        "id": "graphical_symbol",
+        "iri": "gloss:desig/graphical_symbol",
+        "prefLabel": "graphical symbol",
+        "definition": "An iconic or graphical symbol.",
+        "broader": "symbol"
+      }
+    }
+  },
+  "termType": {
+    "scheme": "gloss:termtype",
+    "schemeLabel": "Term Type",
+    "schemeDefinition": "ISO 12620 term type classification for designations. A categorization of a term with respect to formal representations or where/how it is used.",
+    "concepts": {
+      "abbreviation": {
+        "id": "abbreviation",
+        "iri": "gloss:termtype/abbreviation",
+        "prefLabel": "abbreviation",
+        "definition": "A shortened form of a word or phrase."
+      },
+      "acronym": {
+        "id": "acronym",
+        "iri": "gloss:termtype/acronym",
+        "prefLabel": "acronym",
+        "definition": "An abbreviation formed from initial letters, pronounced as a word.",
+        "broader": "abbreviation"
+      },
+      "clipped_term": {
+        "id": "clipped_term",
+        "iri": "gloss:termtype/clipped_term",
+        "prefLabel": "clipped term",
+        "definition": "A term formed by shortening a longer term."
+      },
+      "full_form": {
+        "id": "full_form",
+        "iri": "gloss:termtype/full_form",
+        "prefLabel": "full form",
+        "definition": "The complete, unabbreviated form of a term."
+      },
+      "initialism": {
+        "id": "initialism",
+        "iri": "gloss:termtype/initialism",
+        "prefLabel": "initialism",
+        "definition": "An abbreviation formed from initial letters, each pronounced separately.",
+        "broader": "abbreviation"
+      },
+      "short_form": {
+        "id": "short_form",
+        "iri": "gloss:termtype/short_form",
+        "prefLabel": "short form",
+        "definition": "A shortened form of a term."
+      },
+      "transliterated_form": {
+        "id": "transliterated_form",
+        "iri": "gloss:termtype/transliterated_form",
+        "prefLabel": "transliterated form",
+        "definition": "A term that has been converted from one script to another."
+      },
+      "transcribed_form": {
+        "id": "transcribed_form",
+        "iri": "gloss:termtype/transcribed_form",
+        "prefLabel": "transcribed form",
+        "definition": "A term that has been phonetically transcribed into another script."
+      },
+      "variant": {
+        "id": "variant",
+        "iri": "gloss:termtype/variant",
+        "prefLabel": "variant",
+        "definition": "An alternative spelling or form of a term."
+      },
+      "equation": {
+        "id": "equation",
+        "iri": "gloss:termtype/equation",
+        "prefLabel": "equation",
+        "definition": "A mathematical equation used as a term."
+      },
+      "formula": {
+        "id": "formula",
+        "iri": "gloss:termtype/formula",
+        "prefLabel": "formula",
+        "definition": "A mathematical formula used as a term."
+      },
+      "logical_expression": {
+        "id": "logical_expression",
+        "iri": "gloss:termtype/logical_expression",
+        "prefLabel": "logical expression",
+        "definition": "A logical expression used as a term."
+      },
+      "symbol": {
+        "id": "symbol",
+        "iri": "gloss:termtype/symbol",
+        "prefLabel": "symbol",
+        "definition": "A symbol used as a term."
+      },
+      "common_name": {
+        "id": "common_name",
+        "iri": "gloss:termtype/common_name",
+        "prefLabel": "common name",
+        "definition": "A non-scientific, commonly used name."
+      },
+      "entry_term": {
+        "id": "entry_term",
+        "iri": "gloss:termtype/entry_term",
+        "prefLabel": "entry term",
+        "definition": "The primary term for a concept entry."
+      },
+      "internationalism": {
+        "id": "internationalism",
+        "iri": "gloss:termtype/internationalism",
+        "prefLabel": "internationalism",
+        "definition": "A term that is used internationally across multiple languages."
+      },
+      "international_scientific_term": {
+        "id": "international_scientific_term",
+        "iri": "gloss:termtype/international_scientific_term",
+        "prefLabel": "international scientific term",
+        "definition": "A term established by an international scientific body."
+      },
+      "part_number": {
+        "id": "part_number",
+        "iri": "gloss:termtype/part_number",
+        "prefLabel": "part number",
+        "definition": "A part number used as a term."
+      },
+      "phraseological_unit": {
+        "id": "phraseological_unit",
+        "iri": "gloss:termtype/phraseological_unit",
+        "prefLabel": "phraseological unit",
+        "definition": "A fixed phrase or collocation used as a term."
+      },
+      "shortcut": {
+        "id": "shortcut",
+        "iri": "gloss:termtype/shortcut",
+        "prefLabel": "shortcut",
+        "definition": "A shortcut or quick reference used as a term."
+      },
+      "sku": {
+        "id": "sku",
+        "iri": "gloss:termtype/sku",
+        "prefLabel": "SKU",
+        "definition": "A stock keeping unit identifier used as a term."
+      },
+      "standard_text": {
+        "id": "standard_text",
+        "iri": "gloss:termtype/standard_text",
+        "prefLabel": "standard text",
+        "definition": "Standardized text used as a term."
+      },
+      "synonym": {
+        "id": "synonym",
+        "iri": "gloss:termtype/synonym",
+        "prefLabel": "synonym",
+        "definition": "A synonym of the primary term."
+      },
+      "synonymous_phrase": {
+        "id": "synonymous_phrase",
+        "iri": "gloss:termtype/synonymous_phrase",
+        "prefLabel": "synonymous phrase",
+        "definition": "A phrase that is synonymous with the primary term."
+      }
+    }
+  },
+  "grammarGender": {
+    "scheme": "gloss:gender",
+    "schemeLabel": "Grammar Gender",
+    "schemeDefinition": "Grammatical gender classification for designations.",
+    "concepts": {
+      "m": {
+        "id": "m",
+        "iri": "gloss:gender/m",
+        "prefLabel": "masculine",
+        "altLabel": "m",
+        "definition": "Masculine grammatical gender."
+      },
+      "f": {
+        "id": "f",
+        "iri": "gloss:gender/f",
+        "prefLabel": "feminine",
+        "altLabel": "f",
+        "definition": "Feminine grammatical gender."
+      },
+      "n": {
+        "id": "n",
+        "iri": "gloss:gender/n",
+        "prefLabel": "neuter",
+        "altLabel": "n",
+        "definition": "Neuter grammatical gender."
+      },
+      "c": {
+        "id": "c",
+        "iri": "gloss:gender/c",
+        "prefLabel": "common",
+        "altLabel": "c",
+        "definition": "Common grammatical gender (combined masculine/feminine)."
+      }
+    }
+  },
+  "grammarNumber": {
+    "scheme": "gloss:number",
+    "schemeLabel": "Grammar Number",
+    "schemeDefinition": "Grammatical number classification for designations.",
+    "concepts": {
+      "singular": {
+        "id": "singular",
+        "iri": "gloss:number/singular",
+        "prefLabel": "singular",
+        "definition": "Singular grammatical number (one item)."
+      },
+      "dual": {
+        "id": "dual",
+        "iri": "gloss:number/dual",
+        "prefLabel": "dual",
+        "definition": "Dual grammatical number (two items)."
+      },
+      "plural": {
+        "id": "plural",
+        "iri": "gloss:number/plural",
+        "prefLabel": "plural",
+        "definition": "Plural grammatical number (more than one item)."
+      }
+    }
+  }
+}

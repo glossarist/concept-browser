@@ -41,6 +41,11 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('../views/GraphView.vue'),
   },
   {
+    path: '/ontology',
+    name: 'ontology',
+    component: () => import('../views/OntologySchemaView.vue'),
+  },
+  {
     path: '/news',
     name: 'news',
     component: () => import('../views/NewsView.vue'),

@@ -290,50 +290,78 @@
 }
 
 /* ===== Dark mode ===== */
+
+/*
+  Color philosophy:
+  Light mode uses an "ink" navy-indigo palette (50=lightest → 900=darkest).
+  Dark mode inverts the scale: the darkest light colors become the brightest
+  dark colors, maintaining WCAG AA contrast on dark surfaces.
+
+  Surface hierarchy (light → dark):
+    surface (#faf9f6) → surface-alt (#f3f2ee) → surface-raised (#fff) — cards, inputs
+  Dark surface hierarchy:
+    surface (#0f1020) → surface-alt (#161728) → surface-raised (#1e1f34)
+    Raised cards sit one step lighter than the base surface.
+*/
+
 .dark body {
   background-color: #0f1020;
   color: #dddde6;
 }
 
-/* Surfaces */
+/* ── Surfaces ── */
 .dark .bg-surface { background-color: #0f1020 !important; }
 .dark .bg-surface-alt { background-color: #161728 !important; }
-.dark .bg-surface-raised { background-color: #1a1b2e !important; }
+.dark .bg-surface-raised { background-color: #1e1f34 !important; }
 
-/* Text */
+/* ── Text (inverted ink scale for dark) ──
+   ink-800/700 → primary headings (brightest)
+   ink-600     → body text (readable, ≥4.5:1 on raised surfaces)
+   ink-500/400 → secondary/hint
+   ink-300/200 → muted labels
+   ink-100     → borders/decorative only
+*/
 .dark .text-ink { color: #dddde6 !important; }
+.dark .text-ink-900 { color: #eeeef4 !important; }
 .dark .text-ink-800 { color: #dddde6 !important; }
-.dark .text-ink-700 { color: #b8b9cc !important; }
-.dark .text-ink-600 { color: #8d8faa !important; }
-.dark .text-ink-500 { color: #8d8faa !important; }
-.dark .text-ink-400 { color: #636588 !important; }
+.dark .text-ink-700 { color: #c8c9d8 !important; }
+.dark .text-ink-600 { color: #b8b9cc !important; }
+.dark .text-ink-500 { color: #9d9fbb !important; }
+.dark .text-ink-400 { color: #7a7c9a !important; }
 .dark .text-ink-300 { color: #636588 !important; }
 .dark .text-ink-200 { color: #484a6e !important; }
 .dark .text-ink-100 { color: #484a6e !important; }
 
-/* Backgrounds */
+/* ── Backgrounds ── */
 .dark .bg-ink-50 { background-color: #161728 !important; }
+.dark .bg-ink-50\/30 { background-color: rgba(22, 23, 40, 0.3) !important; }
+.dark .bg-ink-50\/60 { background-color: rgba(22, 23, 40, 0.6) !important; }
 .dark .bg-ink-100 { background-color: #1e1f34 !important; }
+.dark .bg-ink-200 { background-color: #22243c !important; }
+.dark .bg-ink-800 { background-color: #0a0b18 !important; }
+.dark .bg-ink-800\/8 { background-color: rgba(10, 11, 24, 0.08) !important; }
 
-/* Borders */
+/* ── Borders ── */
 .dark .border-ink-100 { border-color: #2c2e4a !important; }
+.dark .border-ink-100\/30 { border-color: rgba(44, 46, 74, 0.3) !important; }
 .dark .border-ink-100\/60 { border-color: rgba(44, 46, 74, 0.6) !important; }
 .dark .border-ink-100\/80 { border-color: rgba(44, 46, 74, 0.8) !important; }
 .dark .border-ink-200 { border-color: #36385a !important; }
+.dark .border-ink-800 { border-color: #2c2e4a !important; }
 
-/* Focus rings */
+/* ── Focus rings ── */
 .dark .focus\:ring-ink-200:focus { --tw-ring-color: #36385a !important; }
 .dark .focus\:ring-ink-200\/30:focus { --tw-ring-color: rgba(54, 56, 90, 0.3) !important; }
-.dark .focus\:border-ink-400:focus { border-color: #636588 !important; }
+.dark .focus\:border-ink-400:focus { border-color: #7a7c9a !important; }
 
-/* Cards */
+/* ── Cards ── */
 .dark .card {
   background-color: #1e1f34 !important;
   border-color: rgba(44, 46, 74, 0.6) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* Inputs */
+/* ── Inputs ── */
 .dark input {
   background-color: #161728 !important;
   border-color: #2c2e4a !important;
@@ -341,16 +369,42 @@
 }
 .dark input::placeholder { color: #484a6e !important; }
 
-/* Skeleton */
+/* ── Skeleton ── */
 .dark .skeleton {
   background: linear-gradient(90deg, #1e1f34 25%, #2c2e4a 50%, #1e1f34 75%) !important;
 }
 
-/* Hover states */
-.dark .hover\:bg-ink-50:hover { background-color: #161728 !important; }
+/* ── Hover states ── */
+.dark .hover\:bg-ink-50:hover { background-color: #1e1f34 !important; }
+.dark .hover\:bg-ink-50\/30:hover { background-color: rgba(30, 31, 52, 0.3) !important; }
+.dark .hover\:bg-ink-50\/50:hover { background-color: rgba(30, 31, 52, 0.5) !important; }
 .dark .hover\:bg-surface-alt:hover { background-color: #161728 !important; }
-.dark .hover\:text-ink-700:hover { color: #b8b9cc !important; }
-.dark .hover\:text-ink-800:hover { color: #dddde6 !important; }
+.dark .hover\:text-ink-700:hover { color: #dddde6 !important; }
+.dark .hover\:text-ink-800:hover { color: #eeeef4 !important; }
 
-/* Placeholder text */
+/* ── Placeholder text ── */
 .dark .placeholder\:text-ink-300::placeholder { color: #484a6e !important; }
+
+/* ── Semantic colors (badges, accent text) ── */
+.dark .bg-blue-50 { background-color: rgba(59, 130, 246, 0.15) !important; }
+.dark .text-blue-600 { color: #93bbfd !important; }
+.dark .text-blue-700 { color: #7aa8fb !important; }
+.dark .border-blue-100 { border-color: rgba(59, 130, 246, 0.25) !important; }
+.dark .border-blue-500 { border-color: #3b82f6 !important; }
+.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.15) !important; }
+.dark .text-emerald-500 { color: #6ee7b7 !important; }
+.dark .text-emerald-700 { color: #6ee7b7 !important; }
+.dark .border-emerald-100 { border-color: rgba(16, 185, 129, 0.25) !important; }
+.dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.15) !important; }
+.dark .text-amber-600 { color: #fbbf24 !important; }
+.dark .text-amber-700 { color: #fbbf24 !important; }
+.dark .bg-purple-50 { background-color: rgba(139, 92, 246, 0.15) !important; }
+.dark .text-purple-700 { color: #c4b5fd !important; }
+.dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.15) !important; }
+.dark .text-red-600 { color: #fca5a5 !important; }
+
+/* Scrollbar hide utility */
+@layer utilities {
+  .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+}

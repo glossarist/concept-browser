@@ -28,8 +28,11 @@ eng:                             # language block (ISO 639-2 code)
   sources:                       # ALWAYS array
     - type: authoritative        # authoritative | lineage
       origin:
-        ref: ISO 1087-1:2000
-        clause: "3.4.16"
+        ref:                     # ALWAYS a hash (V3 Citation::Ref)
+          source: ISO 1087-1:2000
+        locality:                # structured locality (V3)
+          type: clause
+          reference_from: "3.4.16"
         link: https://www.iso.org/standard/20057.html
   dates:                         # ALWAYS array of {type, date}
     - type: accepted
@@ -93,9 +96,16 @@ fra:                             # additional language blocks
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `type` | string | no | `authoritative` or `lineage` |
-| `origin.ref` | string | no | Source reference (standard name) |
-| `origin.clause` | string | no | Specific clause |
+| `origin.ref` | object | no | V3 Citation::Ref — always `{source: "...", id?: "...", version?: "..."}` |
+| `origin.ref.source` | string | no | Document series or termbase (e.g. `ISO`, `IEC`) |
+| `origin.ref.id` | string | no | Document identifier within the series (e.g. `1087-1:2000`) |
+| `origin.ref.version` | string | no | Version of the document |
+| `origin.locality` | object | no | Structured locality `{type, reference_from?, reference_to?}` |
+| `origin.locality.type` | string | no | Locality type (`clause`, `section`, `page`, etc.) |
+| `origin.locality.reference_from` | string | no | Start reference within the locality |
+| `origin.locality.reference_to` | string | no | End reference within the locality |
 | `origin.link` | string | no | URL to source document |
+| `origin.original` | string | no | Pre-parsed original citation text |
 
 ### Cross-reference object
 
@@ -124,6 +134,8 @@ Source datasets that don't conform to canonical format must be harmonized. The f
 | Inline refs | `{urn:iso:std:iso:NNNN:x.x,term}` | `references: [{id: "...", term: "..."}]` |
 | `_revisions` | present | **stripped** |
 | `termid` | number | string (cast) |
+| Source ref | `ref: "ISO 1087-1:2000"` (string) | `ref: { source: "ISO 1087-1:2000" }` (hash) |
+| Source clause | `clause: "3.4.16"` (flat) | `locality: { type: clause, reference_from: "3.4.16" }` (structured) |
 
 ## Validation Rules
 

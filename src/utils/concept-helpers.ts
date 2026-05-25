@@ -1,34 +1,54 @@
-import type { Designation, LocalizedConcept } from '../adapters/types';
+import type { LocalizedConcept } from 'glossarist';
+import { ontology } from '../adapters/ontology-registry';
 
 export function entryStatusColor(status: string): string {
-  if (status === 'valid' || status === 'Standard') return 'badge-green';
-  if (status === 'superseded') return 'bg-red-50 text-red-700';
-  if (status === 'withdrawn') return 'bg-red-100 text-red-800';
-  if (status === 'draft') return 'badge-yellow';
-  return 'badge-gray';
-}
-
-export function designationTypeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    'gl:Expression': 'Expression',
-    'gl:Symbol': 'Symbol',
-    'gl:Abbreviation': 'Abbreviation',
-    'gl:GraphicalSymbol': 'Graphical',
+  const colors: Record<string, string> = {
+    valid: 'badge-green',
+    not_valid: 'bg-red-50 text-red-700',
+    superseded: 'bg-red-50 text-red-700',
+    retired: 'badge-gray',
+    withdrawn: 'bg-red-100 text-red-800',
+    draft: 'badge-yellow',
+    Standard: 'badge-green',
   };
-  return labels[type] ?? type;
+  return colors[status] ?? 'badge-gray';
 }
 
-export function designationTypeColor(type: string): string {
-  if (type === 'gl:Symbol') return 'badge-purple';
-  if (type === 'gl:Abbreviation') return 'badge-yellow';
-  return 'badge-blue';
+export function conceptStatusColor(status: string | null): string {
+  if (!status) return 'badge-gray';
+  const colors: Record<string, string> = {
+    draft: 'badge-yellow',
+    submitted: 'badge-blue',
+    valid: 'badge-green',
+    not_valid: 'bg-red-50 text-red-700',
+    invalid: 'bg-red-50 text-red-700',
+    superseded: 'bg-red-50 text-red-700',
+    retired: 'badge-gray',
+  };
+  return colors[status] ?? 'badge-gray';
+}
+
+export function conceptStatusLabel(status: string | null): string {
+  if (!status) return '';
+  return ontology.getLabel('conceptStatus', status) || status;
+}
+
+export function conceptStatusDefinition(status: string | null): string | null {
+  if (!status) return null;
+  return ontology.getDefinition('conceptStatus', status);
+}
+
+export function entryStatusLabel(status: string | null): string {
+  if (!status) return '';
+  return ontology.getLabel('entryStatus', status) || status;
+}
+
+export function entryStatusDefinition(status: string | null): string | null {
+  if (!status) return null;
+  return ontology.getDefinition('entryStatus', status);
 }
 
 export function getPreferredTerm(lc: LocalizedConcept | null | undefined, fallback = '—'): string {
-  if (!lc?.['gl:designation']?.length) return fallback;
-  const desigs = lc['gl:designation'];
-  const preferredExpr = desigs.find(d => d['gl:normativeStatus'] === 'preferred' && d['@type'] === 'gl:Expression');
-  if (preferredExpr) return preferredExpr['gl:term'];
-  const preferred = desigs.find(d => d['gl:normativeStatus'] === 'preferred');
-  return preferred?.['gl:term'] ?? desigs[0]?.['gl:term'] ?? fallback;
+  if (!lc) return fallback;
+  return lc.primaryDesignation ?? lc.terms[0]?.designation ?? fallback;
 }

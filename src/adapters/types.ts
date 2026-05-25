@@ -1,4 +1,38 @@
-/** Core types for the vocabulary browser data model. */
+/**
+ * Infrastructure types for the vocabulary browser.
+ * Concept model types come from glossarist-js via model-bridge.ts.
+ */
+import type { RELATIONSHIP_TYPES } from 'glossarist';
+
+// Re-export glossarist model types for convenience
+export type {
+  Concept,
+  LocalizedConcept,
+  Designation,
+  Expression,
+  Abbreviation,
+  Symbol as SymbolDesignation,
+  GraphicalSymbol,
+  Citation,
+  ConceptSource,
+  RelatedConcept,
+  ConceptDate,
+  DetailedDefinition,
+  NonVerbRep,
+} from 'glossarist';
+
+export type {
+  LetterSymbol,
+  GrammarInfo,
+  Pronunciation,
+  ConceptReference,
+  Locality,
+} from 'glossarist/models';
+
+export { RELATIONSHIP_TYPES, DATE_TYPES } from 'glossarist';
+export { GRAMMAR_GENDERS, GRAMMAR_NUMBERS, GRAMMAR_PARTS_OF_SPEECH } from 'glossarist/models';
+
+// ── Dataset metadata ──────────────────────────────────────────────────────
 
 export interface Manifest {
   id: string;
@@ -39,6 +73,7 @@ export interface ConceptIndex {
 
 export interface ConceptSummary {
   id: string;
+  designations: Record<string, string>;
   eng: string;
   status: string;
 }
@@ -50,103 +85,12 @@ export interface ConceptEntry {
   status: string;
 }
 
-export interface ConceptDocument {
-  '@context': string;
-  '@id': string;
-  '@type': string;
-  'gl:identifier': string;
-  'gl:localizedConcept': Record<string, LocalizedConcept>;
-}
-
-export interface LocalizedConcept {
-  '@id': string;
-  '@type': string;
-  'gl:languageCode': string;
-  'gl:entryStatus'?: string;
-  'gl:classification'?: string;
-  'gl:reviewType'?: string;
-  'gl:script'?: string;
-  'gl:system'?: string;
-  'gl:designation'?: Designation[];
-  'gl:definition'?: DetailedDefinition[];
-  'gl:notes'?: DetailedDefinition[];
-  'gl:examples'?: DetailedDefinition[];
-  'gl:source'?: ConceptSource[];
-  'gl:release'?: string;
-  'gl:lineageSourceSimilarity'?: number;
-  'gl:reviewDate'?: string;
-  'gl:reviewDecisionDate'?: string;
-  'gl:reviewDecisionEvent'?: string;
-  'gl:reviewStatus'?: string;
-  'gl:reviewDecision'?: string;
-  'gl:reviewDecisionNotes'?: string;
-  'gl:dates'?: ConceptDate[];
-  'gl:references'?: CrossReference[];
-  'gl:domain'?: string;
-}
-
-export interface GrammarInfo {
-  'gl:gender'?: string;
-  'gl:number'?: string;
-  'gl:noun'?: boolean;
-  'gl:verb'?: boolean;
-  'gl:adj'?: boolean;
-  'gl:adverb'?: boolean;
-  'gl:preposition'?: boolean;
-  'gl:participle'?: boolean;
-}
-
-export interface Designation {
-  '@type': string;
-  'gl:normativeStatus': string;
-  'gl:term': string;
-  'gl:grammarInfo'?: GrammarInfo[];
-  'gl:international'?: boolean;
-  'gl:termType'?: string;
-  'gl:absent'?: boolean;
-  'gl:geographicalArea'?: string;
-  'gl:prefix'?: string;
-  'gl:usageInfo'?: string;
-  'gl:fieldOfApplication'?: string;
-  'gl:acronym'?: boolean;
-  'gl:initialism'?: boolean;
-  'gl:truncation'?: boolean;
-  'gl:text'?: string;
-  'gl:image'?: string;
-}
-
-export interface DetailedDefinition {
-  '@type': string;
-  'gl:content': string;
-}
-
-export interface ConceptSource {
-  '@type': string;
-  'gl:sourceType'?: string;
-  'gl:sourceStatus'?: string;
-  'gl:modification'?: string;
-  'gl:origin'?: {
-    '@type': string;
-    'gl:ref'?: string;
-    'gl:clause'?: string;
-    'gl:link'?: string;
-  };
-}
-
-export interface ConceptDate {
-  'gl:dateType': string;
-  'gl:date': string;
-}
-
-export interface CrossReference {
-  '@id': string;
-  'gl:term': string;
-}
-
 export interface DatasetRegistry {
   id: string;
   manifestUrl: string;
 }
+
+// ── Graph types ────────────────────────────────────────────────────────────
 
 export const EDGE_TYPE = {
   REFERENCES: 'references',
@@ -172,6 +116,8 @@ export interface GraphNode {
   nodeType?: 'concept' | 'domain';
 }
 
+// ── Search ─────────────────────────────────────────────────────────────────
+
 export interface SearchHit {
   conceptId: string;
   registerId: string;
@@ -181,14 +127,9 @@ export interface SearchHit {
   snippet?: string;
 }
 
-export type RelationType =
-  | 'related'
-  | 'narrower'
-  | 'broader'
-  | 'see'
-  | 'references'
-  | 'replaces'
-  | 'superseded';
+// ── Resolution ─────────────────────────────────────────────────────────────
+
+export type RelationType = typeof RELATIONSHIP_TYPES[number];
 
 export type Resolution =
   | { type: 'internal'; registerId: string; conceptId: string; crossDataset: boolean }

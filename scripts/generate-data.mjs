@@ -30,6 +30,16 @@ function loadConceptFile(filePath) {
   if (docs.length >= 1 && docs[0].data && docs[0].data.identifier !== undefined) {
     const mc = docs[0];
     const result = { termid: String(mc.data.identifier) };
+
+    // Managed concept-level fields
+    if (mc.related) result._related = mc.related;
+    if (mc.data.domains) result._domains = mc.data.domains;
+    if (mc.dates) result._dates = mc.dates;
+    if (mc.sources) result._sources = mc.sources;
+    if (mc.status) result._status = mc.status;
+    if (mc.schema_version) result._schemaVersion = mc.schema_version;
+    if (mc.date_accepted) result._dateAccepted = mc.date_accepted;
+
     for (const doc of docs.slice(1)) {
       if (!doc || !doc.data || !doc.data.language_code) continue;
       const lang = doc.data.language_code;
@@ -110,8 +120,24 @@ function sourcesToJsonLd(sources) {
     if (s.status) doc['gl:sourceStatus'] = s.status;
     if (s.origin) {
       const origin = { '@type': 'gl:Citation' };
-      if (s.origin.ref) origin['gl:ref'] = s.origin.ref;
-      if (s.origin.clause) origin['gl:clause'] = s.origin.clause;
+      if (s.origin.ref) {
+        const ref = s.origin.ref;
+        const refObj = { '@type': 'gl:Ref' };
+        if (ref.source) refObj['gl:source'] = ref.source;
+        if (ref.id) refObj['gl:id'] = ref.id;
+        if (ref.version) refObj['gl:version'] = ref.version;
+        origin['gl:ref'] = refObj;
+      }
+      if (s.origin.locality) {
+        const loc = s.origin.locality;
+        const locObj = {};
+        if (loc.type) locObj['gl:localityType'] = loc.type;
+        if (loc.reference_from) locObj['gl:referenceFrom'] = loc.reference_from;
+        if (loc.referenceFrom) locObj['gl:referenceFrom'] = loc.referenceFrom;
+        if (loc.reference_to) locObj['gl:referenceTo'] = loc.reference_to;
+        if (loc.referenceTo) locObj['gl:referenceTo'] = loc.referenceTo;
+        origin['gl:locality'] = locObj;
+      }
       if (s.origin.link) origin['gl:link'] = s.origin.link;
       doc['gl:origin'] = origin;
     }
@@ -172,7 +198,7 @@ function buildRefMaps(config) {
   if (xref.urnStandardMap) Object.assign(urnStandardMap, xref.urnStandardMap);
 
   const uriBase = config.uriBase || `https://${config.domain}`;
-  return { refPrefixMap, urnStandardMap, uriBase };
+  return { refPrefixMap, urnStandardMap, uriBase, register: null };
 }
 
 function extractInlineRefs(localizedData, refMaps) {
@@ -205,6 +231,18 @@ function extractInlineRefs(localizedData, refMaps) {
   for (const m of fullText.matchAll(/\{\{urn:iso:std:iso:(\d+):([^,}]+),([^,}]+)(?:,([^}]+))?\}\}/g)) {
     const datasetId = urnStandardMap[m[1]];
     if (datasetId) refs.push({ id: `${uriBase}/${datasetId}/concept/${m[2]}`, term: (m[4] || m[3]).trim() });
+  }
+
+  // Generic {{term, concept_id}} — same-dataset cross-reference (e.g. VIML)
+  const register = refMaps.register;
+  for (const m of fullText.matchAll(/\{\{([^,}]+),\s*([A-Za-z0-9.]+)\}\}/g)) {
+    const termName = m[1].trim();
+    const conceptId = m[2].trim();
+    // Skip if already matched by IEV or URN patterns
+    if (refPrefixMap && refPrefixMap[termName]) continue;
+    if (/^\d/.test(conceptId) || /^[A-Z]\.\d/.test(conceptId)) {
+      refs.push({ id: `${uriBase}/${register}/concept/${conceptId}`, term: termName });
+    }
   }
 
   const seen = new Set();
@@ -277,6 +315,48 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
 
   if (Object.keys(localizations).length > 0) {
     doc['gl:localizedConcept'] = localizations;
+  }
+
+  // Managed concept-level fields (v3)
+  if (conceptYaml._status) doc['gl:status'] = conceptYaml._status;
+  if (conceptYaml._schemaVersion) doc['gl:schemaVersion'] = conceptYaml._schemaVersion;
+  if (conceptYaml._dateAccepted) doc['gl:dateAccepted'] = conceptYaml._dateAccepted;
+
+  if (conceptYaml._dates && conceptYaml._dates.length > 0) {
+    doc['gl:dates'] = conceptYaml._dates.map(d => ({
+      'gl:dateType': d.type,
+      'gl:date': d.date,
+    }));
+  }
+
+  if (conceptYaml._sources && conceptYaml._sources.length > 0) {
+    doc['gl:source'] = sourcesToJsonLd(conceptYaml._sources);
+  }
+
+  if (conceptYaml._domains && conceptYaml._domains.length > 0) {
+    doc['gl:domain'] = conceptYaml._domains.map(d => {
+      const domain = { '@type': 'gl:ConceptReference' };
+      if (d.concept_id) domain['gl:conceptId'] = d.concept_id;
+      if (d.source) domain['gl:source'] = d.source;
+      if (d.urn) domain['gl:urn'] = d.urn;
+      if (d.ref_type) domain['gl:refType'] = d.ref_type;
+      return domain;
+    });
+  }
+
+  if (conceptYaml._related && conceptYaml._related.length > 0) {
+    doc['gl:related'] = conceptYaml._related.map(r => {
+      const rel = { '@type': 'gl:RelatedConcept' };
+      if (r.type) rel['gl:relationshipType'] = r.type;
+      if (r.content) rel['gl:content'] = r.content;
+      if (r.ref) {
+        const ref = {};
+        if (r.ref.source) ref['gl:source'] = r.ref.source;
+        if (r.ref.id) ref['gl:id'] = r.ref.id;
+        rel['gl:ref'] = ref;
+      }
+      return rel;
+    });
   }
 
   return doc;
@@ -386,7 +466,8 @@ function conceptJsonToSkosJsonLd(concept) {
 }
 
 function escapeXml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const str = Array.isArray(s) ? s.join(', ') : String(s ?? '');
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function conceptJsonToTbx(concept) {
@@ -451,10 +532,19 @@ function conceptJsonToTbx(concept) {
     for (const src of sources) {
       const origin = src['gl:origin'] || {};
       const parts = [];
-      if (origin['gl:ref']) parts.push(origin['gl:ref']);
-      if (origin['gl:clause']) parts.push(origin['gl:clause']);
-      if (parts.length) {
-        sourceBlock += `\n          <ref>${escapeXml(parts.join(', '))}</ref>`;
+      const ref = origin['gl:ref'];
+      if (ref) {
+        const refParts = [];
+        if (ref['gl:source']) refParts.push(ref['gl:source']);
+        if (ref['gl:id']) refParts.push(ref['gl:id']);
+        parts.push(refParts.join(' ') || '');
+      }
+      if (origin['gl:locality']) {
+        const loc = origin['gl:locality'];
+        if (loc['gl:referenceFrom']) parts.push(loc['gl:localityType'] ? `${loc['gl:localityType']} ${loc['gl:referenceFrom']}` : loc['gl:referenceFrom']);
+      }
+      if (parts.filter(Boolean).length) {
+        sourceBlock += `\n          <ref>${escapeXml(parts.filter(Boolean).join(', '))}</ref>`;
       }
     }
 
@@ -501,6 +591,7 @@ function processDataset(dir, register, opts) {
   const langTermCounts = {};
   const langDefCounts = {};
   const availableFormats = ['ttl', 'jsonld', 'yaml', 'tbx'];
+  const dsRefMaps = { ...refMaps, register };
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -509,7 +600,7 @@ function processDataset(dir, register, opts) {
       if (!conceptYaml || !conceptYaml.termid) continue;
 
       const termid = String(conceptYaml.termid);
-      const jsonld = yamlToJsonLd(conceptYaml, register, refMaps);
+      const jsonld = yamlToJsonLd(conceptYaml, register, dsRefMaps);
       writeJson(path.join(conceptsDir, `${termid}.json`), jsonld);
 
       // Generate Turtle format

@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
-import type { Manifest, ConceptSummary, LocalizedConcept, SearchHit } from '../adapters/types';
+import { LocalizedConcept } from 'glossarist';
+import type { Manifest, ConceptSummary, SearchHit } from '../adapters/types';
 
 // ── Manifest Factory ──────────────────────────────────────────────────
 
@@ -69,19 +70,19 @@ export function makeAdapterStub(options: AdapterStubOptions = {}): any {
 
 // ── Concept Data Factories ────────────────────────────────────────────
 
-export function makeLocalizedConcept(overrides: Partial<LocalizedConcept> = {}): LocalizedConcept {
-  return {
-    '@id': 'https://glossarist.org/test/concept/1/eng',
-    '@type': 'gl:LocalizedConcept',
-    'gl:languageCode': 'eng',
-    'gl:entryStatus': 'valid',
+export function makeLocalizedConcept(overrides: Record<string, unknown> = {}): LocalizedConcept {
+  return LocalizedConcept.fromJSON({
+    language_code: 'eng',
+    entry_status: 'valid',
+    terms: [{ type: 'expression', designation: 'test term' }],
     ...overrides,
-  };
+  });
 }
 
 export function makeConceptSummary(overrides: Partial<ConceptSummary> = {}): ConceptSummary {
   return {
     id: '1',
+    designations: { eng: 'test concept' },
     eng: 'test concept',
     status: 'valid',
     ...overrides,

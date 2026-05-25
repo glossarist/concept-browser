@@ -31,7 +31,7 @@ function makeManifest(): Manifest {
 }
 
 function makeEntry(overrides: Partial<ConceptSummary> = {}): ConceptSummary {
-  return { id: '3.1.1.1', eng: 'test term', status: 'valid', ...overrides };
+  return { id: '3.1.1.1', designations: { eng: 'test term' }, eng: 'test term', status: 'valid', ...overrides };
 }
 
 async function createTestRouter() {

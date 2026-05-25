@@ -119,6 +119,9 @@ function synthesizeGlobalPages(features?: Record<string, unknown>, pages?: PageC
   if (features?.graph !== false && !declaredRoutes.has('graph')) {
     result.push({ type: 'custom', route: 'graph', title: 'Graph', icon: 'graph' });
   }
+  if (features?.ontology !== false && !declaredRoutes.has('ontology')) {
+    result.push({ type: 'custom', route: 'ontology', title: 'Ontology', icon: 'schema' });
+  }
   if (features?.news && !declaredRoutes.has('news')) {
     result.push({ type: 'news', route: 'news', title: 'News', icon: 'newspaper' });
   }

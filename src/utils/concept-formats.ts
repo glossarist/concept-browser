@@ -1,4 +1,4 @@
-import type { ConceptDocument, LocalizedConcept } from '../adapters/types';
+import type { Concept } from 'glossarist';
 
 export interface FormatDescriptor {
   extension: string;
@@ -13,7 +13,7 @@ export const FORMAT_REGISTRY: Record<string, FormatDescriptor> = {
   yaml: { extension: 'yaml', label: 'YAML', mediaType: 'text/yaml' },
 };
 
-function getLocalizedData(concept: ConceptDocument) {
+function getLocalizedData(concept: Concept) {
   const result: Record<string, {
     prefLabels: string[];
     altLabels: string[];
@@ -21,19 +21,21 @@ function getLocalizedData(concept: ConceptDocument) {
     notes: string[];
   }> = {};
 
-  for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
-    const descs = lc['gl:designation'] || [];
-    const prefLabels = descs
-      .filter(d => d['gl:normativeStatus'] === 'preferred' && d['gl:term'])
-      .map(d => d['gl:term']!);
-    const altLabels = descs
-      .filter(d => d['gl:normativeStatus'] !== 'preferred' && d['gl:term'])
-      .map(d => d['gl:term']!);
-    const definitions = (lc['gl:definition'] || [])
-      .map(d => d['gl:content'] || '')
+  for (const lang of concept.languages) {
+    const lc = concept.localization(lang);
+    if (!lc) continue;
+
+    const prefLabels = lc.terms
+      .filter(d => d.normativeStatus === 'preferred' && d.designation)
+      .map(d => d.designation);
+    const altLabels = lc.terms
+      .filter(d => d.normativeStatus !== 'preferred' && d.designation)
+      .map(d => d.designation);
+    const definitions = lc.definitions
+      .map(d => d.content || '')
       .filter(Boolean);
-    const notes = (lc['gl:notes'] || [])
-      .map(d => d['gl:content'] || '')
+    const notes = lc.notes
+      .map(d => d.content || '')
       .filter(Boolean);
 
     if (prefLabels.length || definitions.length) {
@@ -48,9 +50,9 @@ function escapeTurtle(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
 }
 
-export function conceptToTurtle(concept: ConceptDocument): string {
-  const uri = concept['@id'] || '';
-  const id = concept['gl:identifier'] || '';
+export function conceptToTurtle(concept: Concept): string {
+  const uri = concept.uri || '';
+  const id = concept.id;
   const data = getLocalizedData(concept);
 
   const lines: string[] = [
@@ -84,9 +86,9 @@ export function conceptToTurtle(concept: ConceptDocument): string {
   return lines.join('\n');
 }
 
-export function conceptToSkosJsonLd(concept: ConceptDocument): string {
-  const uri = concept['@id'] || '';
-  const id = concept['gl:identifier'] || '';
+export function conceptToSkosJsonLd(concept: Concept): string {
+  const uri = concept.uri || '';
+  const id = concept.id;
   const data = getLocalizedData(concept);
 
   const doc: Record<string, any> = {

@@ -14,7 +14,7 @@ const route = useRoute();
 const { getColor } = useDsStyle();
 const { globalPages, datasetPages, config: siteConfig } = useSiteConfig();
 
-const currentDataset = computed(() => (route.params as any).registerId ?? '');
+const currentDataset = computed(() => route.params.registerId as string ?? '');
 
 const datasetEntries = computed(() => {
   const entries: { id: string; title: string; loaded: boolean; conceptCount: number }[] = [];

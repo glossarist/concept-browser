@@ -1,9 +1,26 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { mount, flushPromises } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import LanguageDetail from '../components/LanguageDetail.vue';
 import { useVocabularyStore } from '../stores/vocabulary';
-import type { LocalizedConcept } from '../adapters/types';
-import { createTestRouter, setupPinia, makeManifest, makeLocalizedConcept, makeAdapterStub } from './test-helpers';
+import { conceptFromJson } from '../adapters/model-bridge';
+import { createTestRouter, setupPinia, makeManifest, makeAdapterStub } from './test-helpers';
+
+function makeConceptJson(overrides: Record<string, any> = {}) {
+  return {
+    '@id': 'https://glossarist.org/test/concept/1',
+    '@type': 'gl:Concept',
+    'gl:identifier': '1',
+    'gl:localizedConcept': {
+      eng: {
+        '@type': 'gl:LocalizedConcept',
+        'gl:languageCode': 'eng',
+        'gl:entryStatus': 'valid',
+        ...overrides.eng,
+      },
+      ...(overrides.otherLangs || {}),
+    },
+  };
+}
 
 describe('LanguageDetail', () => {
   let pinia: ReturnType<typeof setupPinia>;
@@ -17,33 +34,58 @@ describe('LanguageDetail', () => {
     store.datasets.set('test', makeAdapterStub());
   });
 
-  function mountDetail(lcs: Record<string, LocalizedConcept>, activeLang = 'eng') {
+  function mountDetail(conceptJson: Record<string, any>, activeLang = 'eng') {
+    const concept = conceptFromJson(conceptJson);
     return mount(LanguageDetail, {
       global: { plugins: [pinia, router], directives: { math: () => {} } },
-      props: { localizedConcepts: lcs, activeLang },
+      props: { concept, activeLang },
     });
   }
 
   it('renders language selector buttons', () => {
-    const eng = makeLocalizedConcept();
-    const fra = makeLocalizedConcept({ '@id': '.../fra', 'gl:languageCode': 'fra' });
-    const wrapper = mountDetail({ eng, fra });
+    const json = makeConceptJson({
+      eng: {},
+      otherLangs: {
+        fra: {
+          '@type': 'gl:LocalizedConcept',
+          'gl:languageCode': 'fra',
+          'gl:entryStatus': 'valid',
+        },
+      },
+    });
+    const wrapper = mountDetail(json);
     expect(wrapper.text()).toContain('English');
     expect(wrapper.text()).toContain('French');
   });
 
   it('highlights active language button', () => {
-    const eng = makeLocalizedConcept();
-    const fra = makeLocalizedConcept({ '@id': '.../fra', 'gl:languageCode': 'fra' });
-    const wrapper = mountDetail({ eng, fra }, 'eng');
+    const json = makeConceptJson({
+      eng: {},
+      otherLangs: {
+        fra: {
+          '@type': 'gl:LocalizedConcept',
+          'gl:languageCode': 'fra',
+          'gl:entryStatus': 'valid',
+        },
+      },
+    });
+    const wrapper = mountDetail(json, 'eng');
     const buttons = wrapper.findAll('button').filter(b => b.text().includes('English'));
     expect(buttons[0].classes()).toContain('bg-ink-800');
   });
 
   it('emits update:activeLang on language click', async () => {
-    const eng = makeLocalizedConcept();
-    const fra = makeLocalizedConcept({ '@id': '.../fra', 'gl:languageCode': 'fra' });
-    const wrapper = mountDetail({ eng, fra }, 'eng');
+    const json = makeConceptJson({
+      eng: {},
+      otherLangs: {
+        fra: {
+          '@type': 'gl:LocalizedConcept',
+          'gl:languageCode': 'fra',
+          'gl:entryStatus': 'valid',
+        },
+      },
+    });
+    const wrapper = mountDetail(json, 'eng');
     const fraBtn = wrapper.findAll('button').find(b => b.text().includes('French'));
     expect(fraBtn).toBeDefined();
     await fraBtn!.trigger('click');
@@ -51,96 +93,111 @@ describe('LanguageDetail', () => {
   });
 
   it('shows entry status badge', () => {
-    const eng = makeLocalizedConcept({ 'gl:entryStatus': 'valid' });
-    const wrapper = mountDetail({ eng });
+    const json = makeConceptJson({
+      eng: { 'gl:entryStatus': 'valid' },
+    });
+    const wrapper = mountDetail(json);
     expect(wrapper.text()).toContain('valid');
   });
 
-  it('shows designations', () => {
-    const eng = makeLocalizedConcept({
-      'gl:designation': [
-        { '@type': 'gl:Expression', 'gl:term': 'road', 'gl:normativeStatus': 'preferred' },
-      ],
+  it('shows designations with ontology labels', () => {
+    const json = makeConceptJson({
+      eng: {
+        'gl:designation': [
+          { '@type': 'gl:Expression', 'gl:term': 'road', 'gl:normativeStatus': 'preferred' },
+        ],
+      },
     });
-    const wrapper = mountDetail({ eng });
+    const wrapper = mountDetail(json);
     expect(wrapper.text()).toContain('road');
-    expect(wrapper.text()).toContain('Expression');
-    expect(wrapper.text()).toContain('Preferred');
+    expect(wrapper.text()).toContain('expression');
+    expect(wrapper.text()).toContain('preferred');
   });
 
   it('shows definition', () => {
-    const eng = makeLocalizedConcept({
-      'gl:definition': [{ '@type': 'gl:Definition', 'gl:content': 'A paved surface for vehicles.' }],
+    const json = makeConceptJson({
+      eng: {
+        'gl:definition': [{ '@type': 'gl:Definition', 'gl:content': 'A paved surface for vehicles.' }],
+      },
     });
-    const wrapper = mountDetail({ eng });
+    const wrapper = mountDetail(json);
     expect(wrapper.text()).toContain('Definition');
     expect(wrapper.text()).toContain('paved surface');
   });
 
   it('shows notes', () => {
-    const eng = makeLocalizedConcept({
-      'gl:notes': [{ '@type': 'gl:Note', 'gl:content': 'This is a note.' }],
+    const json = makeConceptJson({
+      eng: {
+        'gl:notes': [{ '@type': 'gl:Note', 'gl:content': 'This is a note.' }],
+      },
     });
-    const wrapper = mountDetail({ eng });
+    const wrapper = mountDetail(json);
     expect(wrapper.text()).toContain('Notes');
     expect(wrapper.text()).toContain('This is a note');
   });
 
   it('shows examples', () => {
-    const eng = makeLocalizedConcept({
-      'gl:examples': [{ '@type': 'gl:Example', 'gl:content': 'A highway is a road.' }],
+    const json = makeConceptJson({
+      eng: {
+        'gl:examples': [{ '@type': 'gl:Example', 'gl:content': 'A highway is a road.' }],
+      },
     });
-    const wrapper = mountDetail({ eng });
+    const wrapper = mountDetail(json);
     expect(wrapper.text()).toContain('Examples');
     expect(wrapper.text()).toContain('A highway is a road');
   });
 
   it('shows sources', () => {
-    const eng = makeLocalizedConcept({
-      'gl:source': [{ '@type': 'gl:Source', 'gl:sourceType': 'authoritative', 'gl:origin': { '@type': 'gl:Origin', 'gl:ref': 'ISO 7010' } }],
+    const json = makeConceptJson({
+      eng: {
+        'gl:source': [{ '@type': 'gl:Source', 'gl:sourceType': 'authoritative', 'gl:origin': { '@type': 'gl:Origin', 'gl:ref': { '@type': 'gl:Ref', 'gl:source': 'ISO 7010' } } }],
+      },
     });
-    const wrapper = mountDetail({ eng });
+    const wrapper = mountDetail(json);
     expect(wrapper.text()).toContain('Sources');
     expect(wrapper.text()).toContain('ISO 7010');
   });
 
   it('shows term-only state for language without definition', () => {
-    const eng = makeLocalizedConcept({
-      'gl:designation': [{ '@type': 'gl:Expression', 'gl:term': 'test', 'gl:normativeStatus': 'preferred' }],
+    const json = makeConceptJson({
+      eng: {
+        'gl:designation': [{ '@type': 'gl:Expression', 'gl:term': 'test', 'gl:normativeStatus': 'preferred' }],
+      },
     });
-    delete (eng as any)['gl:definition'];
-    delete (eng as any)['gl:notes'];
-    delete (eng as any)['gl:examples'];
-    const wrapper = mountDetail({ eng });
+    const wrapper = mountDetail(json);
     expect(wrapper.text()).toContain('Term only in English');
   });
 
   it('shows no data message for missing language', () => {
-    const eng = makeLocalizedConcept();
-    const wrapper = mountDetail({ eng }, 'zho');
+    const json = makeConceptJson({ eng: {} });
+    const wrapper = mountDetail(json, 'zho');
     expect(wrapper.text()).toContain('No data available');
   });
 
-  it('shows designation type badges', () => {
-    const eng = makeLocalizedConcept({
-      'gl:designation': [
-        { '@type': 'gl:Symbol', 'gl:term': 'H₂O', 'gl:normativeStatus': 'preferred' },
-        { '@type': 'gl:Abbreviation', 'gl:term': 'abbr', 'gl:normativeStatus': 'admitted' },
-      ],
+  it('shows designation type badges with ontology labels', () => {
+    const json = makeConceptJson({
+      eng: {
+        'gl:designation': [
+          { '@type': 'gl:Symbol', 'gl:term': 'H₂O', 'gl:normativeStatus': 'preferred' },
+          { '@type': 'gl:Abbreviation', 'gl:term': 'abbr', 'gl:normativeStatus': 'admitted' },
+        ],
+      },
     });
-    const wrapper = mountDetail({ eng });
-    expect(wrapper.text()).toContain('Symbol');
-    expect(wrapper.text()).toContain('Abbreviation');
+    const wrapper = mountDetail(json);
+    expect(wrapper.text()).toContain('symbol');
+    expect(wrapper.text()).toContain('abbreviation');
   });
 
-  it('shows grammar info when present', () => {
-    const eng = makeLocalizedConcept({
-      'gl:designation': [
-        { '@type': 'gl:Expression', 'gl:term': 'route', 'gl:normativeStatus': 'preferred', 'gl:grammarInfo': [{ 'gl:gender': 'f', 'gl:number': 'singular' }] },
-      ],
+  it('shows grammar info with ontology labels when present', () => {
+    const json = makeConceptJson({
+      eng: {
+        'gl:designation': [
+          { '@type': 'gl:Expression', 'gl:term': 'route', 'gl:normativeStatus': 'preferred', 'gl:grammarInfo': [{ 'gl:gender': 'f', 'gl:number': 'singular' }] },
+        ],
+      },
     });
-    const wrapper = mountDetail({ eng });
-    expect(wrapper.text()).toContain('f');
+    const wrapper = mountDetail(json);
+    expect(wrapper.text()).toContain('feminine');
     expect(wrapper.text()).toContain('singular');
   });
 });
