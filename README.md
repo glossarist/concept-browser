@@ -159,6 +159,29 @@ datasets:
 | `externalConceptUrlTemplate` | no | URL template for linking to the official source of each concept. `{conceptId}` is replaced with the concept ID. |
 | `languageOrder` | no | Array of ISO 639-2 language codes controlling the display order on concept pages. Without this, languages default to English-first then alphabetical. |
 
+### Site features
+
+The `features` section in `site-config.yml` toggles functionality and customizes branding:
+
+```yaml
+features:
+  news: true               # enable news posts (requires newsDir)
+  stats: true              # show statistics dashboard
+  graph: true              # enable concept graph visualization
+  about: true              # enable about page
+  search: true             # enable full-text search
+  poweredBy:               # customize the sidebar/footer credit link
+    message: "Powered by Acme Corp"
+    url: "https://example.com"
+```
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `poweredBy.message` | `Built with the Glossarist Concept Browser` | Link text shown in sidebar and footer |
+| `poweredBy.url` | `https://github.com/glossarist/concept-browser` | Link href |
+
+Omit the `poweredBy` block to use defaults. The `message` becomes the full text of a clickable link — there is no hardcoded prefix.
+
 ### Cross-reference mapping
 
 The top-level `crossReferences` section maps inline references to dataset IDs:
