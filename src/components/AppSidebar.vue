@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useUiStore } from '../stores/ui';
 import { useRoute, useRouter } from 'vue-router';
@@ -25,6 +25,7 @@ const {
   taxonomyLabels,
   treeRoots,
   supportingClasses,
+  isOverview,
   toggleExpand,
   childClasses,
   hasChildren,
@@ -72,6 +73,22 @@ function isActive(page: { route: string; datasetScoped?: boolean }): boolean {
   }
   return route.name === page.route;
 }
+
+function selectClass(id: string) {
+  activeClassId.value = id;
+  activeTaxonomy.value = null;
+  scrollMainToTop();
+}
+
+function selectTaxonomy(key: string) {
+  activeTaxonomy.value = key;
+  scrollMainToTop();
+}
+
+function scrollMainToTop() {
+  const main = document.querySelector('main');
+  if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
+}
 </script>
 
 <template>
@@ -88,85 +105,92 @@ function isActive(page: { route: string; datasetScoped?: boolean }): boolean {
       <!-- Navigation -->
       <div class="section-label">Navigation</div>
       <nav class="space-y-0.5 mb-6">
-        <router-link
-          v-for="page in globalPages"
-          :key="page.route || 'home'"
-          :to="pageRoute(page)"
-          class="btn-ghost w-full text-left flex items-center gap-2"
-          :class="isActive(page) ? 'active' : ''"
-          @click="closeMobile"
-        >
-          <NavIcon :name="page.icon" />
-          {{ page.title }}
-        </router-link>
-      </nav>
+        <template v-for="page in globalPages" :key="page.route || 'home'">
+          <router-link
+            :to="pageRoute(page)"
+            class="btn-ghost w-full text-left flex items-center gap-2"
+            :class="isActive(page) ? 'active' : ''"
+            @click="closeMobile"
+          >
+            <NavIcon :name="page.icon" />
+            {{ page.title }}
+          </router-link>
 
-      <!-- Ontology class tree (shown when on /ontology route) -->
-      <div v-if="isOntologyRoute" class="mb-6">
-        <div class="section-label">Classes</div>
-        <nav class="space-y-0.5">
-          <template v-for="root in treeRoots" :key="root.compact">
-            <button @click="activeClassId = root.compact; activeTaxonomy = null; toggleExpand(root)"
+          <!-- Ontology class tree nested under Ontology nav item -->
+          <div v-if="page.route === 'ontology' && isOntologyRoute" class="ml-4 mt-1 mb-2 space-y-0.5">
+            <!-- Overview -->
+            <button @click="activeClassId = null; activeTaxonomy = null; scrollMainToTop()"
               class="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors"
-              :class="activeClassId === root.compact && !activeTaxonomy ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-600 hover:bg-ink-50'"
+              :class="isOverview ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-600 hover:bg-ink-50'"
             >
-              <span v-if="hasChildren(root)" class="text-[10px] text-ink-300 w-3">{{ expandedClasses.has(root.compact) ? '▾' : '▸' }}</span>
-              <span v-else class="w-3"></span>
-              <span class="flex-1 text-left">{{ root.label }}</span>
+              <span class="w-3 text-ink-200">·</span>
+              <span class="flex-1 text-left">Overview</span>
             </button>
-            <!-- Children -->
-            <div v-if="expandedClasses.has(root.compact) && hasChildren(root)" class="ml-3">
-              <template v-for="child in childClasses(root.compact)" :key="child.compact">
-                <button @click="activeClassId = child.compact; activeTaxonomy = null; toggleExpand(child)"
-                  class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
-                  :class="activeClassId === child.compact && !activeTaxonomy ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-500 hover:bg-ink-50'"
-                >
-                  <span v-if="hasChildren(child)" class="text-[10px] text-ink-300 w-3">{{ expandedClasses.has(child.compact) ? '▾' : '▸' }}</span>
-                  <span v-else class="w-3 text-ink-200">·</span>
-                  <span class="flex-1 text-left">{{ child.label }}</span>
-                </button>
-                <!-- Grandchildren -->
-                <div v-if="expandedClasses.has(child.compact) && hasChildren(child)" class="ml-3">
-                  <button v-for="gc in childClasses(child.compact)" :key="gc.compact"
-                    @click="activeClassId = gc.compact; activeTaxonomy = null"
+
+            <div class="text-[10px] uppercase tracking-wide text-ink-300 mt-2 mb-1 px-2">Classes</div>
+            <template v-for="root in treeRoots" :key="root.compact">
+              <button @click="selectClass(root.compact); toggleExpand(root)"
+                class="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors"
+                :class="activeClassId === root.compact && !activeTaxonomy ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-600 hover:bg-ink-50'"
+              >
+                <span v-if="hasChildren(root)" class="text-[10px] text-ink-300 w-3">{{ expandedClasses.has(root.compact) ? '▾' : '▸' }}</span>
+                <span v-else class="w-3 text-ink-200">·</span>
+                <span class="flex-1 text-left">{{ root.label }}</span>
+              </button>
+              <!-- Children -->
+              <div v-if="expandedClasses.has(root.compact) && hasChildren(root)" class="ml-3">
+                <template v-for="child in childClasses(root.compact)" :key="child.compact">
+                  <button @click="selectClass(child.compact); toggleExpand(child)"
                     class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
-                    :class="activeClassId === gc.compact && !activeTaxonomy ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-400 hover:bg-ink-50'"
+                    :class="activeClassId === child.compact && !activeTaxonomy ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-500 hover:bg-ink-50'"
                   >
-                    <span class="w-3 text-ink-200">·</span>
-                    <span class="flex-1 text-left">{{ gc.label }}</span>
+                    <span v-if="hasChildren(child)" class="text-[10px] text-ink-300 w-3">{{ expandedClasses.has(child.compact) ? '▾' : '▸' }}</span>
+                    <span v-else class="w-3 text-ink-200">·</span>
+                    <span class="flex-1 text-left">{{ child.label }}</span>
                   </button>
-                </div>
-              </template>
+                  <!-- Grandchildren -->
+                  <div v-if="expandedClasses.has(child.compact) && hasChildren(child)" class="ml-3">
+                    <button v-for="gc in childClasses(child.compact)" :key="gc.compact"
+                      @click="selectClass(gc.compact)"
+                      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
+                      :class="activeClassId === gc.compact && !activeTaxonomy ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-400 hover:bg-ink-50'"
+                    >
+                      <span class="w-3 text-ink-200">·</span>
+                      <span class="flex-1 text-left">{{ gc.label }}</span>
+                    </button>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- Supporting classes -->
+            <div v-if="supportingClasses.length" class="mt-2 pt-2 border-t border-ink-100/40">
+              <div class="text-[10px] uppercase tracking-wide text-ink-300 mb-1 px-2">Supporting</div>
+              <button v-for="cls in supportingClasses" :key="cls.compact"
+                @click="selectClass(cls.compact)"
+                class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
+                :class="activeClassId === cls.compact && !activeTaxonomy ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-400 hover:bg-ink-50'"
+              >
+                <span class="w-3 text-ink-200">·</span>
+                <span class="flex-1 text-left">{{ cls.label }}</span>
+              </button>
             </div>
-          </template>
 
-          <!-- Supporting classes -->
-          <div v-if="supportingClasses.length" class="mt-3 pt-2 border-t border-ink-100/40">
-            <div class="text-[10px] uppercase tracking-wide text-ink-300 mb-1 px-2">Supporting</div>
-            <button v-for="cls in supportingClasses" :key="cls.compact"
-              @click="activeClassId = cls.compact; activeTaxonomy = null"
-              class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
-              :class="activeClassId === cls.compact && !activeTaxonomy ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-400 hover:bg-ink-50'"
-            >
-              <span class="w-3 text-ink-200">·</span>
-              <span class="flex-1 text-left">{{ cls.label }}</span>
-            </button>
+            <!-- SKOS Taxonomies -->
+            <div class="mt-2 pt-2 border-t border-ink-100/40">
+              <div class="text-[10px] uppercase tracking-wide text-ink-300 mb-1 px-2">Taxonomies</div>
+              <button v-for="tk in taxonomyKeys" :key="tk"
+                @click="selectTaxonomy(tk)"
+                class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
+                :class="activeTaxonomy === tk ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-400 hover:bg-ink-50'"
+              >
+                <span class="w-3 text-ink-200">·</span>
+                <span class="flex-1 text-left">{{ taxonomyLabels[tk] }}</span>
+              </button>
+            </div>
           </div>
-
-          <!-- SKOS Taxonomies -->
-          <div class="mt-3 pt-2 border-t border-ink-100/40">
-            <div class="text-[10px] uppercase tracking-wide text-ink-300 mb-1 px-2">Taxonomies</div>
-            <button v-for="tk in taxonomyKeys" :key="tk"
-              @click="activeTaxonomy = tk"
-              class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
-              :class="activeTaxonomy === tk ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-400 hover:bg-ink-50'"
-            >
-              <span class="w-3 text-ink-200">·</span>
-              <span class="flex-1 text-left">{{ taxonomyLabels[tk] }}</span>
-            </button>
-          </div>
-        </nav>
-      </div>
+        </template>
+      </nav>
 
       <!-- Dataset-level navigation (shown when viewing a dataset) -->
       <div v-if="showDatasetNav" class="mb-6">

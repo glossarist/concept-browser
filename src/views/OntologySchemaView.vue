@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { getClass, getAllPropertiesForClass, getStats } from '../adapters/ontology-schema';
+import { computed, watch } from 'vue';
+import { getClass, getAllPropertiesForClass, getAllClasses, getStats } from '../adapters/ontology-schema';
 import { ontology, type TaxonomyConcept } from '../adapters/ontology-registry';
 import { useOntologyNav } from '../composables/use-ontology-nav';
 
@@ -11,10 +11,14 @@ const {
   activeTaxonomy,
   taxonomyLabels,
   allNavItems,
+  isOverview,
+  treeRoots,
+  hasChildren,
+  childClasses,
 } = useOntologyNav();
 
-const activeClass = computed(() => getClass(activeClassId.value));
-const activeProperties = computed(() => getAllPropertiesForClass(activeClassId.value));
+const activeClass = computed(() => activeClassId.value ? getClass(activeClassId.value) : null);
+const activeProperties = computed(() => activeClassId.value ? getAllPropertiesForClass(activeClassId.value) : { object: [], datatype: [] });
 
 function activeTaxonomyData() {
   if (!activeTaxonomy.value) return null;
@@ -23,6 +27,14 @@ function activeTaxonomyData() {
   const top = all.filter(c => !c.broader);
   return { scheme: ontology.getScheme(key), concepts: all, top };
 }
+
+// Scroll to top when selection changes
+watch([activeClassId, activeTaxonomy], () => {
+  const main = document.querySelector('main');
+  if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+const allClasses = getAllClasses();
 </script>
 
 <template>
@@ -49,6 +61,10 @@ function activeTaxonomyData() {
     <!-- Sticky mobile chips (for small screens where sidebar is hidden) -->
     <div class="lg:hidden sticky top-14 z-10 bg-surface -mx-4 px-4 py-2 border-b border-ink-100/60 mb-4">
       <div class="flex gap-2 overflow-x-auto scrollbar-none">
+        <button @click="activeClassId = null; activeTaxonomy = null"
+          class="flex-shrink-0 px-3 py-2.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1.5"
+          :class="isOverview ? 'bg-ink-800 text-white' : 'bg-surface-raised border border-ink-100 text-ink-600 hover:bg-ink-50'"
+        >Overview</button>
         <button v-for="item in allNavItems" :key="item.id"
           @click="activeClassId = item.id; activeTaxonomy = null"
           class="flex-shrink-0 px-3 py-2.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1.5"
@@ -70,6 +86,25 @@ function activeTaxonomyData() {
 
     <!-- Detail panel -->
     <div>
+      <!-- Overview: all classes summary -->
+      <template v-if="isOverview">
+        <h2 class="text-lg font-semibold text-ink-800 mb-4">Class Overview</h2>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div v-for="cls in allClasses" :key="cls.compact"
+            @click="activeClassId = cls.compact"
+            class="border border-ink-100/60 rounded-lg p-3 cursor-pointer hover:border-ink-200 hover:bg-ink-50/50 transition-colors">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-ink-700">{{ cls.label }}</span>
+              <code class="text-[10px] text-ink-400 bg-ink-50 px-1.5 py-0.5 rounded">{{ cls.compact }}</code>
+            </div>
+            <p v-if="cls.comment" class="text-xs text-ink-400 mt-1 line-clamp-2">{{ cls.comment }}</p>
+            <div v-if="cls.subClassOf" class="text-[10px] text-ink-300 mt-1">
+              subClassOf <code class="text-ink-400">{{ cls.subClassOf }}</code>
+            </div>
+          </div>
+        </div>
+      </template>
+
       <!-- Class detail -->
       <template v-if="!activeTaxonomy && activeClass">
         <div class="pb-4 border-b border-ink-100/60 mb-4">
