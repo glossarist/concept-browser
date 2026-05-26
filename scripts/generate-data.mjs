@@ -123,9 +123,13 @@ function sourcesToJsonLd(sources) {
       if (s.origin.ref) {
         const ref = s.origin.ref;
         const refObj = { '@type': 'gl:Ref' };
-        if (ref.source) refObj['gl:source'] = ref.source;
-        if (ref.id) refObj['gl:id'] = ref.id;
-        if (ref.version) refObj['gl:version'] = ref.version;
+        if (typeof ref === 'string') {
+          refObj['gl:source'] = ref;
+        } else {
+          if (ref.source) refObj['gl:source'] = ref.source;
+          if (ref.id) refObj['gl:id'] = ref.id;
+          if (ref.version) refObj['gl:version'] = ref.version;
+        }
         origin['gl:ref'] = refObj;
       }
       if (s.origin.locality) {

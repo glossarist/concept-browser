@@ -119,15 +119,19 @@ function mapSourceFromJsonLd(s: any): Record<string, unknown> {
     const o = s['gl:origin'];
     if (o['gl:ref']) {
       const rawRef = o['gl:ref'];
-      const refObj: Record<string, unknown> = {};
-      // v3: ref is always an object { gl:source, gl:id, gl:version }
-      if (rawRef['gl:source']) refObj.source = rawRef['gl:source'];
-      if (rawRef['gl:id']) refObj.id = rawRef['gl:id'];
-      if (rawRef['gl:version']) refObj.version = rawRef['gl:version'];
-      if (rawRef['source']) refObj.source = rawRef['source'];
-      if (rawRef['id']) refObj.id = rawRef['id'];
-      if (rawRef['version']) refObj.version = rawRef['version'];
-      if (Object.keys(refObj).length > 0) origin.ref = refObj;
+      if (typeof rawRef === 'string') {
+        // Legacy format: gl:ref is a plain string (e.g. "ISO/TS 14812:2022")
+        origin.ref = { source: rawRef };
+      } else {
+        const refObj: Record<string, unknown> = {};
+        if (rawRef['gl:source']) refObj.source = rawRef['gl:source'];
+        if (rawRef['gl:id']) refObj.id = rawRef['gl:id'];
+        if (rawRef['gl:version']) refObj.version = rawRef['gl:version'];
+        if (rawRef['source']) refObj.source = rawRef['source'];
+        if (rawRef['id']) refObj.id = rawRef['id'];
+        if (rawRef['version']) refObj.version = rawRef['version'];
+        if (Object.keys(refObj).length > 0) origin.ref = refObj;
+      }
     }
     if (o['gl:locality']) {
       const loc: Record<string, unknown> = {};

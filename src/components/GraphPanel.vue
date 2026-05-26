@@ -176,13 +176,14 @@ function buildSimulation(width: number, height: number) {
   const renderNodes = capped ? allVisible.slice(0, MAX_RENDER_NODES) : allVisible;
 
   const simNodes: SimNode[] = renderNodes.map(n => {
-    const desig = Object.values(n.designations)[0] || '';
+    const lang = uiStore.selectedLang;
+    const desig = n.designations[lang] || Object.values(n.designations)[0] || '';
     return {
       uri: n.uri,
       register: n.register,
       conceptId: n.conceptId,
       designation: desig,
-      hasDesignation: !!desig,
+      hasDesignation: !!n.designations[lang],
       loaded: n.loaded,
       nodeType: n.nodeType,
       x: width / 2 + (Math.random() - 0.5) * 200,
@@ -392,6 +393,11 @@ watch(registerEnabled, () => {
   nextTick(rebuildGraph);
 });
 
+// Rebuild when language changes (designation labels depend on language)
+watch(() => uiStore.selectedLang, () => {
+  nextTick(rebuildGraph);
+});
+
 onMounted(() => {
   nextTick(() => {
     if (props.nodes.length > 0) {
@@ -555,7 +561,7 @@ function selectedNodeColor(): string {
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <h3 class="font-serif text-base text-ink-800 leading-snug truncate">
-            {{ Object.values(selectedNode.designations)[0] || selectedNode.conceptId }}
+            {{ selectedNode.designations[uiStore.selectedLang] || Object.values(selectedNode.designations)[0] || selectedNode.conceptId }}
           </h3>
           <p class="text-xs text-ink-300 font-mono mt-0.5">{{ selectedNode.conceptId }}</p>
           <div class="flex items-center gap-1.5 mt-2">
