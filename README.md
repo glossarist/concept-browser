@@ -101,6 +101,29 @@ Replace `IEV` with the uppercase dataset ID.
 
 All dataset configuration lives in a single file. Adding a new dataset requires **zero code changes** — just add an entry to `datasets.yml` and run the pipeline.
 
+### Branding and favicon
+
+The `site-config.yml` `branding` section controls the site's visual identity:
+
+```yaml
+branding:
+  primaryColor: "#d97706"
+  darkColor: "#1a1a2e"
+  logo:
+    path: /logos/my-logo.svg        # URL path served to browsers
+    alt: "My Org"
+    localPath: logos/my-logo.svg     # Local file used as favicon source
+  favicon: logos/my-favicon.svg      # Optional — overrides logo.localPath for favicon generation
+```
+
+During build, favicons are auto-generated from a single SVG source using the [`favicons`](https://npmjs.com/package/favicons) package. The resolution order is:
+
+1. `branding.favicon` — explicit path to favicon source SVG
+2. `branding.logo.localPath` — falls back to the site logo
+3. Package default `public/favicon.svg`
+
+The build produces: `favicon.ico`, `favicon.svg`, `favicon-{16,32,48}x{16,32,48}.png`, `apple-touch-icon-*.png` (all standard iOS sizes), and injects the corresponding `<link>` and `<meta>` tags into `index.html` via a Vite plugin.
+
 ### Full reference
 
 ```yaml

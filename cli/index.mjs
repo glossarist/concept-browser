@@ -78,7 +78,7 @@ Environment:
   if (!process.env.SITE_CONFIG && !process.env.SITE_ID && named.site) {
     process.env.SITE_ID = named.site;
   }
-  loadSiteConfig(named.site ? [named.site] : []);
+  const { config } = loadSiteConfig(named.site ? [named.site] : []);
 
   if (cmd === 'build' || cmd === 'site') {
     for (const step of ['fetch', 'generate', 'edges']) {
@@ -86,15 +86,62 @@ Environment:
       await commands[step]();
     }
 
-    // Copy package static files (favicon, etc.) to deployment public dir
+    // Generate favicons from site logo
     const fs = await import('fs');
     const publicDir = resolve(process.cwd(), 'public');
     fs.mkdirSync(publicDir, { recursive: true });
-    for (const file of ['favicon.svg']) {
-      const src = resolve(pkgRoot, 'public', file);
-      if (fs.existsSync(src)) {
-        fs.copyFileSync(src, resolve(publicDir, file));
+
+    const branding = config?.branding || {};
+    const faviconSrc =
+      (branding.favicon && resolve(process.cwd(), branding.favicon)) ||
+      (branding.logo?.localPath && resolve(process.cwd(), branding.logo.localPath)) ||
+      resolve(pkgRoot, 'public', 'favicon.svg');
+
+    let faviconHtml = '';
+    if (fs.existsSync(faviconSrc)) {
+      console.log(`\n=== FAVICONS ===\n`);
+      const favicons = (await import('favicons')).default;
+      const source = fs.readFileSync(faviconSrc);
+      const response = await favicons(source, {
+        appName: config?.title || 'Glossarist',
+        background: branding.primaryColor || '#2563eb',
+        theme_color: branding.primaryColor || '#2563eb',
+        icons: {
+          android: false,
+          appleIcon: true,
+          appleStartup: false,
+          favicons: true,
+          windows: false,
+          yandex: false,
+        },
+      });
+
+      // Write all generated images and files to public/
+      for (const img of response.images) {
+        fs.writeFileSync(resolve(publicDir, img.name), img.contents);
       }
+      for (const file of response.files) {
+        fs.writeFileSync(resolve(publicDir, file.name), file.contents);
+      }
+
+      // Keep the original SVG for dark mode support
+      if (faviconSrc.endsWith('.svg')) {
+        fs.copyFileSync(faviconSrc, resolve(publicDir, 'favicon.svg'));
+      }
+
+      faviconHtml = response.html.join('\n    ');
+      // Add SVG favicon
+      if (faviconSrc.endsWith('.svg')) {
+        faviconHtml += '\n    <link rel="icon" type="image/svg+xml" href="/favicon.svg">';
+      }
+      // Write tags for Vite plugin to pick up
+      fs.writeFileSync(resolve(publicDir, 'favicon-links.html'), faviconHtml);
+      console.log(`  Generated ${response.images.length} favicon files`);
+    }
+
+    // Pass favicon tags to Vite via env
+    if (faviconHtml) {
+      process.env.FAVICON_HTML = faviconHtml;
     }
 
     // Run vite build using the package's vite.config.ts
