@@ -6,10 +6,14 @@ import {
   type OwlClass,
 } from '../adapters/ontology-schema';
 
-const OVERVIEW_ID = '__overview__';
+export function slugToCompact(slug: string): string {
+  return slug.replace(/-/g, ':');
+}
 
-const activeClassId = ref<string | null>(null);
-const activeTaxonomy = ref<string | null>(null);
+export function compactToSlug(compact: string): string {
+  return compact.replace(/:/g, '-');
+}
+
 const expandedClasses = ref(new Set<string>(['gloss:Designation']));
 
 const taxonomyKeys = [
@@ -58,8 +62,6 @@ const supportingClasses = computed(() =>
   )
 );
 
-const isOverview = computed(() => activeClassId.value === null && activeTaxonomy.value === null);
-
 const allNavItems = computed(() => {
   const items: { id: string; label: string; depth: number }[] = [];
   function walk(classes: OwlClass[], depth: number) {
@@ -76,15 +78,12 @@ const allNavItems = computed(() => {
 
 export function useOntologyNav() {
   return {
-    activeClassId,
-    activeTaxonomy,
     expandedClasses,
     taxonomyKeys,
     taxonomyLabels,
     treeRoots,
     supportingClasses,
     allNavItems,
-    isOverview,
     toggleExpand,
     childClasses,
     hasChildren,

@@ -1,21 +1,33 @@
 <script setup lang="ts">
 import { computed, watch, nextTick } from 'vue';
+import { useRoute } from 'vue-router';
 import { getClass, getAllPropertiesForClass, getAllClasses, getStats } from '../adapters/ontology-schema';
 import { ontology, type TaxonomyConcept } from '../adapters/ontology-registry';
-import { useOntologyNav } from '../composables/use-ontology-nav';
+import { useOntologyNav, slugToCompact, compactToSlug } from '../composables/use-ontology-nav';
 
+const route = useRoute();
 const stats = getStats();
 
 const {
-  activeClassId,
-  activeTaxonomy,
   taxonomyLabels,
   allNavItems,
-  isOverview,
   treeRoots,
   hasChildren,
   childClasses,
 } = useOntologyNav();
+
+const activeClassId = computed(() => {
+  if (route.name !== 'ontology-class') return null;
+  const slug = route.params.classId as string;
+  return slugToCompact(slug);
+});
+
+const activeTaxonomy = computed(() => {
+  if (route.name !== 'ontology-taxonomy') return null;
+  return route.params.taxonomyKey as string;
+});
+
+const isOverview = computed(() => route.name === 'ontology');
 
 const activeClass = computed(() => activeClassId.value ? getClass(activeClassId.value) : null);
 const activeProperties = computed(() => activeClassId.value ? getAllPropertiesForClass(activeClassId.value) : { object: [], datatype: [] });
@@ -28,7 +40,7 @@ function activeTaxonomyData() {
   return { scheme: ontology.getScheme(key), concepts: all, top };
 }
 
-watch([activeClassId, activeTaxonomy], () => {
+watch(() => route.fullPath, () => {
   nextTick(() => {
     const main = document.querySelector('main');
     if (main) main.scrollTo({ top: 0 });
@@ -60,32 +72,11 @@ const allClasses = getAllClasses();
         <code class="block text-xs text-ink-400 mt-2">https://www.glossarist.org/ontologies/glossarist</code>
       </div>
 
-      <!-- Sticky mobile chips (for small screens where sidebar is hidden) -->
-      <div class="lg:hidden sticky top-14 z-10 bg-surface -mx-4 px-4 py-2 border-b border-ink-100/60 mb-4">
-        <div class="flex gap-2 overflow-x-auto scrollbar-none">
-          <button v-for="item in allNavItems" :key="item.id"
-            @click="activeClassId = item.id; activeTaxonomy = null"
-            class="flex-shrink-0 px-3 py-2.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1.5"
-            :class="activeClassId === item.id && !activeTaxonomy
-              ? 'bg-ink-800 text-white'
-              : 'bg-surface-raised border border-ink-100 text-ink-600 hover:bg-ink-50'"
-          >
-            {{ item.label }}
-          </button>
-          <button @click="activeTaxonomy = activeTaxonomy ? null : 'conceptStatus'"
-            class="flex-shrink-0 px-3 py-2.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1.5"
-            :class="activeTaxonomy
-              ? 'bg-ink-800 text-white'
-              : 'bg-surface-raised border border-ink-100 text-ink-600 hover:bg-ink-50'"
-          >Taxonomies</button>
-        </div>
-      </div>
-
       <h2 class="text-lg font-semibold text-ink-800 mb-4">Class Overview</h2>
       <div class="grid gap-3 sm:grid-cols-2">
-        <div v-for="cls in allClasses" :key="cls.compact"
-          @click="activeClassId = cls.compact"
-          class="border border-ink-100/60 rounded-lg p-3 cursor-pointer hover:border-ink-200 hover:bg-ink-50/50 transition-colors">
+        <router-link v-for="cls in allClasses" :key="cls.compact"
+          :to="`/ontology/class/${compactToSlug(cls.compact)}`"
+          class="border border-ink-100/60 rounded-lg p-3 cursor-pointer hover:border-ink-200 hover:bg-ink-50/50 transition-colors block">
           <div class="flex items-center gap-2">
             <span class="text-sm font-medium text-ink-700">{{ cls.label }}</span>
             <code class="text-[10px] text-ink-400 bg-ink-50 px-1.5 py-0.5 rounded">{{ cls.compact }}</code>
@@ -94,16 +85,30 @@ const allClasses = getAllClasses();
           <div v-if="cls.subClassOf" class="text-[10px] text-ink-300 mt-1">
             subClassOf <code class="text-ink-400">{{ cls.subClassOf }}</code>
           </div>
-        </div>
+        </router-link>
+      </div>
+
+      <h2 class="text-lg font-semibold text-ink-800 mt-8 mb-4">Taxonomies</h2>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <router-link v-for="tk in ['conceptStatus', 'entryStatus', 'normativeStatus', 'sourceType', 'sourceStatus', 'relationshipType', 'designationType', 'termType', 'grammarGender', 'grammarNumber']" :key="tk"
+          :to="`/ontology/taxonomy/${tk}`"
+          class="border border-ink-100/60 rounded-lg p-3 cursor-pointer hover:border-ink-200 hover:bg-ink-50/50 transition-colors block">
+          <span class="text-sm font-medium text-ink-700">{{ taxonomyLabels[tk] }}</span>
+        </router-link>
       </div>
     </template>
 
-    <!-- Class detail (no overview header) -->
+    <!-- Class detail -->
     <template v-if="!activeTaxonomy && activeClass">
-      <!-- Breadcrumb -->
       <nav class="flex items-center gap-1.5 text-sm text-ink-400 mb-4">
-        <button @click="activeClassId = null" class="hover:text-ink-700 transition-colors">Overview</button>
-        <span class="text-ink-200">/</span>
+        <router-link to="/ontology" class="hover:text-ink-700 transition-colors">Overview</router-link>
+        <template v-if="activeClass.ancestors.length">
+          <span class="text-ink-200">/</span>
+          <template v-for="(anc, i) in activeClass.ancestors" :key="anc">
+            <router-link :to="`/ontology/class/${compactToSlug(anc)}`" class="hover:text-ink-700 transition-colors">{{ getClass(anc)?.label || anc }}</router-link>
+            <span class="text-ink-200">/</span>
+          </template>
+        </template>
         <span class="text-ink-700">{{ activeClass.label }}</span>
       </nav>
 
@@ -112,16 +117,15 @@ const allClasses = getAllClasses();
         <code class="block text-xs text-ink-400 mt-1">{{ activeClass.iri }}</code>
         <div v-if="activeClass.subClassOf" class="flex items-center gap-2 mt-2 text-sm">
           <span class="text-ink-400 text-xs">subClassOf</span>
-          <code class="text-xs text-ink-600 bg-ink-50 px-2 py-0.5 rounded">{{ activeClass.subClassOf }}</code>
+          <router-link :to="`/ontology/class/${compactToSlug(activeClass.subClassOf)}`" class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded hover:bg-blue-100 transition-colors">{{ activeClass.subClassOf }}</router-link>
           <template v-if="activeClass.ancestors.length > 1">
             <span class="text-ink-300 text-xs">→</span>
-            <code class="text-xs text-ink-500">{{ activeClass.ancestors.slice(1).join(' → ') }}</code>
+            <span class="text-xs text-ink-500">{{ activeClass.ancestors.slice(1).map(a => getClass(a)?.label || a).join(' → ') }}</span>
           </template>
         </div>
         <p v-if="activeClass.comment" class="text-sm text-ink-500 mt-3 leading-relaxed">{{ activeClass.comment }}</p>
       </div>
 
-      <!-- Object Properties -->
       <div v-if="activeProperties.object.length" class="mb-6">
         <h3 class="text-xs uppercase tracking-wide text-ink-300 font-medium mb-2">
           Object Properties ({{ activeProperties.object.length }})
@@ -149,7 +153,6 @@ const allClasses = getAllClasses();
         </table>
       </div>
 
-      <!-- Datatype Properties -->
       <div v-if="activeProperties.datatype.length">
         <h3 class="text-xs uppercase tracking-wide text-ink-300 font-medium mb-2">
           Datatype Properties ({{ activeProperties.datatype.length }})
@@ -181,11 +184,10 @@ const allClasses = getAllClasses();
       </div>
     </template>
 
-    <!-- Taxonomy detail (no overview header) -->
+    <!-- Taxonomy detail -->
     <template v-if="activeTaxonomy && activeTaxonomyData()">
-      <!-- Breadcrumb -->
       <nav class="flex items-center gap-1.5 text-sm text-ink-400 mb-4">
-        <button @click="activeTaxonomy = null; activeClassId = null" class="hover:text-ink-700 transition-colors">Overview</button>
+        <router-link to="/ontology" class="hover:text-ink-700 transition-colors">Overview</router-link>
         <span class="text-ink-200">/</span>
         <span class="text-ink-700">{{ taxonomyLabels[activeTaxonomy] }}</span>
       </nav>

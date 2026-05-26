@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed } from 'vue';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useUiStore } from '../stores/ui';
 import { useRoute, useRouter } from 'vue-router';
 import { useDsStyle } from '../utils/dataset-style';
 import { useSiteConfig } from '../config/use-site-config';
-import { useOntologyNav } from '../composables/use-ontology-nav';
+import { useOntologyNav, compactToSlug } from '../composables/use-ontology-nav';
 import NavIcon from './NavIcon.vue';
 
 const store = useVocabularyStore();
@@ -18,20 +18,32 @@ const { globalPages, datasetPages, config: siteConfig } = useSiteConfig();
 const currentDataset = computed(() => route.params.registerId as string ?? '');
 
 const {
-  activeClassId,
-  activeTaxonomy,
   expandedClasses,
   taxonomyKeys,
   taxonomyLabels,
   treeRoots,
   supportingClasses,
-  isOverview,
   toggleExpand,
   childClasses,
   hasChildren,
 } = useOntologyNav();
 
-const isOntologyRoute = computed(() => route.name === 'ontology');
+const isOntologyRoute = computed(() =>
+  route.name === 'ontology' || route.name === 'ontology-class' || route.name === 'ontology-taxonomy'
+);
+
+const activeClassId = computed(() => {
+  if (route.name !== 'ontology-class') return null;
+  const slug = route.params.classId as string;
+  return slug.replace(/-/g, ':');
+});
+
+const activeTaxonomy = computed(() => {
+  if (route.name !== 'ontology-taxonomy') return null;
+  return route.params.taxonomyKey as string;
+});
+
+const isOverview = computed(() => route.name === 'ontology');
 
 const datasetEntries = computed(() => {
   const entries: { id: string; title: string; loaded: boolean; conceptCount: number }[] = [];
@@ -75,19 +87,11 @@ function isActive(page: { route: string; datasetScoped?: boolean }): boolean {
 }
 
 function selectClass(id: string) {
-  activeClassId.value = id;
-  activeTaxonomy.value = null;
-  scrollMainToTop();
+  router.push(`/ontology/class/${compactToSlug(id)}`);
 }
 
 function selectTaxonomy(key: string) {
-  activeTaxonomy.value = key;
-  scrollMainToTop();
-}
-
-function scrollMainToTop() {
-  const main = document.querySelector('main');
-  if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
+  router.push(`/ontology/taxonomy/${key}`);
 }
 </script>
 
@@ -119,13 +123,13 @@ function scrollMainToTop() {
           <!-- Ontology class tree nested under Ontology nav item -->
           <div v-if="page.route === 'ontology' && isOntologyRoute" class="ml-4 mt-1 mb-2 space-y-0.5">
             <!-- Overview -->
-            <button @click="activeClassId = null; activeTaxonomy = null; scrollMainToTop()"
+            <router-link to="/ontology"
               class="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors"
               :class="isOverview ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-600 hover:bg-ink-50'"
             >
               <span class="w-3 text-ink-200">·</span>
               <span class="flex-1 text-left">Overview</span>
-            </button>
+            </router-link>
 
             <div class="text-[10px] uppercase tracking-wide text-ink-300 mt-2 mb-1 px-2">Classes</div>
             <template v-for="root in treeRoots" :key="root.compact">

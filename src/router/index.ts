@@ -46,6 +46,16 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('../views/OntologySchemaView.vue'),
   },
   {
+    path: '/ontology/class/:classId',
+    name: 'ontology-class',
+    component: () => import('../views/OntologySchemaView.vue'),
+  },
+  {
+    path: '/ontology/taxonomy/:taxonomyKey',
+    name: 'ontology-taxonomy',
+    component: () => import('../views/OntologySchemaView.vue'),
+  },
+  {
     path: '/news',
     name: 'news',
     component: () => import('../views/NewsView.vue'),
