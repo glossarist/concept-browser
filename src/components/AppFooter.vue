@@ -5,8 +5,8 @@ import { useSiteConfig } from '../config/use-site-config';
 const { config } = useSiteConfig();
 
 const poweredBy = computed(() => {
-  const pb = config.value?.features?.poweredBy as { title?: string; url?: string } | undefined;
-  return { title: pb?.title || 'Glossarist Concept Browser', url: pb?.url || 'https://github.com/glossarist/concept-browser' };
+  const pb = config.value?.features?.poweredBy as { message?: string; url?: string } | undefined;
+  return { message: pb?.message || 'Built with the Glossarist Concept Browser', url: pb?.url || 'https://github.com/glossarist/concept-browser' };
 });
 
 const socialLinks = computed(() => {
@@ -55,7 +55,7 @@ const ownerUrl = computed(() => config.value?.branding?.ownerUrl || '/');
           >{{ link.label }}</a>
           <span class="text-ink-200">|</span>
           <span class="text-xs">
-            Built with the <a :href="poweredBy.url" target="_blank" rel="noopener" class="concept-link">{{ poweredBy.title }}</a>
+            <a :href="poweredBy.url" target="_blank" rel="noopener" class="concept-link">{{ poweredBy.message }}</a>
           </span>
         </div>
       </div>

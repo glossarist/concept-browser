@@ -31,8 +31,8 @@ export interface SiteBranding {
 // === Features ===
 
 export interface PoweredByConfig {
-  title: string;
-  url: string;
+  message?: string;
+  url?: string;
 }
 
 export interface SiteFeatures {

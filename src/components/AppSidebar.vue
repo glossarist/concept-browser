@@ -235,13 +235,12 @@ function scrollMainToTop() {
       <!-- Powered by -->
       <div class="mt-6 pt-4 border-t border-ink-100/60">
         <div class="text-[11px] text-ink-300">
-          Built with the
           <a
             :href="(siteConfig?.features?.poweredBy as any)?.url || 'https://github.com/glossarist/concept-browser'"
             target="_blank"
             rel="noopener"
             class="concept-link"
-          >{{ (siteConfig?.features?.poweredBy as any)?.title || 'Glossarist Concept Browser' }}</a>
+          >{{ (siteConfig?.features?.poweredBy as any)?.message || 'Built with the Glossarist Concept Browser' }}</a>
         </div>
       </div>
     </div>
