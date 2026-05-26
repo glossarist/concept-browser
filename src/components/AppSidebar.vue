@@ -22,7 +22,6 @@ const {
   taxonomyKeys,
   taxonomyLabels,
   treeRoots,
-  supportingClasses,
   toggleExpand,
   childClasses,
   hasChildren,
@@ -166,19 +165,6 @@ function selectTaxonomy(key: string) {
                 </template>
               </div>
             </template>
-
-            <!-- Supporting classes -->
-            <div v-if="supportingClasses.length" class="mt-2 pt-2 border-t border-ink-100/40">
-              <div class="text-[10px] uppercase tracking-wide text-ink-300 mb-1 px-2">Supporting</div>
-              <button v-for="cls in supportingClasses" :key="cls.compact"
-                @click="selectClass(cls.compact)"
-                class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
-                :class="activeClassId === cls.compact && !activeTaxonomy ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-400 hover:bg-ink-50'"
-              >
-                <span class="w-3 text-ink-200">·</span>
-                <span class="flex-1 text-left">{{ cls.label }}</span>
-              </button>
-            </div>
 
             <!-- SKOS Taxonomies -->
             <div class="mt-2 pt-2 border-t border-ink-100/40">

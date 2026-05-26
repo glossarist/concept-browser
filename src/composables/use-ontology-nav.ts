@@ -2,7 +2,6 @@ import { ref, computed } from 'vue';
 import {
   getClass,
   getClassTree,
-  getAllClasses,
   type OwlClass,
 } from '../adapters/ontology-schema';
 
@@ -53,15 +52,6 @@ function hasChildren(cls: OwlClass): boolean {
 
 const treeRoots = getClassTree();
 
-const supportingClasses = computed(() =>
-  getAllClasses().filter(
-    c => c.children.length === 0
-      && !c.subClassOf?.startsWith('gloss:')
-      && c.compact !== 'gloss:Concept'
-      && c.compact !== 'gloss:ConceptCollection'
-  )
-);
-
 const allNavItems = computed(() => {
   const items: { id: string; label: string; depth: number }[] = [];
   function walk(classes: OwlClass[], depth: number) {
@@ -82,7 +72,6 @@ export function useOntologyNav() {
     taxonomyKeys,
     taxonomyLabels,
     treeRoots,
-    supportingClasses,
     allNavItems,
     toggleExpand,
     childClasses,
