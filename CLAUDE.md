@@ -64,3 +64,8 @@ Vue 3 + TypeScript + Vite + Pinia + Vue Router + Tailwind CSS 3 + D3.js + KaTeX 
 ## Deployment
 
 Deployed to https://www.geolexica.org via GitHub Pages. CI/CD pipeline: `.github/workflows/deploy.yml` runs fetch-datasets, generate-data, build-edges, build on push to main. SPA fallback via `dist/404.html`.
+
+## Release Rules
+
+- **ALWAYS bump PATCH version only** (e.g. 0.4.9 → 0.4.10). Never bump minor or major unless explicitly requested.
+- After any code change, bump patch, tag (`v0.4.X`), push tag to trigger npm release, then redeploy all site repos.
