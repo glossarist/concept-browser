@@ -15,6 +15,7 @@ import { useDsStyle } from '../utils/dataset-style';
 import { getFactory } from '../adapters/factory';
 import { useRenderOptions } from '../composables/use-render-options';
 import { categorizeRelationship, relationshipLabel, relationshipDefinition } from '../utils/relationship-categories';
+import { useSiteConfig } from '../config/use-site-config';
 import ConceptTimeline from './ConceptTimeline.vue';
 import ConceptRdfView from './ConceptRdfView.vue';
 import FormatDownloads from './FormatDownloads.vue';
@@ -32,6 +33,7 @@ const props = defineProps<{
 const router = useRouter();
 const store = useVocabularyStore();
 const { getColor } = useDsStyle();
+const { config: siteConfig } = useSiteConfig();
 const factory = getFactory();
 
 const activeTab = ref<'rdf' | 'definition' | 'history'>('definition');
@@ -75,16 +77,8 @@ const languages = computed(() => {
   });
 });
 
-// Collapsible language sections — auto-collapse non-eng when 6+ languages
+// Collapsible language sections — expand all with content, collapse those without
 const collapsedLangs = ref(new Set<string>());
-
-function initCollapsed(langs: string[]) {
-  if (langs.length >= 6) {
-    collapsedLangs.value = new Set(langs.filter(l => l !== 'eng'));
-  }
-}
-
-watch(languages, (langs) => { initCollapsed(langs); }, { immediate: true });
 
 const engConcept = computed((): LocalizedConcept | null => {
   return props.concept.localization('eng') ?? null;
@@ -191,6 +185,20 @@ const allLangContent = computed(() => {
 function hasContent(lc: LangContent): boolean {
   return !!(lc.definition || lc.notes.length || lc.examples.length || lc.sources.length);
 }
+
+function initCollapsed() {
+  const mainLangs = siteConfig.value?.defaults?.mainLanguages || [];
+  const mainSet = new Set(mainLangs.length ? mainLangs : ['eng']);
+  const collapsed = new Set<string>();
+  for (const lc of allLangContent.value) {
+    if (!hasContent(lc) && !mainSet.has(lc.lang)) {
+      collapsed.add(lc.lang);
+    }
+  }
+  collapsedLangs.value = collapsed;
+}
+
+watch(languages, () => { initCollapsed(); }, { immediate: true });
 
 const allCollapsed = computed(() => collapsedLangs.value.size === allLangContent.value.length);
 

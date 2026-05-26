@@ -152,6 +152,7 @@ export interface SiteConfig {
   defaults: {
     language?: string;
     languageOrder?: string[];
+    mainLanguages?: string[];
   };
   email?: string;
   pages?: PageConfig[];

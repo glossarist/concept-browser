@@ -47,7 +47,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto px-4 py-16 text-center">
+  <div class="max-w-5xl mx-auto px-4 py-16 text-center">
     <template v-if="error">
       <h1 class="text-2xl font-serif text-ink-800 mb-4">Concept not found</h1>
       <p class="text-ink-500 mb-2">The following concept URI could not be resolved:</p>

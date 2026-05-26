@@ -115,6 +115,7 @@ interface SimNode extends SimulationNodeDatum {
   register: string;
   conceptId: string;
   designation: string;
+  altDesignations: string[];
   hasDesignation: boolean;
   loaded: boolean;
   nodeType?: 'concept' | 'domain';
@@ -178,11 +179,15 @@ function buildSimulation(width: number, height: number) {
   const simNodes: SimNode[] = renderNodes.map(n => {
     const lang = uiStore.selectedLang;
     const desig = n.designations[lang] || Object.values(n.designations)[0] || '';
+    const alts = Object.entries(n.designations)
+      .filter(([l, t]) => l !== lang && t && t !== desig)
+      .map(([, t]) => t);
     return {
       uri: n.uri,
       register: n.register,
       conceptId: n.conceptId,
       designation: desig,
+      altDesignations: alts,
       hasDesignation: !!n.designations[lang],
       loaded: n.loaded,
       nodeType: n.nodeType,
@@ -270,6 +275,20 @@ function buildSimulation(width: number, height: number) {
     .attr('fill', d => {
       if (labelMode.value === 'designation' && !d.hasDesignation) return '#c4c5d6'; // dim for fallback
       return '#636588';
+    });
+
+  conceptNodes.append('text')
+    .attr('dy', -9)
+    .attr('y', 7)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', '6px')
+    .attr('font-family', '"DM Sans", system-ui, sans-serif')
+    .attr('fill', '#a0a1b5')
+    .attr('pointer-events', 'none')
+    .text(d => {
+      if (labelMode.value !== 'designation') return '';
+      const alts = d.altDesignations.slice(0, 2);
+      return alts.join(' · ');
     });
 
   const dragBehavior = drag<SVGGElement, SimNode>()

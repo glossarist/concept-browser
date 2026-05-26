@@ -27,7 +27,7 @@ export interface RuntimeSiteConfig {
   social?: Record<string, string>;
   nav?: { label: string; route: string }[];
   footerNav?: { label: string; route: string }[];
-  defaults?: { language?: string; languageOrder?: string[] };
+  defaults?: { language?: string; languageOrder?: string[]; mainLanguages?: string[] };
   email?: string;
   pages?: PageConfig[];
   contributors?: { name: string; role?: string; organization?: string; url?: string; email?: string }[];

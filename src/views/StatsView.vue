@@ -68,7 +68,7 @@ function coverageColor(ratio: number): string {
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Breadcrumb -->
     <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400 mb-6">
       <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">Home</router-link>
