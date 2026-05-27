@@ -56,6 +56,16 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('../views/OntologySchemaView.vue'),
   },
   {
+    path: '/ontology/shape/:shapeId',
+    name: 'ontology-shape',
+    component: () => import('../views/OntologySchemaView.vue'),
+  },
+  {
+    path: '/ontology/property/:propertyId',
+    name: 'ontology-property',
+    component: () => import('../views/OntologySchemaView.vue'),
+  },
+  {
     path: '/news',
     name: 'news',
     component: () => import('../views/NewsView.vue'),
