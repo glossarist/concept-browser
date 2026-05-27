@@ -333,8 +333,8 @@ const rdfSource = computed(() => rdfFormat.value === 'turtle' ? turtleSource.val
             </button>
           </div>
           <div class="flex gap-1.5 mt-2.5">
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-100">gloss:Concept</span>
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">skos:Concept</span>
+            <router-link to="/ontology/class/gloss-Concept" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-colors">gloss:Concept</router-link>
+            <router-link to="/ontology/class/gloss-Concept" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors">skos:Concept</router-link>
           </div>
         </div>
       </div>
@@ -356,7 +356,7 @@ const rdfSource = computed(() => rdfFormat.value === 'turtle' ? turtleSource.val
     <div v-for="(section, si) in sections" :key="si" class="card p-5">
       <div class="flex items-center gap-2 mb-3">
         <div class="w-1 h-4 rounded-full" :class="section.classId === 'gloss:Concept' ? 'bg-blue-500' : section.classId === 'gloss:LocalizedConcept' ? 'bg-emerald-500' : 'bg-amber-500'"></div>
-        <code class="text-xs font-semibold text-ink-700">{{ section.classId }}</code>
+        <router-link :to="`/ontology/class/${section.classId.replace(/:/g, '-')}`" class="text-xs font-semibold text-ink-700 hover:text-blue-600 transition-colors">{{ section.classId }}</router-link>
         <span class="text-xs text-ink-400">·</span>
         <span class="text-xs text-ink-500">{{ section.label }}</span>
       </div>
