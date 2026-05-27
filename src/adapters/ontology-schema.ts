@@ -1,5 +1,5 @@
 /**
- * Ontology schema loader — provides class/property definitions parsed from
+ * Ontology schema loader — provides class/property/shape definitions parsed from
  * the Glossarist OWL ontology for the Ontospy-style concept view.
  */
 import schemaData from '../data/ontology-schema.json';
@@ -28,14 +28,72 @@ export interface OwlProperty {
   inverseOf: string | null;
 }
 
+export interface ShaclConstraint {
+  path: string | null;
+  datatype: string | null;
+  class: string | null;
+  valuesFrom: string | null;
+  nodeKind: string | null;
+  minCount: number | null;
+  maxCount: number | null;
+  in: string[] | null;
+}
+
+export interface OwlShape {
+  iri: string;
+  compact: string;
+  label: string;
+  comment: string | null;
+  targetClass: string | null;
+  shapeClass: string | null;
+  constraints: ShaclConstraint[];
+}
+
+export interface OwlOntology {
+  iri: string;
+  label: string;
+  comment: string | null;
+  prefix: string | null;
+  namespaceUri: string | null;
+  imports: { iri: string; label: string }[];
+  license: string | null;
+  created: string | null;
+}
+
+export interface AnnotationProperty {
+  iri: string;
+  compact: string;
+  label: string;
+}
+
+export type EntityType = 'class' | 'objectProperty' | 'datatypeProperty' | 'shape' | 'annotationProperty';
+
+export const ENTITY_TYPE_META: Record<EntityType, { label: string; color: string }> = {
+  class: { label: 'Classes', color: 'blue' },
+  objectProperty: { label: 'Object Properties', color: 'emerald' },
+  datatypeProperty: { label: 'Datatype Properties', color: 'amber' },
+  shape: { label: 'SHACL Shapes', color: 'purple' },
+  annotationProperty: { label: 'Annotation Properties', color: 'pink' },
+};
+
 interface OntologySchema {
+  ontology: OwlOntology | null;
   ontologyIri: string;
   ontologyLabel: string;
   classes: Record<string, OwlClass>;
   classHierarchyRoots: string[];
   properties: Record<string, OwlProperty>;
   propertiesByDomain: Record<string, { object: string[]; datatype: string[] }>;
-  stats: { classCount: number; objectPropertyCount: number; datatypePropertyCount: number };
+  shapes: Record<string, OwlShape>;
+  shapesByTargetClass: Record<string, string[]>;
+  annotationProperties: AnnotationProperty[];
+  stats: {
+    classCount: number;
+    objectPropertyCount: number;
+    datatypePropertyCount: number;
+    shapeCount: number;
+    annotationPropertyCount: number;
+  };
 }
 
 const data = schemaData as unknown as OntologySchema;
@@ -48,6 +106,10 @@ export function getProperty(id: string): OwlProperty | null {
   return data.properties[id] ?? null;
 }
 
+export function getShape(id: string): OwlShape | null {
+  return data.shapes[id] ?? null;
+}
+
 export function getPropertiesForDomain(domain: string): { object: OwlProperty[]; datatype: OwlProperty[] } {
   const group = data.propertiesByDomain[domain];
   if (!group) return { object: [], datatype: [] };
@@ -57,7 +119,6 @@ export function getPropertiesForDomain(domain: string): { object: OwlProperty[];
   };
 }
 
-/** Get all properties applicable to a class, including inherited ones. */
 export function getAllPropertiesForClass(classId: string): { object: OwlProperty[]; datatype: OwlProperty[] } {
   const cls = data.classes[classId];
   if (!cls) return { object: [], datatype: [] };
@@ -80,7 +141,11 @@ export function getAllPropertiesForClass(classId: string): { object: OwlProperty
   return { object: objectProps, datatype: datatypeProps };
 }
 
-/** Get the full class hierarchy tree starting from roots. */
+export function getShapesForClass(classId: string): OwlShape[] {
+  const shapeIds = data.shapesByTargetClass[classId] ?? [];
+  return shapeIds.map(id => data.shapes[id]).filter(Boolean);
+}
+
 export function getClassTree(): OwlClass[] {
   return data.classHierarchyRoots
     .map(id => data.classes[id])
@@ -93,6 +158,26 @@ export function getAllClasses(): OwlClass[] {
 
 export function getAllProperties(): OwlProperty[] {
   return Object.values(data.properties);
+}
+
+export function getObjectProperties(): OwlProperty[] {
+  return Object.values(data.properties).filter(p => p.type === 'object');
+}
+
+export function getDatatypeProperties(): OwlProperty[] {
+  return Object.values(data.properties).filter(p => p.type === 'datatype');
+}
+
+export function getAllShapes(): OwlShape[] {
+  return Object.values(data.shapes);
+}
+
+export function getAnnotationProperties(): AnnotationProperty[] {
+  return data.annotationProperties;
+}
+
+export function getOntology(): OwlOntology | null {
+  return data.ontology;
 }
 
 export function getStats() {
