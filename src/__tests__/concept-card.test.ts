@@ -108,8 +108,22 @@ describe('ConceptCard', () => {
     expect(router.currentRoute.value.params.conceptId).toBe('3.1.1.1');
   });
 
-  it('shows language count from manifest', () => {
+  it('shows language count from designations', () => {
     const wrapper = mountCard();
-    expect(wrapper.text()).toContain('2 lang');
+    expect(wrapper.text()).toContain('1 lang');
+  });
+
+  it('shows selected language designation as title', () => {
+    const wrapper = mountCard(makeEntry({
+      designations: { eng: 'test term', fra: 'terme test' },
+      eng: 'test term',
+    }), 'test');
+    expect(wrapper.text()).toContain('test term');
+
+    const wrapperFra = mount(ConceptCard, {
+      global: { plugins: [pinia, router] },
+      props: { entry: makeEntry({ designations: { eng: 'test term', fra: 'terme test' }, eng: 'test term' }), registerId: 'test', displayLang: 'fra' },
+    });
+    expect(wrapperFra.text()).toContain('terme test');
   });
 });
