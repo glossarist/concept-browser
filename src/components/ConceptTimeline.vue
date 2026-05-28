@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Concept, LocalizedConcept } from 'glossarist';
 import { computed } from 'vue';
-import { langName, langLabel } from '../utils/lang';
+import { langName, langLabel, sortLanguages } from '../utils/lang';
 import { entryStatusColor } from '../utils/concept-helpers';
 
 const props = defineProps<{
@@ -141,19 +141,7 @@ const languagesWithHistory = computed(() => {
       langs.push(lang);
     }
   }
-  const order = props.languageOrder;
-  if (order) {
-    const orderIndex = new Map(order.map((l, i) => [l, i]));
-    langs.sort((a, b) => {
-      const ai = orderIndex.get(a) ?? order.length;
-      const bi = orderIndex.get(b) ?? order.length;
-      if (ai !== bi) return ai - bi;
-      return a.localeCompare(b);
-    });
-  } else {
-    langs.sort();
-  }
-  return langs;
+  return sortLanguages(langs, props.languageOrder);
 });
 
 function formatDate(isoDate: string): string {

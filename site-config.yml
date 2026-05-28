@@ -27,6 +27,7 @@ datasets:
     owner: ISO/TC 211
     color: "#0d9488"
     tags: [geographic-information, gis, iso, multilingual]
+    languageOrder: [eng, fra, ara, deu, spa, rus, kor, jpn, zho, dan, fin, msa, nld, pol, swe]
 
   - id: isotc204
     uri: "urn:iso:std:iso:14812:*"
@@ -79,3 +80,4 @@ features:
 
 defaults:
   language: eng
+  languageOrder: [eng, fra]

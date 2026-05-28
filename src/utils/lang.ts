@@ -29,4 +29,17 @@ export function langLabel(code: string): string {
   return code.toUpperCase();
 }
 
+const FALLBACK_LANG_ORDER = ['eng', 'fra'];
+
+export function sortLanguages(languages: string[], order?: string[]): string[] {
+  const priority = order ?? FALLBACK_LANG_ORDER;
+  const index = new Map(priority.map((l, i) => [l, i]));
+  return [...languages].sort((a, b) => {
+    const ai = index.get(a) ?? priority.length;
+    const bi = index.get(b) ?? priority.length;
+    if (ai !== bi) return ai - bi;
+    return a.localeCompare(b);
+  });
+}
+
 export const DEFAULT_LANG = 'eng';

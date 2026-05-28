@@ -32,6 +32,7 @@ datasets:
     externalConceptUrlTemplate: "https://isotc211.geolexica.org/concepts/{conceptId}/"
     color: "#0d9488"
     tags: [geographic-information, gis, iso, multilingual]
+    languageOrder: [eng, fra, ara, deu, spa, rus, kor, jpn, zho, dan, fin, msa, nld, pol, swe]
 
   - id: isotc204
     gcrPackage: https://github.com/geolexica/isotc204-glossary/releases/latest/download/isotc204.gcr

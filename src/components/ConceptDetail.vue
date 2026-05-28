@@ -2,7 +2,7 @@
 import type { Concept, LocalizedConcept, Designation, Expression, ConceptSource } from 'glossarist';
 import type { Manifest, GraphEdge } from '../adapters/types';
 import { computed, ref, nextTick, watch } from 'vue';
-import { langName, langLabel } from '../utils/lang';
+import { langName, langLabel, sortLanguages } from '../utils/lang';
 import { renderMath, cleanContent } from '../utils/math';
 import type { RenderOptions } from '../utils/math';
 import { escapeAttr } from '../utils/escape';
@@ -59,22 +59,7 @@ function copyUri() {
 }
 
 const languages = computed(() => {
-  const order = props.manifest.languageOrder;
-  const keys = props.concept.languages;
-  if (!order) {
-    return [...keys].sort((a, b) => {
-      if (a === 'eng') return -1;
-      if (a === 'eng') return 1;
-      return a.localeCompare(b);
-    });
-  }
-  const orderIndex = new Map(order.map((lang, i) => [lang, i]));
-  return [...keys].sort((a, b) => {
-    const ai = orderIndex.get(a) ?? order.length;
-    const bi = orderIndex.get(b) ?? order.length;
-    if (ai !== bi) return ai - bi;
-    return a.localeCompare(b);
-  });
+  return sortLanguages(props.concept.languages, props.manifest.languageOrder);
 });
 
 // Collapsible language sections — expand all with content, collapse those without
