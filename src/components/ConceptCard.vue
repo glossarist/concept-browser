@@ -8,6 +8,7 @@ import { useVocabularyStore } from '../stores/vocabulary';
 const props = defineProps<{
   entry: ConceptSummary;
   registerId: string;
+  displayLang?: string | null;
 }>();
 
 const router = useRouter();
@@ -29,6 +30,17 @@ function statusColor(status: string): string {
 }
 
 const manifestLanguages = computed(() => store.manifests.get(props.registerId)?.languages ?? []);
+
+const displayTitle = computed(() => {
+  if (props.displayLang && props.entry.designations?.[props.displayLang]) {
+    return props.entry.designations[props.displayLang];
+  }
+  return props.entry.eng || props.entry.id;
+});
+
+const langCount = computed(() => {
+  return Object.keys(props.entry.designations ?? {}).length;
+});
 </script>
 
 <template>
@@ -41,7 +53,7 @@ const manifestLanguages = computed(() => store.manifests.get(props.registerId)?.
     <div class="flex items-start justify-between gap-2">
       <div class="min-w-0">
         <h3 class="font-medium text-ink-800 truncate group-hover:text-ink-900 transition-colors leading-snug text-[15px]">
-          {{ entry.eng || entry.id }}
+          {{ displayTitle }}
         </h3>
         <p class="text-[11px] text-ink-300 mt-1 font-mono tabular-nums">{{ entry.id }}</p>
       </div>
@@ -53,14 +65,14 @@ const manifestLanguages = computed(() => store.manifests.get(props.registerId)?.
       </span>
     </div>
     <!-- Language coverage -->
-    <div class="flex items-center gap-1.5 mt-2.5" :aria-label="`${manifestLanguages.length} languages`">
-      <span class="text-[11px] text-ink-300">{{ manifestLanguages.length }} lang</span>
+    <div class="flex items-center gap-1.5 mt-2.5">
+      <span class="text-[11px] text-ink-300">{{ langCount }} lang</span>
       <div class="flex gap-0.5">
         <span
           v-for="lang in manifestLanguages"
           :key="lang"
           class="w-1.5 h-1.5 rounded-full"
-          :style="{ backgroundColor: getColor(registerId) + '40' }"
+          :style="{ backgroundColor: (lang in (entry.designations ?? {})) ? getColor(registerId) : getColor(registerId) + '20' }"
           :aria-label="lang"
         ></span>
       </div>

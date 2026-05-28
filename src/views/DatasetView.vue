@@ -4,6 +4,7 @@ import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
 import { useDatasetLoader } from '../composables/use-dataset-loader';
 import { FORMAT_LABELS } from '../config/types';
+import { langName, langLabel, sortLanguages } from '../utils/lang';
 import ConceptCard from '../components/ConceptCard.vue';
 
 const props = defineProps<{ registerId: string }>();
@@ -38,6 +39,26 @@ const totalConceptCount = computed(() => adapter.value?.getConceptCount() ?? 0);
 const filter = ref('');
 const filterInput = ref<HTMLInputElement | null>(null);
 const allChunksLoaded = ref(false);
+const selectedLang = ref<string | null>(null);
+
+interface LangOption {
+  code: string;
+  name: string;
+  label: string;
+  termCount: number;
+}
+
+const languageOptions = computed<LangOption[]>(() => {
+  const m = manifest.value;
+  if (!m) return [];
+  const sorted = sortLanguages(m.languages, m.languageOrder);
+  return sorted.map(code => ({
+    code,
+    name: langName(code),
+    label: langLabel(code),
+    termCount: m.languageStats?.[code]?.terms ?? 0,
+  }));
+});
 
 function onGlobalKeydown(e: KeyboardEvent) {
   if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
@@ -65,6 +86,17 @@ watch(filter, async (q) => {
   }
 });
 
+// When language filter changes, reset page and load all chunks
+watch(selectedLang, async (lang) => {
+  page.value = 1;
+  if (lang && !allChunksLoaded.value && adapter.value) {
+    chunkLoading.value = true;
+    await adapter.value.ensureAllChunksLoaded();
+    allChunksLoaded.value = true;
+    chunkLoading.value = false;
+  }
+});
+
 // Dense array: only loaded (non-undefined) entries
 const loadedConcepts = computed(() => {
   const arr = adapter.value?.getConcepts();
@@ -74,8 +106,10 @@ const loadedConcepts = computed(() => {
 
 const filtered = computed(() => {
   const q = filter.value.trim().toLowerCase();
-  if (!q) return loadedConcepts.value;
+  const lang = selectedLang.value;
   return loadedConcepts.value.filter(c => {
+    if (lang && !(lang in (c.designations ?? {}))) return false;
+    if (!q) return true;
     return (c.eng || '').toLowerCase().includes(q) || c.id.toLowerCase().includes(q);
   });
 });
@@ -91,8 +125,8 @@ const pageLoaded = computed(() => {
 });
 
 const paged = computed(() => {
-  // When filtering, paginate over filtered dense results (all chunks loaded)
-  if (filter.value.trim()) {
+  // When filtering (text or language), paginate over filtered dense results (all chunks loaded)
+  if (filter.value.trim() || selectedLang.value) {
     const start = (page.value - 1) * perPage;
     return filtered.value.slice(start, start + perPage);
   }
@@ -104,7 +138,7 @@ const paged = computed(() => {
 });
 
 const totalPages = computed(() => {
-  if (filter.value.trim()) {
+  if (filter.value.trim() || selectedLang.value) {
     return Math.max(1, Math.ceil(filtered.value.length / perPage));
   }
   return Math.max(1, Math.ceil(totalConceptCount.value / perPage));
@@ -112,7 +146,7 @@ const totalPages = computed(() => {
 
 // Load chunks needed for current page
 watch(page, async () => {
-  if (!adapter.value || filter.value.trim()) return;
+  if (!adapter.value || filter.value.trim() || selectedLang.value) return;
   const start = (page.value - 1) * perPage;
   if (!adapter.value.isRangeLoaded(start, perPage)) {
     chunkLoading.value = true;
@@ -229,7 +263,10 @@ function goToPage(p: number) {
           </svg>
         </div>
         <span class="text-sm text-ink-400">
-          <template v-if="filter.trim()">
+          <template v-if="selectedLang">
+            {{ filtered.length.toLocaleString() }} of {{ totalConceptCount.toLocaleString() }} concepts in {{ langName(selectedLang) }}
+          </template>
+          <template v-else-if="filter.trim()">
             {{ filtered.length.toLocaleString() }} of {{ totalConceptCount.toLocaleString() }} concepts
           </template>
           <template v-else-if="totalPages > 1">
@@ -239,6 +276,39 @@ function goToPage(p: number) {
             {{ totalConceptCount.toLocaleString() }} concepts
           </template>
         </span>
+      </div>
+
+      <!-- Language filter -->
+      <div v-if="languageOptions.length > 1" class="flex flex-wrap gap-1.5 mb-5">
+        <button
+          @click="selectedLang = null"
+          :class="[
+            selectedLang === null
+              ? 'bg-ink-800 text-white'
+              : 'bg-surface-raised text-ink-600 hover:bg-ink-50 border border-ink-100'
+          ]"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+        >
+          All {{ totalConceptCount.toLocaleString() }}
+        </button>
+        <button
+          v-for="lang in languageOptions"
+          :key="lang.code"
+          @click="selectedLang = selectedLang === lang.code ? null : lang.code"
+          :class="[
+            selectedLang === lang.code
+              ? 'bg-ink-800 text-white'
+              : 'bg-surface-raised text-ink-600 hover:bg-ink-50 border border-ink-100'
+          ]"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+        >
+          <span
+            class="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+            :class="selectedLang === lang.code ? 'bg-ink-700 text-ink-200' : 'bg-ink-50 text-ink-500'"
+          >{{ lang.label }}</span>
+          {{ lang.name }}
+          <span class="text-[10px] opacity-60">{{ lang.termCount }}</span>
+        </button>
       </div>
 
       <!-- Chunk loading skeleton -->
@@ -253,6 +323,7 @@ function goToPage(p: number) {
           :key="entry.id"
           :entry="entry"
           :register-id="registerId"
+          :display-lang="selectedLang"
           class="animate-entrance"
           :style="{ animationDelay: `${Math.min(idx, 20) * 30}ms` }"
         />
