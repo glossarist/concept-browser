@@ -157,3 +157,7 @@ graph.stubStatus: stub
 graph.collapseControls: Collapse controls
 graph.expandControls: Expand controls
 graph.loading: Loading graph data...
+
+# Sidebar provenance
+sidebar.source: Source
+sidebar.viewSource: View source

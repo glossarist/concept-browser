@@ -2,13 +2,14 @@
 import { computed } from 'vue';
 import { useSiteConfig } from '../config/use-site-config';
 import { useI18n } from '../i18n';
+import glossaristLogo from '../assets/glossarist-logo.svg';
 
 const { config } = useSiteConfig();
 const { t } = useI18n();
 
 const poweredBy = computed(() => {
   const pb = config.value?.features?.poweredBy as { message?: string; url?: string } | undefined;
-  return { message: pb?.message || t('footer.builtWith'), url: pb?.url || 'https://github.com/glossarist/concept-browser' };
+  return { message: pb?.message || t('footer.builtWith'), url: pb?.url || 'https://glossarist.org' };
 });
 
 const socialLinks = computed(() => {
@@ -56,7 +57,8 @@ const ownerUrl = computed(() => config.value?.branding?.ownerUrl || '/');
             class="hover:text-ink-700 transition-colors"
           >{{ link.label }}</a>
           <span class="text-ink-200">|</span>
-          <span class="text-xs">
+          <span class="text-xs inline-flex items-center gap-1.5">
+            <img :src="glossaristLogo" alt="" class="w-4 h-4 opacity-80" />
             <a :href="poweredBy.url" target="_blank" rel="noopener" class="concept-link">{{ poweredBy.message }}</a>
           </span>
         </div>

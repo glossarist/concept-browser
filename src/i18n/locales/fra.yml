@@ -157,3 +157,7 @@ graph.stubStatus: non chargé
 graph.collapseControls: Réduire les contrôles
 graph.expandControls: Développer les contrôles
 graph.loading: Chargement des données du graphe...
+
+# Sidebar provenance
+sidebar.source: Source
+sidebar.viewSource: Voir la source

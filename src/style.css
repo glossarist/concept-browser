@@ -398,6 +398,12 @@
 .dark .placeholder\:text-ink-300::placeholder { color: #484a6e !important; }
 
 /* ── Semantic colors (badges, accent text) ── */
+.dark .concept-link {
+  filter: brightness(1.5);
+}
+.dark .concept-link:hover {
+  filter: brightness(1.3) underline;
+}
 .dark .bg-blue-50 { background-color: rgba(59, 130, 246, 0.15) !important; }
 .dark .text-blue-600 { color: #93bbfd !important; }
 .dark .text-blue-700 { color: #7aa8fb !important; }

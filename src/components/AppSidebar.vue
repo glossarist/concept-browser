@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useUiStore } from '../stores/ui';
 import { useRoute, useRouter } from 'vue-router';
@@ -86,6 +86,22 @@ const datasetEntries = computed(() => {
 const currentManifest = computed(() => store.manifests.get(currentDataset.value));
 const showDatasetNav = computed(() => !!currentManifest.value || !!siteConfig.value?.defaultDataset);
 
+const currentDatasetConfig = computed(() =>
+  siteConfig.value?.datasets?.find((d: any) => d.id === currentDataset.value)
+);
+
+const provenance = computed(() => {
+  const dsConfig = currentDatasetConfig.value as any;
+  const manifest = currentManifest.value;
+  return {
+    owner: dsConfig?.owner || manifest?.owner || (siteConfig.value as any)?.branding?.ownerName,
+    sourceRepo: dsConfig?.sourceRepo || manifest?.sourceRepo,
+    ownerUrl: (siteConfig.value as any)?.branding?.ownerUrl,
+  };
+});
+
+const ontologyExpanded = ref(true);
+
 function closeMobile() { ui.sidebarOpen = false; }
 
 function goToDataset(id: string) {
@@ -107,7 +123,10 @@ function isActive(page: { route: string; datasetScoped?: boolean }): boolean {
     if (page.datasetScoped) return route.name === 'dataset' || route.name === 'concept';
     return route.name === 'home';
   }
-  return route.name === page.route;
+  const target = pageRoute(page);
+  if (route.path === target) return true;
+  if (page.datasetScoped) return route.name === page.route;
+  return route.name === page.route || route.name === `${page.route}-global`;
 }
 
 function selectClass(id: string) {
@@ -162,7 +181,14 @@ function navTitle(page: { route: string }): string {
           </router-link>
 
           <!-- Ontology entity sections nested under Ontology nav item -->
-          <div v-if="page.route === 'ontology' && isOntologyRoute" class="ml-3 mt-1 mb-2 space-y-0.5">
+          <div v-if="page.route === 'ontology' && isOntologyRoute" class="ml-3 mt-1 mb-2">
+            <button @click="ontologyExpanded = !ontologyExpanded"
+              class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] uppercase tracking-wide text-ink-400 hover:text-ink-600 hover:bg-ink-50 transition-colors mb-1"
+            >
+              <span class="w-3 text-[10px]">{{ ontologyExpanded ? '▾' : '▸' }}</span>
+              <span class="flex-1 text-left">{{ t('nav.ontology') }}</span>
+            </button>
+            <div v-if="ontologyExpanded" class="space-y-0.5">
             <!-- Search input -->
             <div class="relative mb-1.5">
               <input
@@ -425,6 +451,7 @@ function navTitle(page: { route: string }): string {
                 </div>
               </div>
             </template>
+            </div>
           </div>
         </template>
       </nav>
@@ -469,15 +496,18 @@ function navTitle(page: { route: string }): string {
         </button>
       </nav>
 
-      <!-- Powered by -->
-      <div class="mt-6 pt-4 border-t border-ink-100/60">
-        <div class="text-[11px] text-ink-300">
-          <a
-            :href="(siteConfig?.features?.poweredBy as any)?.url || 'https://github.com/glossarist/concept-browser'"
-            target="_blank"
-            rel="noopener"
-            class="concept-link"
-          >{{ (siteConfig?.features?.poweredBy as any)?.message || 'Built with the Glossarist Concept Browser' }}</a>
+      <!-- Dataset provenance -->
+      <div v-if="provenance.owner" class="mt-6 pt-4 border-t border-ink-100/60">
+        <div class="text-[11px] text-ink-300 space-y-1">
+          <div class="font-medium text-ink-400">{{ t('sidebar.source') }}</div>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <a v-if="provenance.ownerUrl" :href="provenance.ownerUrl" target="_blank" rel="noopener" class="concept-link">{{ provenance.owner }}</a>
+            <span v-else>{{ provenance.owner }}</span>
+            <template v-if="provenance.sourceRepo">
+              <span class="text-ink-200">·</span>
+              <a :href="provenance.sourceRepo" target="_blank" rel="noopener" class="concept-link">{{ t('sidebar.viewSource') }}</a>
+            </template>
+          </div>
         </div>
       </div>
     </div>
