@@ -1113,13 +1113,21 @@ for (const key of ['logo', 'footerLogo']) {
   }
 }
 
+// Build dataset translations map
+const datasetTranslations = {};
+for (const d of config.datasets) {
+  if (d.translations) datasetTranslations[d.id] = d.translations;
+}
+
 writeJson(path.join(PUBLIC, 'site-config.json'), {
   id: config.id,
   domain: config.domain,
   title: config.title,
   subtitle: config.subtitle,
   description: config.description,
+  translations: config.translations || undefined,
   datasets: config.datasets.map(d => d.id),
+  datasetTranslations: Object.keys(datasetTranslations).length ? datasetTranslations : undefined,
   defaultDataset: config.datasets.length === 1 ? config.datasets[0].id : undefined,
   uiLanguages: config.uiLanguages || undefined,
   branding: siteBranding,

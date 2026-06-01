@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useSiteConfig } from '../config/use-site-config';
+import { useI18n } from '../i18n';
 
 interface Contributor {
   name: string;
@@ -9,6 +10,9 @@ interface Contributor {
   email?: string;
 }
 
+const { config: siteConfig } = useSiteConfig();
+const { t } = useI18n();
+
 const { config } = useSiteConfig();
 const contributors = config.value?.contributors as Contributor[] | undefined;
 </script>
@@ -16,7 +20,7 @@ const contributors = config.value?.contributors as Contributor[] | undefined;
 <template>
   <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400 mb-6">
-      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">Home</router-link>
+      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">{{ t('nav.home') }}</router-link>
       <span class="text-ink-200">/</span>
       <span class="text-ink-700">Contributors</span>
     </nav>

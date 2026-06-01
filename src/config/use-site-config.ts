@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue';
 import type { PageConfig } from './types';
+import { locale } from '../i18n';
 
 export interface RuntimeSiteConfig {
   id: string;
@@ -8,6 +9,8 @@ export interface RuntimeSiteConfig {
   title: string;
   subtitle?: string;
   description?: string;
+  translations?: Record<string, { title?: string; subtitle?: string; description?: string }>;
+  datasetTranslations?: Record<string, Record<string, { title?: string; description?: string }>>;
   datasets: string[];
   defaultDataset?: string;
   uiLanguages?: { code: string; label: string }[];
@@ -151,6 +154,26 @@ export function useSiteConfig() {
   const config = computed(() => siteConfig.value);
   const visibleDatasets = computed(() => siteConfig.value?.datasets ?? []);
 
+  const localizedTitle = computed(() => {
+    const tr = siteConfig.value?.translations?.[locale.value];
+    return tr?.title ?? siteConfig.value?.title ?? 'Glossarist';
+  });
+
+  const localizedSubtitle = computed(() => {
+    const tr = siteConfig.value?.translations?.[locale.value];
+    return tr?.subtitle ?? siteConfig.value?.subtitle;
+  });
+
+  const localizedDescription = computed(() => {
+    const tr = siteConfig.value?.translations?.[locale.value];
+    return tr?.description ?? siteConfig.value?.description;
+  });
+
+  function localizedDatasetField(datasetId: string, field: 'title' | 'description', fallback?: string): string {
+    const tr = siteConfig.value?.datasetTranslations?.[datasetId]?.[locale.value];
+    return tr?.[field] ?? fallback ?? '';
+  }
+
   const globalPages = computed<PageConfig[]>(() =>
     synthesizeGlobalPages(siteConfig.value?.features, siteConfig.value?.pages),
   );
@@ -159,5 +182,5 @@ export function useSiteConfig() {
     synthesizeDatasetPages(siteConfig.value?.features, siteConfig.value?.pages),
   );
 
-  return { config, visibleDatasets, loadConfig, globalPages, datasetPages };
+  return { config, visibleDatasets, localizedTitle, localizedSubtitle, localizedDescription, localizedDatasetField, loadConfig, globalPages, datasetPages };
 }

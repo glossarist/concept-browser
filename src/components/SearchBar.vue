@@ -6,11 +6,13 @@ import { ref, watch, onMounted, computed, nextTick } from 'vue';
 import type { SearchHit } from '../adapters/types';
 import { langLabel, langName } from '../utils/lang';
 import { useDsStyle } from '../utils/dataset-style';
+import { useI18n } from '../i18n';
 
 const router = useRouter();
 const ui = useUiStore();
 const store = useVocabularyStore();
 const { getStyle } = useDsStyle();
+const { t } = useI18n();
 const query = ref('');
 const results = ref<SearchHit[]>([]);
 const searched = ref(false);
@@ -154,7 +156,6 @@ onMounted(() => {
             @input="onInput"
             @keydown="onKeydown"
             type="text"
-            aria-label="Search terms across all datasets"
             placeholder="Search terms across all datasets..."
             class="w-full pl-9 pr-8 py-2.5 text-sm bg-surface border border-ink-100 rounded-lg focus:ring-2 focus:ring-ink-200 focus:border-ink-400 outline-none placeholder:text-ink-300 transition-all"
             autofocus
@@ -175,7 +176,7 @@ onMounted(() => {
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
-        <button type="submit" class="btn-primary" :disabled="loading">Search</button>
+        <button type="submit" class="btn-primary" :disabled="loading">{{ t('search.button') }}</button>
       </div>
     </form>
 
@@ -184,23 +185,23 @@ onMounted(() => {
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
       </svg>
-      <p class="text-sm text-ink-400">Searching across datasets...</p>
+      <p class="text-sm text-ink-400">{{ t('search.searching') }}</p>
     </div>
 
     <div v-else-if="searchError" class="text-center py-16">
       <div class="card p-8 border-red-200 bg-red-50/50 max-w-md mx-auto">
-        <p class="text-red-700 font-medium mb-1">Search failed</p>
+        <p class="text-red-700 font-medium mb-1">{{ t('search.failed') }}</p>
         <p class="text-sm text-red-600/80 mb-4">{{ searchError }}</p>
-        <button @click="doSearch" class="btn-primary">Retry</button>
+        <button @click="doSearch" class="btn-primary">{{ t('search.retry') }}</button>
       </div>
     </div>
 
     <div v-else-if="searched">
-      <p class="text-sm text-ink-400 mb-4">{{ results.length }} result{{ results.length === 1 ? '' : 's' }} for &ldquo;{{ ui.searchQuery }}&rdquo;</p>
+      <p class="text-sm text-ink-400 mb-4">{{ results.length === 1 ? t('search.oneResultFor', { query: ui.searchQuery }) : t('search.manyResultsFor', { count: String(results.length), query: ui.searchQuery }) }}</p>
       <div v-if="results.length === 0" class="text-center py-16">
         <div class="text-ink-200 text-5xl mb-4 font-serif">&empty;</div>
-        <p class="text-ink-500 font-medium">No concepts found matching your search</p>
-        <p class="text-sm text-ink-300 mt-1">Try a different term or check the spelling.</p>
+        <p class="text-ink-500 font-medium">{{ t('search.noResults') }}</p>
+        <p class="text-sm text-ink-300 mt-1">{{ t('search.tryDifferent') }}</p>
       </div>
 
       <!-- Grouped results -->
@@ -210,7 +211,7 @@ onMounted(() => {
           <div class="flex items-center gap-2 mb-2">
             <span class="w-2 h-2 rounded-full flex-shrink-0" :style="{ backgroundColor: group.style.color }"></span>
             <span class="text-xs font-semibold text-ink-500 uppercase tracking-wide">{{ group.title }}</span>
-            <span class="text-xs text-ink-300">{{ group.hits.length }} result{{ group.hits.length === 1 ? '' : 's' }}</span>
+            <span class="text-xs text-ink-300">{{ group.hits.length }} {{ group.hits.length === 1 ? t('search.result') : t('search.results') }}</span>
           </div>
           <!-- Hits -->
           <div class="space-y-1.5">
@@ -227,7 +228,7 @@ onMounted(() => {
                 <span v-if="hit.snippet" class="block text-xs text-ink-300 mt-0.5 truncate">{{ hit.snippet }}</span>
               </div>
               <div class="flex items-center gap-2 flex-shrink-0">
-                <span v-if="hit.matchField === 'id'" class="badge badge-gray text-[10px]">ID match</span>
+                <span v-if="hit.matchField === 'id'" class="badge badge-gray text-[10px]">{{ t('search.idMatch') }}</span>
                 <span class="text-xs font-semibold text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">{{ langName(hit.language) }}</span>
               </div>
             </button>
@@ -236,7 +237,7 @@ onMounted(() => {
       </div>
 
       <div v-if="results.length > 100" class="text-center text-sm text-ink-300 mt-6 pt-4 border-t border-ink-100/60">
-        Showing first 100 of {{ results.length }} results. Refine your search for more specific matches.
+        {{ t('search.showingFirst', { max: '100', total: String(results.length) }) }}
       </div>
     </div>
   </div>

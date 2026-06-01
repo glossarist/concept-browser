@@ -4,12 +4,14 @@ import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
 import { useDatasetLoader } from '../composables/use-dataset-loader';
 import { langName, langLabel } from '../utils/lang';
+import { useI18n } from '../i18n';
 
 const props = defineProps<{ registerId?: string }>();
 
 const store = useVocabularyStore();
 const { getColor } = useDsStyle();
 const { loading, localError, ensureLoaded, resolvedId } = useDatasetLoader(() => props.registerId);
+const { t } = useI18n();
 
 const manifest = computed(() => store.manifests.get(resolvedId.value));
 
@@ -71,11 +73,11 @@ function coverageColor(ratio: number): string {
   <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Breadcrumb -->
     <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400 mb-6">
-      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">Home</router-link>
+      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">{{ t('nav.home') }}</router-link>
       <span class="text-ink-200">/</span>
       <router-link :to="{ name: 'dataset', params: { registerId: resolvedId } }" class="hover:text-ink-700 transition-colors">{{ manifest?.title || resolvedId }}</router-link>
       <span class="text-ink-200">/</span>
-      <span class="text-ink-700">Statistics</span>
+      <span class="text-ink-700">{{ t('stats.title') }}</span>
     </nav>
 
     <template v-if="loading">
@@ -89,15 +91,15 @@ function coverageColor(ratio: number): string {
     </template>
     <template v-else-if="localError">
       <div class="card p-8 border-red-200 bg-red-50/50 text-center">
-        <p class="text-red-700 font-medium mb-1">Failed to load statistics</p>
+        <p class="text-red-700 font-medium mb-1">{{ t('stats.failedToLoad') }}</p>
         <p class="text-sm text-red-600/80 mb-4">{{ localError }}</p>
-        <button @click="ensureLoaded" class="btn-primary">Retry</button>
+        <button @click="ensureLoaded" class="btn-primary">{{ t('stats.retry') }}</button>
       </div>
     </template>
     <template v-else-if="manifest">
-      <h1 class="font-serif text-3xl text-ink-800 mb-2">Statistics</h1>
+      <h1 class="font-serif text-3xl text-ink-800 mb-2">{{ t('stats.title') }}</h1>
       <p class="text-ink-400 mb-8">
-        {{ stats.total.toLocaleString() }} concepts across {{ manifest.languages.length }} languages.
+        {{ t('stats.summary', { count: stats.total.toLocaleString(), langCount: String(manifest.languages.length) }) }}
       </p>
 
       <!-- Language stats table -->
@@ -105,9 +107,9 @@ function coverageColor(ratio: number): string {
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-ink-100/60 bg-ink-50">
-              <th class="text-left px-5 py-3 text-ink-600 font-medium text-xs uppercase tracking-wide">Language</th>
-              <th class="text-right px-5 py-3 text-ink-600 font-medium text-xs uppercase tracking-wide">Terms</th>
-              <th class="text-right px-5 py-3 text-ink-600 font-medium text-xs uppercase tracking-wide">Definitions</th>
+              <th class="text-left px-5 py-3 text-ink-600 font-medium text-xs uppercase tracking-wide">{{ t('stats.language') }}</th>
+              <th class="text-right px-5 py-3 text-ink-600 font-medium text-xs uppercase tracking-wide">{{ t('stats.terms') }}</th>
+              <th class="text-right px-5 py-3 text-ink-600 font-medium text-xs uppercase tracking-wide">{{ t('stats.definitions') }}</th>
               <th class="px-5 py-3 text-ink-600 font-medium w-40"></th>
             </tr>
           </thead>

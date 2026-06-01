@@ -4,6 +4,7 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useDsStyle } from '../utils/dataset-style';
 import { useVocabularyStore } from '../stores/vocabulary';
+import { useI18n } from '../i18n';
 
 const props = defineProps<{
   entry: ConceptSummary;
@@ -14,6 +15,7 @@ const props = defineProps<{
 const router = useRouter();
 const { getColor } = useDsStyle();
 const store = useVocabularyStore();
+const { locale } = useI18n();
 
 function viewConcept() {
   router.push({
@@ -32,8 +34,9 @@ function statusColor(status: string): string {
 const manifestLanguages = computed(() => store.manifests.get(props.registerId)?.languages ?? []);
 
 const displayTitle = computed(() => {
-  if (props.displayLang && props.entry.designations?.[props.displayLang]) {
-    return props.entry.designations[props.displayLang];
+  const lang = props.displayLang || locale.value;
+  if (props.entry.designations?.[lang]) {
+    return props.entry.designations[lang];
   }
   return props.entry.eng || props.entry.id;
 });

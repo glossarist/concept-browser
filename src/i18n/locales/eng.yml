@@ -7,7 +7,7 @@ nav.search: Search
 nav.graph: Graph View
 nav.ontology: Ontology
 nav.concepts: Concepts
-nav.statistics: Statistics
+nav.stats: Statistics
 nav.about: About
 nav.navigation: Navigation
 nav.datasets: Datasets
@@ -27,6 +27,19 @@ home.browseConcepts: Browse concepts
 # Search
 search.placeholder: Search...
 search.conceptSearch: Search concepts
+search.fullPlaceholder: Search terms across all datasets...
+search.button: Search
+search.searching: Searching across datasets...
+search.failed: Search failed
+search.retry: Retry
+search.result: result
+search.results: results
+search.oneResultFor: '1 result for "{query}"'
+search.manyResultsFor: '{count} results for "{query}"'
+search.noResults: No concepts found matching your search
+search.tryDifferent: Try a different term or check the spelling.
+search.showingFirst: Showing first {max} of {total} results. Refine your search for more specific matches.
+search.idMatch: ID match
 
 # Page view
 page.notFound: Page Not Found
@@ -64,3 +77,52 @@ header.datasets: datasets
 
 # Language
 lang.termOnlyIn: Term only in
+
+# Dataset view
+dataset.concepts: concepts
+dataset.languages: languages
+dataset.filterPlaceholder: "Filter concepts... (press /)"
+dataset.of: of
+dataset.in: in
+dataset.all: All
+dataset.prev: Prev
+dataset.next: Next
+dataset.noMatch: No concepts match your filter
+dataset.clearFilter: Clear filter
+dataset.noConcepts: This dataset has no concepts
+dataset.failedToLoad: Failed to load dataset
+dataset.retry: Retry
+dataset.backToHome: Back to home
+dataset.download: Download
+
+# Statistics view
+stats.title: Statistics
+stats.summary: "{count} concepts across {langCount} languages."
+stats.language: Language
+stats.terms: Terms
+stats.definitions: Definitions
+stats.failedToLoad: Failed to load statistics
+stats.retry: Retry
+
+# Graph
+graph.nodes: nodes
+graph.edges: edges
+graph.all: All
+graph.none: None
+graph.resetZoom: Reset zoom
+graph.reLayout: Re-layout
+graph.nodeLabels: Node labels
+graph.designation: Designation
+graph.identifier: Identifier
+graph.viewConcept: View concept
+graph.stubLabel: Stub (not loaded)
+graph.domainLabel: Domain (standard)
+graph.datasets: Datasets
+graph.enableDatasets: Enable datasets to see their graph.
+graph.browseToPopulate: Browse concepts with cross-references to populate the graph.
+graph.renderingWarning: "Rendering first {max} of {total} nodes."
+graph.loadedStatus: loaded
+graph.stubStatus: stub
+graph.collapseControls: Collapse controls
+graph.expandControls: Expand controls
+graph.loading: Loading graph data...

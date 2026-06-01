@@ -4,6 +4,7 @@ import type { GraphNode, GraphEdge } from '../adapters/types';
 import type { SimulationNodeDatum, SimulationLinkDatum } from 'd3';
 import { useDsStyle } from '../utils/dataset-style';
 import { useUiStore } from '../stores/ui';
+import { useI18n } from '../i18n';
 import {
   forceSimulation,
   forceLink,
@@ -53,6 +54,7 @@ watch(() => props.registers, (regs) => {
 
 const { getColor } = useDsStyle();
 const uiStore = useUiStore();
+const { t } = useI18n();
 
 const STUB_COLOR = '#b8b9cc'; // ink-200
 const HIGHLIGHT_COLOR = '#1a1b2e'; // ink-800
@@ -466,11 +468,11 @@ function selectedNodeColor(): string {
       <div class="bg-surface-raised/95 backdrop-blur rounded-xl border border-ink-100/60 overflow-hidden" style="box-shadow: 0 4px 12px rgba(26, 27, 46, 0.08);">
         <button
           @click="panelOpen = !panelOpen"
-          :aria-label="panelOpen ? 'Collapse controls' : 'Expand controls'"
+          :aria-label="panelOpen ? t('graph.collapseControls') : t('graph.expandControls')"
           class="w-full px-4 py-2.5 flex items-center justify-between hover:bg-ink-50/50 transition-colors"
         >
           <span class="text-xs font-semibold text-ink-600 tracking-wide">
-            {{ nodeCount.toLocaleString() }} nodes &middot; {{ edgeCount.toLocaleString() }} edges
+            {{ nodeCount.toLocaleString() }} {{ t('graph.nodes') }} &middot; {{ edgeCount.toLocaleString() }} {{ t('graph.edges') }}
           </span>
           <svg class="w-3.5 h-3.5 text-ink-300 transition-transform" :class="panelOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -481,9 +483,9 @@ function selectedNodeColor(): string {
           <!-- Dataset toggles -->
           <div class="mt-3 space-y-2">
             <div class="flex items-center gap-2 mb-3">
-              <button @click="toggleAll(true)" class="text-[10px] font-semibold text-ink-500 hover:text-ink-700 uppercase tracking-wide transition-colors">All</button>
+              <button @click="toggleAll(true)" class="text-[10px] font-semibold text-ink-500 hover:text-ink-700 uppercase tracking-wide transition-colors">{{ t('graph.all') }}</button>
               <span class="text-ink-200 text-xs">|</span>
-              <button @click="toggleAll(false)" class="text-[10px] font-semibold text-ink-500 hover:text-ink-700 uppercase tracking-wide transition-colors">None</button>
+              <button @click="toggleAll(false)" class="text-[10px] font-semibold text-ink-500 hover:text-ink-700 uppercase tracking-wide transition-colors">{{ t('graph.none') }}</button>
             </div>
             <div
               v-for="reg in registers"
@@ -515,32 +517,32 @@ function selectedNodeColor(): string {
 
           <!-- Actions -->
           <div v-if="isCapped" class="text-[10px] text-amber-600 mt-2 leading-relaxed">
-            Rendering first {{ MAX_RENDER_NODES.toLocaleString() }} of {{ nodeCount.toLocaleString() }} nodes.
+            {{ t('graph.renderingWarning', { max: MAX_RENDER_NODES.toLocaleString(), total: nodeCount.toLocaleString() }) }}
           </div>
 
           <div v-if="nodeCount > 0" class="flex gap-4 mt-3 pt-3 border-t border-ink-100/40">
-            <button @click="resetZoom" class="text-[10px] font-semibold text-ink-500 hover:text-ink-700 uppercase tracking-wide transition-colors">Reset zoom</button>
-            <button @click="rebuildGraph" class="text-[10px] font-semibold text-ink-500 hover:text-ink-700 uppercase tracking-wide transition-colors">Re-layout</button>
+            <button @click="resetZoom" class="text-[10px] font-semibold text-ink-500 hover:text-ink-700 uppercase tracking-wide transition-colors">{{ t('graph.resetZoom') }}</button>
+            <button @click="rebuildGraph" class="text-[10px] font-semibold text-ink-500 hover:text-ink-700 uppercase tracking-wide transition-colors">{{ t('graph.reLayout') }}</button>
           </div>
 
           <div v-if="nodeCount > 0" class="mt-3 pt-3 border-t border-ink-100/40">
-            <div class="text-[10px] font-semibold text-ink-400 uppercase tracking-wide mb-2">Node labels</div>
+            <div class="text-[10px] font-semibold text-ink-400 uppercase tracking-wide mb-2">{{ t('graph.nodeLabels') }}</div>
             <div class="flex gap-1">
               <button
                 @click="labelMode = 'designation'; rebuildGraph()"
                 class="text-[10px] px-2 py-1 rounded font-medium transition-colors"
                 :class="labelMode === 'designation' ? 'bg-ink-800 text-white' : 'text-ink-500 hover:bg-ink-50'"
-              >Designation</button>
+              >{{ t('graph.designation') }}</button>
               <button
                 @click="labelMode = 'identifier'; rebuildGraph()"
                 class="text-[10px] px-2 py-1 rounded font-medium transition-colors"
                 :class="labelMode === 'identifier' ? 'bg-ink-800 text-white' : 'text-ink-500 hover:bg-ink-50'"
-              >Identifier</button>
+              >{{ t('graph.identifier') }}</button>
             </div>
           </div>
 
           <div v-if="nodeCount === 0" class="text-xs text-ink-300 mt-3 leading-relaxed">
-            {{ props.edges.length > 0 ? 'Enable datasets to see their graph.' : 'Browse concepts with cross-references to populate the graph.' }}
+            {{ props.edges.length > 0 ? t('graph.enableDatasets') : t('graph.browseToPopulate') }}
           </div>
         </div>
       </div>
@@ -549,7 +551,7 @@ function selectedNodeColor(): string {
     <!-- Legend -->
     <div v-if="nodeCount > 0" class="absolute top-4 right-4 z-10 bg-surface-raised/90 backdrop-blur rounded-lg px-3 py-2.5 border border-ink-100/60 text-xs" style="box-shadow: 0 2px 6px rgba(26, 27, 46, 0.04);">
       <div v-if="registers.length > 1">
-        <div class="font-semibold text-ink-400 text-[10px] uppercase tracking-wide mb-2">Datasets</div>
+        <div class="font-semibold text-ink-400 text-[10px] uppercase tracking-wide mb-2">{{ t('graph.datasets') }}</div>
         <div v-for="reg in registers" :key="reg.id" class="flex items-center gap-2 mb-1.5 last:mb-0">
           <span
             class="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0"
@@ -560,11 +562,11 @@ function selectedNodeColor(): string {
       </div>
       <div class="flex items-center gap-2 mt-2 pt-2 border-t border-ink-100/40">
         <span class="w-2 h-2 rounded-full inline-block" :style="{ backgroundColor: STUB_COLOR }"></span>
-        <span class="text-ink-300">Stub (not loaded)</span>
+        <span class="text-ink-300">{{ t('graph.stubLabel') }}</span>
       </div>
       <div class="flex items-center gap-2 mt-2 pt-2 border-t border-ink-100/40">
         <span class="w-4 h-2 rounded inline-block flex-shrink-0" style="background: #ede9fe; border: 1px solid #8b5cf6;"></span>
-        <span class="text-ink-300">Domain (standard)</span>
+        <span class="text-ink-300">{{ t('graph.domainLabel') }}</span>
       </div>
     </div>
 
@@ -590,7 +592,7 @@ function selectedNodeColor(): string {
             ></span>
             <span class="text-[10px] text-ink-400 uppercase tracking-wide">
               {{ registerTitle(selectedNode.register) }} &middot;
-              {{ selectedNode.loaded ? 'loaded' : 'stub' }}
+              {{ selectedNode.loaded ? t('graph.loadedStatus') : t('graph.stubStatus') }}
             </span>
           </div>
         </div>
@@ -603,7 +605,7 @@ function selectedNodeColor(): string {
         :to="{ name: 'concept', params: { registerId: selectedNode.register, conceptId: selectedNode.conceptId } }"
         class="btn-primary text-xs mt-4 inline-block"
       >
-        View concept
+        {{ t('graph.viewConcept') }}
       </router-link>
     </div>
   </div>

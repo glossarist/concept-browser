@@ -14,7 +14,7 @@ const ui = useUiStore();
 const router = useRouter();
 const route = useRoute();
 const { getColor } = useDsStyle();
-const { globalPages, datasetPages, config: siteConfig } = useSiteConfig();
+const { globalPages, datasetPages, config: siteConfig, localizedTitle, localizedDatasetField } = useSiteConfig();
 const { t } = useI18n();
 
 const currentDataset = computed(() => route.params.registerId as string ?? '');
@@ -127,6 +127,13 @@ function selectProperty(id: string) {
 }
 
 const isSearching = computed(() => !!searchQuery.value.trim());
+
+function navTitle(page: { route: string }): string {
+  const route = page.route || 'home';
+  const key = `nav.${route}`;
+  const translated = t(key);
+  return translated === key ? (page as any).title : translated;
+}
 </script>
 
 <template>
@@ -151,7 +158,7 @@ const isSearching = computed(() => !!searchQuery.value.trim());
             @click="closeMobile"
           >
             <NavIcon :name="page.icon" />
-            {{ page.title }}
+            {{ navTitle(page) }}
           </router-link>
 
           <!-- Ontology entity sections nested under Ontology nav item -->
@@ -424,7 +431,7 @@ const isSearching = computed(() => !!searchQuery.value.trim());
 
       <!-- Dataset-level navigation (shown when viewing a dataset) -->
       <div v-if="showDatasetNav" class="mb-6">
-        <div class="section-label">{{ currentManifest?.title || siteConfig?.title || 'Dataset' }}</div>
+        <div class="section-label">{{ localizedDatasetField(currentDataset, 'title', currentManifest?.title || siteConfig?.title || 'Dataset') }}</div>
         <nav class="space-y-0.5">
           <router-link
             v-for="page in datasetPages"
@@ -435,7 +442,7 @@ const isSearching = computed(() => !!searchQuery.value.trim());
             @click="closeMobile"
           >
             <NavIcon :name="page.icon" />
-            {{ page.title }}
+            {{ navTitle(page) }}
           </router-link>
         </nav>
       </div>
@@ -455,7 +462,7 @@ const isSearching = computed(() => !!searchQuery.value.trim());
           ]"
           :style="currentDataset === ds.id ? { borderLeftColor: getColor(ds.id), borderLeftWidth: '2px' } : {}"
         >
-          <div class="font-medium truncate leading-snug">{{ ds.title }}</div>
+          <div class="font-medium truncate leading-snug">{{ localizedDatasetField(ds.id, 'title', ds.title) }}</div>
           <div v-if="ds.loaded" class="text-xs mt-0.5" :class="currentDataset === ds.id ? 'text-ink-400' : 'text-ink-300'">
             {{ ds.conceptCount.toLocaleString() }} {{ t('home.concepts').toLowerCase() }}
           </div>

@@ -91,6 +91,7 @@ export interface DatasetConfig {
   tags?: string[];
   languageOrder?: string[];
   downloads?: string[];
+  translations?: Record<string, { title?: string; description?: string }>;
 }
 
 // === Contributors ===
@@ -141,6 +142,7 @@ export interface SiteConfig {
   title: string;
   subtitle?: string;
   description?: string;
+  translations?: Record<string, { title?: string; subtitle?: string; description?: string }>;
   datasets: DatasetConfig[];
   routing: RoutingEntry[];
   branding: SiteBranding;

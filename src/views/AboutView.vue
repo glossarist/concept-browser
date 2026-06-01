@@ -4,10 +4,12 @@ import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
 import { useDatasetLoader } from '../composables/use-dataset-loader';
 import { langName, langLabel } from '../utils/lang';
+import { useI18n } from '../i18n';
 
 const props = defineProps<{ registerId?: string }>();
 
 const store = useVocabularyStore();
+const { t } = useI18n();
 const { getColor } = useDsStyle();
 const { loading, localError, ensureLoaded, resolvedId } = useDatasetLoader(() => props.registerId);
 
@@ -18,7 +20,7 @@ const manifest = computed(() => store.manifests.get(resolvedId.value));
   <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Breadcrumb -->
     <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400 mb-6">
-      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">Home</router-link>
+      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">{{ t('nav.home') }}</router-link>
       <span class="text-ink-200">/</span>
       <router-link :to="{ name: 'dataset', params: { registerId: resolvedId } }" class="hover:text-ink-700 transition-colors">{{ manifest?.title || resolvedId }}</router-link>
       <span class="text-ink-200">/</span>

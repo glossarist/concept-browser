@@ -9,7 +9,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 const router = useRouter();
 const ui = useUiStore();
 const store = useVocabularyStore();
-const { config: siteConfig } = useSiteConfig();
+const { config: siteConfig, localizedTitle } = useSiteConfig();
 const { locale, t, setLocale } = useI18n();
 const searchInput = ref('');
 const langOpen = ref(false);
@@ -77,7 +77,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeLangOnOutside))
             <line x1="9" y1="11" x2="15" y2="11"/>
           </svg>
         </div>
-        <span class="font-serif text-lg text-ink-800 leading-none hidden sm:inline">{{ siteConfig?.title || 'Glossarist' }}</span>
+        <span class="font-serif text-lg text-ink-800 leading-none hidden sm:inline">{{ localizedTitle }}</span>
       </button>
 
       <!-- Search -->

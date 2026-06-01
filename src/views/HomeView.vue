@@ -9,7 +9,7 @@ import { useI18n } from '../i18n';
 const store = useVocabularyStore();
 const router = useRouter();
 const { getStyle } = useDsStyle();
-const { config: siteConfig } = useSiteConfig();
+const { config: siteConfig, localizedTitle, localizedSubtitle, localizedDescription } = useSiteConfig();
 const { t } = useI18n();
 const exploring = ref(false);
 
@@ -65,15 +65,15 @@ function goToGraph() { router.push({ name: 'graph' }); }
         <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-300">{{ siteConfig?.branding?.ownerName || 'Glossarist' }}</span>
         <template v-if="siteConfig?.subtitle">
           <span class="w-4 sm:w-6 h-px bg-ink-200"></span>
-          <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-300 hidden sm:inline">{{ siteConfig.subtitle }}</span>
+          <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-300 hidden sm:inline">{{ localizedSubtitle }}</span>
         </template>
       </div>
       <h1 class="font-serif text-[2rem] sm:text-[2.75rem] text-ink-800 leading-[1.1] mb-4 tracking-tight">
-        {{ siteConfig?.title || 'Glossarist' }}
-        <template v-if="siteConfig?.subtitle"><br class="hidden sm:block" /> {{ siteConfig.subtitle }}</template>
+        {{ localizedTitle }}
+        <template v-if="localizedSubtitle"><br class="hidden sm:block" /> {{ localizedSubtitle }}</template>
       </h1>
       <p class="text-base text-ink-400 max-w-lg leading-relaxed">
-        {{ siteConfig?.description || 'Explore standardized terminology datasets from ISO and IEC technical committees. Browse concepts, definitions, and cross-references across multilingual vocabularies.' }}
+        {{ localizedDescription || 'Explore standardized terminology datasets from ISO and IEC technical committees. Browse concepts, definitions, and cross-references across multilingual vocabularies.' }}
       </p>
       <div class="flex flex-wrap gap-3 mt-7">
         <button @click="goToSearch" class="btn-primary flex items-center gap-2">

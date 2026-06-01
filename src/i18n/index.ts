@@ -20,6 +20,8 @@ const stored = typeof localStorage !== 'undefined'
   : DEFAULT_LANG;
 const locale = ref(stored);
 
+export { locale };
+
 export function useI18n() {
   function t(key: string, params?: Record<string, string>): string {
     let msg = messages[locale.value]?.[key] || messages[DEFAULT_LANG]?.[key] || key;

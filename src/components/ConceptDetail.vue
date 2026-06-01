@@ -366,7 +366,7 @@ const nonVerbalReps = computed(() => {
       <!-- Breadcrumb + nav row -->
       <div class="flex items-start gap-2 mb-3">
         <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400 min-w-0 flex-1 flex-wrap">
-          <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors whitespace-nowrap">Home</router-link>
+          <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors whitespace-nowrap">{{ t('nav.home') }}</router-link>
           <span class="text-ink-200">/</span>
           <router-link :to="{ name: 'dataset', params: { registerId: manifest.id }}" class="hover:text-ink-700 transition-colors truncate max-w-[180px]">
             {{ manifest.title }}

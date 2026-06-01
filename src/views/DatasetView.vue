@@ -6,12 +6,14 @@ import { useDatasetLoader } from '../composables/use-dataset-loader';
 import { FORMAT_LABELS } from '../config/types';
 import { langName, langLabel, sortLanguages } from '../utils/lang';
 import ConceptCard from '../components/ConceptCard.vue';
+import { useI18n } from '../i18n';
 
 const props = defineProps<{ registerId: string }>();
 
 const store = useVocabularyStore();
 const { getStyle } = useDsStyle();
 const { loading, localError, ensureLoaded } = useDatasetLoader(() => props.registerId);
+const { t } = useI18n();
 
 const manifest = computed(() => store.manifests.get(props.registerId));
 const adapter = computed(() => store.datasets.get(props.registerId));
@@ -180,7 +182,7 @@ function goToPage(p: number) {
   <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Breadcrumb -->
     <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400 mb-6">
-      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">Home</router-link>
+      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">{{ t('nav.home') }}</router-link>
       <span class="text-ink-200">/</span>
       <span class="text-ink-700">{{ manifest?.title || registerId }}</span>
     </nav>
@@ -190,21 +192,21 @@ function goToPage(p: number) {
       <h1 class="font-serif text-3xl text-ink-800 mb-2">{{ manifest.title }}</h1>
       <p class="text-ink-400 leading-relaxed max-w-2xl">{{ manifest.description }}</p>
       <div class="flex flex-wrap gap-2 mt-4">
-        <span class="badge" :style="{ backgroundColor: getStyle(registerId).light, color: getStyle(registerId).dark }">{{ manifest.conceptCount.toLocaleString() }} concepts</span>
-        <span class="badge badge-gray">{{ manifest.languages.length }} languages</span>
+        <span class="badge" :style="{ backgroundColor: getStyle(registerId).light, color: getStyle(registerId).dark }">{{ manifest.conceptCount.toLocaleString() }} {{ t('dataset.concepts') }}</span>
+        <span class="badge badge-gray">{{ manifest.languages.length }} {{ t('dataset.languages') }}</span>
         <span class="badge badge-green">{{ manifest.owner }}</span>
         <router-link :to="{ name: 'stats', params: { registerId } }" class="badge badge-blue hover:opacity-80 transition-opacity">
-          Statistics
+          {{ t('nav.stats') }}
         </router-link>
         <router-link :to="{ name: 'about', params: { registerId } }" class="badge badge-purple hover:opacity-80 transition-opacity">
-          About
+          {{ t('nav.about') }}
         </router-link>
       </div>
     </div>
 
     <!-- Downloads -->
     <div v-if="bulkDownloads.length" class="card p-4 mb-6">
-      <h3 class="text-xs font-semibold text-ink-400 uppercase tracking-wide mb-3">Download</h3>
+      <h3 class="text-xs font-semibold text-ink-400 uppercase tracking-wide mb-3">{{ t('dataset.download') }}</h3>
       <div class="flex flex-wrap gap-2">
         <a
           v-for="dl in bulkDownloads"
@@ -237,11 +239,11 @@ function goToPage(p: number) {
     <!-- Error state -->
     <div v-else-if="localError" class="max-w-xl mx-auto text-center py-20">
       <div class="card p-8 border-red-200 bg-red-50/50">
-        <p class="text-red-700 font-medium mb-1">Failed to load dataset</p>
+        <p class="text-red-700 font-medium mb-1">{{ t('dataset.failedToLoad') }}</p>
         <p class="text-sm text-red-600/80 mb-4">{{ localError }}</p>
         <div class="flex gap-2 justify-center">
-          <button @click="ensureLoaded" class="btn-primary">Retry</button>
-          <router-link :to="{ name: 'home' }" class="btn-secondary">Back to home</router-link>
+          <button @click="ensureLoaded" class="btn-primary">{{ t('dataset.retry') }}</button>
+          <router-link :to="{ name: 'home' }" class="btn-secondary">{{ t('dataset.backToHome') }}</router-link>
         </div>
       </div>
     </div>
@@ -255,7 +257,7 @@ function goToPage(p: number) {
             v-model="filter"
             type="text"
             aria-label="Filter concepts"
-            placeholder="Filter concepts... (press /)"
+            placeholder="Filter concepts..."
             class="pl-9 pr-3 py-2 text-sm bg-surface border border-ink-100 rounded-lg focus:ring-2 focus:ring-ink-200 focus:border-ink-400 outline-none placeholder:text-ink-300 transition-all w-full sm:w-64"
           />
           <svg class="absolute left-3 top-2.5 w-4 h-4 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -264,16 +266,16 @@ function goToPage(p: number) {
         </div>
         <span class="text-sm text-ink-400">
           <template v-if="selectedLang">
-            {{ filtered.length.toLocaleString() }} of {{ totalConceptCount.toLocaleString() }} concepts in {{ langName(selectedLang) }}
+            {{ filtered.length.toLocaleString() }} {{ t('dataset.of') }} {{ totalConceptCount.toLocaleString() }} {{ t('dataset.concepts') }} {{ t('dataset.in') }} {{ langName(selectedLang) }}
           </template>
           <template v-else-if="filter.trim()">
-            {{ filtered.length.toLocaleString() }} of {{ totalConceptCount.toLocaleString() }} concepts
+            {{ filtered.length.toLocaleString() }} {{ t('dataset.of') }} {{ totalConceptCount.toLocaleString() }} {{ t('dataset.concepts') }}
           </template>
           <template v-else-if="totalPages > 1">
-            {{ ((page - 1) * perPage + 1).toLocaleString() }}–{{ Math.min(page * perPage, totalConceptCount).toLocaleString() }} of {{ totalConceptCount.toLocaleString() }} concepts
+            {{ ((page - 1) * perPage + 1).toLocaleString() }}–{{ Math.min(page * perPage, totalConceptCount).toLocaleString() }} {{ t('dataset.of') }} {{ totalConceptCount.toLocaleString() }} {{ t('dataset.concepts') }}
           </template>
           <template v-else>
-            {{ totalConceptCount.toLocaleString() }} concepts
+            {{ totalConceptCount.toLocaleString() }} {{ t('dataset.concepts') }}
           </template>
         </span>
       </div>
@@ -289,7 +291,7 @@ function goToPage(p: number) {
           ]"
           class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
         >
-          All {{ totalConceptCount.toLocaleString() }}
+          {{ t('dataset.all') }} {{ totalConceptCount.toLocaleString() }}
         </button>
         <button
           v-for="lang in languageOptions"
@@ -333,11 +335,11 @@ function goToPage(p: number) {
       <div v-else class="text-center py-20">
         <div class="text-ink-200 text-5xl mb-4 font-serif">&empty;</div>
         <template v-if="filter.trim()">
-          <p class="text-ink-500 font-medium mb-1">No concepts match your filter</p>
-          <button @click="filter = ''" class="text-sm concept-link mt-1">Clear filter</button>
+          <p class="text-ink-500 font-medium mb-1">{{ t('dataset.noMatch') }}</p>
+          <button @click="filter = ''" class="text-sm concept-link mt-1">{{ t('dataset.clearFilter') }}</button>
         </template>
         <template v-else>
-          <p class="text-ink-500 font-medium mb-1">This dataset has no concepts</p>
+          <p class="text-ink-500 font-medium mb-1">{{ t('dataset.noConcepts') }}</p>
         </template>
       </div>
 
@@ -347,7 +349,7 @@ function goToPage(p: number) {
           :disabled="page <= 1"
           @click="goToPage(page - 1)"
           class="btn-secondary disabled:opacity-30 text-xs"
-        >&larr; Prev</button>
+        >&larr; {{ t('dataset.prev') }}</button>
         <template v-for="p in visiblePages" :key="p">
           <span v-if="p < 0" class="text-ink-300 px-0.5">&hellip;</span>
           <button
@@ -361,7 +363,7 @@ function goToPage(p: number) {
           :disabled="page >= totalPages"
           @click="goToPage(page + 1)"
           class="btn-secondary disabled:opacity-30 text-xs"
-        >Next &rarr;</button>
+        >{{ t('dataset.next') }} &rarr;</button>
       </div>
     </template>
   </div>

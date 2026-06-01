@@ -7,7 +7,7 @@ nav.search: Recherche
 nav.graph: Vue en graphe
 nav.ontology: Ontologie
 nav.concepts: Concepts
-nav.statistics: Statistiques
+nav.stats: Statistiques
 nav.about: À propos
 nav.navigation: Navigation
 nav.datasets: Jeux de données
@@ -27,11 +27,24 @@ home.browseConcepts: Parcourir les concepts
 # Search
 search.placeholder: Rechercher…
 search.conceptSearch: Rechercher des concepts
+search.fullPlaceholder: Rechercher des termes dans tous les jeux de données…
+search.button: Rechercher
+search.searching: Recherche dans les jeux de données...
+search.failed: Échec de la recherche
+search.retry: Réessayer
+search.result: résultat
+search.results: résultats
+search.oneResultFor: '1 résultat pour « {query} »'
+search.manyResultsFor: '{count} résultats pour « {query} »'
+search.noResults: Aucun concept trouvé correspondant à votre recherche
+search.tryDifferent: Essayez un autre terme ou vérifiez l'orthographe.
+search.showingFirst: Affichage des {max} premiers résultats sur {total}. Affinez votre recherche.
+search.idMatch: Correspondance d'identifiant
 
 # Page view
 page.notFound: Page non trouvée
 page.notFoundMsg: 'La page « {name} » n''existe pas.'
-page.goHome: Aller à l'accueil
+page.goHome: Aller à l''accueil
 
 # Concept detail
 concept.definition: Définition
@@ -64,3 +77,52 @@ header.datasets: jeux de données
 
 # Language
 lang.termOnlyIn: Terme uniquement en
+
+# Dataset view
+dataset.concepts: concepts
+dataset.languages: langues
+dataset.filterPlaceholder: "Filtrer les concepts… (appuyez sur /)"
+dataset.of: de
+dataset.in: en
+dataset.all: Tous
+dataset.prev: Préc.
+dataset.next: Suiv.
+dataset.noMatch: Aucun concept ne correspond au filtre
+dataset.clearFilter: Effacer le filtre
+dataset.noConcepts: Ce jeu de données n'a aucun concept
+dataset.failedToLoad: Échec du chargement du jeu de données
+dataset.retry: Réessayer
+dataset.backToHome: Retour à l'accueil
+dataset.download: Télécharger
+
+# Statistics view
+stats.title: Statistiques
+stats.summary: "{count} concepts dans {langCount} langues."
+stats.language: Langue
+stats.terms: Termes
+stats.definitions: Définitions
+stats.failedToLoad: Échec du chargement des statistiques
+stats.retry: Réessayer
+
+# Graph
+graph.nodes: nœuds
+graph.edges: arêtes
+graph.all: Tous
+graph.none: Aucun
+graph.resetZoom: Réinitialiser le zoom
+graph.reLayout: Réorganiser
+graph.nodeLabels: Étiquettes des nœuds
+graph.designation: Désignation
+graph.identifier: Identifiant
+graph.viewConcept: Voir le concept
+graph.stubLabel: Non chargé
+graph.domainLabel: Domaine (standard)
+graph.datasets: Jeux de données
+graph.enableDatasets: Activez les jeux de données pour voir leur graphe.
+graph.browseToPopulate: Parcourez les concepts avec des renvois croisés pour remplir le graphe.
+graph.renderingWarning: "Affichage des {max} premiers nœuds sur {total}."
+graph.loadedStatus: chargé
+graph.stubStatus: non chargé
+graph.collapseControls: Réduire les contrôles
+graph.expandControls: Développer les contrôles
+graph.loading: Chargement des données du graphe...

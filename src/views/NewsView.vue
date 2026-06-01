@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useSiteConfig } from '../config/use-site-config';
 import { renderAsciiDocLite } from '../utils/asciidoc-lite';
+import { useI18n } from '../i18n';
 
 interface NewsPost {
   slug: string;
@@ -13,6 +14,7 @@ interface NewsPost {
 }
 
 const { config } = useSiteConfig();
+const { t } = useI18n();
 const posts = ref<NewsPost[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -80,7 +82,7 @@ function formatDate(dateStr: string) {
 <template>
   <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400 mb-6">
-      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">Home</router-link>
+      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">{{ t('nav.home') }}</router-link>
       <span class="text-ink-200">/</span>
       <span class="text-ink-700">News</span>
     </nav>
