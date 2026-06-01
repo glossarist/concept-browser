@@ -3,6 +3,9 @@ import { computed, watch, ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import ConceptDetail from '../components/ConceptDetail.vue';
+import { useI18n } from '../i18n';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   registerId: string;
@@ -108,12 +111,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
     </div>
     <div v-else-if="localError" class="max-w-xl mx-auto text-center py-20">
       <div class="card p-8 border-red-200 bg-red-50/50">
-        <p class="text-red-700 font-medium mb-1">Failed to load concept</p>
+        <p class="text-red-700 font-medium mb-1">{{ t('concept.failedToLoad') }}</p>
         <p class="text-sm text-red-600/80 mb-4">{{ localError }}</p>
         <div class="flex gap-2 justify-center">
-          <button @click="loadConcept(registerId, conceptId)" class="btn-primary">Retry</button>
+          <button @click="loadConcept(registerId, conceptId)" class="btn-primary">{{ t('dataset.retry') }}</button>
           <router-link :to="{ name: 'dataset', params: { registerId } }" class="btn-secondary">
-            Back to dataset
+            {{ t('concept.backToDataset') }}
           </router-link>
         </div>
       </div>
@@ -121,10 +124,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
     <div v-else-if="!concept" class="max-w-xl mx-auto text-center py-20">
       <div class="card p-8">
         <div class="text-ink-200 text-5xl mb-3 font-serif">?</div>
-        <h3 class="text-lg font-medium text-ink-700 mb-2">Concept not found</h3>
-        <p class="text-sm text-ink-400 mb-4">The concept "{{ conceptId }}" does not exist in this dataset.</p>
+        <h3 class="text-lg font-medium text-ink-700 mb-2">{{ t('concept.notFound') }}</h3>
+        <p class="text-sm text-ink-400 mb-4">{{ t('concept.notFoundMsg', { id: conceptId }) }}</p>
         <router-link :to="{ name: 'dataset', params: { registerId } }" class="btn-primary">
-          Back to dataset
+          {{ t('concept.backToDataset') }}
         </router-link>
       </div>
     </div>

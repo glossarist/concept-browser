@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { FORMAT_REGISTRY } from '../utils/concept-formats';
+import { useI18n } from '../i18n';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   registerId: string;
@@ -27,7 +30,7 @@ const links = computed<FormatLink[]>(() =>
 
 <template>
   <div v-if="links.length" class="space-y-2">
-    <div class="section-label">Downloads</div>
+    <div class="section-label">{{ t('concept.downloads') }}</div>
     <div class="flex flex-wrap gap-2">
       <a
         v-for="link in links"

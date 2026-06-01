@@ -65,6 +65,36 @@ concept.conceptSources: Sources du concept
 concept.incoming: Entrantes
 concept.outgoing: Sortantes
 concept.lang: lang.
+concept.rdf: RDF
+concept.history: Historique
+concept.languages: langues
+concept.collapseAll: Tout réduire
+concept.expandAll: Tout développer
+concept.designationOnly: désignation uniquement
+concept.previous: Concept précédent
+concept.next: Concept suivant
+concept.of: de
+concept.hasDefinition: A une définition
+concept.designationOnlyTitle: Désignation uniquement
+concept.languagesSidebar: "Langues ({count})"
+concept.ontologicalMetadata: Métadonnées ontologiques
+concept.classificationLabel: Classification
+concept.reviewType: Type de révision
+concept.release: Version
+concept.lineageSimilarity: Similarité de lignée
+concept.script: Écriture
+concept.conversionSystem: Système de conversion
+concept.status: Statut
+concept.reviewDate: Date de révision
+concept.decision: Décision
+concept.uri: URI
+concept.copyUri: Copier l'URI dans le presse-papiers
+concept.uriCopied: URI copiée
+concept.downloads: Téléchargements
+concept.failedToLoad: Échec du chargement du concept
+concept.notFound: Concept non trouvé
+concept.notFoundMsg: "Le concept « {id} » n'existe pas dans ce jeu de données."
+concept.backToDataset: Retour au jeu de données
 
 # Sidebar
 sidebar.overview: Vue d'ensemble

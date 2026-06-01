@@ -23,7 +23,7 @@ import NonVerbalRepDisplay from './NonVerbalRepDisplay.vue';
 import CitationDisplay from './CitationDisplay.vue';
 import { useI18n } from '../i18n';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const props = defineProps<{
   concept: Concept;
@@ -36,7 +36,7 @@ const props = defineProps<{
 const router = useRouter();
 const store = useVocabularyStore();
 const { getColor } = useDsStyle();
-const { config: siteConfig } = useSiteConfig();
+const { config: siteConfig, localizedDatasetField } = useSiteConfig();
 const factory = getFactory();
 
 const activeTab = ref<'rdf' | 'definition' | 'history'>('definition');
@@ -62,7 +62,15 @@ function copyUri() {
 }
 
 const languages = computed(() => {
-  return sortLanguages(props.concept.languages, props.manifest.languageOrder);
+  const sorted = sortLanguages(props.concept.languages, props.manifest.languageOrder);
+  // Put current UI locale first
+  const current = locale.value;
+  const idx = sorted.indexOf(current);
+  if (idx > 0) {
+    sorted.splice(idx, 1);
+    sorted.unshift(current);
+  }
+  return sorted;
 });
 
 // Collapsible language sections — expand all with content, collapse those without
@@ -369,11 +377,11 @@ const nonVerbalReps = computed(() => {
           <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors whitespace-nowrap">{{ t('nav.home') }}</router-link>
           <span class="text-ink-200">/</span>
           <router-link :to="{ name: 'dataset', params: { registerId: manifest.id }}" class="hover:text-ink-700 transition-colors truncate max-w-[180px]">
-            {{ manifest.title }}
+            {{ localizedDatasetField(manifest.id, 'title', manifest.title) }}
           </router-link>
           <span class="text-ink-200">/</span>
           <span class="text-ink-600 font-mono text-xs">{{ conceptId }}</span>
-          <span v-if="conceptPosition" class="text-[10px] text-ink-300 tabular-nums ml-1 whitespace-nowrap">({{ conceptPosition.index }} of {{ conceptPosition.total.toLocaleString() }})</span>
+          <span v-if="conceptPosition" class="text-[10px] text-ink-300 tabular-nums ml-1 whitespace-nowrap">({{ conceptPosition.index }} {{ t('concept.of') }} {{ conceptPosition.total.toLocaleString() }})</span>
         </nav>
         <!-- Prev/Next navigation -->
         <div v-if="adjacent.prev || adjacent.next" class="flex items-center gap-1 flex-shrink-0">
@@ -381,7 +389,7 @@ const nonVerbalReps = computed(() => {
             v-if="adjacent.prev"
             @click="goAdjacent(adjacent.prev)"
             class="p-2.5 rounded-lg text-ink-300 hover:text-ink-600 hover:bg-ink-50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-            title="Previous concept (←)"
+            :title="t('concept.previous') + ' (←)'"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
           </button>
@@ -389,7 +397,7 @@ const nonVerbalReps = computed(() => {
             v-if="adjacent.next"
             @click="goAdjacent(adjacent.next)"
             class="p-2.5 rounded-lg text-ink-300 hover:text-ink-600 hover:bg-ink-50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-            title="Next concept (→)"
+            :title="t('concept.next') + ' (→)'"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
           </button>
@@ -410,7 +418,7 @@ const nonVerbalReps = computed(() => {
           {{ entryStatusLabel(engConcept.entryStatus) }}
         </span>
         <span class="badge badge-gray" v-if="manifest.owner">{{ manifest.owner }}</span>
-        <span class="badge badge-purple">{{ languages.length }} languages</span>
+        <span class="badge badge-purple">{{ languages.length }} {{ t('concept.languages') }}</span>
       </div>
     </div>
 
@@ -426,7 +434,7 @@ const nonVerbalReps = computed(() => {
           ? 'bg-blue-600 text-white shadow-sm md:bg-transparent md:text-blue-600 md:border-blue-500 md:shadow-none'
           : 'text-ink-500 hover:text-ink-700 md:text-ink-400 md:border-transparent md:hover:text-ink-600'"
       >
-        Definition
+        {{ t('concept.definition') }}
       </button>
       <button
         role="tab"
@@ -437,7 +445,7 @@ const nonVerbalReps = computed(() => {
           ? 'bg-blue-600 text-white shadow-sm md:bg-transparent md:text-blue-600 md:border-blue-500 md:shadow-none'
           : 'text-ink-500 hover:text-ink-700 md:text-ink-400 md:border-transparent md:hover:text-ink-600'"
       >
-        RDF
+        {{ t('concept.rdf') }}
       </button>
       <button
         role="tab"
@@ -448,7 +456,7 @@ const nonVerbalReps = computed(() => {
           ? 'bg-blue-600 text-white shadow-sm md:bg-transparent md:text-blue-600 md:border-blue-500 md:shadow-none'
           : 'text-ink-500 hover:text-ink-700 md:text-ink-400 md:border-transparent md:hover:text-ink-600'"
       >
-        History
+        {{ t('concept.history') }}
       </button>
     </div>
 
@@ -456,9 +464,9 @@ const nonVerbalReps = computed(() => {
     <div v-if="activeTab === 'definition'" role="tabpanel">
       <!-- Expand/Collapse all toggle -->
       <div v-if="allLangContent.length > 1" class="flex items-center justify-between mb-3">
-        <span class="text-xs text-ink-400">{{ languages.length }} languages</span>
+        <span class="text-xs text-ink-400">{{ languages.length }} {{ t('concept.languages') }}</span>
         <button @click="toggleAll" class="text-xs text-ink-400 hover:text-ink-600 transition-colors px-3 py-2">
-          {{ allCollapsed ? 'Expand all' : 'Collapse all' }}
+          {{ allCollapsed ? t('concept.expandAll') : t('concept.collapseAll') }}
         </button>
       </div>
       <div class="lg:flex lg:gap-8">
@@ -487,7 +495,7 @@ const nonVerbalReps = computed(() => {
             <div v-else class="w-full flex items-center gap-2.5 px-3 sm:px-4 py-3">
               <span class="text-xs font-semibold text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">{{ langName(lc.lang) }}</span>
               <span class="font-medium text-ink-800 text-sm" v-html="renderMath(getTermForLang(lc.lang))"></span>
-              <span class="text-xs text-ink-200 ml-2 italic">designation only</span>
+              <span class="text-xs text-ink-200 ml-2 italic">{{ t('concept.designationOnly') }}</span>
               <span v-if="lc.entryStatus" class="badge text-[10px] ml-auto" :class="entryStatusColor(lc.entryStatus)" :title="entryStatusDefinition(lc.entryStatus) ?? ''">{{ entryStatusLabel(lc.entryStatus) }}</span>
             </div>
             <!-- Collapsed preview -->
@@ -599,30 +607,30 @@ const nonVerbalReps = computed(() => {
 
               <!-- Ontological metadata -->
               <div v-if="lc.classification || lc.reviewType || lc.release || lc.lineageSourceSimilarity != null || lc.lcScript || lc.lcSystem" class="border-t border-ink-100/60 pt-2 mt-2">
-                <div class="text-[10px] uppercase tracking-wide text-ink-300 font-medium mb-1.5">Ontological metadata</div>
+                <div class="text-[10px] uppercase tracking-wide text-ink-300 font-medium mb-1.5">{{ t('concept.ontologicalMetadata') }}</div>
                 <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
                   <template v-if="lc.classification">
-                    <dt class="text-ink-300">Classification</dt>
+                    <dt class="text-ink-300">{{ t('concept.classificationLabel') }}</dt>
                     <dd class="text-ink-700">{{ lc.classification }}</dd>
                   </template>
                   <template v-if="lc.reviewType">
-                    <dt class="text-ink-300">Review type</dt>
+                    <dt class="text-ink-300">{{ t('concept.reviewType') }}</dt>
                     <dd class="text-ink-700">{{ lc.reviewType }}</dd>
                   </template>
                   <template v-if="lc.release">
-                    <dt class="text-ink-300">Release</dt>
+                    <dt class="text-ink-300">{{ t('concept.release') }}</dt>
                     <dd class="text-ink-700">{{ lc.release }}</dd>
                   </template>
                   <template v-if="lc.lineageSourceSimilarity != null">
-                    <dt class="text-ink-300">Lineage similarity</dt>
+                    <dt class="text-ink-300">{{ t('concept.lineageSimilarity') }}</dt>
                     <dd class="text-ink-700">{{ lc.lineageSourceSimilarity }}%</dd>
                   </template>
                   <template v-if="lc.lcScript">
-                    <dt class="text-ink-300">Script</dt>
+                    <dt class="text-ink-300">{{ t('concept.script') }}</dt>
                     <dd class="text-ink-700 font-mono">{{ lc.lcScript }}</dd>
                   </template>
                   <template v-if="lc.lcSystem">
-                    <dt class="text-ink-300">Conversion system</dt>
+                    <dt class="text-ink-300">{{ t('concept.conversionSystem') }}</dt>
                     <dd class="text-ink-700 font-mono">{{ lc.lcSystem }}</dd>
                   </template>
                 </dl>
@@ -727,7 +735,7 @@ const nonVerbalReps = computed(() => {
 
           <!-- Language quick-jump -->
           <div class="card p-5">
-            <div class="section-label">Languages ({{ languages.length }})</div>
+            <div class="section-label">{{ t('concept.languagesSidebar', { count: languages.length }) }}</div>
             <div class="space-y-1 mt-3 max-h-80 overflow-y-auto">
               <button
                 v-for="lang in languages"
@@ -740,7 +748,7 @@ const nonVerbalReps = computed(() => {
                   <span
                     class="w-1.5 h-1.5 rounded-full flex-shrink-0"
                     :class="hasDefinition(lang) ? 'bg-emerald-400' : 'bg-ink-200'"
-                    :title="hasDefinition(lang) ? 'Has definition' : 'Designation only'"
+                    :title="hasDefinition(lang) ? t('concept.hasDefinition') : t('concept.designationOnlyTitle')"
                   ></span>
                   <span class="text-sm font-medium text-ink-800 group-hover:text-ink-900 transition-colors" v-html="renderMath(getTermForLang(lang))"></span>
                 </div>
@@ -763,24 +771,24 @@ const nonVerbalReps = computed(() => {
             <div class="section-label">{{ t('concept.metadata') }}</div>
             <dl class="space-y-2 text-xs mt-3">
               <div v-if="managedStatus">
-                <dt class="text-ink-300">Status</dt>
+                <dt class="text-ink-300">{{ t('concept.status') }}</dt>
                 <dd class="mt-0.5">
                   <span class="badge text-[10px]" :class="conceptStatusColor(managedStatus)" :title="conceptStatusDefinition(managedStatus) ?? ''">{{ conceptStatusLabel(managedStatus) }}</span>
                 </dd>
               </div>
               <div v-if="engConcept?.reviewDate">
-                <dt class="text-ink-300">Review Date</dt>
+                <dt class="text-ink-300">{{ t('concept.reviewDate') }}</dt>
                 <dd class="text-ink-700 mt-0.5">{{ engConcept.reviewDate.slice(0, 10) }}</dd>
               </div>
               <div v-if="engConcept?.reviewDecisionEvent">
-                <dt class="text-ink-300">Decision</dt>
+                <dt class="text-ink-300">{{ t('concept.decision') }}</dt>
                 <dd class="text-ink-700 mt-0.5">{{ engConcept.reviewDecisionEvent }}</dd>
               </div>
               <div>
-                <dt class="text-ink-300">URI</dt>
+                <dt class="text-ink-300">{{ t('concept.uri') }}</dt>
                 <dd class="font-mono text-ink-600 break-all mt-0.5 text-[11px] flex items-start gap-1.5">
                   <span class="break-all">{{ conceptUriValue }}</span>
-                  <button @click="copyUri" class="flex-shrink-0 p-0.5 rounded text-ink-300 hover:text-ink-600 hover:bg-ink-50 transition-colors" :title="uriCopied ? 'Copied!' : 'Copy URI'" :aria-label="uriCopied ? 'URI copied' : 'Copy URI to clipboard'">
+                  <button @click="copyUri" class="flex-shrink-0 p-0.5 rounded text-ink-300 hover:text-ink-600 hover:bg-ink-50 transition-colors" :title="uriCopied ? t('concept.uriCopied') : t('concept.copyUri')" :aria-label="uriCopied ? t('concept.uriCopied') : t('concept.copyUri')">
                     <svg v-if="!uriCopied" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10a2 2 0 01-2-2v-1m6 4v-3a2 2 0 00-2-2H8"/></svg>
                     <svg v-else class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                   </button>

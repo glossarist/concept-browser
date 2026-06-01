@@ -65,6 +65,36 @@ concept.conceptSources: Concept sources
 concept.incoming: Incoming
 concept.outgoing: Outgoing
 concept.lang: lang
+concept.rdf: RDF
+concept.history: History
+concept.languages: languages
+concept.collapseAll: Collapse all
+concept.expandAll: Expand all
+concept.designationOnly: designation only
+concept.previous: Previous concept
+concept.next: Next concept
+concept.of: of
+concept.hasDefinition: Has definition
+concept.designationOnlyTitle: Designation only
+concept.languagesSidebar: "Languages ({count})"
+concept.ontologicalMetadata: Ontological metadata
+concept.classificationLabel: Classification
+concept.reviewType: Review type
+concept.release: Release
+concept.lineageSimilarity: Lineage similarity
+concept.script: Script
+concept.conversionSystem: Conversion system
+concept.status: Status
+concept.reviewDate: Review Date
+concept.decision: Decision
+concept.uri: URI
+concept.copyUri: Copy URI to clipboard
+concept.uriCopied: URI copied
+concept.downloads: Downloads
+concept.failedToLoad: Failed to load concept
+concept.notFound: Concept not found
+concept.notFoundMsg: "The concept \"{id}\" does not exist in this dataset."
+concept.backToDataset: Back to dataset
 
 # Sidebar
 sidebar.overview: Overview
