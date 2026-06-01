@@ -1,28 +1,45 @@
-# Glossarist Vocabulary Browser
+# Glossarist Concept Browser
 
-A statically deployable single-page application for browsing ISO/IEC terminology datasets. Built with Vue 3, TypeScript, and Tailwind CSS. Add new datasets with zero code changes — just edit `datasets.yml`.
+A statically deployable single-page application for browsing terminology datasets. Built with Vue 3, TypeScript, and Tailwind CSS. Add new datasets with zero code changes — just configure `site-config.yml`.
 
-**Live site:** <https://www.geolexica.org>
-
-Glossarist is the software; deployment to `www.geolexica.org` happens through the [geolexica.org](https://github.com/geolexica/geolexica.org) repository, which sources the built SPA and deploys via S3 + CloudFront.
+**Live sites:**
+- [GeoLexica](https://www.geolexica.org) — IEC Electropedia + ISO/TC 211 + more
+- [VIML](https://metanorma.github.io/oiml-viml/) — OIML International Vocabulary of Legal Metrology
+- [OIML Terms](https://metanorma.github.io/oiml-terms/) — OIML G 18 terminology
 
 ---
 
 ## Features
 
 - **Multi-dataset browsing** — Concepts from multiple terminology registers in one place
-- **Full multilingual support** — Definitions, notes, and examples in all available languages
+- **Full multilingual support** — Definitions, notes, and examples in all available languages with i18n UI
 - **Concept history timeline** — Review dates, decisions, and change notes per language
 - **Cross-reference graph** — D3 force-directed graph showing concept relationships with dataset filtering
+- **Rich sidebar provenance** — Publication reference, owner, status, concept/language counts from manifest data
 - **Math rendering** — KaTeX rendering for AsciiMath notation in definitions (`stem:[...]`)
-- **Responsive design** — Mobile-first layout with integrated navigation
+- **Responsive design** — Mobile-first layout with light/dark mode
 - **Static deployment** — No server required. Deploy to any static host
 
 ---
 
-## Quick Start
+## Quick Start (deployment repo)
+
+A deployment repo is a separate repository that provides a `site-config.yml`, dataset source files, and content pages. The concept-browser is installed as an npm package.
 
 ```bash
+# In your deployment repo:
+npm install --ignore-scripts @glossarist/concept-browser
+npm install --prefix node_modules/@glossarist/concept-browser sharp 2>/dev/null || true
+npx concept-browser build
+```
+
+The CLI reads `site-config.yml` from the working directory, fetches/generates data, and builds the SPA into `dist/`.
+
+### Quick Start (development)
+
+```bash
+git clone https://github.com/glossarist/concept-browser.git
+cd concept-browser
 npm install
 npm run dev
 # Open http://localhost:5173
@@ -32,316 +49,249 @@ The dev server serves pre-built data from `public/data/`. If no data is present 
 
 ---
 
-## Commands
+## CLI Reference
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start Vite dev server on port 5173 |
-| `npm run build` | Type-check (`vue-tsc`) + Vite build + generate `404.html` |
-| `npm run preview` | Preview production build locally |
-| `npm test` | Run tests (Vitest with happy-dom) |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run fetch-datasets` | Clone/update source repos, harmonize concepts to canonical YAML |
-| `npm run generate-data` | Convert harmonized YAML → JSON-LD static files |
-| `npm run build:full` | Full pipeline: fetch + generate + build-edges + build |
+```
+concept-browser <command> [options]
+
+Commands:
+  fetch      Fetch/update datasets (from GCR packages, local paths, or source repos)
+  generate   Convert harmonized YAML concepts to JSON-LD static files
+  edges      Build cross-reference edges from generated concept data
+  build      Full pipeline: fetch + generate + edges + vite build
+  site       Same as build (alias)
+
+Options:
+  --site <id>  Site config ID (looks for site-config.yml in CWD)
+
+Environment:
+  SITE_CONFIG    Site config file path (highest priority)
+  SITE_ID        Site config ID (same as --site)
+  GITHUB_TOKEN   GitHub token for private repos
+```
 
 ---
 
 ## Data Pipeline
 
 ```
-datasets.yml
-  └─> scripts/fetch-datasets.mjs   (clone + harmonize)
+site-config.yml
+  └─> scripts/fetch-datasets.mjs       (fetch from GCR, localPath, or sourceRepo)
       └─> .datasets/{id}/concepts/*.yaml
-          └─> scripts/generate-data.mjs  (YAML → JSON-LD)
+          └─> scripts/generate-data.mjs (YAML → JSON-LD)
               └─> public/data/{id}/
-                  ├── manifest.json      Dataset metadata
+                  ├── manifest.json      Dataset metadata (ref, owner, stats)
                   ├── index.json         Concept listing (chunked for large sets)
                   ├── edges.json         Pre-computed cross-reference + domain edges
                   ├── domain-nodes.json  Domain classification nodes
                   └── concepts/*.json    Individual concept documents
-          └─> scripts/build-edges.js  (extract graph + domain edges)
+          └─> scripts/build-edges.js    (extract graph + domain edges)
 ```
-
-### Step-by-step
-
-```bash
-# 1. Fetch source repos and harmonize concepts
-npm run fetch-datasets
-
-# 2. Generate static JSON-LD data files
-npm run generate-data
-
-# 3. Pre-compute cross-reference edges
-node scripts/build-edges.js
-
-# 4. Build the SPA
-npm run build
-```
-
-Or use the single-command pipeline:
-
-```bash
-npm run build:full
-```
-
-### Local dataset override
-
-To use a local checkout instead of cloning from GitHub:
-
-```bash
-DATASET_SOURCE_IEV=/path/to/local/iev-data npm run fetch-datasets
-```
-
-Replace `IEV` with the uppercase dataset ID.
 
 ---
 
-## Configuration: `datasets.yml`
+## Configuration: `site-config.yml`
 
-All dataset configuration lives in a single file. Adding a new dataset requires **zero code changes** — just add an entry to `datasets.yml` and run the pipeline.
+All configuration lives in a single file. The CLI reads it from the current working directory.
 
-### Branding and favicon
-
-The `site-config.yml` `branding` section controls the site's visual identity:
+### Top-level fields
 
 ```yaml
-branding:
-  primaryColor: "#d97706"
-  darkColor: "#1a1a2e"
-  logo:
-    path: /logos/my-logo.svg        # URL path served to browsers
-    alt: "My Org"
-    localPath: logos/my-logo.svg     # Local file used as favicon source
-  favicon: logos/my-favicon.svg      # Optional — overrides logo.localPath for favicon generation
+id: viml                                # Site identifier
+domain: viml.oiml.info                  # Primary domain
+basePath: /oiml-viml/                   # URL subpath for GitHub Pages deployment
+title: VIML                             # Site title
+subtitle: International Vocabulary...   # Short description
+description: Terminology from...        # Longer description
+
+uiLanguages:                            # Available UI languages
+  - code: eng
+    label: English
+  - code: fra
+    label: Français
+
+translations:                           # Localized title/subtitle/description
+  fra:
+    subtitle: Vocabulaire international de métrologie légale
+    description: Terminologie du Vocabulaire international...
+
+defaults:
+  language: eng                         # Default concept language
+
+copyright: "OIML"                       # Footer copyright text
 ```
 
-During build, favicons are auto-generated from a single SVG source using the [`favicons`](https://npmjs.com/package/favicons) package. The resolution order is:
-
-1. `branding.favicon` — explicit path to favicon source SVG
-2. `branding.logo.localPath` — falls back to the site logo
-3. Package default `public/favicon.svg`
-
-The build produces: `favicon.ico`, `favicon.svg`, `favicon-{16,32,48}x{16,32,48}.png`, `apple-touch-icon-*.png` (all standard iOS sizes), and injects the corresponding `<link>` and `<meta>` tags into `index.html` via a Vite plugin.
-
-### Full reference
+### Dataset configuration
 
 ```yaml
 datasets:
-  - id: my-dataset                          # required — URL-safe identifier
-    sourceRepo: https://github.com/org/repo  # required — Git repo with concept YAML
-    # OR use a pre-built GCR package:
-    gcrPackage: https://github.com/org/repo/releases/latest/download/pkg.gcr
-
-    title: "My Glossary"                    # optional — falls back to register.yaml name
-    description: "Description of dataset"   # optional — shown on home and about pages
-    owner: My Organization                  # optional — shown in badges and about page
-    color: "#6366f1"                        # optional — hex color for UI accent (default: auto-assigned)
-    tags: [tag1, tag2]                      # optional — shown on dataset card
-    existingSiteUrl: https://example.org    # optional — link to existing site for this dataset
-    externalConceptUrlTemplate: "https://example.org/concepts/{conceptId}/"  # optional — per-concept external link
-    languageOrder: [eng, fra, deu, spa]     # optional — custom language tab ordering
+  - id: viml
+    uri: "urn:oiml:pub:v:1:2022"
+    sourceRepo: https://github.com/metanorma/oiml-viml
+    localPath: viml-glossarist          # Local dataset directory (relative to CWD)
+    title: "VIML — International Vocabulary of Legal Metrology"
+    description: "Terminology definitions from..."
+    owner: OIML
+    ref: "OIML V 1:2022"               # Publication reference (shown in sidebar provenance)
+    color: "#004996"
+    tags: [metrology, legal, oiml]
+    languageOrder: [eng, fra]
 ```
 
-### Field details
+#### Dataset field reference
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `id` | yes | URL-safe identifier used in routes (`/dataset/{id}/concept/...`) and data paths (`public/data/{id}/`) |
-| `sourceRepo` | yes* | Git repository URL containing concept YAML files in `concepts/` directory. `gcrPackage` is an alternative. |
-| `gcrPackage` | no | URL to a pre-built `.gcr` ZIP archive. Used instead of `sourceRepo` when available. See `docs/gcr-spec.md`. |
-| `title` | no | Display name. Falls back to `name` field in the repo's `register.yaml`. |
-| `description` | no | Shown on the home page dataset card and the about page. |
-| `owner` | no | Organization name shown in concept badges and the about page. |
-| `color` | no | Hex color (`#RRGGBB`) for dataset accent. Used for graph nodes, sidebar highlights, and card borders. Auto-assigned if omitted. |
-| `tags` | no | Array of short labels shown on the dataset card. |
-| `existingSiteUrl` | no | Link to the dataset's existing website, shown as a badge on the dataset page. |
-| `externalConceptUrlTemplate` | no | URL template for linking to the official source of each concept. `{conceptId}` is replaced with the concept ID. |
-| `languageOrder` | no | Array of ISO 639-2 language codes controlling the display order on concept pages. Without this, languages default to English-first then alphabetical. |
+| `id` | yes | URL-safe identifier used in routes and data paths |
+| `uri` | no | URI pattern for this dataset |
+| `sourceRepo` | no | Git repository URL containing concept YAML files |
+| `gcrPackage` | no | URL to a pre-built `.gcr` ZIP archive (alternative to sourceRepo) |
+| `localPath` | no | Local directory with `concepts/` and `register.yaml` (relative to CWD) |
+| `title` | no | Display name. Falls back to `register.yaml` name field |
+| `description` | no | Shown on home page and about page |
+| `owner` | no | Organization name shown in sidebar provenance |
+| `ref` | no | Publication reference shown in sidebar provenance (e.g., "OIML V 1:2022") |
+| `color` | no | Hex color for UI accent. Auto-assigned if omitted |
+| `tags` | no | Array of labels shown on dataset card |
+| `languageOrder` | no | Array of ISO 639-2 codes controlling display order |
+| `translations` | no | Localized title and description per language |
+
+#### Dataset source resolution
+
+The CLI resolves dataset sources in this priority order:
+
+1. **`.gcr/{id}.gcr`** on disk — extract to `.datasets/{id}/`
+2. **`gcrPackage`** URL — download and extract
+3. **`localPath`** — copy `concepts/` and `register.yaml` from a local directory
+4. **`sourceRepo`** — git clone to `.datasets/{id}/`
+
+### Base path for subpath deployment
+
+Set `basePath` in `site-config.yml` to deploy to a subdirectory (e.g., GitHub Pages at `metanorma.github.io/my-site/`):
+
+```yaml
+basePath: /my-site/
+```
+
+This configures Vite's `base` so all asset paths, router paths, and data fetches use the correct prefix. The `BASE_PATH` environment variable can override this if needed.
+
+### Branding and favicon
+
+```yaml
+branding:
+  primaryColor: "#004996"
+  darkColor: "#003366"
+  fonts:
+    header:
+      family: "Source Serif 4"
+      source: "google"
+      weights: [400, 600]
+    body:
+      family: "Source Sans 3"
+      source: "google"
+      weights: [400, 500, 700]
+  logo:
+    path: /logos/oiml-logo.svg          # URL path served to browsers
+    alt: OIML
+    localPath: logos/oiml-logo.svg       # Local file for favicon generation
+    localLight: logos/oiml-logo-icon-light.svg   # Light variant (dark mode)
+    localDark: logos/oiml-logo-icon-dark.svg     # Dark variant (light mode)
+  ownerName: OIML
+  ownerUrl: "https://www.oiml.org"
+```
+
+Favicons are auto-generated from the logo SVG using the `favicons` package. Resolution order: `branding.favicon` → `branding.logo.localPath` → package default `public/favicon.svg`.
 
 ### Site features
 
-The `features` section in `site-config.yml` toggles functionality and customizes branding:
-
 ```yaml
 features:
-  news: true               # enable news posts (requires newsDir)
+  news: false              # enable news posts
   stats: true              # show statistics dashboard
   graph: true              # enable concept graph visualization
   about: true              # enable about page
   search: true             # enable full-text search
-  poweredBy:               # customize the sidebar/footer credit link
-    message: "Powered by Acme Corp"
-    url: "https://example.com"
+  poweredBy:
+    title: "Glossarist"
+    url: "https://glossarist.org"
 ```
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `poweredBy.message` | `Built with the Glossarist Concept Browser` | Link text shown in sidebar and footer |
-| `poweredBy.url` | `https://github.com/glossarist/concept-browser` | Link href |
+### Content pages
 
-Omit the `poweredBy` block to use defaults. The `message` becomes the full text of a clickable link — there is no hardcoded prefix.
+```yaml
+pages:
+  - type: about
+    route: about
+    title: About
+    icon: info
+    source: about.md
+    translations:
+      fra:
+        title: À propos
+        source: about-fra.md
+```
 
 ### Cross-reference mapping
-
-The top-level `crossReferences` section maps inline references to dataset IDs:
 
 ```yaml
 crossReferences:
   refPrefixMap:
-    IEV: iev                    # {{term, IEV:xxx}} → glossarist.org/iev/concept/xxx
+    IEV: iev
   urnStandardMap:
-    "14812": isotc204            # urn:iso:std:iso:14812:... → isotc204
+    "14812": isotc204
 ```
-
----
-
-## Adding a New Dataset
-
-1. Add an entry to `datasets.yml` (see configuration above)
-2. Run `npm run fetch-datasets && npm run generate-data && node scripts/build-edges.js`
-3. Verify with `npm run dev`
-4. Commit and push
-
-For the full guide, see [Adding a Dataset](docs/adding-a-dataset.md).
-
-### Source repository requirements
-
-The source repository must contain:
-
-- `concepts/` directory with YAML concept files (one per concept)
-- Optionally `register.yaml` with dataset metadata
-
-Concepts must conform to the [canonical format](docs/dataset-schema.md). The harmonization step in `fetch-datasets` normalizes common variants automatically.
-
----
-
-## Included Datasets
-
-| Dataset | Concepts | Languages | Description |
-|---------|----------|-----------|-------------|
-| IEC Electropedia (IEV) | 22,228 | 17 | World's most comprehensive electrotechnical terminology database |
-| ISO/TC 211 Multi-Lingual Glossary | 1,302 | 5+ | Geographic information terminology |
-| ISO/TC 204 ITS Vocabulary | 312 | 1 | Intelligent transport systems terminology |
-| OSGeo Lexicon | 444 | 1 | Open Source Geospatial Foundation glossary |
 
 ---
 
 ## Deployment
 
-### Architecture
+### GitHub Pages (recommended)
 
-```
-glossarist/vocabulary-browser          geolexica/geolexica.org
-(Glossarist software)                  (Deployment target)
-─────────────────────                  ──────────────────────
-Push to main                           Push to main / repository_dispatch
-  │                                      │
-  ├─ .github/workflows/deploy.yml       │
-  │   fetch + generate + build           │
-  │   → deploys to GitHub Pages (preview)│
-  │   → triggers geolexica.org dispatch  │
-  │                                      │
-  └──── repository_dispatch ─────────> build_deploy.yml
-                                          checkout vocabulary-browser
-                                          fetch + generate + build
-                                          → GitHub Pages → www.geolexica.org
-```
+1. Create a deployment repo with `site-config.yml`, dataset source, and content pages
+2. Add a GitHub Actions workflow:
 
-The vocabulary-browser repository is the **Glossarist software**. The [geolexica.org](https://github.com/geolexica/geolexica.org) repository is the **deployment target** — its workflow checks out vocabulary-browser, builds it, and deploys to GitHub Pages at `www.geolexica.org`.
-
-### Production deployment (www.geolexica.org)
-
-Deployments are managed by the `geolexica.org` repository's `build_deploy.yml` workflow:
-
-1. Checks out `glossarist/vocabulary-browser` at `main`
-2. Installs dependencies (`npm ci`)
-3. Fetches datasets and generates data
-4. Builds the SPA
-5. Deploys `dist/` to GitHub Pages
-
-The workflow triggers on:
-- Push to `main` in the geolexica.org repo
-- `repository_dispatch` from vocabulary-browser (automatic when vocabulary-browser pushes to main)
-- Manual trigger via the "Run workflow" button
-
-See [geolexica/geolexica.org](https://github.com/geolexica/geolexica.org) for Pages configuration.
-
-### This repository's build workflow
-
-`.github/workflows/deploy.yml` runs on push to `main`:
-
-1. Checks out the code
-2. Runs `npm ci`
-3. Fetches datasets (`npm run fetch-datasets`)
-4. Builds GCR packages (`npm run build-gcr:all`)
-5. Generates data (`npm run generate-data`)
-6. Extracts edges (`node scripts/build-edges.js`)
-7. Builds the SPA (`npm run build`)
-8. Deploys to GitHub Pages (preview at the repository's Pages URL)
-9. Triggers `geolexica.org` deployment via `repository_dispatch`
-
-### Custom base path
-
-By default the app deploys to the root (`/`). To deploy to a subdirectory (e.g., `/vocab/`):
-
-```bash
-BASE_PATH=/vocab/ npm run build
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install concept-browser
+        run: |
+          npm install --ignore-scripts @glossarist/concept-browser
+          npm install --prefix node_modules/@glossarist/concept-browser sharp 2>/dev/null || true
+      - name: Build site
+        run: npx concept-browser build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/deploy-pages@v4
 ```
 
-This sets the Vite `base` config so all asset paths are prefixed correctly.
-
-**How it works:**
-
-The `BASE_PATH` environment variable controls subpath deployment through two mechanisms:
-
-1. **Build time (Node.js scripts):** `generate-data.mjs` uses `BASE_PATH` to prefix logo paths in the generated `site-config.json`. The favicon generation in `cli/index.mjs` also prefixes favicon link hrefs. These are build-time rewrites because they produce static JSON/HTML that can't use Vite's runtime resolution.
-
-2. **Runtime (browser):** The Vue app uses `import.meta.env.BASE_URL` (a Vite compile-time constant derived from `base`) to prefix all `fetch()` paths. This includes:
-   - `datasets.json` (dataset registry)
-   - `site-config.json` (branding, features)
-   - `data/{id}/...` (concept data via `DatasetAdapter`)
-   - `pages/*.json` (content pages)
-   - `news.json` (news feed)
-   - `data/{id}/bibliography.json` and `data/{id}/images/*` (render-time resources)
-
-The Vite `base` config normalizes trailing slashes automatically, so `BASE_PATH=/vocab` and `BASE_PATH=/vocab/` both work. The value is passed through to `import.meta.env.BASE_URL` which always ends with `/`.
-
-**CLI usage:**
-
-When using the `concept-browser` CLI from a deployment repo (not the package source):
-
-```bash
-git clone --branch fix/subpath-base-url --depth 1 https://github.com/glossarist/concept-browser.git /tmp/cb
-cd /tmp/cb && npm install --ignore-scripts
-npm install --prefix /tmp/cb sharp 2>/dev/null || true
-
-# Build from the deployment repo's working directory
-cd /path/to/deployment-repo
-node /tmp/cb/cli/index.mjs build
-```
-
-The CLI looks for `site-config.yml` in the CWD first, then falls back to the package's own `site-config.yml`.
+All configuration (base path, dataset sources, branding) comes from `site-config.yml` — no dataset-specific environment variables needed.
 
 ### Other hosting platforms
 
-The build produces static files in `dist/` with an SPA `404.html` fallback. Deploy `dist/` to any static host:
+The build produces static files in `dist/` with an SPA `404.html` fallback:
 
-- **Netlify:** Set build command to `npm run build:full`, publish directory to `dist`, add `_redirects` file with `/* /index.html 200`
-- **Vercel:** Set framework to Vite, build command to `npm run build:full`, output directory to `dist`
-- **AWS S3 + CloudFront:** Upload `dist/` to S3, set error document to `index.html`, configure CloudFront for SPA routing
-- **GitHub Pages:** Set **Settings → Pages → Source** to "GitHub Actions", then push to `main`
-- **Any static host:** Upload `dist/` and configure all 404s to serve `index.html`
+- **Netlify:** Build command `npx concept-browser build`, publish directory `dist`, add `_redirects` with `/* /index.html 200`
+- **Vercel:** Framework Vite, build command `npx concept-browser build`, output directory `dist`
+- **AWS S3 + CloudFront:** Upload `dist/`, error document `index.html`, configure CloudFront for SPA routing
 
 ---
 
 ## Architecture
-
-See [Architecture Documentation](docs/architecture.md) for:
-- System architecture diagrams
-- Component hierarchy
-- Data pipeline details
-- Adapter pattern and graph engine internals
 
 ### Tech Stack
 
@@ -351,45 +301,48 @@ See [Architecture Documentation](docs/architecture.md) for:
 - **Tailwind CSS 3** (utility-first styling)
 - **D3.js** (force-directed graph)
 - **KaTeX** (math rendering)
-- **DM Serif Display** + **DM Sans** + **JetBrains Mono** (typography)
 
 ### Project structure
 
 ```
 src/
 ├── adapters/          Data access layer (DatasetAdapter, AdapterFactory, UriRouter)
-├── components/        Reusable Vue components (ConceptDetail, GraphPanel, SearchBar, etc.)
-├── graph/             Graph engine for concept relationships (GraphEngine.ts)
+├── components/        Vue components (AppSidebar, AppFooter, ConceptDetail, GraphPanel, etc.)
+├── graph/             Graph engine for concept relationships
 ├── stores/            Pinia stores (vocabulary, ui)
 ├── views/             Page-level components (HomeView, DatasetView, ConceptView, etc.)
+├── i18n/              Internationalization (YAML locale files, auto-discovered)
 ├── utils/             Utilities (math rendering, language names, dataset styling)
 └── style.css          Global styles and Tailwind layers
 
-scripts/
-├── fetch-datasets.mjs Clone + harmonize source repos
-├── generate-data.mjs  Convert YAML → JSON-LD
-├── build-edges.js     Extract cross-reference edges
-├── build-gcr.mjs      Build GCR packages (optional)
-└── generate-404.js    SPA fallback for GitHub Pages
+cli/
+└── index.mjs          CLI entry point (fetch, generate, edges, build commands)
 
-docs/
-├── adding-a-dataset.md  Step-by-step guide for adding datasets
-├── dataset-schema.md    Canonical concept YAML format reference
-├── gcr-spec.md          GCR packaging format specification
-└── architecture.md      Full architecture documentation
+scripts/
+├── fetch-datasets.mjs Clone + harmonize source repos, resolve localPath/GCR
+├── generate-data.mjs  Convert YAML → JSON-LD, generate manifest with provenance data
+├── build-edges.js     Extract cross-reference edges
+└── generate-404.js    SPA fallback for GitHub Pages
 ```
+
+---
+
+## i18n
+
+UI translations are YAML files in `src/i18n/locales/`, auto-discovered via `import.meta.glob`. To add a new language:
+
+1. Copy `eng.yml` to `{lang-code}.yml`
+2. Translate all values
+3. Add the language to `uiLanguages` in `site-config.yml`
 
 ---
 
 ## Testing
 
 ```bash
-npm test              # Run all tests
+npm test              # Run all tests (Vitest with happy-dom)
 npm run test:watch    # Watch mode
-npx vitest run src/__tests__/graph.test.ts  # Single test file
 ```
-
-Tests use Vitest with happy-dom environment. Vue Test Utils for component tests.
 
 ---
 

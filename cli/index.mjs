@@ -17,7 +17,6 @@
  *   SITE_CONFIG          Path to site config file (overrides --site)
  *   SITE_ID              Site config ID (overrides --site)
  *   GITHUB_TOKEN         GitHub token for private repos
- *   DATASET_SOURCE_{ID}  Override dataset source with local path
  */
 
 import { loadSiteConfig } from '../scripts/load-site-config.mjs';
@@ -69,8 +68,7 @@ Options:
 Environment:
   SITE_CONFIG          Site config file path (highest priority)
   SITE_ID              Site config ID (same as --site)
-  GITHUB_TOKEN         GitHub token for private repos
-  DATASET_SOURCE_{ID}  Override dataset source with local path`);
+  GITHUB_TOKEN         GitHub token for private repos`);
     process.exit(cmd ? 0 : 1);
   }
 

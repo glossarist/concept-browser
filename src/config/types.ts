@@ -88,6 +88,7 @@ export interface DatasetConfig {
   uriAliases?: string[];
   gcrPackage: string;
   sourceRepo?: string;
+  localPath?: string;
   title: string;
   description?: string;
   owner?: string;
@@ -144,6 +145,7 @@ export interface SiteConfig {
   id: string;
   domain: string;
   uriBase?: string;
+  basePath?: string;
   title: string;
   subtitle?: string;
   description?: string;
