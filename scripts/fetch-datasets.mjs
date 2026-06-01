@@ -10,7 +10,7 @@
  * After fetching, validates that all GCR dependencies are satisfiable
  * (either provided locally or routed externally).
  *
- * Supports DATASET_SOURCE_{ID} env var to override with local path.
+ * Supports localPath field in dataset config for local paths.
  * Supports GITHUB_TOKEN for private repos.
  */
 import fs from 'fs';
@@ -150,7 +150,7 @@ for (const ds of config.datasets) {
       }
       extractGcr(gcrPath, targetDir);
     } else {
-      const envOverride = process.env[`DATASET_SOURCE_${ds.id.toUpperCase()}`] || ds.localPath;
+      const envOverride = ds.localPath;
       if (envOverride) {
         console.log(`  Using local path: ${envOverride}`);
         if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
