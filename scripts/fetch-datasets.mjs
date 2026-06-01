@@ -150,7 +150,7 @@ for (const ds of config.datasets) {
       }
       extractGcr(gcrPath, targetDir);
     } else {
-      const envOverride = process.env[`DATASET_SOURCE_${ds.id.toUpperCase()}`];
+      const envOverride = process.env[`DATASET_SOURCE_${ds.id.toUpperCase()}`] || ds.localPath;
       if (envOverride) {
         console.log(`  Using local path: ${envOverride}`);
         if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
