@@ -15,7 +15,7 @@ const props = defineProps<{
 const router = useRouter();
 const { getColor } = useDsStyle();
 const store = useVocabularyStore();
-const { locale } = useI18n();
+const { locale, t } = useI18n();
 
 function viewConcept() {
   router.push({
@@ -69,7 +69,7 @@ const langCount = computed(() => {
     </div>
     <!-- Language coverage -->
     <div class="flex items-center gap-1.5 mt-2.5">
-      <span class="text-[11px] text-ink-300">{{ langCount }} lang</span>
+      <span class="text-[11px] text-ink-300">{{ langCount }} {{ t('concept.lang') }}</span>
       <div class="flex gap-0.5">
         <span
           v-for="lang in manifestLanguages"

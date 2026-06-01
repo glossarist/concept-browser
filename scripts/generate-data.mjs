@@ -667,6 +667,7 @@ function processDataset(dir, register, opts) {
 
   const summary = concepts.map(c => ({
     id: c.id,
+    designations: c.designations,
     eng: c.designations.eng || Object.values(c.designations)[0] || '',
     status: c.status,
   }));

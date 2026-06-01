@@ -7,15 +7,19 @@ import { FORMAT_LABELS } from '../config/types';
 import { langName, langLabel, sortLanguages } from '../utils/lang';
 import ConceptCard from '../components/ConceptCard.vue';
 import { useI18n } from '../i18n';
+import { useSiteConfig } from '../config/use-site-config';
 
 const props = defineProps<{ registerId: string }>();
 
 const store = useVocabularyStore();
 const { getStyle } = useDsStyle();
-const { loading, localError, ensureLoaded } = useDatasetLoader(() => props.registerId);
+const { ensureLoaded, loading, localError } = useDatasetLoader(() => props.registerId);
 const { t } = useI18n();
+const { localizedDatasetField } = useSiteConfig();
 
 const manifest = computed(() => store.manifests.get(props.registerId));
+const localizedTitle = computed(() => localizedDatasetField(props.registerId, 'title', manifest.value?.title));
+const localizedDescription = computed(() => localizedDatasetField(props.registerId, 'description', manifest.value?.description));
 const adapter = computed(() => store.datasets.get(props.registerId));
 const chunkLoading = ref(false);
 
@@ -184,13 +188,13 @@ function goToPage(p: number) {
     <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400 mb-6">
       <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">{{ t('nav.home') }}</router-link>
       <span class="text-ink-200">/</span>
-      <span class="text-ink-700">{{ manifest?.title || registerId }}</span>
+      <span class="text-ink-700">{{ localizedTitle }}</span>
     </nav>
 
     <!-- Header -->
     <div v-if="manifest" class="mb-8">
-      <h1 class="font-serif text-3xl text-ink-800 mb-2">{{ manifest.title }}</h1>
-      <p class="text-ink-400 leading-relaxed max-w-2xl">{{ manifest.description }}</p>
+      <h1 class="font-serif text-3xl text-ink-800 mb-2">{{ localizedTitle }}</h1>
+      <p class="text-ink-400 leading-relaxed max-w-2xl">{{ localizedDescription }}</p>
       <div class="flex flex-wrap gap-2 mt-4">
         <span class="badge" :style="{ backgroundColor: getStyle(registerId).light, color: getStyle(registerId).dark }">{{ manifest.conceptCount.toLocaleString() }} {{ t('dataset.concepts') }}</span>
         <span class="badge badge-gray">{{ manifest.languages.length }} {{ t('dataset.languages') }}</span>

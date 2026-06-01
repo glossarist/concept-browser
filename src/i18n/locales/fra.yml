@@ -64,6 +64,7 @@ concept.lifecycleDates: Dates du cycle de vie
 concept.conceptSources: Sources du concept
 concept.incoming: Entrantes
 concept.outgoing: Sortantes
+concept.lang: lang.
 
 # Sidebar
 sidebar.overview: Vue d'ensemble
