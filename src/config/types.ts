@@ -12,6 +12,10 @@ export interface LogoConfig {
   alt: string;
   url?: string;
   remoteUrl?: string;
+  light?: string;
+  dark?: string;
+  localLight?: string;
+  localDark?: string;
 }
 
 export interface SiteBranding {

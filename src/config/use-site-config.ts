@@ -21,8 +21,8 @@ export interface RuntimeSiteConfig {
       header?: { family: string; source: string; weights?: number[]; url?: string };
       body?: { family: string; source: string; weights?: number[]; url?: string };
     };
-    logo?: { path: string; alt: string; url?: string };
-    footerLogo?: { path: string; alt: string; url?: string };
+    logo?: { path: string; alt: string; url?: string; light?: string; dark?: string };
+    footerLogo?: { path: string; alt: string; url?: string; light?: string; dark?: string };
     ownerName?: string;
     ownerUrl?: string;
   };

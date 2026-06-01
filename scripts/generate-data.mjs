@@ -885,6 +885,14 @@ async function processLogo(logoConfig, filename) {
 await processLogo(config.branding?.logo, `${config.id}-logo.svg`);
 await processLogo(config.branding?.footerLogo, `${config.id}-footer-logo.svg`);
 
+// Process light/dark logo variants
+if (config.branding?.logo?.localLight) {
+  await processLogo({ localPath: config.branding.logo.localLight }, `${config.id}-logo-light.svg`);
+}
+if (config.branding?.logo?.localDark) {
+  await processLogo({ localPath: config.branding.logo.localDark }, `${config.id}-logo-dark.svg`);
+}
+
 // === Page processors ===
 
 function processNewsPage(config, page) {
@@ -1107,9 +1115,14 @@ const basePathPrefix = process.env.BASE_PATH?.replace(/\/+$/, '') || '';
 for (const key of ['logo', 'footerLogo']) {
   const suffix = key === 'logo' ? 'logo.svg' : 'footer-logo.svg';
   if (siteBranding[key]) {
-    siteBranding[key] = { ...siteBranding[key], path: `${basePathPrefix}/logos/${config.id}-${suffix}` };
-    delete siteBranding[key].localPath;
-    delete siteBranding[key].remoteUrl;
+    const updated = { ...siteBranding[key], path: `${basePathPrefix}/logos/${config.id}-${suffix}` };
+    if (siteBranding[key].localLight) updated.light = `${basePathPrefix}/logos/${config.id}-${suffix.replace('.svg', '-light.svg')}`;
+    if (siteBranding[key].localDark) updated.dark = `${basePathPrefix}/logos/${config.id}-${suffix.replace('.svg', '-dark.svg')}`;
+    delete updated.localPath;
+    delete updated.remoteUrl;
+    delete updated.localLight;
+    delete updated.localDark;
+    siteBranding[key] = updated;
   }
 }
 

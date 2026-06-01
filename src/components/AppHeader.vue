@@ -64,6 +64,13 @@ onBeforeUnmount(() => document.removeEventListener('click', closeLangOnOutside))
       <button @click="goHome" class="flex items-center gap-2 hover:opacity-80 transition flex-shrink-0 group">
         <div v-if="siteConfig?.branding?.logo" class="h-8 flex items-center">
           <img
+            v-if="siteConfig.branding.logo.light && siteConfig.branding.logo.dark"
+            :src="ui.isDark ? siteConfig.branding.logo.dark : siteConfig.branding.logo.light"
+            :alt="siteConfig.branding.logo.alt"
+            class="h-8 max-w-[48px] object-contain rounded"
+          />
+          <img
+            v-else
             :src="siteConfig.branding.logo.path"
             :alt="siteConfig.branding.logo.alt"
             class="h-8 max-w-[48px] object-contain rounded"
