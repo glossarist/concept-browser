@@ -151,9 +151,4 @@ describe('AppSidebar', () => {
     expect(wrapper.text()).toContain('Test test');
   });
 
-  it('shows powered by link', async () => {
-    seedStore();
-    const wrapper = await mountSidebar();
-    expect(wrapper.text()).toContain('Glossarist Concept Browser');
-  });
 });

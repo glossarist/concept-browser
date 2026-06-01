@@ -33,6 +33,6 @@ describe('AppFooter', () => {
     const wrapper = mountFooter();
     const link = wrapper.findAll('a').find(a => a.text().includes('Glossarist Concept Browser'));
     expect(link).toBeDefined();
-    expect(link!.attributes('href')).toContain('github.com');
+    expect(link!.attributes('href')).toContain('glossarist.org');
   });
 });
