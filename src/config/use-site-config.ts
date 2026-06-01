@@ -94,7 +94,7 @@ function applyBranding(config: RuntimeSiteConfig) {
 async function loadConfig(): Promise<RuntimeSiteConfig | null> {
   if (loaded.value) return siteConfig.value;
   try {
-    const resp = await fetch('/site-config.json');
+    const resp = await fetch(`${import.meta.env.BASE_URL}site-config.json`);
     if (resp.ok) {
       siteConfig.value = await resp.json();
       if (siteConfig.value) applyBranding(siteConfig.value);

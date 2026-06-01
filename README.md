@@ -291,6 +291,38 @@ BASE_PATH=/vocab/ npm run build
 
 This sets the Vite `base` config so all asset paths are prefixed correctly.
 
+**How it works:**
+
+The `BASE_PATH` environment variable controls subpath deployment through two mechanisms:
+
+1. **Build time (Node.js scripts):** `generate-data.mjs` uses `BASE_PATH` to prefix logo paths in the generated `site-config.json`. The favicon generation in `cli/index.mjs` also prefixes favicon link hrefs. These are build-time rewrites because they produce static JSON/HTML that can't use Vite's runtime resolution.
+
+2. **Runtime (browser):** The Vue app uses `import.meta.env.BASE_URL` (a Vite compile-time constant derived from `base`) to prefix all `fetch()` paths. This includes:
+   - `datasets.json` (dataset registry)
+   - `site-config.json` (branding, features)
+   - `data/{id}/...` (concept data via `DatasetAdapter`)
+   - `pages/*.json` (content pages)
+   - `news.json` (news feed)
+   - `data/{id}/bibliography.json` and `data/{id}/images/*` (render-time resources)
+
+The Vite `base` config normalizes trailing slashes automatically, so `BASE_PATH=/vocab` and `BASE_PATH=/vocab/` both work. The value is passed through to `import.meta.env.BASE_URL` which always ends with `/`.
+
+**CLI usage:**
+
+When using the `concept-browser` CLI from a deployment repo (not the package source):
+
+```bash
+git clone --branch fix/subpath-base-url --depth 1 https://github.com/glossarist/concept-browser.git /tmp/cb
+cd /tmp/cb && npm install --ignore-scripts
+npm install --prefix /tmp/cb sharp 2>/dev/null || true
+
+# Build from the deployment repo's working directory
+cd /path/to/deployment-repo
+node /tmp/cb/cli/index.mjs build
+```
+
+The CLI looks for `site-config.yml` in the CWD first, then falls back to the package's own `site-config.yml`.
+
 ### Other hosting platforms
 
 The build produces static files in `dist/` with an SPA `404.html` fallback. Deploy `dist/` to any static host:

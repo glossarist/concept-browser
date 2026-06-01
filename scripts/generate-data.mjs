@@ -1063,10 +1063,11 @@ const processedPages = processPages(config);
 // Generate site-config.json from site config
 const siteBranding = { ...config.branding };
 // Rewrite logo paths to destination filenames and strip build-time fields
+const basePathPrefix = process.env.BASE_PATH?.replace(/\/+$/, '') || '';
 for (const key of ['logo', 'footerLogo']) {
   const suffix = key === 'logo' ? 'logo.svg' : 'footer-logo.svg';
   if (siteBranding[key]) {
-    siteBranding[key] = { ...siteBranding[key], path: `/logos/${config.id}-${suffix}` };
+    siteBranding[key] = { ...siteBranding[key], path: `${basePathPrefix}/logos/${config.id}-${suffix}` };
     delete siteBranding[key].localPath;
     delete siteBranding[key].remoteUrl;
   }

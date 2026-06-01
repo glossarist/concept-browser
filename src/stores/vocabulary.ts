@@ -52,7 +52,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
     loading.value = true;
     error.value = null;
     try {
-      const adapters = await factory.discoverDatasets('/datasets.json');
+      const adapters = await factory.discoverDatasets(`${import.meta.env.BASE_URL}datasets.json`);
       for (const adapter of adapters) {
         datasets.value.set(adapter.registerId, adapter);
         if (adapter.manifest) {

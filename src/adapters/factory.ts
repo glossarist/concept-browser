@@ -18,9 +18,10 @@ export class AdapterFactory {
     if (!resp.ok) throw new Error(`Failed to load dataset registry: ${resp.status}`);
     const registry = (await resp.json()) as DatasetRegistry[];
 
+    const base = import.meta.env.BASE_URL;
     const adapters: DatasetAdapter[] = [];
     for (const reg of registry) {
-      const adapter = new DatasetAdapter(reg.id, `/data/${reg.id}`);
+      const adapter = new DatasetAdapter(reg.id, `${base}data/${reg.id}`);
       this.adapters.set(reg.id, adapter);
       adapters.push(adapter);
     }
@@ -45,7 +46,7 @@ export class AdapterFactory {
     const manifest = await adapter.loadManifest();
     await adapter.loadIndex();
 
-    this.router.registerDataset(registerId, `/data/${registerId}`, manifest);
+    this.router.registerDataset(registerId, `${import.meta.env.BASE_URL}data/${registerId}`, manifest);
 
     const uriPatterns = [
       manifest.datasetUri,

@@ -14,7 +14,7 @@ const bibCache = new Map<string, Record<string, BibEntry>>();
 async function loadBibliography(registerId: string): Promise<Record<string, BibEntry> | null> {
   if (bibCache.has(registerId)) return bibCache.get(registerId)!;
   try {
-    const resp = await fetch(`/data/${registerId}/bibliography.json`);
+    const resp = await fetch(`${import.meta.env.BASE_URL}data/${registerId}/bibliography.json`);
     if (!resp.ok) return null;
     const data = await resp.json();
     bibCache.set(registerId, data);
@@ -47,7 +47,7 @@ export function useRenderOptions(registerId: () => string) {
 
   const figResolver: FigResolver = (figId) => {
     const id = registerId();
-    const imgSrc = `/data/${id}/images/${figId}.png`;
+    const imgSrc = `${import.meta.env.BASE_URL}data/${id}/images/${figId}.png`;
     return `<span class="fig-ref"><a href="${escapeAttr(imgSrc)}" target="_blank" rel="noopener">${escapeAttr(figId)}</a></span>`;
   };
 

@@ -23,7 +23,7 @@ const activeLoading = ref(false);
 
 onMounted(async () => {
   try {
-    const resp = await fetch('/news.json');
+    const resp = await fetch(`${import.meta.env.BASE_URL}news.json`);
     if (resp.ok) posts.value = await resp.json();
   } catch (e: any) {
     error.value = e.message;

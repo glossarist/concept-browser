@@ -141,6 +141,10 @@ Environment:
 
     // Pass favicon tags to Vite via env
     if (faviconHtml) {
+      const basePath = process.env.BASE_PATH?.replace(/\/+$/, '') || '';
+      if (basePath) {
+        faviconHtml = faviconHtml.replace(/(href|content)="\/([^"]+)"/g, `$1="${basePath}/$2"`);
+      }
       process.env.FAVICON_HTML = faviconHtml;
     }
 

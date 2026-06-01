@@ -23,9 +23,10 @@ onMounted(async () => {
   const page = pageName.value;
   const dsId = registerId.value;
 
+  const base = import.meta.env.BASE_URL;
   const urls = dsId
-    ? [`/pages/${dsId}-${page}.json`, `/pages/${page}.json`]
-    : [`/pages/${page}.json`];
+    ? [`${base}pages/${dsId}-${page}.json`, `${base}pages/${page}.json`]
+    : [`${base}pages/${page}.json`];
 
   for (const url of urls) {
     try {
