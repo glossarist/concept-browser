@@ -159,5 +159,9 @@ graph.expandControls: Développer les contrôles
 graph.loading: Chargement des données du graphe...
 
 # Sidebar provenance
-sidebar.source: Source
+sidebar.provenance: Provenance
+sidebar.publishedBy: publié par
+sidebar.updated: Mis à jour
+sidebar.concepts: concepts
+sidebar.languages: langues
 sidebar.viewSource: Voir la source

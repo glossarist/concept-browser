@@ -771,6 +771,7 @@ function processDataset(dir, register, opts) {
     hasImages: opts.hasImages,
   };
   if (opts.languageOrder) manifest.languageOrder = opts.languageOrder;
+  if (opts.ref) manifest.ref = opts.ref;
   writeJson(path.join(DATA, register, 'manifest.json'), manifest);
 
   // Copy bibliography.yaml → bibliography.json
@@ -835,6 +836,7 @@ for (let i = 0; i < config.datasets.length; i++) {
     languages: dsLanguages,
     sourceRepo: ds.sourceRepo,
     languageOrder: ds.languageOrder,
+    ref: ds.ref,
     tags: ds.tags,
     color: ds.color || DS_PALETTE[i % DS_PALETTE.length],
     datasetUri: ds.uri,

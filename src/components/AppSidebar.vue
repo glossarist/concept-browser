@@ -86,17 +86,17 @@ const datasetEntries = computed(() => {
 const currentManifest = computed(() => store.manifests.get(currentDataset.value));
 const showDatasetNav = computed(() => !!currentManifest.value || !!siteConfig.value?.defaultDataset);
 
-const currentDatasetConfig = computed(() =>
-  siteConfig.value?.datasets?.find((d: any) => d.id === currentDataset.value)
-);
-
 const provenance = computed(() => {
-  const dsConfig = currentDatasetConfig.value as any;
   const manifest = currentManifest.value;
   return {
-    owner: dsConfig?.owner || manifest?.owner || (siteConfig.value as any)?.branding?.ownerName,
-    sourceRepo: dsConfig?.sourceRepo || manifest?.sourceRepo,
+    owner: manifest?.owner || (siteConfig.value as any)?.branding?.ownerName,
     ownerUrl: (siteConfig.value as any)?.branding?.ownerUrl,
+    ref: manifest?.ref,
+    status: manifest?.status,
+    lastUpdated: manifest?.lastUpdated,
+    conceptCount: manifest?.conceptCount,
+    languageCount: manifest?.languages?.length,
+    sourceRepo: manifest?.sourceRepo,
   };
 });
 
@@ -498,15 +498,39 @@ function navTitle(page: { route: string }): string {
 
       <!-- Dataset provenance -->
       <div v-if="provenance.owner" class="mt-6 pt-4 border-t border-ink-100/60">
-        <div class="text-[11px] text-ink-300 space-y-1">
-          <div class="font-medium text-ink-400">{{ t('sidebar.source') }}</div>
-          <div class="flex items-center gap-1.5 flex-wrap">
-            <a v-if="provenance.ownerUrl" :href="provenance.ownerUrl" target="_blank" rel="noopener" class="concept-link">{{ provenance.owner }}</a>
-            <span v-else>{{ provenance.owner }}</span>
-            <template v-if="provenance.sourceRepo">
-              <span class="text-ink-200">·</span>
-              <a :href="provenance.sourceRepo" target="_blank" rel="noopener" class="concept-link">{{ t('sidebar.viewSource') }}</a>
+        <div class="text-[11px] text-ink-300 space-y-1.5">
+          <div class="font-medium text-ink-400">{{ t('sidebar.provenance') }}</div>
+
+          <div v-if="provenance.ref" class="text-xs font-semibold text-ink-700">
+            {{ provenance.ref }}
+          </div>
+
+          <div class="flex items-center gap-1">
+            <span class="text-ink-400">{{ t('sidebar.publishedBy') }}</span>
+            <a v-if="provenance.ownerUrl" :href="provenance.ownerUrl" target="_blank" rel="noopener" class="concept-link font-medium">{{ provenance.owner }}</a>
+            <span v-else class="text-ink-600 font-medium">{{ provenance.owner }}</span>
+          </div>
+
+          <div v-if="provenance.status" class="flex items-center gap-1.5">
+            <span class="inline-block w-1.5 h-1.5 rounded-full" :class="provenance.status === 'valid' ? 'bg-emerald-500' : 'bg-amber-400'"></span>
+            <span class="text-[10px] uppercase tracking-wide font-medium" :class="provenance.status === 'valid' ? 'text-emerald-600' : 'text-amber-600'">
+              {{ provenance.status }}
+            </span>
+          </div>
+
+          <div v-if="provenance.lastUpdated" class="text-ink-300">
+            {{ t('sidebar.updated') }} {{ provenance.lastUpdated }}
+          </div>
+
+          <div v-if="provenance.conceptCount" class="text-ink-400">
+            {{ provenance.conceptCount.toLocaleString() }} {{ t('sidebar.concepts').toLowerCase() }}
+            <template v-if="provenance.languageCount">
+              · {{ provenance.languageCount }} {{ t('sidebar.languages').toLowerCase() }}
             </template>
+          </div>
+
+          <div v-if="provenance.sourceRepo">
+            <a :href="provenance.sourceRepo" target="_blank" rel="noopener" class="concept-link">{{ t('sidebar.viewSource') }}</a>
           </div>
         </div>
       </div>
