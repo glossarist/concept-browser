@@ -29,10 +29,10 @@ describe('AppFooter', () => {
     expect(wrapper.text()).not.toContain('©');
   });
 
-  it('links to GitHub repository', () => {
+  it('defaults powered by link to glossarist.org', () => {
     const wrapper = mountFooter();
     const link = wrapper.findAll('a').find(a => a.text().includes('Glossarist Concept Browser'));
     expect(link).toBeDefined();
-    expect(link!.attributes('href')).toContain('glossarist.org');
+    expect(link!.attributes('href')).toBe('https://glossarist.org');
   });
 });
