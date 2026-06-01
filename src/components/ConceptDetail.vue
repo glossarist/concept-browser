@@ -83,6 +83,9 @@ const conceptDates = computed(() => props.concept.dates);
 // Managed concept sources (distinct from localized sources)
 const conceptSources = computed(() => props.concept.sources);
 
+// Managed concept tags
+const conceptTags = computed(() => props.concept.tags ?? []);
+
 // Cross-reference resolver: generates clickable links for inline refs
 
 const { ensureBibLoaded, bibResolver, figResolver } = useRenderOptions(() => props.registerId);
@@ -680,6 +683,14 @@ const nonVerbalReps = computed(() => {
                   ({{ domain.langs.map(l => l.toUpperCase()).join(', ') }})
                 </span>
               </div>
+            </div>
+          </div>
+
+          <!-- Tags -->
+          <div v-if="conceptTags.length" class="card p-5">
+            <div class="section-label">Tags</div>
+            <div class="flex flex-wrap gap-1.5 mt-3">
+              <span v-for="tag in conceptTags" :key="tag" class="badge badge-gray text-[10px]">{{ tag }}</span>
             </div>
           </div>
 

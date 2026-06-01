@@ -238,6 +238,7 @@ function conceptFromJsonLd(doc: Record<string, any>): Concept {
   }
 
   const related = (doc['gl:references'] ?? []).map(mapRelatedFromJsonLd);
+  const tags = Array.isArray(doc['gl:tags']) ? [...doc['gl:tags']] : [];
 
   return Concept.fromJSON({
     id,
@@ -245,6 +246,7 @@ function conceptFromJsonLd(doc: Record<string, any>): Concept {
     uri: doc['@id'] ?? null,
     localizations,
     related,
+    tags,
     status: null,
   });
 }

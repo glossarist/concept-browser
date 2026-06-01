@@ -82,6 +82,7 @@ export interface ConceptEntry {
   id: string;
   designations: Record<string, string>;
   groups: string[];
+  tags: string[];
   status: string;
 }
 
