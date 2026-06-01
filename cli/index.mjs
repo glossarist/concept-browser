@@ -81,6 +81,9 @@ Environment:
   const { config } = loadSiteConfig(named.site ? [named.site] : []);
 
   if (cmd === 'build' || cmd === 'site') {
+    if (!process.env.BASE_PATH && config?.basePath) {
+      process.env.BASE_PATH = config.basePath;
+    }
     for (const step of ['fetch', 'generate', 'edges']) {
       console.log(`\n=== ${step.toUpperCase()} ===\n`);
       await commands[step]();
