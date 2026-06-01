@@ -85,4 +85,30 @@ describe('renderMarkdown', () => {
     expect(result).toContain('<p>line one line two</p>');
     expect(result).toContain('<p>new paragraph</p>');
   });
+
+  it('renders markdown tables', () => {
+    const input = '| Name | Value |\n|------|-------|\n| a | 1 |\n| b | 2 |';
+    const result = renderMarkdown(input);
+    expect(result).toContain('<table>');
+    expect(result).toContain('<thead>');
+    expect(result).toContain('<th>Name</th>');
+    expect(result).toContain('<th>Value</th>');
+    expect(result).toContain('<tbody>');
+    expect(result).toContain('<td>a</td>');
+    expect(result).toContain('<td>b</td>');
+    expect(result).toContain('</table>');
+  });
+
+  it('renders table cells with inline formatting', () => {
+    const input = '| Col |\n|-----|\n| **bold** |';
+    const result = renderMarkdown(input);
+    expect(result).toContain('<td><strong>bold</strong></td>');
+  });
+
+  it('does not treat non-table pipe lines as tables', () => {
+    const input = 'some text | with pipes';
+    const result = renderMarkdown(input);
+    expect(result).toContain('<p>');
+    expect(result).not.toContain('<table>');
+  });
 });

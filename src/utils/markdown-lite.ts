@@ -83,6 +83,21 @@ export function renderMarkdown(input: string): string {
       continue;
     }
 
+    // Table
+    if (/^\|(.+)\|$/.test(line) && i + 1 < lines.length && /^\|[-:| ]+\|$/.test(lines[i + 1])) {
+      const headerCells = line.split('|').map(c => c.trim()).filter(Boolean);
+      i += 2; // skip header and separator
+      const rows: string[][] = [];
+      while (i < lines.length && /^\|(.+)\|$/.test(lines[i])) {
+        rows.push(lines[i].split('|').map(c => c.trim()).filter(Boolean));
+        i++;
+      }
+      const thCells = headerCells.map(c => `<th>${renderInline(c)}</th>`).join('');
+      const trRows = rows.map(r => `<tr>${r.map(c => `<td>${renderInline(c)}</td>`).join('')}</tr>`).join('');
+      blocks.push(`<table><thead><tr>${thCells}</tr></thead><tbody>${trRows}</tbody></table>`);
+      continue;
+    }
+
     // Blank line
     if (!line.trim()) {
       i++;

@@ -591,6 +591,10 @@ function processDataset(dir, register, opts) {
   console.log(`Processing ${register}: ${files.length} files`);
 
   const conceptsDir = path.join(DATA, register, 'concepts');
+  // Clean previous output to avoid stale files accumulating across runs
+  if (fs.existsSync(conceptsDir)) {
+    for (const f of fs.readdirSync(conceptsDir)) fs.unlinkSync(path.join(conceptsDir, f));
+  }
   const concepts = [];
   const langTermCounts = {};
   const langDefCounts = {};
@@ -994,6 +998,19 @@ function renderMarkdown(input) {
       while (i < lines.length && /^>\s?/.test(lines[i])) { ql.push(lines[i].replace(/^>\s?/, '')); i++; }
       blocks.push(`<blockquote>${renderInline(ql.join(' '))}</blockquote>`); continue;
     }
+    if (/^\|(.+)\|$/.test(line) && i + 1 < lines.length && /^\|[-:| ]+\|$/.test(lines[i + 1])) {
+      const headerCells = line.split('|').map(c => c.trim()).filter(Boolean);
+      i += 2;
+      const rows = [];
+      while (i < lines.length && /^\|(.+)\|$/.test(lines[i])) {
+        rows.push(lines[i].split('|').map(c => c.trim()).filter(Boolean));
+        i++;
+      }
+      const thCells = headerCells.map(c => `<th>${renderInline(c)}</th>`).join('');
+      const trRows = rows.map(r => `<tr>${r.map(c => `<td>${renderInline(c)}</td>`).join('')}</tr>`).join('');
+      blocks.push(`<table><thead><tr>${thCells}</tr></thead><tbody>${trRows}</tbody></table>`);
+      continue;
+    }
     if (!line.trim()) { i++; continue; }
     const pl = [];
     while (i < lines.length && lines[i].trim() && !/^#{1,4}\s/.test(lines[i]) && !/^\s*[-*]\s+/.test(lines[i]) && !/^\s*\d+\.\s+/.test(lines[i]) && !/^>\s?/.test(lines[i]) && !lines[i].trimStart().startsWith('```')) { pl.push(lines[i]); i++; }
@@ -1026,6 +1043,29 @@ function processContentPage(config, page) {
   fs.mkdirSync(pagesDir, { recursive: true });
   writeJson(path.join(pagesDir, `${page.route}.json`), { title: page.title, html });
   console.log(`  Generated content page: ${page.route} (${ext})`);
+
+  // Generate localized versions
+  if (page.translations) {
+    for (const [lang, tr] of Object.entries(page.translations)) {
+      const { source, title: trTitle } = tr;
+      if (!source) continue;
+      const trSrcPath = path.resolve(ROOT, source);
+      if (!fs.existsSync(trSrcPath)) {
+        console.warn(`  Skipping '${page.route}' translation '${lang}': source not found (${trSrcPath})`);
+        continue;
+      }
+      const trRaw = fs.readFileSync(trSrcPath, 'utf8');
+      const trExt = path.extname(trSrcPath).toLowerCase();
+      let trHtml;
+      if (trExt === '.html' || trExt === '.htm') {
+        trHtml = trRaw;
+      } else {
+        trHtml = renderMarkdown(stripFrontmatter(trRaw));
+      }
+      writeJson(path.join(pagesDir, `${page.route}.${lang}.json`), { title: trTitle || page.title, html: trHtml });
+      console.log(`  Generated localized page: ${page.route}.${lang} (${trExt})`);
+    }
+  }
 }
 
 function stripFrontmatter(text) {
@@ -1081,6 +1121,7 @@ writeJson(path.join(PUBLIC, 'site-config.json'), {
   description: config.description,
   datasets: config.datasets.map(d => d.id),
   defaultDataset: config.datasets.length === 1 ? config.datasets[0].id : undefined,
+  uiLanguages: config.uiLanguages || undefined,
   branding: siteBranding,
   analytics: config.analytics,
   features: config.features,

@@ -3,10 +3,12 @@ import { ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import SearchBar from '../components/SearchBar.vue';
 import { useUiStore } from '../stores/ui';
+import { useI18n } from '../i18n';
 
 const route = useRoute();
 const router = useRouter();
 const ui = useUiStore();
+const { t } = useI18n();
 
 onMounted(() => {
   if (route.query.q && typeof route.query.q === 'string') {
@@ -24,9 +26,9 @@ watch(() => route.query.q, (q) => {
 <template>
   <div class="px-4 sm:px-6 lg:px-8 py-8">
     <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400 mb-6">
-      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">Home</router-link>
+      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">{{ t('nav.home') }}</router-link>
       <span class="text-ink-200">/</span>
-      <span class="text-ink-700">Search</span>
+      <span class="text-ink-700">{{ t('nav.search') }}</span>
     </nav>
     <SearchBar />
   </div>

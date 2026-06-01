@@ -244,6 +244,18 @@
   .prose-page hr {
     @apply border-ink-100 my-6;
   }
+  .prose-page table,
+  .prose-news table {
+    @apply w-full mb-4 text-sm;
+  }
+  .prose-page th,
+  .prose-news th {
+    @apply text-left font-semibold text-ink-800 px-3 py-2 border-b-2 border-ink-200;
+  }
+  .prose-page td,
+  .prose-news td {
+    @apply px-3 py-2 border-b border-ink-100;
+  }
 }
 
 @layer utilities {

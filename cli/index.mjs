@@ -148,6 +148,23 @@ Environment:
       process.env.FAVICON_HTML = faviconHtml;
     }
 
+    // Pass branding info for HTML transformation
+    process.env.SITE_TITLE = config?.title || 'Glossarist';
+    if (branding.fonts?.header || branding.fonts?.body) {
+      const fontFamilies = [];
+      if (branding.fonts.header?.source === 'google') {
+        const w = (branding.fonts.header.weights || [400, 700]).join(';');
+        fontFamilies.push(`family=${branding.fonts.header.family.replace(/ /g, '+')}:wght@${w}`);
+      }
+      if (branding.fonts.body?.source === 'google') {
+        const w = (branding.fonts.body.weights || [400, 700]).join(';');
+        fontFamilies.push(`family=${branding.fonts.body.family.replace(/ /g, '+')}:wght@${w}`);
+      }
+      if (fontFamilies.length) {
+        process.env.SITE_FONTS_URL = `https://fonts.googleapis.com/css2?${fontFamilies.join('&')}&display=swap`;
+      }
+    }
+
     // Run vite build using the package's vite.config.ts
     console.log(`\n=== BUILD SPA ===\n`);
     const viteConfig = resolve(pkgRoot, 'vite.config.ts');

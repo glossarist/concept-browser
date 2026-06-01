@@ -2,11 +2,23 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import yaml from 'js-yaml'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const cwd = process.cwd()
 
 const isTest = process.env.VITEST !== undefined
+
+function yamlPlugin() {
+  return {
+    name: 'yaml-transform',
+    transform(code: string, id: string) {
+      if (!id.endsWith('.yml') && !id.endsWith('.yaml')) return
+      const data = yaml.load(code)
+      return { code: `export default ${JSON.stringify(data)}`, map: null }
+    },
+  }
+}
 
 function faviconPlugin() {
   return {
@@ -29,6 +41,27 @@ function faviconPlugin() {
   }
 }
 
+function brandingPlugin() {
+  return {
+    name: 'branding-inject',
+    transformIndexHtml(html: string) {
+      let result = html
+      const title = process.env.SITE_TITLE
+      if (title) {
+        result = result.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
+      }
+      const fontsUrl = process.env.SITE_FONTS_URL
+      if (fontsUrl) {
+        result = result.replace(
+          /<link[^>]*href="https:\/\/fonts\.googleapis\.com\/css2\?[^"]*"[^>]*>/,
+          `<link href="${fontsUrl}" rel="stylesheet">`
+        )
+      }
+      return result
+    },
+  }
+}
+
 export default defineConfig({
   base: process.env.BASE_PATH || '/',
   root: __dirname,
@@ -37,7 +70,7 @@ export default defineConfig({
     outDir: resolve(cwd, 'dist'),
     emptyOutDir: true,
   },
-  plugins: [faviconPlugin(), vue()],
+  plugins: [yamlPlugin(), faviconPlugin(), brandingPlugin(), vue()],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

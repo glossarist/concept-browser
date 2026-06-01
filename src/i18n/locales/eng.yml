@@ -1,0 +1,66 @@
+# English UI translations
+# Adding a new language: copy this file, rename to {lang-code}.yml, translate values.
+
+# Navigation
+nav.home: Home
+nav.search: Search
+nav.graph: Graph View
+nav.ontology: Ontology
+nav.concepts: Concepts
+nav.statistics: Statistics
+nav.about: About
+nav.navigation: Navigation
+nav.datasets: Datasets
+
+# Home page
+home.search: Search
+home.graphView: Graph View
+home.surpriseMe: Surprise Me
+home.exploring: Exploring…
+home.datasets: Datasets
+home.concepts: Concepts
+home.languages: Languages
+home.availableDatasets: Available Datasets
+home.clickToBrowse: Click to browse
+home.browseConcepts: Browse concepts
+
+# Search
+search.placeholder: Search...
+search.conceptSearch: Search concepts
+
+# Page view
+page.notFound: Page Not Found
+page.notFoundMsg: 'The page "{name}" does not exist.'
+page.goHome: Go Home
+
+# Concept detail
+concept.definition: Definition
+concept.notes: Notes
+concept.note: Note
+concept.examples: Examples
+concept.example: Example
+concept.sources: Sources
+concept.designations: Designations
+concept.relations: Relations
+concept.classification: Classification
+concept.domains: Domains
+concept.tags: Tags
+concept.metadata: Metadata
+concept.noData: No data available for this language.
+concept.lifecycleDates: Lifecycle dates
+concept.conceptSources: Concept sources
+concept.incoming: Incoming
+concept.outgoing: Outgoing
+
+# Sidebar
+sidebar.overview: Overview
+sidebar.dataset: Dataset
+
+# Footer
+footer.builtWith: Built with the Glossarist Concept Browser
+
+# Header
+header.datasets: datasets
+
+# Language
+lang.termOnlyIn: Term only in

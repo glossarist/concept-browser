@@ -21,6 +21,9 @@ import ConceptRdfView from './ConceptRdfView.vue';
 import FormatDownloads from './FormatDownloads.vue';
 import NonVerbalRepDisplay from './NonVerbalRepDisplay.vue';
 import CitationDisplay from './CitationDisplay.vue';
+import { useI18n } from '../i18n';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   concept: Concept;
@@ -563,7 +566,7 @@ const nonVerbalReps = computed(() => {
               <!-- Notes -->
               <div v-if="lc.notes.length" class="space-y-2">
                 <div v-for="(note, i) in lc.notes" :key="i" class="text-ink-600 text-sm leading-relaxed">
-                  <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">Note {{ i + 1 }}</span>
+                  <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">{{ t('concept.note') }} {{ i + 1 }}</span>
                   <div class="mt-1" v-html="renderMath(note, renderOpts)"></div>
                 </div>
               </div>
@@ -571,7 +574,7 @@ const nonVerbalReps = computed(() => {
               <!-- Examples -->
               <div v-if="lc.examples.length" class="space-y-2">
                 <div v-for="(ex, i) in lc.examples" :key="i" class="text-ink-600 text-sm leading-relaxed">
-                  <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">Example {{ i + 1 }}</span>
+                  <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">{{ t('concept.example') }} {{ i + 1 }}</span>
                   <div class="mt-1" v-html="renderMath(ex, renderOpts)"></div>
                 </div>
               </div>
@@ -635,9 +638,9 @@ const nonVerbalReps = computed(() => {
         <div class="w-full lg:w-64 flex-shrink-0 space-y-4 mt-6 lg:mt-0">
           <!-- Relations -->
           <div v-if="outgoingEdges.length || incomingEdges.length" class="card p-5">
-            <div class="section-label">Relations</div>
+            <div class="section-label">{{ t('concept.relations') }}</div>
             <div v-if="outgoingEdges.length" class="mt-3">
-              <div class="text-xs text-ink-300 mb-2">Outgoing ({{ outgoingEdges.length }})</div>
+              <div class="text-xs text-ink-300 mb-2">{{ t('concept.outgoing') }} ({{ outgoingEdges.length }})</div>
               <div class="space-y-1 max-h-64 overflow-y-auto">
                 <button
                   v-for="edge in outgoingEdges"
@@ -654,7 +657,7 @@ const nonVerbalReps = computed(() => {
               </div>
             </div>
             <div v-if="incomingEdges.length" class="mt-3 pt-3 border-t border-ink-100/60">
-              <div class="text-xs text-ink-300 mb-2">Incoming ({{ incomingEdges.length }})</div>
+              <div class="text-xs text-ink-300 mb-2">{{ t('concept.incoming') }} ({{ incomingEdges.length }})</div>
               <div class="space-y-1 max-h-48 overflow-y-auto">
                 <button
                   v-for="edge in incomingEdges"
@@ -673,7 +676,7 @@ const nonVerbalReps = computed(() => {
 
           <!-- Domains -->
           <div v-if="conceptDomains.length" class="card p-5">
-            <div class="section-label">Domains</div>
+            <div class="section-label">{{ t('concept.domains') }}</div>
             <div class="space-y-1 mt-3">
               <div v-for="domain in conceptDomains" :key="domain.slug" class="flex items-center gap-1.5 text-sm">
                 <span class="w-2 h-1.5 rounded inline-block flex-shrink-0" style="background: #8b5cf6;"></span>
@@ -688,7 +691,7 @@ const nonVerbalReps = computed(() => {
 
           <!-- Tags -->
           <div v-if="conceptTags.length" class="card p-5">
-            <div class="section-label">Tags</div>
+            <div class="section-label">{{ t('concept.tags') }}</div>
             <div class="flex flex-wrap gap-1.5 mt-3">
               <span v-for="tag in conceptTags" :key="tag" class="badge badge-gray text-[10px]">{{ tag }}</span>
             </div>
@@ -696,7 +699,7 @@ const nonVerbalReps = computed(() => {
 
           <!-- Managed concept dates -->
           <div v-if="conceptDates.length" class="card p-5">
-            <div class="section-label">Lifecycle dates</div>
+            <div class="section-label">{{ t('concept.lifecycleDates') }}</div>
             <dl class="mt-3 space-y-1.5 text-xs">
               <div v-for="(d, i) in conceptDates" :key="i" class="flex gap-2">
                 <dt class="text-ink-300 min-w-[70px]">{{ d.type }}</dt>
@@ -707,7 +710,7 @@ const nonVerbalReps = computed(() => {
 
           <!-- Managed concept sources -->
           <div v-if="conceptSources.length" class="card p-5">
-            <div class="section-label">Concept sources</div>
+            <div class="section-label">{{ t('concept.conceptSources') }}</div>
             <div class="space-y-2 mt-3">
               <div v-for="(src, i) in conceptSources" :key="i" class="text-xs">
                 <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
@@ -757,7 +760,7 @@ const nonVerbalReps = computed(() => {
 
           <!-- Metadata -->
           <div class="card p-5">
-            <div class="section-label">Metadata</div>
+            <div class="section-label">{{ t('concept.metadata') }}</div>
             <dl class="space-y-2 text-xs mt-3">
               <div v-if="managedStatus">
                 <dt class="text-ink-300">Status</dt>

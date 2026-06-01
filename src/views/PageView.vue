@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { useI18n } from '../i18n';
 
 interface PageData {
   title: string;
@@ -8,6 +9,7 @@ interface PageData {
 }
 
 const route = useRoute();
+const { locale, t } = useI18n();
 const registerId = computed(() => route.params.registerId as string | undefined);
 const pageName = computed(() => {
   if (route.params.page) return route.params.page as string;
@@ -19,14 +21,24 @@ const data = ref<PageData | null>(null);
 const loading = ref(true);
 const notFound = ref(false);
 
-onMounted(async () => {
+async function fetchPage() {
+  loading.value = true;
+  notFound.value = false;
+  data.value = null;
+
   const page = pageName.value;
   const dsId = registerId.value;
-
   const base = import.meta.env.BASE_URL;
-  const urls = dsId
-    ? [`${base}pages/${dsId}-${page}.json`, `${base}pages/${page}.json`]
-    : [`${base}pages/${page}.json`];
+
+  // Build candidate URLs: try localized first, then default
+  const langSuffix = locale.value !== 'eng' ? `.${locale.value}` : '';
+  const urls: string[] = [];
+  if (dsId) {
+    if (langSuffix) urls.push(`${base}pages/${dsId}-${page}${langSuffix}.json`);
+    urls.push(`${base}pages/${dsId}-${page}.json`);
+  }
+  if (langSuffix) urls.push(`${base}pages/${page}${langSuffix}.json`);
+  urls.push(`${base}pages/${page}.json`);
 
   for (const url of urls) {
     try {
@@ -40,13 +52,16 @@ onMounted(async () => {
   }
   notFound.value = true;
   loading.value = false;
-});
+}
+
+onMounted(fetchPage);
+watch([pageName, locale], fetchPage);
 </script>
 
 <template>
   <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-ink-400 mb-6">
-      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">Home</router-link>
+      <router-link :to="{ name: 'home' }" class="hover:text-ink-700 transition-colors">{{ t('nav.home') }}</router-link>
       <template v-if="registerId">
         <span class="text-ink-200">/</span>
         <router-link :to="{ name: 'dataset', params: { registerId } }" class="hover:text-ink-700 transition-colors">{{ registerId }}</router-link>
@@ -66,9 +81,9 @@ onMounted(async () => {
 
     <template v-else-if="notFound">
       <div class="card p-8 text-center">
-        <h1 class="font-serif text-2xl text-ink-800 mb-2">Page Not Found</h1>
-        <p class="text-ink-500 mb-4">The page "{{ pageName }}" does not exist.</p>
-        <router-link :to="{ name: 'home' }" class="btn-primary">Go Home</router-link>
+        <h1 class="font-serif text-2xl text-ink-800 mb-2">{{ t('page.notFound') }}</h1>
+        <p class="text-ink-500 mb-4">{{ t('page.notFoundMsg', { name: pageName }) }}</p>
+        <router-link :to="{ name: 'home' }" class="btn-primary">{{ t('page.goHome') }}</router-link>
       </div>
     </template>
 

@@ -2,12 +2,14 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useVocabularyStore } from './stores/vocabulary';
 import { useSiteConfig } from './config/use-site-config';
+import { useI18n } from './i18n';
 import AppHeader from './components/AppHeader.vue';
 import AppSidebar from './components/AppSidebar.vue';
 import AppFooter from './components/AppFooter.vue';
 
 const store = useVocabularyStore();
 const { loadConfig, config } = useSiteConfig();
+const { initLocale } = useI18n();
 const appReady = ref(false);
 const showScrollTop = ref(false);
 let mainEl: HTMLElement | null = null;
@@ -25,6 +27,7 @@ onMounted(async () => {
   if (cfg?.title) {
     document.title = cfg.title;
   }
+  initLocale(cfg?.defaults?.language);
   appReady.value = true;
   // Watch scroll on main content area
   mainEl = document.querySelector('main');

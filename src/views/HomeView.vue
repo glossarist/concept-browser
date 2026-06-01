@@ -4,11 +4,13 @@ import { useVocabularyStore } from '../stores/vocabulary';
 import { useRouter } from 'vue-router';
 import { useDsStyle } from '../utils/dataset-style';
 import { useSiteConfig } from '../config/use-site-config';
+import { useI18n } from '../i18n';
 
 const store = useVocabularyStore();
 const router = useRouter();
 const { getStyle } = useDsStyle();
 const { config: siteConfig } = useSiteConfig();
+const { t } = useI18n();
 const exploring = ref(false);
 
 async function exploreRandom() {
@@ -61,12 +63,14 @@ function goToGraph() { router.push({ name: 'graph' }); }
     <div class="mb-10 sm:mb-14">
       <div class="flex items-center gap-2 mb-4">
         <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-300">{{ siteConfig?.branding?.ownerName || 'Glossarist' }}</span>
-        <span class="w-4 sm:w-6 h-px bg-ink-200"></span>
-        <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-300 hidden sm:inline">{{ siteConfig?.subtitle || 'Terminology Register' }}</span>
+        <template v-if="siteConfig?.subtitle">
+          <span class="w-4 sm:w-6 h-px bg-ink-200"></span>
+          <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-300 hidden sm:inline">{{ siteConfig.subtitle }}</span>
+        </template>
       </div>
       <h1 class="font-serif text-[2rem] sm:text-[2.75rem] text-ink-800 leading-[1.1] mb-4 tracking-tight">
-        {{ siteConfig?.title || 'Glossarist' }}<br class="hidden sm:block" /> <span v-if="siteConfig?.subtitle">{{ siteConfig.subtitle }}</span>
-        <template v-if="!siteConfig?.subtitle">Terminology<br class="hidden sm:block" /> Register</template>
+        {{ siteConfig?.title || 'Glossarist' }}
+        <template v-if="siteConfig?.subtitle"><br class="hidden sm:block" /> {{ siteConfig.subtitle }}</template>
       </h1>
       <p class="text-base text-ink-400 max-w-lg leading-relaxed">
         {{ siteConfig?.description || 'Explore standardized terminology datasets from ISO and IEC technical committees. Browse concepts, definitions, and cross-references across multilingual vocabularies.' }}
@@ -74,16 +78,16 @@ function goToGraph() { router.push({ name: 'graph' }); }
       <div class="flex flex-wrap gap-3 mt-7">
         <button @click="goToSearch" class="btn-primary flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-          Search
+          {{ t('home.search') }}
         </button>
         <button @click="goToGraph" class="btn-secondary flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-          Graph View
+          {{ t('home.graphView') }}
         </button>
         <button @click="exploreRandom" :disabled="exploring" class="btn-secondary flex items-center gap-2">
           <svg v-if="!exploring" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-          {{ exploring ? 'Exploring…' : 'Surprise Me' }}
+          {{ exploring ? t('home.exploring') : t('home.surpriseMe') }}
         </button>
       </div>
     </div>
@@ -92,15 +96,15 @@ function goToGraph() { router.push({ name: 'graph' }); }
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-px bg-ink-100/60 rounded-xl overflow-hidden mb-10 sm:mb-14">
       <div class="bg-surface-raised px-4 sm:px-6 py-5 animate-entrance" style="animation-delay: 80ms">
         <div class="text-3xl font-serif text-ink-800 tabular-nums">{{ filteredDatasets.length }}</div>
-        <div class="text-sm text-ink-400 mt-1">Datasets</div>
+        <div class="text-sm text-ink-400 mt-1">{{ t('home.datasets') }}</div>
       </div>
       <div class="bg-surface-raised px-6 py-5 animate-entrance" style="animation-delay: 140ms">
         <div class="text-3xl font-serif text-ink-800 tabular-nums">{{ totalConcepts.toLocaleString() }}</div>
-        <div class="text-sm text-ink-400 mt-1">Concepts</div>
+        <div class="text-sm text-ink-400 mt-1">{{ t('home.concepts') }}</div>
       </div>
       <div class="bg-surface-raised px-6 py-5 animate-entrance" style="animation-delay: 200ms">
         <div class="text-3xl font-serif text-ink-800 tabular-nums">{{ totalLanguages }}</div>
-        <div class="text-sm text-ink-400 mt-1">Languages</div>
+        <div class="text-sm text-ink-400 mt-1">{{ t('home.languages') }}</div>
       </div>
     </div>
 
@@ -122,14 +126,14 @@ function goToGraph() { router.push({ name: 'graph' }); }
         </p>
         <div class="flex items-center gap-3 pl-6 mb-4">
           <span :style="{ color: getStyle(filteredDatasets[0].id).color }" class="text-sm font-semibold tabular-nums">{{ filteredDatasets[0].manifest.conceptCount.toLocaleString() }}</span>
-          <span class="text-xs text-ink-300">concepts</span>
+          <span class="text-xs text-ink-300">{{ t('home.concepts').toLowerCase() }}</span>
           <span class="text-ink-200 text-xs">&middot;</span>
           <span class="text-sm text-ink-500 tabular-nums">{{ filteredDatasets[0].manifest.languages.length }}</span>
-          <span class="text-xs text-ink-300">languages</span>
+          <span class="text-xs text-ink-300">{{ t('home.languages').toLowerCase() }}</span>
         </div>
         <div class="pl-6">
           <span class="btn-primary inline-flex items-center gap-2">
-            Browse concepts
+            {{ t('home.browseConcepts') }}
             <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
           </span>
         </div>
@@ -137,8 +141,8 @@ function goToGraph() { router.push({ name: 'graph' }); }
     </template>
     <template v-else-if="filteredDatasets.length > 1">
       <div class="flex items-center justify-between mb-5">
-        <div class="section-label mb-0">Available Datasets</div>
-        <span class="text-xs text-ink-300">Click to browse</span>
+        <div class="section-label mb-0">{{ t('home.availableDatasets') }}</div>
+        <span class="text-xs text-ink-300">{{ t('home.clickToBrowse') }}</span>
       </div>
       <div :class="[
         filteredDatasets.length === 2 ? 'max-w-3xl' : '',
@@ -166,10 +170,10 @@ function goToGraph() { router.push({ name: 'graph' }); }
 
           <div class="flex items-center gap-3 pl-[22px] mb-3">
             <span :style="{ color: getStyle(ds.id).color }" class="text-sm font-semibold tabular-nums">{{ ds.manifest.conceptCount.toLocaleString() }}</span>
-            <span class="text-xs text-ink-300">concepts</span>
+            <span class="text-xs text-ink-300">{{ t('home.concepts').toLowerCase() }}</span>
             <span class="text-ink-200 text-xs">&middot;</span>
             <span class="text-sm text-ink-500 tabular-nums">{{ ds.manifest.languages.length }}</span>
-            <span class="text-xs text-ink-300">languages</span>
+            <span class="text-xs text-ink-300">{{ t('home.languages').toLowerCase() }}</span>
           </div>
 
           <div class="flex flex-wrap gap-1.5 pl-[22px] mb-3">

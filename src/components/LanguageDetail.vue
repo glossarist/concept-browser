@@ -11,6 +11,9 @@ import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { getFactory } from '../adapters/factory';
 import CitationDisplay from './CitationDisplay.vue';
+import { useI18n } from '../i18n';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   concept: Concept;
@@ -109,7 +112,7 @@ function handleContentClick(e: MouseEvent) {
 
       <!-- Designations -->
       <div v-if="designations.length > 0" class="card p-5">
-        <div class="section-label">Designations</div>
+        <div class="section-label">{{ t('concept.designations') }}</div>
         <div class="space-y-2 mt-3">
           <div v-for="(d, i) in designations" :key="i" class="flex items-center gap-2 flex-wrap">
             <span class="font-medium text-ink-800 text-lg" v-html="renderMath(d.designation)"></span>
@@ -138,16 +141,16 @@ function handleContentClick(e: MouseEvent) {
 
       <!-- Definition -->
       <div v-if="definition" class="card p-5">
-        <div class="section-label">Definition</div>
+        <div class="section-label">{{ t('concept.definition') }}</div>
         <div class="text-ink-800 leading-relaxed mt-3" v-html="renderMath(definition, renderOpts)"></div>
       </div>
 
       <!-- Notes -->
       <div v-if="notes.length" class="card p-5">
-        <div class="section-label">Notes</div>
+        <div class="section-label">{{ t('concept.notes') }}</div>
         <div class="space-y-3 mt-3">
           <div v-for="(note, i) in notes" :key="i" class="text-ink-600 text-sm leading-relaxed">
-            <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">Note {{ i + 1 }}</span>
+            <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">{{ t('concept.note') }} {{ i + 1 }}</span>
             <div class="mt-1" v-html="renderMath(note, renderOpts)"></div>
           </div>
         </div>
@@ -155,10 +158,10 @@ function handleContentClick(e: MouseEvent) {
 
       <!-- Examples -->
       <div v-if="examples.length" class="card p-5">
-        <div class="section-label">Examples</div>
+        <div class="section-label">{{ t('concept.examples') }}</div>
         <div class="space-y-3 mt-3">
           <div v-for="(ex, i) in examples" :key="i" class="text-ink-600 text-sm leading-relaxed">
-            <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">Example {{ i + 1 }}</span>
+            <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">{{ t('concept.example') }} {{ i + 1 }}</span>
             <div class="mt-1" v-html="renderMath(ex, renderOpts)"></div>
           </div>
         </div>
@@ -187,7 +190,7 @@ function handleContentClick(e: MouseEvent) {
             <span class="text-xs font-semibold text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">{{ langLabel(activeLang) }}</span>
           </div>
           <div>
-            <p class="text-sm text-ink-600 font-medium">Term only in {{ langName(activeLang) }}</p>
+            <p class="text-sm text-ink-600 font-medium">{{ t('lang.termOnlyIn') }} {{ langName(activeLang) }}</p>
             <p class="text-xs text-ink-400 mt-1 leading-relaxed">
               This concept has a registered designation in {{ langName(activeLang) }} but no definition or notes.
             </p>
@@ -198,7 +201,7 @@ function handleContentClick(e: MouseEvent) {
 
     <!-- No data for this language -->
     <div v-else class="card p-5 text-center">
-      <p class="text-sm text-ink-400">No data available for {{ langName(activeLang) }}.</p>
+      <p class="text-sm text-ink-400">{{ t('concept.noData') }}</p>
     </div>
   </div>
 </template>

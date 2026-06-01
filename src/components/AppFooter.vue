@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useSiteConfig } from '../config/use-site-config';
+import { useI18n } from '../i18n';
 
 const { config } = useSiteConfig();
+const { t } = useI18n();
 
 const poweredBy = computed(() => {
   const pb = config.value?.features?.poweredBy as { message?: string; url?: string } | undefined;
-  return { message: pb?.message || 'Built with the Glossarist Concept Browser', url: pb?.url || 'https://github.com/glossarist/concept-browser' };
+  return { message: pb?.message || t('footer.builtWith'), url: pb?.url || 'https://github.com/glossarist/concept-browser' };
 });
 
 const socialLinks = computed(() => {

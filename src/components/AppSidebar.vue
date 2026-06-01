@@ -7,6 +7,7 @@ import { useDsStyle } from '../utils/dataset-style';
 import { useSiteConfig } from '../config/use-site-config';
 import { useOntologyNav, compactToSlug } from '../composables/use-ontology-nav';
 import NavIcon from './NavIcon.vue';
+import { useI18n } from '../i18n';
 
 const store = useVocabularyStore();
 const ui = useUiStore();
@@ -14,6 +15,7 @@ const router = useRouter();
 const route = useRoute();
 const { getColor } = useDsStyle();
 const { globalPages, datasetPages, config: siteConfig } = useSiteConfig();
+const { t } = useI18n();
 
 const currentDataset = computed(() => route.params.registerId as string ?? '');
 
@@ -139,7 +141,7 @@ const isSearching = computed(() => !!searchQuery.value.trim());
   >
     <div class="p-4">
       <!-- Navigation -->
-      <div class="section-label">Navigation</div>
+      <div class="section-label">{{ t('nav.navigation') }}</div>
       <nav class="space-y-0.5 mb-6">
         <template v-for="page in globalPages" :key="page.route || 'home'">
           <router-link
@@ -439,7 +441,7 @@ const isSearching = computed(() => !!searchQuery.value.trim());
       </div>
 
       <!-- Datasets -->
-      <div class="section-label">Datasets</div>
+      <div class="section-label">{{ t('nav.datasets') }}</div>
       <nav class="space-y-1">
         <button
           v-for="ds in datasetEntries"
@@ -455,7 +457,7 @@ const isSearching = computed(() => !!searchQuery.value.trim());
         >
           <div class="font-medium truncate leading-snug">{{ ds.title }}</div>
           <div v-if="ds.loaded" class="text-xs mt-0.5" :class="currentDataset === ds.id ? 'text-ink-400' : 'text-ink-300'">
-            {{ ds.conceptCount.toLocaleString() }} concepts
+            {{ ds.conceptCount.toLocaleString() }} {{ t('home.concepts').toLowerCase() }}
           </div>
         </button>
       </nav>

@@ -1,0 +1,66 @@
+# Traductions françaises de l'interface
+# French UI translations
+
+# Navigation
+nav.home: Accueil
+nav.search: Recherche
+nav.graph: Vue en graphe
+nav.ontology: Ontologie
+nav.concepts: Concepts
+nav.statistics: Statistiques
+nav.about: À propos
+nav.navigation: Navigation
+nav.datasets: Jeux de données
+
+# Home page
+home.search: Rechercher
+home.graphView: Vue en graphe
+home.surpriseMe: Surprenez-moi
+home.exploring: Exploration…
+home.datasets: Jeux de données
+home.concepts: Concepts
+home.languages: Langues
+home.availableDatasets: Jeux de données disponibles
+home.clickToBrowse: Cliquez pour parcourir
+home.browseConcepts: Parcourir les concepts
+
+# Search
+search.placeholder: Rechercher…
+search.conceptSearch: Rechercher des concepts
+
+# Page view
+page.notFound: Page non trouvée
+page.notFoundMsg: 'La page « {name} » n''existe pas.'
+page.goHome: Aller à l'accueil
+
+# Concept detail
+concept.definition: Définition
+concept.notes: Notes
+concept.note: Note
+concept.examples: Exemples
+concept.example: Exemple
+concept.sources: Sources
+concept.designations: Désignations
+concept.relations: Relations
+concept.classification: Classification
+concept.domains: Domaines
+concept.tags: Étiquettes
+concept.metadata: Métadonnées
+concept.noData: Aucune donnée disponible pour cette langue.
+concept.lifecycleDates: Dates du cycle de vie
+concept.conceptSources: Sources du concept
+concept.incoming: Entrantes
+concept.outgoing: Sortantes
+
+# Sidebar
+sidebar.overview: Vue d'ensemble
+sidebar.dataset: Jeu de données
+
+# Footer
+footer.builtWith: Construit avec le Glossarist Concept Browser
+
+# Header
+header.datasets: jeux de données
+
+# Language
+lang.termOnlyIn: Terme uniquement en

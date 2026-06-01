@@ -10,6 +10,7 @@ export interface RuntimeSiteConfig {
   description?: string;
   datasets: string[];
   defaultDataset?: string;
+  uiLanguages?: { code: string; label: string }[];
   branding?: {
     primaryColor?: string;
     darkColor?: string;
