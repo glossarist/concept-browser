@@ -54,7 +54,20 @@ function mathPlaceholder(expr: string, format: string, bold: boolean): string {
 }
 
 function convertLists(text: string): string {
-  let result = text.replace(/(?:^|\n)((?:[ \t]*\* [^\n]+)(?:\n[ \t]*\* [^\n]+)*)/g, (_, block) => {
+  // AsciiDoc pipe-delimited tables: |=== ... |===
+  let result = text.replace(/\|===\n([\s\S]*?)\n\|===/g, (_, body) => {
+    const rows = body.split('\n').filter(line => line.trim().length > 0);
+    const htmlRows = rows.map(row => {
+      // Each row starts with "| " — strip the leading pipe then split on " | "
+      const cells = row.replace(/^\| */, '').split(/ \| /);
+      const htmlCells = cells.map(c => `<td>${c.trim()}</td>`).join('');
+      return `<tr>${htmlCells}</tr>`;
+    });
+    return `<table class="concept-table">${htmlRows.join('')}</table>`;
+  });
+
+  // Bullet lists: * item
+  result = result.replace(/(?:^|\n)((?:[ \t]*\* [^\n]+)(?:\n[ \t]*\* [^\n]+)*)/g, (_, block) => {
     if (/^\*stem:\[/.test(block.trimStart())) return _;
     const items: string[] = [];
     const re = /[ \t]*\* ([^\n]+)/g;
@@ -67,6 +80,7 @@ function convertLists(text: string): string {
     return `\n<ul class="concept-list">${lis}</ul>`;
   });
 
+  // Numbered lists: 1) item or 1. item
   result = result.replace(/(?:^|\n)((?:[ \t]*\d+[).][ \t]+[^\n]+)(?:\n[ \t]*\d+[).][ \t]+[^\n]+)*)/g, (_, block) => {
     const items: string[] = [];
     const re = /[ \t]*\d+[).][ \t]+([^\n]+)/g;

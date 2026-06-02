@@ -33,6 +33,15 @@ describe('renderMath', () => {
     expect(result).toContain('<li>second item</li>');
   });
 
+  it('converts AsciiDoc pipe-delimited tables to <table>', () => {
+    const input = 'Intro text\n\n|===\n| a | b | c\n| d | e | f\n|===';
+    const result = renderMath(input);
+    expect(result).toContain('<table class="concept-table">');
+    expect(result).toContain('<tr><td>a</td><td>b</td><td>c</td></tr>');
+    expect(result).toContain('<tr><td>d</td><td>e</td><td>f</td></tr>');
+    expect(result).not.toContain('|===');
+  });
+
   it('resolves URN inline refs via xrefResolver', () => {
     const resolver = (uri: string, term: string) => `[${term}→${uri}]`;
     const result = renderMath(
