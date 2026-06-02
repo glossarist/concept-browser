@@ -140,6 +140,10 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
   }
 
   async function loadAllGraphData() {
+    if (!initialized.value) {
+      await discoverDatasets();
+    }
+
     const engine = toRaw(graph.value);
     const adapters = factory.getAdapters();
 
@@ -155,13 +159,13 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
 
         if (nodeResult.status === 'fulfilled') {
           const { uriPrefix, nodes } = nodeResult.value;
-          for (const [id, term, lang, status] of nodes) {
+          for (const [id, designations, status] of nodes) {
             engine.addNode({
               uri: uriPrefix + id,
               register: adapter.registerId,
               conceptId: id,
-              designations: term ? { [lang || 'eng']: term } : {},
-              status,
+              designations: designations || {},
+              status: status || 'unknown',
               loaded: false,
             });
           }
@@ -296,6 +300,10 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
   }
 
   async function searchAcrossDatasets(query: string): Promise<SearchHit[]> {
+    if (!initialized.value) {
+      await discoverDatasets();
+    }
+
     const allHits: SearchHit[] = [];
     for (const adapter of datasets.value.values()) {
       if (adapter.manifest) {

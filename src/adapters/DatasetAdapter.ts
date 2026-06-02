@@ -69,23 +69,12 @@ export class DatasetAdapter {
   }
 
   private normalizeIndex(data: any): ConceptIndex {
-    const concepts: ConceptSummary[] = (data.concepts || []).map((c: any) => {
-      if (c.designations && typeof c.designations === 'object') {
-        return {
-          id: c.id,
-          designations: c.designations,
-          eng: c.eng || c.designations.eng || Object.values(c.designations)[0] || '',
-          status: c.status,
-        };
-      }
-      // Legacy format: c.eng is a string, no designations map
-      return {
-        id: c.id,
-        designations: c.eng ? { eng: c.eng } : {},
-        eng: c.eng || '',
-        status: c.status,
-      };
-    });
+    const concepts: ConceptSummary[] = (data.concepts || []).map((c: any) => ({
+      id: c.id,
+      designations: c.designations || {},
+      eng: c.eng || c.designations?.eng || Object.values(c.designations || {})[0] || '',
+      status: c.status,
+    }));
 
     return {
       registerId: data.registerId,
@@ -391,7 +380,7 @@ export class DatasetAdapter {
     return data.edges ?? [];
   }
 
-  async loadGraphNodes(): Promise<{ uriPrefix: string; nodes: [string, string, string, string][] }> {
+  async loadGraphNodes(): Promise<{ uriPrefix: string; nodes: [string, Record<string, string>, string][] }> {
     const resp = await fetch(`${this.baseUrl}/graph-nodes.json`);
     if (!resp.ok) return { uriPrefix: '', nodes: [] };
     return await resp.json();

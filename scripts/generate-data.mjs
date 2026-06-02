@@ -679,10 +679,11 @@ function processDataset(dir, register, opts) {
   }));
 
   const graphNodeEntries = concepts.map(c => {
-    let term = '', lang = '';
-    if (c.designations.eng) { term = c.designations.eng; lang = 'eng'; }
-    else { for (const [l, t] of Object.entries(c.designations)) { if (t) { term = t; lang = l; break; } } }
-    return [c.id, term.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(), lang, c.status];
+    const cleanDesignations = {};
+    for (const [l, t] of Object.entries(c.designations)) {
+      if (t) cleanDesignations[l] = t.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    }
+    return [c.id, cleanDesignations, c.status];
   });
   fs.mkdirSync(path.join(DATA, register), { recursive: true });
   fs.writeFileSync(
