@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useUiStore } from '../stores/ui';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { ref, watch, onMounted, computed, nextTick } from 'vue';
@@ -9,6 +9,7 @@ import { useDsStyle } from '../utils/dataset-style';
 import { useI18n } from '../i18n';
 
 const router = useRouter();
+const route = useRoute();
 const ui = useUiStore();
 const store = useVocabularyStore();
 const { getStyle } = useDsStyle();
@@ -37,7 +38,9 @@ async function doSearch() {
   }
   searched.value = true;
   selectedIdx.value = -1;
-  router.replace({ query: { q } });
+  if (route.query.q !== q) {
+    router.replace({ query: { q } });
+  }
 }
 
 function onInput() {

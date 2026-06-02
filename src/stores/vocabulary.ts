@@ -298,7 +298,10 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
   async function searchAcrossDatasets(query: string): Promise<SearchHit[]> {
     const allHits: SearchHit[] = [];
     for (const adapter of datasets.value.values()) {
-      if (adapter.index || adapter.manifest) {
+      if (adapter.manifest) {
+        if (!adapter.index) {
+          await adapter.loadIndex();
+        }
         await adapter.ensureAllChunksLoaded();
         allHits.push(...adapter.search(query));
       }
