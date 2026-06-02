@@ -61,9 +61,9 @@ describe('DatasetAdapter', () => {
         chunkSize: 500,
         chunks: [],
         concepts: [
-          { id: '102-01-01', eng: 'equality', status: 'Standard' },
-          { id: '102-01-02', eng: 'inequality', status: 'Standard' },
-          { id: '103-01-02', eng: 'functional', status: 'Standard' },
+          { id: '102-01-01', designations: { eng: 'equality' }, eng: 'equality', status: 'Standard' },
+          { id: '102-01-02', designations: { eng: 'inequality' }, eng: 'inequality', status: 'Standard' },
+          { id: '103-01-02', designations: { eng: 'functional' }, eng: 'functional', status: 'Standard' },
         ],
       };
       mockFetch.mockReturnValue(mockJsonResponse(index));
@@ -128,9 +128,9 @@ describe('DatasetAdapter', () => {
         chunkSize: 500,
         chunks: [],
         concepts: [
-          { id: '102-01-01', eng: 'equality', status: 'Standard' },
-          { id: '102-01-02', eng: 'inequality', status: 'Standard' },
-          { id: '103-01-02', eng: 'functional', status: 'Standard' },
+          { id: '102-01-01', designations: { eng: 'equality' }, eng: 'equality', status: 'Standard' },
+          { id: '102-01-02', designations: { eng: 'inequality' }, eng: 'inequality', status: 'Standard' },
+          { id: '103-01-02', designations: { eng: 'functional' }, eng: 'functional', status: 'Standard' },
         ],
       };
       mockFetch.mockReturnValue(mockJsonResponse(index));
@@ -150,7 +150,7 @@ describe('DatasetAdapter', () => {
         chunkSize: 500,
         chunks: [],
         concepts: [
-          { id: '103-01-02', eng: 'functional', status: 'Standard' },
+          { id: '103-01-02', designations: { eng: 'functional' }, eng: 'functional', status: 'Standard' },
         ],
       };
       mockFetch.mockReturnValue(mockJsonResponse(index));
@@ -169,7 +169,7 @@ describe('DatasetAdapter', () => {
         chunkSize: 500,
         chunks: [],
         concepts: [
-          { id: '102-01-01', eng: 'Equality', status: 'Standard' },
+          { id: '102-01-01', designations: { eng: 'Equality' }, eng: 'Equality', status: 'Standard' },
         ],
       };
       mockFetch.mockReturnValue(mockJsonResponse(index));
@@ -187,7 +187,7 @@ describe('DatasetAdapter', () => {
         chunkSize: 500,
         chunks: [],
         concepts: [
-          { id: '102-01-01', eng: 'equality', status: 'Standard' },
+          { id: '102-01-01', designations: { eng: 'equality' }, eng: 'equality', status: 'Standard' },
         ],
       };
       mockFetch.mockReturnValue(mockJsonResponse(index));

@@ -26,6 +26,9 @@ describe('GraphView', () => {
     pinia = createPinia();
     setActivePinia(pinia);
     router = await createTestRouter();
+    // Mark store as initialized so loadAllGraphData skips discoverDatasets
+    const store = useVocabularyStore();
+    store.initialized = true;
   });
 
   function mountGraph() {
