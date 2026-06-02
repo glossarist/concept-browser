@@ -83,6 +83,21 @@ const datasetEntries = computed(() => {
   return entries;
 });
 
+const datasetIds = computed(() => new Set(datasetEntries.value.map(d => d.id)));
+
+// Hide dataset-prefixed pages (e.g. "viml-about") from global nav
+const filteredGlobalPages = computed(() =>
+  globalPages.value.filter(p => {
+    const r = p.route || '';
+    return !Array.from(datasetIds.value).some(dsId => r.startsWith(dsId + '-'));
+  })
+);
+
+// Show only standard dataset pages (Concepts, Statistics, About)
+const filteredDatasetPages = computed(() =>
+  datasetPages.value.filter(p => ['', 'stats', 'about'].includes(p.route || ''))
+);
+
 const currentManifest = computed(() => store.manifests.get(currentDataset.value));
 const showDatasetNav = computed(() => !!currentManifest.value || !!siteConfig.value?.defaultDataset);
 
@@ -169,7 +184,7 @@ function navTitle(page: { route: string }): string {
       <!-- Navigation -->
       <div class="section-label">{{ t('nav.navigation') }}</div>
       <nav class="space-y-0.5 mb-6">
-        <template v-for="page in globalPages" :key="page.route || 'home'">
+        <template v-for="page in filteredGlobalPages" :key="page.route || 'home'">
           <router-link
             :to="pageRoute(page)"
             class="btn-ghost w-full text-left flex items-center gap-2"
@@ -456,84 +471,67 @@ function navTitle(page: { route: string }): string {
         </template>
       </nav>
 
-      <!-- Dataset-level navigation (shown when viewing a dataset) -->
-      <div v-if="showDatasetNav" class="mb-6">
-        <div class="section-label">{{ localizedDatasetField(currentDataset, 'title', currentManifest?.title || siteConfig?.title || 'Dataset') }}</div>
-        <nav class="space-y-0.5">
-          <router-link
-            v-for="page in datasetPages"
-            :key="page.route || 'concepts'"
-            :to="pageRoute(page)"
-            class="btn-ghost w-full text-left flex items-center gap-2"
-            :class="isActive(page) ? 'active' : ''"
-            @click="closeMobile"
-          >
-            <NavIcon :name="page.icon" />
-            {{ navTitle(page) }}
-          </router-link>
-        </nav>
-      </div>
-
       <!-- Datasets -->
       <div class="section-label">{{ t('nav.datasets') }}</div>
       <nav class="space-y-1">
-        <button
+        <div
           v-for="ds in datasetEntries"
           :key="ds.id"
-          @click="goToDataset(ds.id)"
-          class="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-150 border-l-2"
-          :class="[
-            currentDataset === ds.id
-              ? 'bg-surface text-ink-800'
-              : 'border-transparent text-ink-600 hover:bg-ink-50 hover:text-ink-800'
-          ]"
-          :style="currentDataset === ds.id ? { borderLeftColor: getColor(ds.id), borderLeftWidth: '2px' } : {}"
+          class="rounded-lg transition-all duration-150"
+          :class="currentDataset === ds.id ? 'bg-surface' : ''"
         >
-          <div class="font-medium truncate leading-snug">{{ localizedDatasetField(ds.id, 'title', ds.title) }}</div>
-          <div v-if="ds.loaded" class="text-xs mt-0.5" :class="currentDataset === ds.id ? 'text-ink-400' : 'text-ink-300'">
-            {{ ds.conceptCount.toLocaleString() }} {{ t('home.concepts').toLowerCase() }}
-          </div>
-        </button>
-      </nav>
+          <button
+            @click="goToDataset(ds.id)"
+            class="w-full text-left px-3 py-2.5 rounded-lg text-sm border-l-2"
+            :class="[
+              currentDataset === ds.id
+                ? 'text-ink-800'
+                : 'border-transparent text-ink-600 hover:bg-ink-50 hover:text-ink-800'
+            ]"
+            :style="currentDataset === ds.id ? { borderLeftColor: getColor(ds.id), borderLeftWidth: '2px' } : {}"
+          >
+            <div class="font-medium truncate leading-snug">{{ localizedDatasetField(ds.id, 'title', ds.title) }}</div>
+            <div v-if="ds.loaded" class="text-xs mt-0.5" :class="currentDataset === ds.id ? 'text-ink-400' : 'text-ink-300'">
+              {{ ds.conceptCount.toLocaleString() }} {{ t('home.concepts').toLowerCase() }}
+            </div>
+          </button>
 
-      <!-- Dataset provenance -->
-      <div v-if="provenance.owner" class="mt-6 pt-4 border-t border-ink-100/60">
-        <div class="text-[11px] text-ink-300 space-y-1.5">
-          <div class="font-medium text-ink-400">{{ t('sidebar.provenance') }}</div>
+          <!-- Expanded dataset: sub-pages + provenance -->
+          <div v-if="currentDataset === ds.id && (filteredDatasetPages.length || provenance.owner)" class="px-2 pb-2">
+            <!-- Sub-pages -->
+            <nav v-if="filteredDatasetPages.length" class="space-y-0.5 mt-1">
+              <router-link
+                v-for="page in filteredDatasetPages"
+                :key="page.route || 'concepts'"
+                :to="pageRoute(page)"
+                class="btn-ghost w-full text-left flex items-center gap-2 text-sm"
+                :class="isActive(page) ? 'active' : ''"
+                @click="closeMobile"
+              >
+                <NavIcon :name="page.icon" />
+                {{ navTitle(page) }}
+              </router-link>
+            </nav>
 
-          <div v-if="provenance.ref" class="text-xs font-semibold text-ink-700">
-            {{ provenance.ref }}
-          </div>
-
-          <div class="flex items-center gap-1">
-            <span class="text-ink-400">{{ t('sidebar.publishedBy') }}</span>
-            <a v-if="provenance.ownerUrl" :href="provenance.ownerUrl" target="_blank" rel="noopener" class="concept-link font-medium">{{ provenance.owner }}</a>
-            <span v-else class="text-ink-600 font-medium">{{ provenance.owner }}</span>
-          </div>
-
-          <div v-if="provenance.status" class="flex items-center gap-1.5">
-            <span class="inline-block w-1.5 h-1.5 rounded-full" :class="provenance.status === 'valid' ? 'bg-emerald-500' : 'bg-amber-400'"></span>
-            <span class="text-[10px] uppercase tracking-wide font-medium" :class="provenance.status === 'valid' ? 'text-emerald-600' : 'text-amber-600'">
-              {{ provenance.status }}
-            </span>
-          </div>
-
-          <div v-if="provenance.lastUpdated" class="text-ink-300">
-            {{ t('sidebar.updated') }} {{ provenance.lastUpdated }}
-          </div>
-
-          <div v-if="provenance.conceptCount" class="text-ink-400">
-            {{ provenance.conceptCount.toLocaleString() }} {{ t('sidebar.concepts').toLowerCase() }}
-            <template v-if="provenance.languageCount">
-              · {{ provenance.languageCount }} {{ t('sidebar.languages').toLowerCase() }}
-            </template>
-          </div>
-
-          <div v-if="provenance.sourceRepo">
-            <a :href="provenance.sourceRepo" target="_blank" rel="noopener" class="concept-link">{{ t('sidebar.viewSource') }}</a>
+            <!-- Provenance -->
+            <div v-if="provenance.owner" class="mt-3 pt-3 border-t border-ink-100/60">
+              <div class="text-[11px] text-ink-300 space-y-1.5 px-1">
+                <div v-if="provenance.ref" class="text-xs font-semibold text-ink-700">
+                  {{ provenance.ref }}
+                </div>
+                <div class="flex items-center gap-1">
+                  <span class="text-ink-400">{{ t('sidebar.publishedBy') }}</span>
+                  <a v-if="provenance.ownerUrl" :href="provenance.ownerUrl" target="_blank" rel="noopener" class="concept-link font-medium">{{ provenance.owner }}</a>
+                  <span v-else class="text-ink-600 font-medium">{{ provenance.owner }}</span>
+                </div>
+                <div v-if="provenance.sourceRepo">
+                  <a :href="provenance.sourceRepo" target="_blank" rel="noopener" class="concept-link">{{ t('sidebar.viewSource') }}</a>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </nav>
     </div>
   </aside>
 </template>
