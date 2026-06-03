@@ -165,3 +165,12 @@ sidebar.updated: Updated
 sidebar.concepts: concepts
 sidebar.languages: languages
 sidebar.viewSource: View source
+
+# Keyboard shortcuts
+shortcuts.title: Keyboard shortcuts
+shortcuts.previous: Previous concept
+shortcuts.next: Next concept
+shortcuts.search: Search
+shortcuts.showShortcuts: Show shortcuts
+shortcuts.closeDialog: Close dialog
+shortcuts.hint: Shortcuts only work when no input field is focused

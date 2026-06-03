@@ -3,6 +3,7 @@ import { computed, watch, ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import ConceptDetail from '../components/ConceptDetail.vue';
+import ShortcutsModal from '../components/ShortcutsModal.vue';
 import { useI18n } from '../i18n';
 
 const { t } = useI18n();
@@ -16,6 +17,7 @@ const store = useVocabularyStore();
 const router = useRouter();
 const conceptLoading = ref(false);
 const localError = ref<string | null>(null);
+const showShortcuts = ref(false);
 
 async function loadConcept(regId: string, cId: string) {
   conceptLoading.value = true;
@@ -68,10 +70,20 @@ function goAdjacent(id: string) {
 
 function onKeydown(e: KeyboardEvent) {
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-  if (e.key === 'ArrowLeft' && adjacent.value.prev) {
+
+  if (e.key === '?') {
+    e.preventDefault();
+    showShortcuts.value = !showShortcuts.value;
+    return;
+  }
+  if (e.key === 'Escape' && showShortcuts.value) {
+    showShortcuts.value = false;
+    return;
+  }
+  if (e.key === 'j' && adjacent.value.prev) {
     e.preventDefault();
     goAdjacent(adjacent.value.prev);
-  } else if (e.key === 'ArrowRight' && adjacent.value.next) {
+  } else if (e.key === 'k' && adjacent.value.next) {
     e.preventDefault();
     goAdjacent(adjacent.value.next);
   }
@@ -139,5 +151,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
       :adjacent="adjacent"
       :register-id="registerId"
     />
+
+    <ShortcutsModal v-if="showShortcuts" @close="showShortcuts = false" />
   </div>
 </template>

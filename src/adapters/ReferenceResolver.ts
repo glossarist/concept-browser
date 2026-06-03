@@ -30,9 +30,14 @@ function matchUriPattern(uri: string, pattern: string): boolean {
 export class ReferenceResolver {
   private datasets: DatasetEntry[] = [];
   private routing: RoutingEntry[] = [];
+  private sourceRefs = new Map<string, { datasetId: string; uriPrefix: string }>();
 
   registerDataset(id: string, uriPatterns: string[]): void {
     this.datasets.push({ id, uriPatterns });
+  }
+
+  registerSourceRef(sourceRef: string, datasetId: string, uriPrefix: string): void {
+    this.sourceRefs.set(sourceRef, { datasetId, uriPrefix });
   }
 
   loadRouting(entries: RoutingEntry[]): void {
@@ -80,6 +85,29 @@ export class ReferenceResolver {
     }
 
     return { type: 'unresolved', uri };
+  }
+
+  resolveCitation(source: string, referenceFrom: string, sourceDatasetId?: string): Resolution | null {
+    const entry = this.sourceRefs.get(source);
+    if (!entry) {
+      if (!source.startsWith('urn:')) return null;
+      return this.tryResolveCitationUri(source, referenceFrom, sourceDatasetId);
+    }
+    return this.tryResolveCitationUri(entry.uriPrefix, referenceFrom, sourceDatasetId);
+  }
+
+  private tryResolveCitationUri(uriPrefix: string, referenceFrom: string, sourceDatasetId?: string): Resolution | null {
+    const uri = `${uriPrefix}/${referenceFrom}`;
+    const result = this.resolveReference(uri, sourceDatasetId);
+    if (result.type === 'internal') {
+      return { ...result, conceptId: result.conceptId.replace(/^\//, '') };
+    }
+    const directUri = uriPrefix + referenceFrom;
+    const directResult = this.resolveReference(directUri, sourceDatasetId);
+    if (directResult.type === 'internal') {
+      return { ...directResult, conceptId: directResult.conceptId.replace(/^\//, '') };
+    }
+    return null;
   }
 
   private extractConceptIdFromRouting(uri: string, pattern: string): string | null {

@@ -55,6 +55,13 @@ export class AdapterFactory {
     ].filter(Boolean) as string[];
     this.resolver.registerDataset(registerId, uriPatterns);
 
+    if (manifest.ref) {
+      this.resolver.registerSourceRef(manifest.ref, registerId, manifest.datasetUri);
+    }
+    for (const alias of manifest.refAliases ?? []) {
+      this.resolver.registerSourceRef(alias, registerId, manifest.datasetUri);
+    }
+
     return adapter;
   }
 
@@ -64,6 +71,10 @@ export class AdapterFactory {
 
   resolve(uri: string, sourceDatasetId?: string): Resolution {
     return this.resolver.resolveReference(uri, sourceDatasetId);
+  }
+
+  resolveCitation(source: string, referenceFrom: string, sourceDatasetId?: string): Resolution | null {
+    return this.resolver.resolveCitation(source, referenceFrom, sourceDatasetId);
   }
 }
 

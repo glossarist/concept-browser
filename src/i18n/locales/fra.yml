@@ -165,3 +165,12 @@ sidebar.updated: Mis à jour
 sidebar.concepts: concepts
 sidebar.languages: langues
 sidebar.viewSource: Voir la source
+
+# Keyboard shortcuts
+shortcuts.title: Raccourcis clavier
+shortcuts.previous: Concept précédent
+shortcuts.next: Concept suivant
+shortcuts.search: Recherche
+shortcuts.showShortcuts: Afficher les raccourcis
+shortcuts.closeDialog: Fermer
+shortcuts.hint: Les raccourcis ne fonctionnent que si aucun champ de saisie n'a le focus

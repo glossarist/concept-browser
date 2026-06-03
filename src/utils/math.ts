@@ -4,10 +4,13 @@ export type XrefResolver = (uri: string, term: string) => string;
 export type BibResolver = (refId: string, title: string) => string;
 export type FigResolver = (figId: string) => string;
 
+export type ConceptRefResolver = (conceptId: string, term: string) => string;
+
 export interface RenderOptions {
   xrefResolver?: XrefResolver;
   bibResolver?: BibResolver;
   figResolver?: FigResolver;
+  conceptRefResolver?: ConceptRefResolver;
 }
 
 function replaceBracketed(text: string, prefix: string, handler: (content: string, bold: boolean) => string): string {
@@ -53,21 +56,36 @@ function mathPlaceholder(expr: string, format: string, bold: boolean): string {
   return `<span class="math-pending${bold ? ' math-bold' : ''}" data-expr="${escapeAttr(expr)}" data-format="${format}">${escapeAttr(expr)}</span>`;
 }
 
-function convertLists(text: string): string {
-  // AsciiDoc pipe-delimited tables: |=== ... |===
-  let result = text.replace(/\|===\n([\s\S]*?)\n\|===/g, (_, body) => {
-    const rows = body.split('\n').filter(line => line.trim().length > 0);
-    const htmlRows = rows.map(row => {
-      // Each row starts with "| " — strip the leading pipe then split on " | "
-      const cells = row.replace(/^\| */, '').split(/ \| /);
-      const htmlCells = cells.map(c => `<td>${c.trim()}</td>`).join('');
-      return `<tr>${htmlCells}</tr>`;
-    });
-    return `<table class="concept-table">${htmlRows.join('')}</table>`;
-  });
+function convertAsciiDocTables(text: string): string {
+  return text.replace(/\n?\|===\n([\s\S]*?)\n\|===/g, (_: string, body: string) => {
+    const rows: string[] = body.split('\n').filter((line: string) => line.trim() !== '');
+    if (!rows.length) return '';
 
-  // Bullet lists: * item
-  result = result.replace(/(?:^|\n)((?:[ \t]*\* [^\n]+)(?:\n[ \t]*\* [^\n]+)*)/g, (_, block) => {
+    const parsedRows: string[][] = rows.map((row: string) => {
+      const cellText = row.replace(/^\s*\|/, '').trim();
+      const cells = cellText.split(/\s*\|\s*/).map((c: string) => c.trim()).filter((c: string) => c !== '');
+      return cells;
+    }).filter((r: string[]) => r.length > 0);
+
+    if (!parsedRows.length) return '';
+
+    const maxCols = Math.max(...parsedRows.map((r: string[]) => r.length));
+    const normalized = parsedRows.map((r: string[]) => {
+      while (r.length < maxCols) r.push('');
+      return r;
+    });
+
+    const thead = normalized[0].map((c: string) => `<th>${escapeHtml(c)}</th>`).join('');
+    const tbody = normalized.slice(1).map((r: string[]) =>
+      `<tr>${r.map((c: string) => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`
+    ).join('');
+
+    return `\n<table class="concept-table"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>`;
+  });
+}
+
+function convertLists(text: string): string {
+  let result = text.replace(/(?:^|\n)((?:[ \t]*\* [^\n]+)(?:\n[ \t]*\* [^\n]+)*)/g, (_, block) => {
     if (/^\*stem:\[/.test(block.trimStart())) return _;
     const items: string[] = [];
     const re = /[ \t]*\* ([^\n]+)/g;
@@ -108,6 +126,7 @@ export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | Ren
   result = replaceBracketed(result, 'stem:', (expr, bold) => mathPlaceholder(expr, 'asciimath', bold));
   result = replaceBracketed(result, 'latexmath:', (expr, bold) => mathPlaceholder(expr, 'latex', bold));
 
+  result = convertAsciiDocTables(result);
   result = convertLists(result);
   result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>');
   result = result.replace(/~([^~]+)~/g, '<sub>$1</sub>');
@@ -142,7 +161,12 @@ export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | Ren
     return t;
   });
 
-  result = result.replace(/\{\{([^,}]+)(?:,\s*[^}]+)?\}\}/g, '$1');
+  result = result.replace(/\{\{([^,}]+),\s*([^}]+)\}\}/g, (_, term, id) => {
+    if (opts.conceptRefResolver) {
+      return opts.conceptRefResolver(id.trim(), term.trim());
+    }
+    return term.trim();
+  });
 
   return result;
 }

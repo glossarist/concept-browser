@@ -1,9 +1,18 @@
 <script setup lang="ts">
 import type { Citation } from 'glossarist';
+import { computed } from 'vue';
+import { getFactory } from '../adapters/factory';
+import { useRouter } from 'vue-router';
+import { useVocabularyStore } from '../stores/vocabulary';
 
 const props = defineProps<{
   citation: Citation;
+  registerId?: string;
 }>();
+
+const router = useRouter();
+const store = useVocabularyStore();
+const factory = getFactory();
 
 function formatRef(c: Citation): string {
   const ref = c.ref;
@@ -14,22 +23,52 @@ function formatRef(c: Citation): string {
   if (ref.version) parts.push(`(${ref.version})`);
   return parts.join(' ');
 }
+
+function resolveCitation(): { registerId: string; conceptId: string } | null {
+  const ref = props.citation.ref;
+  const locality = props.citation.locality;
+  if (!ref?.source || !locality?.referenceFrom) return null;
+
+  const resolution = factory.resolveCitation(ref.source, locality.referenceFrom, props.registerId);
+  if (!resolution || resolution.type !== 'internal') return null;
+
+  return { registerId: resolution.registerId, conceptId: resolution.conceptId };
+}
+
+const resolvedTarget = computed(() => resolveCitation());
+
+async function navigateToCitation() {
+  if (!resolvedTarget.value) return;
+  const { registerId, conceptId } = resolvedTarget.value;
+  await store.viewConcept(registerId, conceptId);
+  router.push({ name: 'concept', params: { registerId, conceptId } });
+}
 </script>
 
 <template>
   <span class="inline">
     <template v-if="citation.ref">
-      <span v-if="citation.ref.source" class="font-medium">{{ citation.ref.source }}</span>
+      <button v-if="resolvedTarget" @click="navigateToCitation" class="concept-link font-medium">{{ citation.ref.source }}</button>
+      <span v-else-if="citation.ref.source" class="font-medium">{{ citation.ref.source }}</span>
       <span v-if="citation.ref.id"> {{ citation.ref.id }}</span>
       <span v-if="citation.ref.version" class="text-ink-400"> ({{ citation.ref.version }})</span>
     </template>
     <template v-if="citation.locality">
-      <span v-if="citation.locality.type" class="text-ink-400">, {{ citation.locality.type }}</span>
-      <span v-if="citation.locality.referenceFrom" class="text-ink-400">
-        {{ citation.locality.referenceTo ? ` ${citation.locality.referenceFrom}–${citation.locality.referenceTo}` : ` ${citation.locality.referenceFrom}` }}
-      </span>
+      <button v-if="resolvedTarget" @click="navigateToCitation" class="concept-link">
+        <span v-if="citation.locality.type" class="text-ink-400">, {{ citation.locality.type }}</span>
+        <span v-if="citation.locality.referenceFrom" class="text-ink-400">
+          {{ citation.locality.referenceTo ? ` ${citation.locality.referenceFrom}–${citation.locality.referenceTo}` : ` ${citation.locality.referenceFrom}` }}
+        </span>
+      </button>
+      <template v-else>
+        <span v-if="citation.locality.type" class="text-ink-400">, {{ citation.locality.type }}</span>
+        <span v-if="citation.locality.referenceFrom" class="text-ink-400">
+          {{ citation.locality.referenceTo ? ` ${citation.locality.referenceFrom}–${citation.locality.referenceTo}` : ` ${citation.locality.referenceFrom}` }}
+        </span>
+      </template>
     </template>
     <a v-if="citation.link" :href="citation.link" target="_blank" rel="noopener" class="concept-link ml-1">[link]</a>
     <span v-if="citation.original" class="text-xs text-ink-300 ml-1">(orig: {{ citation.original }})</span>
+    <span v-if="resolvedTarget" class="text-[9px] text-ink-300 ml-1">→ {{ resolvedTarget.registerId }}/{{ resolvedTarget.conceptId }}</span>
   </span>
 </template>

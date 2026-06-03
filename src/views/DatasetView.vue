@@ -71,10 +71,10 @@ function onGlobalKeydown(e: KeyboardEvent) {
     e.preventDefault();
     filterInput.value?.focus();
   }
-  if (e.key === 'ArrowRight' && document.activeElement?.tagName !== 'INPUT' && page.value < totalPages.value) {
-    goToPage(page.value + 1);
-  } else if (e.key === 'ArrowLeft' && document.activeElement?.tagName !== 'INPUT' && page.value > 1) {
+  if (e.key === 'j' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA' && page.value > 1) {
     goToPage(page.value - 1);
+  } else if (e.key === 'k' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA' && page.value < totalPages.value) {
+    goToPage(page.value + 1);
   }
 }
 

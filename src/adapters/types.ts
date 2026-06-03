@@ -58,6 +58,7 @@ export interface Manifest {
   shortname?: string;
   languageOrder?: string[];
   ref?: string;
+  refAliases?: string[];
   languageStats?: Record<string, { terms: number; definitions: number }>;
   availableFormats?: string[];
   bulkFormats?: { file: string; format: string; size: number }[];

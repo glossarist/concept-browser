@@ -97,6 +97,34 @@ const conceptSources = computed(() => props.concept.sources);
 // Managed concept tags
 const conceptTags = computed(() => props.concept.tags ?? []);
 
+// Managed concept related (concept-level cross-references)
+const conceptRelated = computed(() => props.concept.relatedConcepts ?? []);
+
+function resolveRelatedRef(ref: { source: string | null; id: string | null } | null): { registerId: string; conceptId: string } | null {
+  if (!ref?.source || !ref?.id) return null;
+  const uri = `${ref.source}/${ref.id}`;
+  const resolution = factory.resolve(uri, props.registerId);
+  if (resolution.type === 'internal') {
+    const conceptId = resolution.conceptId.replace(/^\//, '');
+    return { registerId: resolution.registerId, conceptId };
+  }
+  if (ref.source.startsWith('urn:')) {
+    const directUri = ref.source + ref.id;
+    const directRes = factory.resolve(directUri, props.registerId);
+    if (directRes.type === 'internal') {
+      return { registerId: directRes.registerId, conceptId: directRes.conceptId.replace(/^\//, '') };
+    }
+  }
+  return null;
+}
+
+async function navigateRelated(ref: { source: string | null; id: string | null }) {
+  const target = resolveRelatedRef(ref);
+  if (!target) return;
+  await store.viewConcept(target.registerId, target.conceptId);
+  router.push({ name: 'concept', params: { registerId: target.registerId, conceptId: target.conceptId } });
+}
+
 // Cross-reference resolver: generates clickable links for inline refs
 
 const { ensureBibLoaded, bibResolver, figResolver } = useRenderOptions(() => props.registerId);
@@ -114,6 +142,9 @@ const renderOpts: RenderOptions = {
       return `<a href="${escapeAttr(resolution.url)}" target="_blank" rel="noopener" class="xref-link xref-external">${escapeAttr(term)}</a>`;
     }
     return escapeAttr(term);
+  },
+  conceptRefResolver: (conceptId, term) => {
+    return `<a href="#" class="xref-link" data-register="${escapeAttr(props.registerId)}" data-concept="${escapeAttr(conceptId)}">${escapeAttr(term)}</a>`;
   },
   bibResolver,
   figResolver,
@@ -552,7 +583,7 @@ const nonVerbalReps = computed(() => {
                   <div v-if="d.sources?.length" class="mt-1 space-y-0.5">
                     <div v-for="(ds, dsi) in d.sources" :key="'ds'+dsi" class="text-xs text-ink-400 flex items-center gap-1.5">
                       <span v-if="ds.type" class="badge text-[9px]" :class="sourceTypeInfo(ds.type).color">{{ sourceTypeInfo(ds.type).label }}</span>
-                      <CitationDisplay v-if="ds.origin" :citation="ds.origin" />
+                      <CitationDisplay v-if="ds.origin" :citation="ds.origin" :register-id="registerId" />
                       <span v-else-if="ds.modification" class="text-ink-300">{{ ds.modification }}</span>
                     </div>
                   </div>
@@ -560,7 +591,8 @@ const nonVerbalReps = computed(() => {
                   <div v-if="d.related?.length" class="mt-0.5 space-y-0.5">
                     <div v-for="(dr, dri) in d.related" :key="'dr'+dri" class="text-xs text-ink-400 flex items-center gap-1.5">
                       <span class="badge text-[9px] bg-gray-50 text-gray-600">{{ relationshipLabel(dr.type) }}</span>
-                      <span>{{ dr.content || (dr.ref ? `${dr.ref.source || ''} ${dr.ref.id || ''}`.trim() : '') }}</span>
+                      <button v-if="resolveRelatedRef(dr.ref)" @click="navigateRelated(dr.ref!)" class="concept-link">{{ dr.content || (dr.ref ? `${dr.ref.source || ''} ${dr.ref.id || ''}`.trim() : '') }}</button>
+                      <span v-else>{{ dr.content || (dr.ref ? `${dr.ref.source || ''} ${dr.ref.id || ''}`.trim() : '') }}</span>
                     </div>
                   </div>
                 </div>
@@ -682,6 +714,24 @@ const nonVerbalReps = computed(() => {
             </div>
           </div>
 
+          <!-- Cross-references (concept-level related) -->
+          <div v-if="conceptRelated.length" class="card p-5">
+            <div class="section-label">{{ t('concept.relations') }}</div>
+            <div class="mt-3 space-y-1">
+              <button
+                v-for="(cr, cri) in conceptRelated"
+                :key="'cr'+cri"
+                @click="navigateRelated(cr.ref!)"
+                class="text-sm concept-link block truncate w-full text-left flex items-center gap-1.5"
+              >
+                <span class="badge text-[9px] bg-gray-50 text-gray-600">{{ relationshipLabel(cr.type) }}</span>
+                <span v-if="resolveRelatedRef(cr.ref)" class="text-ink-600">{{ resolveRelatedRef(cr.ref)!.conceptId }}</span>
+                <span v-else class="text-ink-400">{{ cr.content || (cr.ref ? `${cr.ref.source || ''} ${cr.ref.id || ''}`.trim() : '') }}</span>
+                <span v-if="resolveRelatedRef(cr.ref) && resolveRelatedRef(cr.ref)!.registerId !== manifest.id" class="badge badge-gray text-[9px] flex-shrink-0">{{ resolveRelatedRef(cr.ref)!.registerId }}</span>
+              </button>
+            </div>
+          </div>
+
           <!-- Domains -->
           <div v-if="conceptDomains.length" class="card p-5">
             <div class="section-label">{{ t('concept.domains') }}</div>
@@ -735,7 +785,7 @@ const nonVerbalReps = computed(() => {
 
           <!-- Language quick-jump -->
           <div class="card p-5">
-            <div class="section-label">{{ t('concept.languagesSidebar', { count: languages.length }) }}</div>
+            <div class="section-label">{{ t('concept.languagesSidebar', { count: String(languages.length) }) }}</div>
             <div class="space-y-1 mt-3 max-h-80 overflow-y-auto">
               <button
                 v-for="lang in languages"

@@ -37,8 +37,8 @@ describe('renderMath', () => {
     const input = 'Intro text\n\n|===\n| a | b | c\n| d | e | f\n|===';
     const result = renderMath(input);
     expect(result).toContain('<table class="concept-table">');
-    expect(result).toContain('<tr><td>a</td><td>b</td><td>c</td></tr>');
-    expect(result).toContain('<tr><td>d</td><td>e</td><td>f</td></tr>');
+    expect(result).toContain('<thead><tr><th>a</th><th>b</th><th>c</th></tr></thead>');
+    expect(result).toContain('<tbody><tr><td>d</td><td>e</td><td>f</td></tr></tbody>');
     expect(result).not.toContain('|===');
   });
 

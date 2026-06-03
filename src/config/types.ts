@@ -96,6 +96,7 @@ export interface DatasetConfig {
   tags?: string[];
   languageOrder?: string[];
   ref?: string;
+  refAliases?: string[];
   downloads?: string[];
   translations?: Record<string, { title?: string; description?: string }>;
 }
