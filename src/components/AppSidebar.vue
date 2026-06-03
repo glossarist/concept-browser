@@ -8,7 +8,7 @@ import { useSiteConfig } from '../config/use-site-config';
 import type { DatasetGroup } from '../config/types';
 import { useOntologyNav, compactToSlug } from '../composables/use-ontology-nav';
 import NavIcon from './NavIcon.vue';
-import { useI18n } from '../i18n';
+import { useI18n, locale } from '../i18n';
 
 const store = useVocabularyStore();
 const ui = useUiStore();
@@ -109,9 +109,10 @@ const groupedDatasetEntries = computed<SidebarGroup[]>(() => {
       .map(id => entryMap.get(id))
       .filter((e): e is typeof entryMap extends Map<string, infer V> ? V : never => !!e);
     for (const e of entries) assigned.add(e.id);
+    const trLabel = g.translations?.[locale.value]?.label;
     result.push({
       id: g.id,
-      label: g.label,
+      label: trLabel || g.label,
       description: g.description,
       color: g.color,
       entries,
