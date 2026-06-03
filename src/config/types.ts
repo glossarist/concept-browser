@@ -140,6 +140,17 @@ export interface PageConfig {
   datasetScoped?: boolean;
 }
 
+// === Dataset Groups ===
+
+export interface DatasetGroup {
+  id: string;
+  label: string;
+  description?: string;
+  color?: string;
+  datasets: string[];
+  translations?: Record<string, { label?: string; description?: string }>;
+}
+
 // === Site Config ===
 
 export interface SiteConfig {
@@ -152,6 +163,7 @@ export interface SiteConfig {
   description?: string;
   translations?: Record<string, { title?: string; subtitle?: string; description?: string }>;
   datasets: DatasetConfig[];
+  datasetGroups?: DatasetGroup[];
   routing: RoutingEntry[];
   branding: SiteBranding;
   analytics?: AnalyticsConfig;

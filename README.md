@@ -231,6 +231,39 @@ pages:
         source: about-fra.md
 ```
 
+### Dataset groups
+
+When a site has many datasets, you can group them in the sidebar navigation. Datasets within a group are displayed under a collapsible header.
+
+```yaml
+datasetGroups:
+  - id: viml
+    label: "VIML — International Vocabulary of Legal Metrology"
+    color: "#004996"
+    datasets: [viml-2022, viml-2013, viml-2000, viml-1968]
+    translations:
+      fra:
+        label: "VIML — Vocabulaire international de métrologie légale"
+
+  - id: vim
+    label: "VIM — International Vocabulary of Metrology"
+    color: "#005A9C"
+    datasets: [vim-2012, vim-2010, vim-2007, vim-1993]
+```
+
+#### Dataset group field reference
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | yes | Unique identifier for the group |
+| `label` | yes | Display name shown as the collapsible group header |
+| `description` | no | Short description of the group |
+| `color` | no | Hex color for the group header text |
+| `datasets` | yes | Ordered array of dataset IDs belonging to this group |
+| `translations` | no | Localized label and description per language |
+
+Datasets not assigned to any group appear at the bottom of the dataset list. If `datasetGroups` is omitted, all datasets are displayed as a flat list (the default behavior).
+
 ### Cross-reference mapping
 
 ```yaml

@@ -5,6 +5,7 @@ import { useUiStore } from '../stores/ui';
 import { useRoute, useRouter } from 'vue-router';
 import { useDsStyle } from '../utils/dataset-style';
 import { useSiteConfig } from '../config/use-site-config';
+import type { DatasetGroup } from '../config/types';
 import { useOntologyNav, compactToSlug } from '../composables/use-ontology-nav';
 import NavIcon from './NavIcon.vue';
 import { useI18n } from '../i18n';
@@ -14,7 +15,7 @@ const ui = useUiStore();
 const router = useRouter();
 const route = useRoute();
 const { getColor } = useDsStyle();
-const { globalPages, datasetPages, config: siteConfig, localizedTitle, localizedDatasetField } = useSiteConfig();
+const { globalPages, datasetPages, config: siteConfig, localizedTitle, localizedDatasetField, datasetGroups } = useSiteConfig();
 const { t } = useI18n();
 
 const currentDataset = computed(() => route.params.registerId as string ?? '');
@@ -84,6 +85,59 @@ const datasetEntries = computed(() => {
 });
 
 const datasetIds = computed(() => new Set(datasetEntries.value.map(d => d.id)));
+
+const hasGroups = computed(() => (datasetGroups.value?.length ?? 0) > 0);
+
+interface SidebarGroup {
+  id: string;
+  label: string;
+  description?: string;
+  color?: string;
+  entries: { id: string; title: string; loaded: boolean; conceptCount: number }[];
+}
+
+const groupedDatasetEntries = computed<SidebarGroup[]>(() => {
+  const groups = datasetGroups.value;
+  if (!groups?.length) return [];
+
+  const entryMap = new Map(datasetEntries.value.map(e => [e.id, e]));
+  const assigned = new Set<string>();
+  const result: SidebarGroup[] = [];
+
+  for (const g of groups) {
+    const entries = g.datasets
+      .map(id => entryMap.get(id))
+      .filter((e): e is typeof entryMap extends Map<string, infer V> ? V : never => !!e);
+    for (const e of entries) assigned.add(e.id);
+    result.push({
+      id: g.id,
+      label: g.label,
+      description: g.description,
+      color: g.color,
+      entries,
+    });
+  }
+
+  const ungrouped = datasetEntries.value.filter(e => !assigned.has(e.id));
+  if (ungrouped.length) {
+    result.push({ id: '__ungrouped__', label: '', entries: ungrouped });
+  }
+
+  return result;
+});
+
+const collapsedGroups = ref<Set<string>>(new Set());
+
+function toggleGroup(groupId: string) {
+  const s = new Set(collapsedGroups.value);
+  if (s.has(groupId)) s.delete(groupId);
+  else s.add(groupId);
+  collapsedGroups.value = s;
+}
+
+function isGroupExpanded(groupId: string): boolean {
+  return !collapsedGroups.value.has(groupId);
+}
 
 // Hide dataset-prefixed pages (e.g. "viml-about") from global nav
 const filteredGlobalPages = computed(() =>
@@ -473,7 +527,85 @@ function navTitle(page: { route: string }): string {
 
       <!-- Datasets -->
       <div class="section-label">{{ t('nav.datasets') }}</div>
-      <nav class="space-y-1">
+
+      <!-- Grouped datasets -->
+      <template v-if="hasGroups">
+        <div v-for="group in groupedDatasetEntries" :key="group.id" class="mb-2">
+          <!-- Group header (skip for ungrouped) -->
+          <button
+            v-if="group.label"
+            @click="toggleGroup(group.id)"
+            class="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs uppercase tracking-wide font-medium transition-colors hover:bg-ink-50"
+            :style="group.color ? { color: group.color } : {}"
+          >
+            <span class="w-3 text-[10px]">{{ isGroupExpanded(group.id) ? '▾' : '▸' }}</span>
+            <span class="flex-1 text-left truncate">{{ group.label }}</span>
+            <span class="text-[10px] font-normal opacity-50">{{ group.entries.length }}</span>
+          </button>
+
+          <!-- Group entries -->
+          <div v-if="isGroupExpanded(group.id)" class="space-y-1" :class="group.label ? 'ml-1' : ''">
+            <div
+              v-for="ds in group.entries"
+              :key="ds.id"
+              class="rounded-lg transition-all duration-150"
+              :class="currentDataset === ds.id ? 'bg-surface' : ''"
+            >
+              <button
+                @click="goToDataset(ds.id)"
+                class="w-full text-left px-3 py-2 rounded-lg text-sm border-l-2"
+                :class="[
+                  currentDataset === ds.id
+                    ? 'text-ink-800'
+                    : 'border-transparent text-ink-600 hover:bg-ink-50 hover:text-ink-800'
+                ]"
+                :style="currentDataset === ds.id ? { borderLeftColor: getColor(ds.id), borderLeftWidth: '2px' } : {}"
+              >
+                <div class="font-medium truncate leading-snug">{{ localizedDatasetField(ds.id, 'title', ds.title) }}</div>
+                <div v-if="ds.loaded" class="text-xs mt-0.5" :class="currentDataset === ds.id ? 'text-ink-400' : 'text-ink-300'">
+                  {{ ds.conceptCount.toLocaleString() }} {{ t('home.concepts').toLowerCase() }}
+                </div>
+              </button>
+
+              <!-- Expanded dataset: sub-pages + provenance -->
+              <div v-if="currentDataset === ds.id && (filteredDatasetPages.length || provenance.owner)" class="px-2 pb-2">
+                <nav v-if="filteredDatasetPages.length" class="space-y-0.5 mt-1">
+                  <router-link
+                    v-for="page in filteredDatasetPages"
+                    :key="page.route || 'concepts'"
+                    :to="pageRoute(page)"
+                    class="btn-ghost w-full text-left flex items-center gap-2 text-sm"
+                    :class="isActive(page) ? 'active' : ''"
+                    @click="closeMobile"
+                  >
+                    <NavIcon :name="page.icon" />
+                    {{ navTitle(page) }}
+                  </router-link>
+                </nav>
+
+                <div v-if="provenance.owner" class="mt-3 pt-3 border-t border-ink-100/60">
+                  <div class="text-[11px] text-ink-300 space-y-1.5 px-1">
+                    <div v-if="provenance.ref" class="text-xs font-semibold text-ink-700">
+                      {{ provenance.ref }}
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <span class="text-ink-400">{{ t('sidebar.publishedBy') }}</span>
+                      <a v-if="provenance.ownerUrl" :href="provenance.ownerUrl" target="_blank" rel="noopener" class="concept-link font-medium">{{ provenance.owner }}</a>
+                      <span v-else class="text-ink-600 font-medium">{{ provenance.owner }}</span>
+                    </div>
+                    <div v-if="provenance.sourceRepo">
+                      <a :href="provenance.sourceRepo" target="_blank" rel="noopener" class="concept-link">{{ t('sidebar.viewSource') }}</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Flat dataset list (fallback when no groups) -->
+      <nav v-else class="space-y-1">
         <div
           v-for="ds in datasetEntries"
           :key="ds.id"
