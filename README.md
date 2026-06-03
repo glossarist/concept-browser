@@ -264,6 +264,30 @@ datasetGroups:
 
 Datasets not assigned to any group appear at the bottom of the dataset list. If `datasetGroups` is omitted, all datasets are displayed as a flat list (the default behavior).
 
+### Internationalization
+
+All localized text uses language maps — a `translations` field keyed by ISO 639-2 language codes. The top-level `title` and `description` fields hold the default-language text. The `translations` map provides overrides for additional languages:
+
+```yaml
+datasets:
+  - id: viml-2022
+    title: "OIML V 1:2022"
+    description: "Current edition with 135 terms..."
+    translations:
+      fra:
+        title: "OIML V 1:2022"
+        description: "Édition actuelle comprenant 135 termes..."
+
+datasetGroups:
+  - id: viml
+    label: "International Vocabulary of Legal Metrology"
+    translations:
+      fra:
+        label: "Vocabulaire international de métrologie légale"
+```
+
+This pattern applies everywhere localized text appears: site-level translations, dataset translations, group translations, and page translations. Do not use language suffixes like `_fra` — use nested language maps instead.
+
 ### Cross-reference mapping
 
 ```yaml
