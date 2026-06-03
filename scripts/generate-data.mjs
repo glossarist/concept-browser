@@ -1170,6 +1170,7 @@ writeJson(path.join(PUBLIC, 'site-config.json'), {
   description: config.description,
   translations: config.translations || undefined,
   datasets: config.datasets.map(d => d.id),
+  datasetGroups: config.datasetGroups || undefined,
   datasetTranslations: Object.keys(datasetTranslations).length ? datasetTranslations : undefined,
   defaultDataset: config.datasets.length === 1 ? config.datasets[0].id : undefined,
   uiLanguages: config.uiLanguages || undefined,

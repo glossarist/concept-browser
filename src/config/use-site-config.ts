@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue';
 import type { PageConfig } from './types';
+import type { DatasetGroup } from './types';
 import { locale } from '../i18n';
 
 export interface RuntimeSiteConfig {
@@ -12,6 +13,7 @@ export interface RuntimeSiteConfig {
   translations?: Record<string, { title?: string; subtitle?: string; description?: string }>;
   datasetTranslations?: Record<string, Record<string, { title?: string; description?: string }>>;
   datasets: string[];
+  datasetGroups?: DatasetGroup[];
   defaultDataset?: string;
   uiLanguages?: { code: string; label: string }[];
   branding?: {
@@ -182,5 +184,5 @@ export function useSiteConfig() {
     synthesizeDatasetPages(siteConfig.value?.features, siteConfig.value?.pages),
   );
 
-  return { config, visibleDatasets, localizedTitle, localizedSubtitle, localizedDescription, localizedDatasetField, loadConfig, globalPages, datasetPages };
+  return { config, visibleDatasets, localizedTitle, localizedSubtitle, localizedDescription, localizedDatasetField, loadConfig, globalPages, datasetPages, datasetGroups: computed(() => siteConfig.value?.datasetGroups) };
 }
