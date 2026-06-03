@@ -1112,6 +1112,30 @@ function processPages(config) {
 
 const processedPages = processPages(config);
 
+// Auto-generate dataset about pages from {localPath}/about.md
+const _pagesDir = path.join(PUBLIC, 'pages');
+for (const ds of config.datasets || []) {
+  if (!ds.localPath) continue;
+  const aboutSrc = path.resolve(ROOT, ds.localPath, 'about.md');
+  if (!fs.existsSync(aboutSrc)) continue;
+  const raw = fs.readFileSync(aboutSrc, 'utf8');
+  const html = renderMarkdown(stripFrontmatter(raw));
+  const route = `${ds.id}-about`;
+  writeJson(path.join(_pagesDir, `${route}.json`), { title: 'About', html });
+  console.log(`  Auto-generated dataset about page: ${route}`);
+  const uiLangs = (config.uiLanguages || []).map(l => l.code).filter(l => l !== 'eng');
+  const dsTranslations = ds.translations || {};
+  for (const lang of uiLangs) {
+    const trAboutSrc = path.resolve(ROOT, ds.localPath, `about-${lang}.md`);
+    if (!fs.existsSync(trAboutSrc)) continue;
+    const trRaw = fs.readFileSync(trAboutSrc, 'utf8');
+    const trHtml = renderMarkdown(stripFrontmatter(trRaw));
+    const trTitle = dsTranslations[lang]?.title ? `About ${dsTranslations[lang].title}` : 'About';
+    writeJson(path.join(_pagesDir, `${route}.${lang}.json`), { title: trTitle, html: trHtml });
+    console.log(`  Auto-generated dataset about page: ${route}.${lang}`);
+  }
+}
+
 // Generate site-config.json from site config
 const siteBranding = { ...config.branding };
 // Rewrite logo paths to destination filenames and strip build-time fields
