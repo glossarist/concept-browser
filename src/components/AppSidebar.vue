@@ -536,12 +536,11 @@ function navTitle(page: { route: string }): string {
           <button
             v-if="group.label"
             @click="toggleGroup(group.id)"
-            class="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs uppercase tracking-wide font-medium transition-colors hover:bg-ink-50"
+            class="w-full flex items-start gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-ink-50"
             :style="group.color ? { color: group.color } : {}"
           >
-            <span class="w-3 text-[10px]">{{ isGroupExpanded(group.id) ? '▾' : '▸' }}</span>
-            <span class="flex-1 text-left truncate">{{ group.label }}</span>
-            <span class="text-[10px] font-normal opacity-50">{{ group.entries.length }}</span>
+            <span class="w-3 text-[10px] mt-0.5 flex-shrink-0">{{ isGroupExpanded(group.id) ? '▾' : '▸' }}</span>
+            <span class="flex-1 text-left leading-snug">{{ group.label }}</span>
           </button>
 
           <!-- Group entries -->
