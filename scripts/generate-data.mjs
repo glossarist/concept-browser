@@ -851,6 +851,18 @@ for (let i = 0; i < config.datasets.length; i++) {
 }
 writeJson(path.join(PUBLIC, 'datasets.json'), registry);
 
+// Clean stale dataset directories not referenced in config
+const configuredIds = new Set(config.datasets.map(d => d.id));
+if (fs.existsSync(DATA)) {
+  for (const entry of fs.readdirSync(DATA)) {
+    if (!configuredIds.has(entry)) {
+      const stalePath = path.join(DATA, entry);
+      fs.rmSync(stalePath, { recursive: true, force: true });
+      console.log(`  Removed stale data directory: ${entry}`);
+    }
+  }
+}
+
 // Generate routing.json from site config
 writeJson(path.join(PUBLIC, 'routing.json'), config.routing || []);
 console.log('Generated routing.json');
