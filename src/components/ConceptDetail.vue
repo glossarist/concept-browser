@@ -98,7 +98,25 @@ const conceptSources = computed(() => props.concept.sources);
 const conceptTags = computed(() => props.concept.tags ?? []);
 
 // Managed concept related (concept-level cross-references)
-const conceptRelated = computed(() => props.concept.relatedConcepts ?? []);
+// Derives superseded_by from incoming supersedes edges instead of storing it.
+const conceptRelated = computed(() => {
+  const direct = props.concept.relatedConcepts?.filter(rc => rc.type !== 'superseded_by') ?? [];
+  const derived = incomingEdges.value
+    .filter(e => e.type === 'supersedes')
+    .map(e => {
+      const parsed = factory.resolve(e.source, props.registerId);
+      const sourceUrn = parsed.type === 'internal'
+        ? store.manifests.get(parsed.registerId)?.datasetUri
+        : null;
+      const conceptId = e.source.match(/\/concept\/([^/]+)$/)?.[1];
+      return {
+        type: 'superseded_by' as const,
+        ref: sourceUrn && conceptId ? { source: sourceUrn, id: conceptId } : null,
+        content: '',
+      };
+    });
+  return [...direct, ...derived];
+});
 
 function resolveRelatedRef(ref: { source: string | null; id: string | null } | null): { registerId: string; conceptId: string } | null {
   if (!ref?.source || !ref?.id) return null;
