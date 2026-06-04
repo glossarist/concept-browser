@@ -8,6 +8,8 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import yaml from 'js-yaml';
+import { Register } from 'glossarist';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = process.cwd();
@@ -47,9 +49,35 @@ function extractDomains(concept, registerId, uriBase) {
   const base = uriBase || 'https://glossarist.org';
   const edges = [];
   const sourceUri = concept['@id'];
+  const seen = new Set();
+
+  // v3 managed concept-level section/domain references
+  const domains = concept['gl:domain'];
+  if (Array.isArray(domains)) {
+    for (const d of domains) {
+      const conceptId = d['gl:conceptId'] || d.concept_id;
+      if (conceptId) {
+        const refType = d['gl:refType'] || d.ref_type || 'domain';
+        const isSection = refType === 'section';
+        const edgeType = isSection ? 'section' : 'domain';
+        const domainUri = `${base}/${registerId}/domain/${conceptId}`;
+        if (!seen.has(domainUri)) {
+          seen.add(domainUri);
+          edges.push({
+            source: sourceUri,
+            target: domainUri,
+            type: edgeType,
+            label: conceptId,
+            register: registerId,
+          });
+        }
+      }
+    }
+  }
+
+  // Legacy: localized domain strings
   const lcs = concept['gl:localizedConcept'] || {};
   const langs = Object.keys(lcs);
-  const seen = new Set();
   for (const lang of langs) {
     const domain = lcs[lang]['gl:domain'];
     if (domain && !seen.has(domain)) {
@@ -97,7 +125,7 @@ function extractAllEdges(concept, registerId, uriBase, urnMap) {
 
 // --- Build ---
 
-function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap) {
+function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest) {
   const conceptsDir = join(datasetDir, 'concepts');
   if (!existsSync(conceptsDir)) {
     console.log(`  Skipping ${registerId}: no concepts directory`);
@@ -118,7 +146,7 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap) {
       allEdges.push(...edges);
 
       for (const edge of edges) {
-        if (edge.type === 'domain') {
+        if (edge.type === 'domain' || edge.type === 'section') {
           domainConceptCount.set(edge.target, (domainConceptCount.get(edge.target) || 0) + 1);
         }
       }
@@ -152,30 +180,66 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap) {
   writeFileSync(outputPath, JSON.stringify(output, null, 2));
   console.log(`  Written ${deduped.length} edges to edges.json (${(JSON.stringify(output).length / 1024).toFixed(1)} KB)`);
 
-  // Build domain-nodes.json
-  const domainEdgeMap = new Map();
-  for (const edge of deduped) {
-    if (edge.type === 'domain') {
-      const existing = domainEdgeMap.get(edge.target);
-      if (existing) {
-        existing.labels.add(edge.label);
-      } else {
-        domainEdgeMap.set(edge.target, { uri: edge.target, labels: new Set([edge.label]), registerId });
+  // Build domain-nodes.json from manifest sections (authoritative source)
+  const manifestSections = manifest.sections;
+  if (manifestSections && manifestSections.length > 0) {
+    const uriBase = manifest.uriBase || 'https://glossarist.org';
+
+    function buildSectionNode(section, idx) {
+      const sectionId = `section-${section.id}`;
+      const domainUri = `${uriBase}/${registerId}/domain/${sectionId}`;
+      const domainLabel = section.names?.eng || section.id;
+      const node = {
+        uri: domainUri,
+        id: sectionId,
+        names: section.names || {},
+        label: domainLabel,
+        registerId,
+        conceptCount: domainConceptCount.get(domainUri) || 0,
+        order: idx,
+      };
+      if (section.children && section.children.length > 0) {
+        node.children = section.children.map((child, childIdx) =>
+          buildSectionNode(child, childIdx)
+        );
+      }
+      return node;
+    }
+
+    const domainNodes = manifestSections.map((section, idx) =>
+      buildSectionNode(section, idx)
+    );
+
+    const domainOutput = { registerId, domainNodes };
+    const domainPath = join(datasetDir, 'domain-nodes.json');
+    writeFileSync(domainPath, JSON.stringify(domainOutput, null, 2));
+    console.log(`  Written ${domainNodes.length} section-based domain nodes to domain-nodes.json`);
+  } else {
+    // Fallback: derive domain nodes from concept edges (legacy behavior)
+    const domainEdgeMap = new Map();
+    for (const edge of deduped) {
+      if (edge.type === 'domain') {
+        const existing = domainEdgeMap.get(edge.target);
+        if (existing) {
+          existing.labels.add(edge.label);
+        } else {
+          domainEdgeMap.set(edge.target, { uri: edge.target, labels: new Set([edge.label]), registerId });
+        }
       }
     }
+
+    const domainNodes = [...domainEdgeMap.values()].map(d => ({
+      uri: d.uri,
+      label: [...d.labels][0],
+      registerId: d.registerId,
+      conceptCount: domainConceptCount.get(d.uri) || 0,
+    })).sort((a, b) => b.conceptCount - a.conceptCount);
+
+    const domainOutput = { registerId, domainNodes };
+    const domainPath = join(datasetDir, 'domain-nodes.json');
+    writeFileSync(domainPath, JSON.stringify(domainOutput, null, 2));
+    console.log(`  Written ${domainNodes.length} edge-derived domain nodes to domain-nodes.json`);
   }
-
-  const domainNodes = [...domainEdgeMap.values()].map(d => ({
-    uri: d.uri,
-    label: [...d.labels][0],
-    registerId: d.registerId,
-    conceptCount: domainConceptCount.get(d.uri) || 0,
-  })).sort((a, b) => b.conceptCount - a.conceptCount);
-
-  const domainOutput = { registerId, domainNodes };
-  const domainPath = join(datasetDir, 'domain-nodes.json');
-  writeFileSync(domainPath, JSON.stringify(domainOutput, null, 2));
-  console.log(`  Written ${domainNodes.length} domain nodes to domain-nodes.json`);
 }
 
 // Main
@@ -217,7 +281,7 @@ for (const ds of datasets) {
   try {
     console.log(`${manifest.title} (${ds}):`);
     const uriBase = manifest.uriBase || 'https://glossarist.org';
-    buildEdgesForDataset(join(DATA_DIR, ds), ds, uriBase, urnMap);
+    buildEdgesForDataset(join(DATA_DIR, ds), ds, uriBase, urnMap, manifest);
   } catch (e) {
     console.error(`Error reading manifest for ${ds}: ${e.message}`);
   }

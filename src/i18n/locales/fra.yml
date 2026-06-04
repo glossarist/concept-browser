@@ -174,3 +174,11 @@ shortcuts.search: Recherche
 shortcuts.showShortcuts: Afficher les raccourcis
 shortcuts.closeDialog: Fermer
 shortcuts.hint: Les raccourcis ne fonctionnent que si aucun champ de saisie n'a le focus
+
+# Sections
+nav.sections: Sections
+dataset.systematic: Systématique
+dataset.alphabetical: Alphabétique
+dataset.sectionFilter: Section
+dataset.clearSection: Effacer la section
+dataset.conceptsInSection: concepts dans la section

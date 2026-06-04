@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
-import { naturalSort } from 'glossarist';
+import { naturalSort, Register } from 'glossarist';
 import { loadSiteConfig } from './load-site-config.mjs';
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
@@ -774,6 +774,9 @@ function processDataset(dir, register, opts) {
   if (opts.languageOrder) manifest.languageOrder = opts.languageOrder;
   if (opts.ref) manifest.ref = opts.ref;
   if (opts.refAliases) manifest.refAliases = opts.refAliases;
+  if (opts.status) manifest.editionStatus = opts.status;
+  if (opts.ordering) manifest.ordering = opts.ordering;
+  if (opts.sections && opts.sections.length > 0) manifest.sections = opts.sections;
   writeJson(path.join(DATA, register, 'manifest.json'), manifest);
 
   // Copy bibliography.yaml → bibliography.json
@@ -811,6 +814,21 @@ const { config } = loadSiteConfig();
 const refMaps = buildRefMaps(config);
 const counts = {};
 const registry = [];
+const registerCache = {};
+
+// Pre-load all register.yaml files
+for (const ds of config.datasets) {
+  const registerDir = path.join(ROOT, '.datasets', ds.id);
+  const registerYamlPath = path.join(registerDir, 'register.yaml');
+  if (fs.existsSync(registerYamlPath)) {
+    try {
+      const raw = yaml.load(fs.readFileSync(registerYamlPath, 'utf8'));
+      registerCache[ds.id] = Register.fromJSON(raw);
+    } catch (e) {
+      console.warn(`  Warning: failed to parse register.yaml for ${ds.id}: ${e.message}`);
+    }
+  }
+}
 
 for (let i = 0; i < config.datasets.length; i++) {
   const ds = config.datasets[i];
@@ -822,28 +840,41 @@ for (let i = 0; i < config.datasets.length; i++) {
     continue;
   }
 
-  const registerDir = path.join(ROOT, '.datasets', ds.id);
-  const registerYamlPath = path.join(registerDir, 'register.yaml');
-  let registerMeta = {};
-  if (fs.existsSync(registerYamlPath)) {
-    try { registerMeta = readYaml(registerYamlPath) || {}; } catch {}
-  }
+  // Use cached register
+  const reg = registerCache[ds.id] || null;
 
-  const dsLanguages = ds.languages || (registerMeta.subregisters ? Object.keys(registerMeta.subregisters) : ['eng']);
+  // Resolve languages: register.yaml first, then site-config fallback
+  const dsLanguages = (reg?.languages?.length ? reg.languages : null)
+    || ds.languages
+    || ['eng'];
+
+  // Resolve description: register.yaml first, then site-config
+  const defaultLang = dsLanguages[0] || 'eng';
+  const regDesc = reg?.description;
+  const dsDesc = ds.description;
+  const resolvedDescription = (typeof regDesc === 'object' && Object.keys(regDesc).length > 0)
+    ? regDesc[defaultLang] || Object.values(regDesc)[0] || ''
+    : dsDesc || '';
+
+  // Resolve title: site-config override, then ref from register
+  const resolvedTitle = ds.title || reg?.ref || ds.id;
 
   counts[ds.id] = processDataset(dir, ds.id, {
-    title: ds.title || registerMeta.name || ds.id,
-    description: ds.description || registerMeta.description || '',
-    owner: ds.owner,
+    title: resolvedTitle,
+    description: resolvedDescription,
+    owner: ds.owner || reg?.owner,
     languages: dsLanguages,
-    sourceRepo: ds.sourceRepo,
-    languageOrder: ds.languageOrder,
-    ref: ds.ref,
-    refAliases: ds.refAliases,
-    tags: ds.tags,
+    sourceRepo: ds.sourceRepo || reg?.sourceRepo,
+    languageOrder: ds.languageOrder || reg?.languageOrder,
+    ref: ds.ref || reg?.ref,
+    refAliases: ds.refAliases || reg?.refAliases,
+    tags: ds.tags || reg?.tags,
     color: ds.color || DS_PALETTE[i % DS_PALETTE.length],
-    datasetUri: ds.uri,
-    uriAliases: ds.uriAliases,
+    datasetUri: ds.uri || reg?.urn,
+    uriAliases: ds.uriAliases || reg?.urnAliases,
+    status: ds.editionStatus || reg?.status,
+    ordering: reg?.ordering || null,
+    sections: reg?.sections ? reg.sections.map(s => s.toJSON()) : [],
     hasBibliography: fs.existsSync(path.join(ROOT, '.datasets', ds.id, 'bibliography.yaml')),
     hasImages: fs.existsSync(path.join(ROOT, '.datasets', ds.id, 'images')),
   });
@@ -1179,10 +1210,32 @@ for (const key of ['logo', 'footerLogo']) {
   }
 }
 
-// Build dataset translations map
+// Build dataset translations map: merge site-config overrides with register.yaml descriptions
 const datasetTranslations = {};
 for (const d of config.datasets) {
-  if (d.translations) datasetTranslations[d.id] = d.translations;
+  const reg = registerCache[d.id];
+  const translations = { ...d.translations };
+
+  // Merge register.yaml descriptions as translations
+  if (reg?.description && typeof reg.description === 'object') {
+    for (const [lang, desc] of Object.entries(reg.description)) {
+      if (!translations[lang]) translations[lang] = {};
+      if (!translations[lang].description) translations[lang].description = desc;
+    }
+  }
+
+  // Merge register.yaml ref as translated title if not already set
+  if (reg?.ref) {
+    const langs = reg.languages || [];
+    for (const lang of langs) {
+      if (!translations[lang]) translations[lang] = {};
+      if (!translations[lang].title) translations[lang].title = reg.ref;
+    }
+  }
+
+  if (Object.keys(translations).length > 0) {
+    datasetTranslations[d.id] = translations;
+  }
 }
 
 writeJson(path.join(PUBLIC, 'site-config.json'), {

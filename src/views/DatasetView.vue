@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
 import { useDatasetLoader } from '../composables/use-dataset-loader';
 import { FORMAT_LABELS } from '../config/types';
 import { langName, langLabel, sortLanguages } from '../utils/lang';
 import ConceptCard from '../components/ConceptCard.vue';
-import { useI18n } from '../i18n';
+import { useI18n, locale } from '../i18n';
 import { useSiteConfig } from '../config/use-site-config';
+import type { SectionNode, ManifestSection } from '../adapters/types';
 
 const props = defineProps<{ registerId: string }>();
 
@@ -16,6 +18,8 @@ const { getStyle } = useDsStyle();
 const { ensureLoaded, loading, localError } = useDatasetLoader(() => props.registerId);
 const { t } = useI18n();
 const { localizedDatasetField } = useSiteConfig();
+const route = useRoute();
+const router = useRouter();
 
 const manifest = computed(() => store.manifests.get(props.registerId));
 const localizedTitle = computed(() => localizedDatasetField(props.registerId, 'title', manifest.value?.title));
@@ -46,6 +50,8 @@ const filter = ref('');
 const filterInput = ref<HTMLInputElement | null>(null);
 const allChunksLoaded = ref(false);
 const selectedLang = ref<string | null>(null);
+const viewMode = ref<'systematic' | 'alphabetical'>('systematic');
+const sectionQuery = computed(() => (route.query.section as string) || null);
 
 interface LangOption {
   code: string;
@@ -92,6 +98,17 @@ watch(filter, async (q) => {
   }
 });
 
+// When section filter changes, reset page and load all chunks
+watch(sectionQuery, async () => {
+  page.value = 1;
+  if (sectionQuery.value && !allChunksLoaded.value && adapter.value) {
+    chunkLoading.value = true;
+    await adapter.value.ensureAllChunksLoaded();
+    allChunksLoaded.value = true;
+    chunkLoading.value = false;
+  }
+});
+
 // When language filter changes, reset page and load all chunks
 watch(selectedLang, async (lang) => {
   page.value = 1;
@@ -113,11 +130,51 @@ const loadedConcepts = computed(() => {
 const filtered = computed(() => {
   const q = filter.value.trim().toLowerCase();
   const lang = selectedLang.value;
+  const sec = sectionQuery.value;
   return loadedConcepts.value.filter(c => {
     if (lang && !(lang in (c.designations ?? {}))) return false;
+    if (sec && !conceptMatchesSection(c.id, sec)) return false;
     if (!q) return true;
     return (c.eng || '').toLowerCase().includes(q) || c.id.toLowerCase().includes(q);
   });
+});
+
+function conceptMatchesSection(conceptId: string, sectionPrefix: string): boolean {
+  // section-X matches concept IDs starting with X.
+  // e.g. section-1 matches 1.1, 1.2, etc.
+  // section-103-01 matches 103-01-01, 103-01-02, etc.
+  const prefix = sectionPrefix.replace(/^section-/, '');
+  return conceptId.startsWith(prefix + '.') || conceptId.startsWith(prefix + '-');
+}
+
+function getSections(): SectionNode[] {
+  const m = manifest.value;
+  if (!m?.sections?.length) return [];
+  return m.sections.map(s => enrichSection(s));
+}
+
+function enrichSection(s: ManifestSection): SectionNode {
+  const node: SectionNode = { id: s.id, names: s.names || {}, conceptCount: 0 };
+  if (s.children && s.children.length > 0) {
+    node.children = s.children.map(c => enrichSection(c));
+  }
+  return node;
+}
+
+function sectionName(section: SectionNode): string {
+  return section.names[locale.value] || section.names.eng || section.id;
+}
+
+// Alphabetical grouping
+const alphabetGroups = computed(() => {
+  if (viewMode.value !== 'alphabetical') return [];
+  const groups = new Map<string, import('../adapters/types').ConceptSummary[]>();
+  for (const c of filtered.value) {
+    const letter = ((c.eng || c.id)[0] || '?').toUpperCase();
+    if (!groups.has(letter)) groups.set(letter, []);
+    groups.get(letter)!.push(c);
+  }
+  return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 });
 
 const page = ref(1);
@@ -130,13 +187,15 @@ const pageLoaded = computed(() => {
   return adapter.value.isRangeLoaded(start, perPage);
 });
 
+const isFiltering = computed(() =>
+  filter.value.trim() || selectedLang.value || sectionQuery.value
+);
+
 const paged = computed(() => {
-  // When filtering (text or language), paginate over filtered dense results (all chunks loaded)
-  if (filter.value.trim() || selectedLang.value) {
+  if (isFiltering.value) {
     const start = (page.value - 1) * perPage;
     return filtered.value.slice(start, start + perPage);
   }
-  // When not filtering, slice directly from the pre-allocated index (may contain undefined)
   const start = (page.value - 1) * perPage;
   const arr = adapter.value?.getConcepts();
   if (!arr) return [];
@@ -144,7 +203,7 @@ const paged = computed(() => {
 });
 
 const totalPages = computed(() => {
-  if (filter.value.trim() || selectedLang.value) {
+  if (isFiltering.value) {
     return Math.max(1, Math.ceil(filtered.value.length / perPage));
   }
   return Math.max(1, Math.ceil(totalConceptCount.value / perPage));
@@ -152,7 +211,7 @@ const totalPages = computed(() => {
 
 // Load chunks needed for current page
 watch(page, async () => {
-  if (!adapter.value || filter.value.trim() || selectedLang.value) return;
+  if (!adapter.value || isFiltering.value) return;
   const start = (page.value - 1) * perPage;
   if (!adapter.value.isRangeLoaded(start, perPage)) {
     chunkLoading.value = true;
@@ -179,6 +238,14 @@ const visiblePages = computed(() => {
 function goToPage(p: number) {
   page.value = Math.max(1, Math.min(p, totalPages.value));
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function clearSection() {
+  const r = { ...route };
+  delete (r as any).query?.section;
+  const q = { ...route.query };
+  delete q.section;
+  router.replace({ query: q });
 }
 </script>
 
@@ -268,6 +335,18 @@ function goToPage(p: number) {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
           </svg>
         </div>
+        <div v-if="getSections().length" class="flex items-center gap-1">
+          <button
+            @click="viewMode = 'systematic'"
+            :class="viewMode === 'systematic' ? 'bg-ink-800 text-white' : 'bg-surface-raised text-ink-600 hover:bg-ink-50 border border-ink-100'"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+          >{{ t('dataset.systematic') }}</button>
+          <button
+            @click="viewMode = 'alphabetical'"
+            :class="viewMode === 'alphabetical' ? 'bg-ink-800 text-white' : 'bg-surface-raised text-ink-600 hover:bg-ink-50 border border-ink-100'"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+          >{{ t('dataset.alphabetical') }}</button>
+        </div>
         <span class="text-sm text-ink-400">
           <template v-if="selectedLang">
             {{ filtered.length.toLocaleString() }} {{ t('dataset.of') }} {{ totalConceptCount.toLocaleString() }} {{ t('dataset.concepts') }} {{ t('dataset.in') }} {{ langName(selectedLang) }}
@@ -282,6 +361,18 @@ function goToPage(p: number) {
             {{ totalConceptCount.toLocaleString() }} {{ t('dataset.concepts') }}
           </template>
         </span>
+      </div>
+
+      <!-- Section filter indicator -->
+      <div v-if="sectionQuery" class="flex items-center gap-2 mb-4">
+        <span class="text-sm text-ink-500">{{ t('dataset.sectionFilter') }}:</span>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-50 text-amber-700 text-sm font-medium">
+          {{ sectionQuery }}
+          <button @click="clearSection" class="text-amber-400 hover:text-amber-600 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </span>
+        <span class="text-xs text-ink-400">{{ filtered.length.toLocaleString() }} {{ t('dataset.conceptsInSection') }}</span>
       </div>
 
       <!-- Language filter -->

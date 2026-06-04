@@ -34,6 +34,13 @@ export { GRAMMAR_GENDERS, GRAMMAR_NUMBERS, GRAMMAR_PARTS_OF_SPEECH } from 'gloss
 
 // ── Dataset metadata ──────────────────────────────────────────────────────
 
+export interface ManifestSection {
+  id: string;
+  names: Record<string, string>;
+  ordering?: string;
+  children?: ManifestSection[];
+}
+
 export interface Manifest {
   id: string;
   datasetUri: string;
@@ -59,6 +66,9 @@ export interface Manifest {
   languageOrder?: string[];
   ref?: string;
   refAliases?: string[];
+  editionStatus?: string;
+  ordering?: string;
+  sections?: ManifestSection[];
   languageStats?: Record<string, { terms: number; definitions: number }>;
   availableFormats?: string[];
   bulkFormats?: { file: string; format: string; size: number }[];
@@ -98,6 +108,7 @@ export interface DatasetRegistry {
 export const EDGE_TYPE = {
   REFERENCES: 'references',
   DOMAIN: 'domain',
+  SECTION: 'section',
 } as const;
 
 export interface GraphEdge {
@@ -117,6 +128,15 @@ export interface GraphNode {
   status: string;
   loaded: boolean;
   nodeType?: 'concept' | 'domain';
+  conceptCount?: number;
+  children?: SectionNode[];
+}
+
+export interface SectionNode {
+  id: string;
+  names: Record<string, string>;
+  conceptCount: number;
+  children?: SectionNode[];
 }
 
 // ── Search ─────────────────────────────────────────────────────────────────

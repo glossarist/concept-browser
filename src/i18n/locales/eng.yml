@@ -174,3 +174,11 @@ shortcuts.search: Search
 shortcuts.showShortcuts: Show shortcuts
 shortcuts.closeDialog: Close dialog
 shortcuts.hint: Shortcuts only work when no input field is focused
+
+# Sections
+nav.sections: Sections
+dataset.systematic: Systematic
+dataset.alphabetical: Alphabetical
+dataset.sectionFilter: Section
+dataset.clearSection: Clear section
+dataset.conceptsInSection: concepts in section

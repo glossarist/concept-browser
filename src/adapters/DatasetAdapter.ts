@@ -6,6 +6,7 @@ import type {
   SearchHit,
   GraphEdge,
   GraphNode,
+  SectionNode,
 } from './types';
 import type { Concept, LocalizedConcept, Designation } from 'glossarist';
 import { conceptFromJson, conceptUri } from './model-bridge';
@@ -370,15 +371,50 @@ export class DatasetAdapter {
     const resp = await fetch(`${this.baseUrl}/domain-nodes.json`);
     if (!resp.ok) return [];
     const data = await resp.json();
-    return (data.domainNodes || []).map((dn: any) => ({
+    return (data.domainNodes || []).map((dn: any) => this.mapDomainNode(dn));
+  }
+
+  private mapDomainNode(dn: any): GraphNode {
+    const node: GraphNode = {
       uri: dn.uri,
       register: dn.registerId,
-      conceptId: dn.uri.split('/domain/')[1] || '',
-      designations: { eng: dn.label },
+      conceptId: dn.uri?.split('/domain/')[1] || dn.id || '',
+      designations: dn.names || { eng: dn.label },
       status: 'domain',
       loaded: true,
       nodeType: 'domain' as const,
-    }));
+      conceptCount: dn.conceptCount || 0,
+    };
+    if (dn.children && dn.children.length > 0) {
+      node.children = dn.children.map((c: any) => this.mapSectionNode(c));
+    }
+    return node;
+  }
+
+  private mapSectionNode(dn: any): SectionNode {
+    const node: SectionNode = {
+      id: dn.id,
+      names: dn.names || { eng: dn.label },
+      conceptCount: dn.conceptCount || 0,
+    };
+    if (dn.children && dn.children.length > 0) {
+      node.children = dn.children.map((c: any) => this.mapSectionNode(c));
+    }
+    return node;
+  }
+
+  getSectionTree(): SectionNode[] {
+    const nodes = this.manifest?.sections;
+    if (!nodes || nodes.length === 0) return [];
+    return nodes.map(s => this.mapManifestSection(s));
+  }
+
+  private mapManifestSection(s: { id: string; names: Record<string, string>; children?: any[] }): SectionNode {
+    const node: SectionNode = { id: s.id, names: s.names || {}, conceptCount: 0 };
+    if (s.children && s.children.length > 0) {
+      node.children = s.children.map(c => this.mapManifestSection(c));
+    }
+    return node;
   }
 
   async loadEdgeIndex(): Promise<GraphEdge[]> {

@@ -9,6 +9,7 @@ import type { DatasetGroup } from '../config/types';
 import { useOntologyNav, compactToSlug } from '../composables/use-ontology-nav';
 import NavIcon from './NavIcon.vue';
 import { useI18n, locale } from '../i18n';
+import type { SectionNode } from '../adapters/types';
 
 const store = useVocabularyStore();
 const ui = useUiStore();
@@ -223,6 +224,47 @@ function navTitle(page: { route: string }): string {
   const translated = t(key);
   return translated === key ? (page as any).title : translated;
 }
+
+const expandedSectionNodes = ref<Set<string>>(new Set());
+
+function toggleSectionNode(id: string) {
+  const s = new Set(expandedSectionNodes.value);
+  if (s.has(id)) s.delete(id);
+  else s.add(id);
+  expandedSectionNodes.value = s;
+}
+
+function getDatasetSections(dsId: string): SectionNode[] {
+  const m = store.manifests.get(dsId);
+  if (!m?.sections?.length) return [];
+  return m.sections.map(s => enrichSectionNode(s));
+}
+
+function enrichSectionNode(s: { id: string; names: Record<string, string>; children?: any[] }): SectionNode {
+  const node: SectionNode = { id: s.id, names: s.names || {}, conceptCount: 0 };
+  if (s.children && s.children.length > 0) {
+    node.children = s.children.map(c => enrichSectionNode(c));
+  }
+  return node;
+}
+
+function sectionLabel(section: SectionNode): string {
+  return section.names[locale.value] || section.names.eng || section.id;
+}
+
+function goToSection(dsId: string, sectionId: string) {
+  router.push({ name: 'dataset', params: { registerId: dsId }, query: { section: sectionId } });
+  closeMobile();
+}
+
+function clearSectionFilter() {
+  router.push({ name: 'dataset', params: { registerId: currentDataset.value } });
+  closeMobile();
+}
+
+const activeSectionId = computed(() => {
+  return (route.query.section as string) || null;
+});
 </script>
 
 <template>
@@ -583,6 +625,46 @@ function navTitle(page: { route: string }): string {
                   </router-link>
                 </nav>
 
+                <!-- Sections tree -->
+                <div v-if="getDatasetSections(ds.id).length" class="mt-2 pt-2 border-t border-ink-100/60">
+                  <button @click="toggleSectionNode(ds.id + '-sections')"
+                    class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] uppercase tracking-wide text-ink-400 hover:text-ink-600 hover:bg-ink-50 transition-colors"
+                  >
+                    <span class="w-3 text-[10px]">{{ expandedSectionNodes.has(ds.id + '-sections') ? '▾' : '▸' }}</span>
+                    <span class="flex-1 text-left">{{ t('nav.sections') }}</span>
+                    <span class="badge text-[9px] bg-amber-50 text-amber-600 px-1 py-0.5">{{ getDatasetSections(ds.id).length }}</span>
+                  </button>
+                  <div v-if="expandedSectionNodes.has(ds.id + '-sections')" class="mt-0.5 max-h-64 overflow-y-auto">
+                    <button
+                      @click="clearSectionFilter()"
+                      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
+                      :class="!activeSectionId ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-500 hover:bg-ink-50'"
+                    >
+                      <span class="w-3 text-ink-200">&#183;</span>
+                      <span class="flex-1 text-left">{{ t('dataset.all') }}</span>
+                    </button>
+                    <template v-for="section in getDatasetSections(ds.id)" :key="section.id">
+                      <button @click="goToSection(ds.id, 'section-' + section.id)"
+                        class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
+                        :class="activeSectionId === 'section-' + section.id ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-500 hover:bg-ink-50'"
+                      >
+                        <span v-if="section.children?.length" class="text-[10px] text-ink-300 w-3 cursor-pointer" @click.stop="toggleSectionNode(ds.id + '-s-' + section.id)">{{ expandedSectionNodes.has(ds.id + '-s-' + section.id) ? '▾' : '▸' }}</span>
+                        <span v-else class="w-3 text-ink-200">&#183;</span>
+                        <span class="flex-1 text-left">{{ sectionLabel(section) }}</span>
+                      </button>
+                      <div v-if="section.children?.length && expandedSectionNodes.has(ds.id + '-s-' + section.id)" class="ml-3">
+                        <button v-for="child in section.children" :key="child.id"
+                          @click="goToSection(ds.id, 'section-' + child.id)"
+                          class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
+                          :class="activeSectionId === 'section-' + child.id ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-400 hover:bg-ink-50'"
+                        >
+                          <span class="w-3 text-ink-200">&#183;</span>
+                          <span class="flex-1 text-left">{{ sectionLabel(child) }}</span>
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                </div>
                 <div v-if="provenance.owner" class="mt-3 pt-3 border-t border-ink-100/60">
                   <div class="text-[11px] text-ink-300 space-y-1.5 px-1">
                     <div v-if="provenance.ref" class="text-xs font-semibold text-ink-700">
@@ -644,6 +726,47 @@ function navTitle(page: { route: string }): string {
                 {{ navTitle(page) }}
               </router-link>
             </nav>
+
+            <!-- Sections tree -->
+            <div v-if="getDatasetSections(ds.id).length" class="mt-2 pt-2 border-t border-ink-100/60">
+              <button @click="toggleSectionNode(ds.id + '-sections')"
+                class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] uppercase tracking-wide text-ink-400 hover:text-ink-600 hover:bg-ink-50 transition-colors"
+              >
+                <span class="w-3 text-[10px]">{{ expandedSectionNodes.has(ds.id + '-sections') ? '▾' : '▸' }}</span>
+                <span class="flex-1 text-left">{{ t('nav.sections') }}</span>
+                <span class="badge text-[9px] bg-amber-50 text-amber-600 px-1 py-0.5">{{ getDatasetSections(ds.id).length }}</span>
+              </button>
+              <div v-if="expandedSectionNodes.has(ds.id + '-sections')" class="mt-0.5 max-h-64 overflow-y-auto">
+                <button
+                  @click="clearSectionFilter()"
+                  class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
+                  :class="!activeSectionId ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-500 hover:bg-ink-50'"
+                >
+                  <span class="w-3 text-ink-200">&#183;</span>
+                  <span class="flex-1 text-left">{{ t('dataset.all') }}</span>
+                </button>
+                <template v-for="section in getDatasetSections(ds.id)" :key="section.id">
+                  <button @click="goToSection(ds.id, 'section-' + section.id)"
+                    class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
+                    :class="activeSectionId === 'section-' + section.id ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-500 hover:bg-ink-50'"
+                  >
+                    <span v-if="section.children?.length" class="text-[10px] text-ink-300 w-3 cursor-pointer" @click.stop="toggleSectionNode(ds.id + '-s-' + section.id)">{{ expandedSectionNodes.has(ds.id + '-s-' + section.id) ? '▾' : '▸' }}</span>
+                    <span v-else class="w-3 text-ink-200">&#183;</span>
+                    <span class="flex-1 text-left">{{ sectionLabel(section) }}</span>
+                  </button>
+                  <div v-if="section.children?.length && expandedSectionNodes.has(ds.id + '-s-' + section.id)" class="ml-3">
+                    <button v-for="child in section.children" :key="child.id"
+                      @click="goToSection(ds.id, 'section-' + child.id)"
+                      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
+                      :class="activeSectionId === 'section-' + child.id ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-400 hover:bg-ink-50'"
+                    >
+                      <span class="w-3 text-ink-200">&#183;</span>
+                      <span class="flex-1 text-left">{{ sectionLabel(child) }}</span>
+                    </button>
+                  </div>
+                </template>
+              </div>
+            </div>
 
             <!-- Provenance -->
             <div v-if="provenance.owner" class="mt-3 pt-3 border-t border-ink-100/60">
