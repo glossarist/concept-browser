@@ -43,7 +43,8 @@ function extractReferences(concept, registerId) {
   return edges;
 }
 
-function extractDomains(concept, registerId) {
+function extractDomains(concept, registerId, uriBase) {
+  const base = uriBase || 'https://glossarist.org';
   const edges = [];
   const sourceUri = concept['@id'];
   const lcs = concept['gl:localizedConcept'] || {};
@@ -55,7 +56,7 @@ function extractDomains(concept, registerId) {
       seen.add(domain);
       edges.push({
         source: sourceUri,
-        target: `https://glossarist.org/${registerId}/domain/${slugify(domain)}`,
+        target: `${base}/${registerId}/domain/${slugify(domain)}`,
         type: 'domain',
         label: domain,
         register: registerId,
@@ -65,15 +66,38 @@ function extractDomains(concept, registerId) {
   return edges;
 }
 
-const EXTRACTORS = [extractReferences, extractDomains];
+function extractRelated(concept, registerId, uriBase, urnMap) {
+  const edges = [];
+  const sourceUri = concept['@id'];
+  for (const r of concept['gl:related'] || []) {
+    const ref = r['gl:ref'];
+    if (!ref) continue;
+    const source = ref['gl:source'] || ref['source'];
+    const id = ref['gl:id'] || ref['id'];
+    if (!source || !id) continue;
+    const reg = urnMap.get(source) || source;
+    const target = `${uriBase}/${reg}/concept/${id}`;
+    if (target === sourceUri) continue;
+    edges.push({
+      source: sourceUri,
+      target,
+      type: r['gl:relationshipType'] || 'references',
+      label: r['gl:term'] || undefined,
+      register: reg,
+    });
+  }
+  return edges;
+}
 
-function extractAllEdges(concept, registerId) {
-  return EXTRACTORS.flatMap(fn => fn(concept, registerId));
+const EXTRACTORS = [extractReferences, extractRelated, extractDomains];
+
+function extractAllEdges(concept, registerId, uriBase, urnMap) {
+  return EXTRACTORS.flatMap(fn => fn(concept, registerId, uriBase, urnMap));
 }
 
 // --- Build ---
 
-function buildEdgesForDataset(datasetDir, registerId) {
+function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap) {
   const conceptsDir = join(datasetDir, 'concepts');
   if (!existsSync(conceptsDir)) {
     console.log(`  Skipping ${registerId}: no concepts directory`);
@@ -90,7 +114,7 @@ function buildEdgesForDataset(datasetDir, registerId) {
   for (const file of files) {
     try {
       const data = JSON.parse(readFileSync(join(conceptsDir, file), 'utf-8'));
-      const edges = extractAllEdges(data, registerId);
+      const edges = extractAllEdges(data, registerId, uriBase, urnMap);
       allEdges.push(...edges);
 
       for (const edge of edges) {
@@ -170,12 +194,30 @@ const datasets = readdirSync(DATA_DIR).filter(f => {
   }
 });
 
+// Build URN→datasetId map from all manifests
+const urnMap = new Map();
+const manifestCache = new Map();
 for (const ds of datasets) {
   const manifestPath = join(DATA_DIR, ds, 'manifest.json');
   try {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+    manifestCache.set(ds, manifest);
+    if (manifest.datasetUri) urnMap.set(manifest.datasetUri, ds);
+    for (const alias of manifest.uriAliases ?? []) {
+      const base = alias.endsWith('*') ? alias.slice(0, -1) : alias;
+      if (base.startsWith('urn:')) urnMap.set(base, ds);
+    }
+  } catch {}
+}
+console.log(`URN resolution map: ${[...urnMap.entries()].map(([k,v]) => `${k}→${v}`).join(', ')}\n`);
+
+for (const ds of datasets) {
+  const manifest = manifestCache.get(ds);
+  if (!manifest) continue;
+  try {
     console.log(`${manifest.title} (${ds}):`);
-    buildEdgesForDataset(join(DATA_DIR, ds), ds);
+    const uriBase = manifest.uriBase || 'https://glossarist.org';
+    buildEdgesForDataset(join(DATA_DIR, ds), ds, uriBase, urnMap);
   } catch (e) {
     console.error(`Error reading manifest for ${ds}: ${e.message}`);
   }

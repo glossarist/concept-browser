@@ -156,8 +156,22 @@ function mapSourceFromJsonLd(s: any): Record<string, unknown> {
 
 function mapRelatedFromJsonLd(r: any): Record<string, unknown> {
   const result: Record<string, unknown> = { type: 'references' };
-  if (r['@id']) {
-    // Extract concept ID from URI: ".../concept/3.1.1.6" → source=register, id=3.1.1.6
+
+  if (r['gl:relationshipType']) {
+    result.type = r['gl:relationshipType'];
+  }
+
+  if (r['gl:ref']) {
+    const ref = r['gl:ref'];
+    const refObj: Record<string, unknown> = {};
+    if (ref['gl:source']) refObj.source = ref['gl:source'];
+    if (ref['gl:id']) refObj.id = ref['gl:id'];
+    if (ref['source']) refObj.source = ref['source'];
+    if (ref['id']) refObj.id = ref['id'];
+    if (Object.keys(refObj).length > 0) result.ref = refObj;
+  }
+
+  if (!result.ref && r['@id']) {
     const uri = r['@id'] as string;
     const idMatch = uri.match(/\/concept\/([^/]+)$/);
     result.ref = idMatch
@@ -237,7 +251,7 @@ function conceptFromJsonLd(doc: Record<string, any>): Concept {
     }
   }
 
-  const related = (doc['gl:references'] ?? []).map(mapRelatedFromJsonLd);
+  const related = (doc['gl:related'] ?? []).map(mapRelatedFromJsonLd);
   const tags = Array.isArray(doc['gl:tags']) ? [...doc['gl:tags']] : [];
 
   return Concept.fromJSON({

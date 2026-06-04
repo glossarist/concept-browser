@@ -6,6 +6,7 @@ import { ReferenceResolver } from './ReferenceResolver';
 
 export class AdapterFactory {
   private adapters = new Map<string, DatasetAdapter>();
+  private urnMap = new Map<string, string>();
   readonly router = new UriRouter();
   readonly resolver: ReferenceResolver;
 
@@ -60,6 +61,18 @@ export class AdapterFactory {
     }
     for (const alias of manifest.refAliases ?? []) {
       this.resolver.registerSourceRef(alias, registerId, manifest.datasetUri);
+    }
+
+    // Build URN→datasetId map from manifest
+    if (manifest.datasetUri) this.urnMap.set(manifest.datasetUri, registerId);
+    for (const alias of manifest.uriAliases ?? []) {
+      const base = alias.endsWith('*') ? alias.slice(0, -1) : alias;
+      if (base.startsWith('urn:')) this.urnMap.set(base, registerId);
+    }
+
+    // Distribute the updated URN map to all loaded adapters
+    for (const adapter of this.adapters.values()) {
+      adapter.setUrnMap(this.urnMap);
     }
 
     return adapter;
