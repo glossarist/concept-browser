@@ -1126,21 +1126,32 @@ function processPages(config) {
 
 const processedPages = processPages(config);
 
-// Auto-generate dataset about pages from {localPath}/about.md
+// Auto-generate dataset about pages from {localPath}/about-{lang}.md
 const _pagesDir = path.join(PUBLIC, 'pages');
 for (const ds of config.datasets || []) {
   if (!ds.localPath) continue;
-  const aboutSrc = path.resolve(ROOT, ds.localPath, 'about.md');
-  if (!fs.existsSync(aboutSrc)) continue;
-  const raw = fs.readFileSync(aboutSrc, 'utf8');
-  const html = renderMarkdown(stripFrontmatter(raw));
+  const dsDir = path.resolve(ROOT, ds.localPath);
+  const defaultLang = (ds.languages || ['eng'])[0];
   const route = `${ds.id}-about`;
-  writeJson(path.join(_pagesDir, `${route}.json`), { title: 'About', html });
-  console.log(`  Auto-generated dataset about page: ${route}`);
-  const uiLangs = (config.uiLanguages || []).map(l => l.code).filter(l => l !== 'eng');
   const dsTranslations = ds.translations || {};
+
+  // Default-language about page: try about-{defaultLang}.md, fall back to about.md
+  const defaultSrc = [
+    path.join(dsDir, `about-${defaultLang}.md`),
+    path.join(dsDir, 'about.md'),
+  ].find(p => fs.existsSync(p));
+
+  if (defaultSrc) {
+    const raw = fs.readFileSync(defaultSrc, 'utf8');
+    const html = renderMarkdown(stripFrontmatter(raw));
+    writeJson(path.join(_pagesDir, `${route}.json`), { title: 'About', html });
+    console.log(`  Auto-generated dataset about page: ${route} (from ${path.basename(defaultSrc)})`);
+  }
+
+  // Translated about pages for all non-default UI languages
+  const uiLangs = (config.uiLanguages || []).map(l => l.code).filter(l => l !== defaultLang);
   for (const lang of uiLangs) {
-    const trAboutSrc = path.resolve(ROOT, ds.localPath, `about-${lang}.md`);
+    const trAboutSrc = path.join(dsDir, `about-${lang}.md`);
     if (!fs.existsSync(trAboutSrc)) continue;
     const trRaw = fs.readFileSync(trAboutSrc, 'utf8');
     const trHtml = renderMarkdown(stripFrontmatter(trRaw));
