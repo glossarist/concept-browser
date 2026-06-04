@@ -15,11 +15,14 @@ function slugify(text: string): string {
   return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s/]+/g, '-');
 }
 
-function resolveRefTarget(rc: any, uriBase: string, registerId: string): string {
+function resolveRefTarget(rc: any, uriBase: string, registerId: string, urnMap?: ReadonlyMap<string, string>): string {
   if (!rc.ref) return '';
   const ref = rc.ref;
   if (ref.id) {
-    const reg = (ref.source && !ref.source.startsWith('http')) ? ref.source : registerId;
+    let reg = registerId;
+    if (ref.source && !ref.source.startsWith('http')) {
+      reg = urnMap?.get(ref.source) ?? ref.source;
+    }
     return `${uriBase}/${reg}/concept/${ref.id}`;
   }
   if (ref.source && ref.source.startsWith('http')) return ref.source;
@@ -28,6 +31,7 @@ function resolveRefTarget(rc: any, uriBase: string, registerId: string): string 
 
 export class DatasetAdapter {
   private positionIndex = new Map<string, number>();
+  private _urnMap: ReadonlyMap<string, string> = new Map();
   readonly registerId: string;
   private baseUrl: string;
   manifest: Manifest | null = null;
@@ -294,6 +298,10 @@ export class DatasetAdapter {
     return scored;
   }
 
+  setUrnMap(map: ReadonlyMap<string, string>): void {
+    this._urnMap = map;
+  }
+
   extractEdges(concept: Concept): GraphEdge[] {
     const edges: GraphEdge[] = [];
     const uriBase = this.manifest?.uriBase || 'https://glossarist.org';
@@ -301,7 +309,7 @@ export class DatasetAdapter {
 
     // Managed concept level relationships
     for (const rc of concept.relatedConcepts) {
-      const target = resolveRefTarget(rc, uriBase, this.registerId);
+      const target = resolveRefTarget(rc, uriBase, this.registerId, this._urnMap);
       if (target && target !== sourceUri) {
         const parsed = UriRouter.parseUri(target);
         edges.push({
@@ -319,7 +327,7 @@ export class DatasetAdapter {
       const lc = concept.localization(lang);
       if (!lc) continue;
       for (const rc of lc.related) {
-        const target = resolveRefTarget(rc, uriBase, this.registerId);
+        const target = resolveRefTarget(rc, uriBase, this.registerId, this._urnMap);
         if (target && target !== sourceUri) {
           const parsed = UriRouter.parseUri(target);
           edges.push({

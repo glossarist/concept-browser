@@ -386,6 +386,37 @@ describe('DatasetAdapter', () => {
       expect(edges[0].target).toBe('https://glossarist.org/isotc204/concept/3.1.1.6');
       expect(edges[0].label).toBe('entity');
     });
+
+    it('resolves URN-based ref.source to dataset ID via urnMap', () => {
+      const urnMap = new Map([
+        ['urn:oiml:pub:v:1:2000', 'viml-2000'],
+      ]);
+      adapter.setUrnMap(urnMap);
+
+      const concept = conceptFromJson({
+        '@id': 'https://metanorma.github.io/oiml-viml/viml-2022/concept/2.23',
+        '@type': 'gl:Concept',
+        'gl:localizedConcept': {
+          eng: {
+            'gl:languageCode': 'eng',
+            'gl:designation': [{ '@type': 'gl:Expression', 'gl:term': 'measurement' }],
+          },
+        },
+        'gl:related': [
+          {
+            'gl:relationshipType': 'supersedes',
+            'gl:ref': { 'gl:source': 'urn:oiml:pub:v:1:2000', 'gl:id': '2.23' },
+            'gl:term': 'measurement',
+          },
+        ],
+      });
+
+      adapter.manifest = { uriBase: 'https://metanorma.github.io/oiml-viml' } as any;
+      const edges = adapter.extractEdges(concept);
+      expect(edges.length).toBe(1);
+      expect(edges[0].target).toBe('https://metanorma.github.io/oiml-viml/viml-2000/concept/2.23');
+      expect(edges[0].type).toBe('supersedes');
+    });
   });
 
   describe('extractDomainEdges', () => {
