@@ -209,6 +209,22 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
     }
   }
 
+  async function ensureAllEdgesLoaded() {
+    for (const [id, adapter] of datasets.value) {
+      if (!edgeStatus.value[id]?.loaded) {
+        try {
+          const edges = await adapter.loadEdgeIndex();
+          for (const edge of edges) {
+            graph.value.addEdge(edge);
+          }
+          edgeStatus.value[id] = { loaded: true, count: edges.length };
+        } catch {
+          edgeStatus.value[id] = { loaded: false, count: 0 };
+        }
+      }
+    }
+  }
+
   async function viewConcept(registerId: string, conceptId: string) {
     error.value = null;
     currentRegisterId.value = registerId;
@@ -271,8 +287,14 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
         }
       }
 
+      // Ensure edges from all datasets are loaded for cross-dataset supersession
+      await ensureAllEdgesLoaded();
+
       touchGraph();
-      conceptEdges.value = graph.value.getEdges(uri);
+      conceptEdges.value = [
+        ...graph.value.getEdges(uri),
+        ...graph.value.getIncomingEdges(uri),
+      ];
     } catch (e: unknown) {
       error.value = `Failed to load concept ${conceptId}: ${e instanceof Error ? e.message : String(e)}`;
       currentConcept.value = null;
