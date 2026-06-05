@@ -14,7 +14,7 @@ import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
 import { getFactory } from '../adapters/factory';
 import { useRenderOptions } from '../composables/use-render-options';
-import { categorizeRelationship, relationshipLabel, relationshipDefinition } from '../utils/relationship-categories';
+import { categorizeRelationship, relationshipLabel, relationshipDefinition, INVERSE_RELATIONSHIPS } from '../utils/relationship-categories';
 import { useSiteConfig } from '../config/use-site-config';
 import ConceptTimeline from './ConceptTimeline.vue';
 import ConceptRdfView from './ConceptRdfView.vue';
@@ -98,11 +98,11 @@ const conceptSources = computed(() => props.concept.sources);
 const conceptTags = computed(() => props.concept.tags ?? []);
 
 // Managed concept related (concept-level cross-references)
-// Derives superseded_by from incoming supersedes edges instead of storing it.
+// Derives inverse relationships from incoming edges (e.g. supersedes → superseded_by).
 const conceptRelated = computed(() => {
-  const direct = props.concept.relatedConcepts?.filter(rc => rc.type !== 'superseded_by') ?? [];
+  const direct = props.concept.relatedConcepts?.filter(rc => !INVERSE_RELATIONSHIPS[rc.type]) ?? [];
   const derived = incomingEdges.value
-    .filter(e => e.type === 'supersedes')
+    .filter(e => INVERSE_RELATIONSHIPS[e.type])
     .map(e => {
       const parsed = factory.resolve(e.source, props.registerId);
       const sourceUrn = parsed.type === 'internal'
@@ -110,7 +110,7 @@ const conceptRelated = computed(() => {
         : null;
       const conceptId = e.source.match(/\/concept\/([^/]+)$/)?.[1];
       return {
-        type: 'superseded_by' as const,
+        type: INVERSE_RELATIONSHIPS[e.type],
         ref: sourceUrn && conceptId ? { source: sourceUrn, id: conceptId } : null,
         content: '',
       };
