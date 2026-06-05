@@ -52,11 +52,11 @@ describe('categorizeRelationship', () => {
 
 describe('relationshipLabel', () => {
   it('formats snake_case as title case', () => {
-    expect(relationshipLabel('broader_generic')).toBe('Broader Generic');
-    expect(relationshipLabel('related_concept')).toBe('Related Concept');
+    expect(relationshipLabel('broader_generic')).toBe('broader (generic)');
+    expect(relationshipLabel('related_concept')).toBe('related concept');
   });
 
   it('handles single word', () => {
-    expect(relationshipLabel('broader')).toBe('Broader');
+    expect(relationshipLabel('broader')).toBe('broader');
   });
 });
