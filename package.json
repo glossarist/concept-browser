@@ -1,6 +1,6 @@
 {
   "name": "@glossarist/concept-browser",
-  "version": "0.7.21",
+  "version": "0.7.22",
   "description": "Vue SPA for browsing Glossarist terminology datasets with cross-reference resolution, graph visualization, and multi-language support",
   "type": "module",
   "bin": {
@@ -25,7 +25,7 @@
     "autoprefixer": "^10.4.21",
     "d3": "^7.9.0",
     "favicons": "^7.2.0",
-    "glossarist": "^0.3.1",
+    "glossarist": "^0.3.3",
     "js-yaml": "^4.1.0",
     "pinia": "^2.3.1",
     "postcss": "^8.5.3",
