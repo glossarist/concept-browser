@@ -53,7 +53,7 @@ export const RELATIONSHIP_CATEGORIES: RelationshipCategory[] = [
   {
     id: 'spatiotemporal',
     label: 'Spatiotemporal',
-    types: ['sequentially_related', 'spatially_related', 'temporally_related'],
+    types: ['sequentially_related_concept', 'spatially_related_concept', 'temporally_related_concept'],
     color: 'text-teal-600 bg-teal-50',
   },
   {
@@ -73,7 +73,7 @@ export const RELATIONSHIP_CATEGORIES: RelationshipCategory[] = [
 
 
 export const INVERSE_RELATIONSHIPS: Record<string, string> = {
-  // Lifecycle
+  // Lifecycle (ISO 10241-1)
   supersedes: 'superseded_by',
   superseded_by: 'supersedes',
   deprecates: 'deprecated_by',
@@ -81,34 +81,41 @@ export const INVERSE_RELATIONSHIPS: Record<string, string> = {
   replaces: 'replaced_by',
   replaced_by: 'replaces',
   invalidates: 'invalidated_by',
+  invalidated_by: 'invalidates',
   retires: 'retired_by',
+  retired_by: 'retires',
 
-  // Hierarchical (generic)
+  // Hierarchical (generic — SKOS)
   broader: 'narrower',
   narrower: 'broader',
   broader_generic: 'narrower_generic',
   narrower_generic: 'broader_generic',
 
-  // Hierarchical (partitive)
+  // Hierarchical (partitive — ISO 25964)
   broader_partitive: 'narrower_partitive',
   narrower_partitive: 'broader_partitive',
   has_part: 'is_part_of',
   is_part_of: 'has_part',
 
-  // Hierarchical (instantial)
+  // Hierarchical (instantial — ISO 25964)
   broader_instantial: 'narrower_instantial',
   narrower_instantial: 'broader_instantial',
   instance_of: 'has_instance',
   has_instance: 'instance_of',
 
-  // ISO 19135 register relations
+  // ISO 19135 concept-to-concept
   has_concept: 'is_concept_of',
   is_concept_of: 'has_concept',
   inherits: 'inherited_by',
   inherited_by: 'inherits',
   has_definition: 'definition_of',
+  definition_of: 'has_definition',
+
+  // ISO 19135 versioning
   has_version: 'version_of',
+  version_of: 'has_version',
   current_version: 'current_version_of',
+  current_version_of: 'current_version',
 
   // Symmetric (self-inverse)
   equivalent: 'equivalent',
@@ -116,6 +123,7 @@ export const INVERSE_RELATIONSHIPS: Record<string, string> = {
   contrast: 'contrast',
   close_match: 'close_match',
   related_match: 'related_match',
+  related_concept: 'related_concept',
 };
 const CATEGORY_MAP = new Map<string, RelationshipCategory>();
 for (const cat of RELATIONSHIP_CATEGORIES) {
