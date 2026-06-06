@@ -52,6 +52,7 @@ function makeAdapter(concepts: ConceptSummary[] = []) {
     ensureChunksForRange: async () => {},
     ensureAllChunksLoaded: async () => {},
     getAdjacentConcepts: () => ({ prev: null, next: null }),
+    getSectionTree: () => [],
   } as any;
 }
 

@@ -72,15 +72,23 @@ export class GraphEngine {
     if (from) {
       const adj = this.adjacency.get(from);
       if (!adj) return [];
-      return [...adj.values()].flat();
+      const result: GraphEdge[] = [];
+      for (const list of adj.values()) {
+        for (const e of list) result.push(e);
+      }
+      return result;
     }
-    return this.edges;
+    return [...this.edges];
   }
 
   getIncomingEdges(uri: string): GraphEdge[] {
     const adj = this.reverseAdjacency.get(uri);
     if (!adj) return [];
-    return [...adj.values()].flat();
+    const result: GraphEdge[] = [];
+    for (const list of adj.values()) {
+      for (const e of list) result.push(e);
+    }
+    return result;
   }
 
   getNeighbors(uri: string): { outgoing: string[]; incoming: string[] } {
@@ -100,9 +108,10 @@ export class GraphEngine {
     const collectedNodes: GraphNode[] = [];
     const collectedEdges: GraphEdge[] = [];
     const queue: { uri: string; d: number }[] = [{ uri: rootUri, d: 0 }];
+    let head = 0;
 
-    while (queue.length > 0) {
-      const { uri, d } = queue.shift()!;
+    while (head < queue.length) {
+      const { uri, d } = queue[head++];
       if (visited.has(uri) || d > depth) continue;
       visited.add(uri);
 
@@ -136,5 +145,13 @@ export class GraphEngine {
 
   get edgeCount(): number {
     return this.edges.length;
+  }
+
+  clear(): void {
+    this.nodes.clear();
+    this.edges.length = 0;
+    this.edgeKeys.clear();
+    this.adjacency.clear();
+    this.reverseAdjacency.clear();
   }
 }

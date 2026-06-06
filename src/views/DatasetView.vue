@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
@@ -9,7 +9,7 @@ import { langName, langLabel, sortLanguages } from '../utils/lang';
 import ConceptCard from '../components/ConceptCard.vue';
 import { useI18n, locale } from '../i18n';
 import { useSiteConfig } from '../config/use-site-config';
-import type { SectionNode, ManifestSection } from '../adapters/types';
+import type { SectionNode } from '../adapters/types';
 
 const props = defineProps<{ registerId: string }>();
 
@@ -26,6 +26,41 @@ const localizedTitle = computed(() => localizedDatasetField(props.registerId, 't
 const localizedDescription = computed(() => localizedDatasetField(props.registerId, 'description', manifest.value?.description));
 const adapter = computed(() => store.datasets.get(props.registerId));
 const chunkLoading = ref(false);
+
+// Background chunk preloading via requestIdleCallback
+let idlePreloadHandle: ReturnType<typeof requestIdleCallback> | ReturnType<typeof setTimeout> | null = null;
+
+watch(adapter, (a) => {
+  if (idlePreloadHandle !== null) return;
+  if (!a || !a.index) return;
+
+  const schedule = typeof requestIdleCallback !== 'undefined'
+    ? requestIdleCallback
+    : (cb: () => void) => setTimeout(cb, 0);
+
+  idlePreloadHandle = schedule(() => {
+    if (allChunksLoaded.value || !a.index) {
+      idlePreloadHandle = null;
+      return;
+    }
+    const count = a.getConceptCount();
+    if (count <= 200) {
+      a.ensureAllChunksLoaded().then(() => {
+        allChunksLoaded.value = true;
+      }).catch(() => {});
+    } else {
+      a.ensureChunksForRange(0, 100).catch(() => {});
+    }
+    idlePreloadHandle = null;
+  }, { timeout: 2000 } as any);
+});
+
+onBeforeUnmount(() => {
+  if (idlePreloadHandle !== null) {
+    (typeof cancelIdleCallback !== 'undefined' ? cancelIdleCallback : clearTimeout)(idlePreloadHandle as any);
+    idlePreloadHandle = null;
+  }
+});
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -87,37 +122,26 @@ function onGlobalKeydown(e: KeyboardEvent) {
 onMounted(() => window.addEventListener('keydown', onGlobalKeydown));
 onUnmounted(() => window.removeEventListener('keydown', onGlobalKeydown));
 
-// When filtering, ensure all chunks are loaded for accurate search
+async function ensureAllChunksForFilter(needsLoad: boolean) {
+  page.value = 1;
+  if (needsLoad && !allChunksLoaded.value && adapter.value) {
+    chunkLoading.value = true;
+    await adapter.value.ensureAllChunksLoaded();
+    allChunksLoaded.value = true;
+    chunkLoading.value = false;
+  }
+}
+
 watch(filter, async (q) => {
-  page.value = 1;
-  if (q.trim().length >= 2 && !allChunksLoaded.value && adapter.value) {
-    chunkLoading.value = true;
-    await adapter.value.ensureAllChunksLoaded();
-    allChunksLoaded.value = true;
-    chunkLoading.value = false;
-  }
+  await ensureAllChunksForFilter(q.trim().length >= 2);
 });
 
-// When section filter changes, reset page and load all chunks
 watch(sectionQuery, async () => {
-  page.value = 1;
-  if (sectionQuery.value && !allChunksLoaded.value && adapter.value) {
-    chunkLoading.value = true;
-    await adapter.value.ensureAllChunksLoaded();
-    allChunksLoaded.value = true;
-    chunkLoading.value = false;
-  }
+  await ensureAllChunksForFilter(!!sectionQuery.value);
 });
 
-// When language filter changes, reset page and load all chunks
 watch(selectedLang, async (lang) => {
-  page.value = 1;
-  if (lang && !allChunksLoaded.value && adapter.value) {
-    chunkLoading.value = true;
-    await adapter.value.ensureAllChunksLoaded();
-    allChunksLoaded.value = true;
-    chunkLoading.value = false;
-  }
+  await ensureAllChunksForFilter(!!lang);
 });
 
 // Dense array: only loaded (non-undefined) entries
@@ -133,37 +157,38 @@ const filtered = computed(() => {
   const sec = sectionQuery.value;
   return loadedConcepts.value.filter(c => {
     if (lang && !(lang in (c.designations ?? {}))) return false;
-    if (sec && !conceptMatchesSection(c.id, sec)) return false;
+    if (sec && !conceptMatchesSection(c, sec)) return false;
     if (!q) return true;
     return (c.eng || '').toLowerCase().includes(q) || c.id.toLowerCase().includes(q);
   });
 });
 
-function conceptMatchesSection(conceptId: string, sectionPrefix: string): boolean {
-  // section-X matches concept IDs starting with X.
-  // e.g. section-1 matches 1.1, 1.2, etc.
-  // section-103-01 matches 103-01-01, 103-01-02, etc.
+function conceptMatchesSection(concept: import('../adapters/types').ConceptSummary, sectionPrefix: string): boolean {
   const prefix = sectionPrefix.replace(/^section-/, '');
-  return conceptId.startsWith(prefix + '.') || conceptId.startsWith(prefix + '-');
+  // Check explicit groups (e.g. G18 sections derived from domains)
+  if (concept.groups?.length && concept.groups.includes(prefix)) return true;
+  // Check concept ID prefix matching (e.g. VIML/VIM numbered sections)
+  return concept.id.startsWith(prefix + '.') || concept.id.startsWith(prefix + '-');
 }
 
 function getSections(): SectionNode[] {
-  const m = manifest.value;
-  if (!m?.sections?.length) return [];
-  return m.sections.map(s => enrichSection(s));
-}
-
-function enrichSection(s: ManifestSection): SectionNode {
-  const node: SectionNode = { id: s.id, names: s.names || {}, conceptCount: 0 };
-  if (s.children && s.children.length > 0) {
-    node.children = s.children.map(c => enrichSection(c));
-  }
-  return node;
+  if (!adapter.value) return [];
+  return adapter.value.getSectionTree();
 }
 
 function sectionName(section: SectionNode): string {
   return section.names[locale.value] || section.names.eng || section.id;
 }
+
+const sectionDisplayName = computed(() => {
+  if (!sectionQuery.value) return '';
+  const prefix = sectionQuery.value.replace(/^section-/, '');
+  const sections = getSections();
+  const found = sections.find(s => s.id === prefix);
+  if (!found) return prefix;
+  const name = sectionName(found);
+  return name !== found.id ? `${found.id} — ${name}` : name;
+});
 
 // Alphabetical grouping
 const alphabetGroups = computed(() => {
@@ -367,7 +392,7 @@ function clearSection() {
       <div v-if="sectionQuery" class="flex items-center gap-2 mb-4">
         <span class="text-sm text-ink-500">{{ t('dataset.sectionFilter') }}:</span>
         <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-50 text-amber-700 text-sm font-medium">
-          {{ sectionQuery }}
+          {{ sectionDisplayName }}
           <button @click="clearSection" class="text-amber-400 hover:text-amber-600 transition-colors">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>

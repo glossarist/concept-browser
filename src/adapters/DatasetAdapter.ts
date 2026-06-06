@@ -7,6 +7,7 @@ import type {
   GraphEdge,
   GraphNode,
   SectionNode,
+  DatasetSummary,
 } from './types';
 import type { Concept, LocalizedConcept, Designation } from 'glossarist';
 import { conceptFromJson, conceptUri } from './model-bridge';
@@ -37,8 +38,10 @@ export class DatasetAdapter {
   private baseUrl: string;
   manifest: Manifest | null = null;
   index: ConceptIndex | null = null;
+  private manifestComplete = false;
 
   private conceptCache = new Map<string, Concept>();
+  private static MAX_CACHE = 100;
   private summaryMap = new Map<string, ConceptSummary>();
   private loadedChunks = new Set<number>();
   private indexMeta: { conceptCount: number; chunkSize: number; chunks: { file: string; count: number }[] } | null = null;
@@ -48,10 +51,37 @@ export class DatasetAdapter {
     this.baseUrl = baseUrl;
   }
 
+  setSummaryManifest(summary: DatasetSummary): void {
+    this.manifest = {
+      id: this.registerId,
+      datasetUri: '',
+      title: summary.title,
+      description: summary.description,
+      owner: summary.owner,
+      baseUrl: this.baseUrl,
+      languages: summary.languages,
+      conceptCount: summary.conceptCount,
+      conceptUrlTemplate: '',
+      indexUrl: '',
+      contextUrl: '',
+      uriBase: '',
+      status: '',
+      schemaVersion: '',
+      tags: summary.tags,
+      lastUpdated: '',
+      sourceRepo: '',
+      chunkSize: 1000,
+      color: summary.color,
+    };
+    this.manifestComplete = false;
+  }
+
   async loadManifest(): Promise<Manifest> {
+    if (this.manifestComplete && this.manifest) return this.manifest;
     const resp = await fetch(`${this.baseUrl}/manifest.json`);
     if (!resp.ok) throw new Error(`Failed to load manifest for ${this.registerId}: ${resp.status}`);
     this.manifest = (await resp.json()) as Manifest;
+    this.manifestComplete = true;
     return this.manifest;
   }
 
@@ -79,6 +109,7 @@ export class DatasetAdapter {
       designations: c.designations || {},
       eng: c.eng || c.designations?.eng || Object.values(c.designations || {})[0] || '',
       status: c.status,
+      groups: c.groups || [],
     }));
 
     return {
@@ -166,6 +197,7 @@ export class DatasetAdapter {
         designations,
         eng: designations.eng || Object.values(designations)[0] || '',
         status: entry.status,
+        groups: entry.groups || [],
       };
       this.index!.concepts[startPos + i] = summary;
       this.summaryMap.set(entry.id, summary);
@@ -207,13 +239,21 @@ export class DatasetAdapter {
 
   async fetchConcept(conceptId: string): Promise<Concept> {
     const cached = this.conceptCache.get(conceptId);
-    if (cached) return cached;
+    if (cached) {
+      this.conceptCache.delete(conceptId);
+      this.conceptCache.set(conceptId, cached);
+      return cached;
+    }
 
     const resp = await fetch(`${this.baseUrl}/concepts/${conceptId}.json`);
     if (!resp.ok) throw new Error(`Concept ${conceptId} not found in ${this.registerId}`);
     const json = await resp.json();
     const concept = conceptFromJson(json);
     this.conceptCache.set(conceptId, concept);
+    if (this.conceptCache.size > DatasetAdapter.MAX_CACHE) {
+      const oldest = this.conceptCache.keys().next().value;
+      if (oldest !== undefined) this.conceptCache.delete(oldest);
+    }
     return concept;
   }
 

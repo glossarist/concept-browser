@@ -88,6 +88,7 @@ export interface ConceptSummary {
   designations: Record<string, string>;
   eng: string;
   status: string;
+  groups?: string[];
 }
 
 export interface ConceptEntry {
@@ -98,9 +99,20 @@ export interface ConceptEntry {
   status: string;
 }
 
+export interface DatasetSummary {
+  title: string;
+  description: string;
+  conceptCount: number;
+  languages: string[];
+  owner: string;
+  tags: string[];
+  color?: string;
+}
+
 export interface DatasetRegistry {
   id: string;
   manifestUrl: string;
+  summary?: DatasetSummary;
 }
 
 // ── Graph types ────────────────────────────────────────────────────────────

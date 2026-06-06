@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia';
-import { ref, computed, toRaw } from 'vue';
+import { ref, shallowRef, computed } from 'vue';
 import { getFactory } from '../adapters/factory';
 import type { DatasetAdapter } from '../adapters/DatasetAdapter';
 import type { Manifest, SearchHit, GraphEdge } from '../adapters/types';
 import type { Concept } from 'glossarist';
 import { conceptUri } from '../adapters/model-bridge';
 import { GraphEngine } from '../graph';
+import { deduplicateSearchHits } from '../utils/search';
 
 export const useVocabularyStore = defineStore('vocabulary', () => {
   // State
@@ -16,7 +17,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
   const currentConceptId = ref<string>('');
   const loading = ref(false);
   const error = ref<string | null>(null);
-  const graph = ref(new GraphEngine());
+  const graph = shallowRef(new GraphEngine());
   const conceptEdges = ref<GraphEdge[]>([]);
   const initialized = ref(false);
 
@@ -76,67 +77,11 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
         manifests.value.set(registerId, adapter.manifest);
       }
 
-      // Load pre-computed edges (lightweight)
-      await loadEdges(adapter);
-
       touchGraph();
-
-      // Seed graph nodes lazily — don't block UI for large datasets
-      seedGraphNodes(registerId, adapter);
     } catch (e: unknown) {
       error.value = `Failed to load dataset ${registerId}: ${e instanceof Error ? e.message : String(e)}`;
       throw e;
     }
-  }
-
-  function seedGraphNodes(registerId: string, adapter: DatasetAdapter, sync = false) {
-    const entries = adapter.getConcepts();
-
-    if (sync) {
-      for (const entry of entries) {
-        if (!entry) continue;
-        graph.value.addNode({
-          uri: factory.router.buildUri(registerId, entry.id),
-          register: registerId,
-          conceptId: entry.id,
-          designations: entry.designations,
-          status: entry.status,
-          loaded: false,
-        });
-      }
-      touchGraph();
-      return;
-    }
-
-    const batchSize = 500;
-    let offset = 0;
-    const schedule = typeof requestIdleCallback !== 'undefined'
-      ? requestIdleCallback
-      : (cb: () => void) => setTimeout(cb, 0);
-
-    function processBatch() {
-      const end = Math.min(offset + batchSize, entries.length);
-      for (let i = offset; i < end; i++) {
-        const entry = entries[i];
-        if (!entry) continue;
-        graph.value.addNode({
-          uri: factory.router.buildUri(registerId, entry.id),
-          register: registerId,
-          conceptId: entry.id,
-          designations: entry.designations,
-          status: entry.status,
-          loaded: false,
-        });
-      }
-      offset = end;
-      if (offset < entries.length) {
-        schedule(processBatch);
-      } else {
-        touchGraph();
-      }
-    }
-
-    schedule(processBatch);
   }
 
   async function loadAllGraphData() {
@@ -144,7 +89,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
       await discoverDatasets();
     }
 
-    const engine = toRaw(graph.value);
+    const engine = graph.value;
     const adapters = factory.getAdapters();
 
     await Promise.allSettled(adapters.map(async (adapter) => {
@@ -197,11 +142,12 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
         adapter.loadEdgeIndex(),
         adapter.loadDomainNodes(),
       ]);
+      const engine = graph.value;
       for (const dn of domainNodes) {
-        graph.value.addNode(dn);
+        engine.addNode(dn);
       }
       for (const edge of edges) {
-        graph.value.addEdge(edge);
+        engine.addEdge(edge);
       }
       edgeStatus.value[adapter.registerId] = { loaded: true, count: edges.length };
     } catch {
@@ -209,19 +155,19 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
     }
   }
 
-  async function ensureAllEdgesLoaded() {
-    for (const [id, adapter] of datasets.value) {
-      if (!edgeStatus.value[id]?.loaded) {
-        try {
-          const edges = await adapter.loadEdgeIndex();
-          for (const edge of edges) {
-            graph.value.addEdge(edge);
-          }
-          edgeStatus.value[id] = { loaded: true, count: edges.length };
-        } catch {
-          edgeStatus.value[id] = { loaded: false, count: 0 };
-        }
-      }
+  async function ensureEdgesForDataset(registerId: string) {
+    const adapter = datasets.value.get(registerId);
+    if (adapter && !edgeStatus.value[registerId]?.loaded) {
+      await loadEdges(adapter);
+    }
+
+    const index = await factory.loadCrossRefIndex();
+    const refs = index[registerId] || [];
+    for (const refId of refs) {
+      if (edgeStatus.value[refId]?.loaded) continue;
+      const refAdapter = datasets.value.get(refId);
+      if (!refAdapter) continue;
+      await loadEdges(refAdapter);
     }
   }
 
@@ -234,16 +180,18 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
       const adapter = datasets.value.get(registerId);
       if (!adapter) throw new Error(`Dataset ${registerId} not loaded`);
 
-      const concept = await adapter.fetchConcept(conceptId);
+      // Fetch concept and cross-dataset edges in parallel
+      const [concept] = await Promise.all([
+        adapter.fetchConcept(conceptId),
+        ensureEdgesForDataset(registerId),
+      ]);
       currentConcept.value = concept;
 
-      // Extract and register edges for this specific concept
       const edges = adapter.extractEdges(concept);
       const domainEdges = adapter.extractDomainEdges(concept);
       const uriBase = adapter.manifest?.uriBase || 'https://glossarist.org';
       const uri = conceptUri(concept, registerId, uriBase);
 
-      // Update graph node with full data
       const designations: Record<string, string> = {};
       const indexEntry = adapter.getIndexEntry(conceptId);
       if (indexEntry) {
@@ -258,7 +206,8 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
         }
       }
 
-      graph.value.addNode({
+      const engine = graph.value;
+      engine.addNode({
         uri,
         register: registerId,
         conceptId,
@@ -268,14 +217,14 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
       });
 
       for (const edge of edges) {
-        graph.value.addEdge(edge);
+        engine.addEdge(edge);
       }
 
       for (const edge of domainEdges) {
-        graph.value.addEdge(edge);
-        const existing = graph.value.getNode(edge.target);
+        engine.addEdge(edge);
+        const existing = engine.getNode(edge.target);
         if (!existing || !existing.loaded) {
-          graph.value.addNode({
+          engine.addNode({
             uri: edge.target,
             register: registerId,
             conceptId: '',
@@ -287,13 +236,10 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
         }
       }
 
-      // Ensure edges from all datasets are loaded for cross-dataset supersession
-      await ensureAllEdgesLoaded();
-
       touchGraph();
       conceptEdges.value = [
-        ...graph.value.getEdges(uri),
-        ...graph.value.getIncomingEdges(uri),
+        ...engine.getEdges(uri),
+        ...engine.getIncomingEdges(uri),
       ];
     } catch (e: unknown) {
       error.value = `Failed to load concept ${conceptId}: ${e instanceof Error ? e.message : String(e)}`;
@@ -326,32 +272,46 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
       await discoverDatasets();
     }
 
-    const allHits: SearchHit[] = [];
+    const MIN_RESULTS = 20;
+
+    // Pass 1: search loaded data only
+    const loadedHits: SearchHit[] = [];
+    const unloadedAdapters: DatasetAdapter[] = [];
+
     for (const adapter of datasets.value.values()) {
-      if (adapter.manifest) {
-        if (!adapter.index) {
+      if (!adapter.manifest) continue;
+      if (!adapter.index) {
+        try {
           await adapter.loadIndex();
+        } catch {
+          continue;
         }
-        await adapter.ensureAllChunksLoaded();
-        allHits.push(...adapter.search(query));
+      }
+      const hits = adapter.search(query);
+      if (hits.length > 0) {
+        loadedHits.push(...hits);
+      } else {
+        unloadedAdapters.push(adapter);
       }
     }
 
-    // Deduplicate: keep the best hit per (registerId, conceptId)
-    const best = new Map<string, SearchHit>();
-    for (const hit of allHits) {
-      const key = `${hit.registerId}:${hit.conceptId}`;
-      const existing = best.get(key);
-      if (!existing) {
-        best.set(key, hit);
-      } else {
-        // Prefer designation match over id match, then prefer shorter language code (eng first)
-        if (hit.matchField === 'designation' && existing.matchField === 'id') {
-          best.set(key, hit);
-        }
+    const pass1 = deduplicateSearchHits(loadedHits);
+    if (pass1.length >= MIN_RESULTS) return pass1;
+
+    // Pass 2: load chunks lazily for datasets that found nothing in index
+    let allHits = [...loadedHits];
+    for (const adapter of unloadedAdapters) {
+      if (deduplicateSearchHits(allHits).length >= MIN_RESULTS) break;
+      try {
+        await adapter.ensureAllChunksLoaded();
+        const hits = adapter.search(query);
+        allHits.push(...hits);
+      } catch {
+        // Skip datasets that fail to load
       }
     }
-    return [...best.values()];
+
+    return deduplicateSearchHits(allHits);
   }
 
   async function getRandomConcept(): Promise<{ registerId: string; conceptId: string } | null> {

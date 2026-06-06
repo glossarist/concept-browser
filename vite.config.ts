@@ -1,6 +1,7 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { resolve, dirname } from 'path'
+import { resolve, dirname, extname, join } from 'path'
+import { readFileSync, existsSync, statSync, createReadStream } from 'fs'
 import { fileURLToPath } from 'url'
 import yaml from 'js-yaml'
 
@@ -41,6 +42,40 @@ function faviconPlugin() {
   }
 }
 
+function inlineDataPlugin() {
+  let publicDir: string | undefined
+  const cache: Map<string, string> = new Map()
+  return {
+    name: 'inline-data',
+    configResolved(config: any) {
+      publicDir = config.publicDir
+    },
+    transformIndexHtml(html: string) {
+      if (!publicDir) return html
+      const tags: any[] = []
+      for (const [id, path] of [
+        ['datasets-json', 'datasets.json'],
+        ['site-config-json', 'site-config.json'],
+      ] as const) {
+        try {
+          let data = cache.get(path)
+          if (!data) {
+            data = readFileSync(resolve(publicDir!, path), 'utf-8')
+            cache.set(path, data)
+          }
+          tags.push({
+            tag: 'script',
+            attrs: { type: 'application/json', id },
+            children: data,
+            injectTo: 'body' as const,
+          })
+        } catch { /* file may not exist during first build */ }
+      }
+      return { html, tags }
+    },
+  }
+}
+
 function brandingPlugin() {
   return {
     name: 'branding-inject',
@@ -53,8 +88,8 @@ function brandingPlugin() {
       const fontsUrl = process.env.SITE_FONTS_URL
       if (fontsUrl) {
         result = result.replace(
-          /<link[^>]*href="https:\/\/fonts\.googleapis\.com\/css2\?[^"]*"[^>]*>/,
-          `<link href="${fontsUrl}" rel="stylesheet">`
+          /<link[^>]*href="https:\/\/fonts\.googleapis\.com\/css2\?[^"]*"[^>]*>(?:\s*<noscript>[^<]*<\/noscript>)?/,
+          `<link rel="preload" as="style" href="${fontsUrl}" onload="this.rel='stylesheet'"><noscript><link href="${fontsUrl}" rel="stylesheet"></noscript>`
         )
       }
       return result
@@ -62,15 +97,68 @@ function brandingPlugin() {
   }
 }
 
+const dataDir = resolve(cwd, 'public/data')
+const publicDir = resolve(cwd, 'public')
+
+const mimeTypes: Record<string, string> = {
+  '.json': 'application/json',
+  '.yaml': 'text/yaml',
+  '.yml': 'text/yaml',
+  '.ttl': 'text/turtle',
+  '.jsonld': 'application/ld+json',
+  '.tbx': 'application/xml',
+}
+
+// Serves /data/ files via middleware so the dev server doesn't need to watch
+// the 15,000+ files in public/data/ (which causes fsevents to consume ~400% CPU).
+function dataServePlugin(): Plugin {
+  return {
+    name: 'data-serve',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.startsWith('/data/')) return next()
+        const filePath = join(dataDir, req.url.slice('/data/'.length))
+        if (!filePath.startsWith(dataDir + '/') && filePath !== dataDir) return next()
+        if (!existsSync(filePath)) return next()
+        try {
+          const stat = statSync(filePath)
+          if (!stat.isFile()) return next()
+          const ext = extname(filePath)
+          res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream')
+          res.setHeader('Content-Length', stat.size)
+          createReadStream(filePath).pipe(res)
+        } catch { next() }
+      })
+    },
+  }
+}
+
 export default defineConfig({
   base: process.env.BASE_PATH || '/',
   root: __dirname,
-  publicDir: resolve(cwd, 'public'),
+  publicDir,
   build: {
     outDir: resolve(cwd, 'dist'),
     emptyOutDir: true,
   },
-  plugins: [yamlPlugin(), faviconPlugin(), brandingPlugin(), vue()],
+  server: {
+    watch: {
+      ignored: [
+        // concept-browser's own non-source dirs (121K+ files in dist/public)
+        resolve(__dirname, 'dist') + '/**',
+        resolve(__dirname, 'public') + '/**',
+        resolve(__dirname, '.datasets') + '/**',
+        resolve(__dirname, '.gcr') + '/**',
+        resolve(__dirname, '.gcr-staging') + '/**',
+        // oiml-vocab's data dir (15K+ files)
+        resolve(cwd, 'public/data') + '/**',
+      ],
+    },
+  },
+  optimizeDeps: {
+    exclude: ['@plurimath/plurimath'],
+  },
+  plugins: [yamlPlugin(), faviconPlugin(), brandingPlugin(), dataServePlugin(), inlineDataPlugin(), vue()],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

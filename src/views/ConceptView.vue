@@ -61,8 +61,6 @@ async function loadAdjacent() {
   adjacent.value = adapter.getAdjacentConcepts(props.conceptId);
 }
 
-watch(() => props.conceptId, () => { loadAdjacent(); });
-
 function goAdjacent(id: string) {
   router.push({ name: 'concept', params: { registerId: props.registerId, conceptId: id } });
   window.scrollTo({ top: 0, behavior: 'smooth' });

@@ -45,21 +45,27 @@ const loaded = ref(false);
 
 function loadFont(font: { family: string; source: string; weights?: number[]; url?: string }) {
   if (font.source === 'google') {
+    const familySlug = font.family.replace(/ /g, '+');
+    // Match by family name substring — build-time HTML uses combined URLs
+    if (document.querySelector(`link[href*="family=${familySlug}"]`)) return;
+
     const w = (font.weights || [400, 700]).join(';');
-    const href = `https://fonts.googleapis.com/css2?family=${font.family.replace(/ /g, '+')}:wght@${w}&display=swap`;
-    const existing = document.querySelector(`link[href="${href}"]`);
-    if (existing) return;
+    const href = `https://fonts.googleapis.com/css2?family=${familySlug}:wght@${w}&display=swap`;
     const link = document.createElement('link');
-    link.rel = 'stylesheet';
+    link.rel = 'preload';
+    link.as = 'style';
     link.href = href;
+    link.onload = () => { link.rel = 'stylesheet'; };
     document.head.appendChild(link);
   }
   if (font.source === 'url' && font.url) {
     const existing = document.querySelector(`link[href="${font.url}"]`);
     if (existing) return;
     const link = document.createElement('link');
-    link.rel = 'stylesheet';
+    link.rel = 'preload';
+    link.as = 'style';
     link.href = font.url;
+    link.onload = () => { link.rel = 'stylesheet'; };
     document.head.appendChild(link);
   }
 }
@@ -100,11 +106,16 @@ function applyBranding(config: RuntimeSiteConfig) {
 async function loadConfig(): Promise<RuntimeSiteConfig | null> {
   if (loaded.value) return siteConfig.value;
   try {
-    const resp = await fetch(`${import.meta.env.BASE_URL}site-config.json`);
-    if (resp.ok) {
-      siteConfig.value = await resp.json();
-      if (siteConfig.value) applyBranding(siteConfig.value);
+    const inline = document.getElementById('site-config-json');
+    if (inline?.textContent) {
+      siteConfig.value = JSON.parse(inline.textContent);
+    } else {
+      const resp = await fetch(`${import.meta.env.BASE_URL}site-config.json`);
+      if (resp.ok) {
+        siteConfig.value = await resp.json();
+      }
     }
+    if (siteConfig.value) applyBranding(siteConfig.value);
   } catch {
     // Non-critical
   }

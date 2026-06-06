@@ -399,24 +399,32 @@ watch(selectedNode, (node) => {
   }
 });
 
-// Rebuild when data or filters change
+// Rebuild when data or filters change — coalesce into single rebuild
+let rebuildScheduled = false;
+function scheduleRebuild() {
+  if (rebuildScheduled) return;
+  rebuildScheduled = true;
+  nextTick(() => {
+    rebuildScheduled = false;
+    rebuildGraph();
+  });
+}
+
 let prevDataKey = '';
 watch([() => props.nodes.length, () => props.edges.length], ([nn, ne]) => {
   const key = `${nn}:${ne}`;
   if (key !== prevDataKey && nn > 0) {
     prevDataKey = key;
-    nextTick(rebuildGraph);
+    scheduleRebuild();
   }
 });
 
-// Rebuild when register filters change
 watch(registerEnabled, () => {
-  nextTick(rebuildGraph);
+  scheduleRebuild();
 });
 
-// Rebuild when language changes (designation labels depend on language)
 watch(() => uiStore.selectedLang, () => {
-  nextTick(rebuildGraph);
+  scheduleRebuild();
 });
 
 onMounted(() => {

@@ -25,7 +25,7 @@ export interface Taxonomy {
 
 type TaxonomyKey = keyof typeof taxonomyData;
 
-class OntologyRegistry {
+export class OntologyRegistry {
   private data: Record<string, Taxonomy>;
 
   constructor() {

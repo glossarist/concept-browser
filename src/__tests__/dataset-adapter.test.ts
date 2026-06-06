@@ -50,6 +50,18 @@ describe('DatasetAdapter', () => {
 
       await expect(adapter.loadManifest()).rejects.toThrow('Failed to load manifest');
     });
+
+    it('returns cached manifest without fetching again', async () => {
+      const manifest = { id: 'test', title: 'Cached', chunkSize: 500 };
+      mockFetch.mockReturnValue(mockJsonResponse(manifest));
+      await adapter.loadManifest();
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      mockFetch.mockReset();
+      const result = await adapter.loadManifest();
+      expect(result.title).toBe('Cached');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
   });
 
   describe('loadIndex', () => {
@@ -511,6 +523,81 @@ describe('DatasetAdapter', () => {
 
     it('returns empty array without manifest', () => {
       expect(adapter.getLanguages()).toEqual([]);
+    });
+  });
+
+  describe('setSummaryManifest', () => {
+    it('creates a partial manifest from summary data', () => {
+      adapter.setSummaryManifest({
+        title: 'Test Summary',
+        description: 'Summary description',
+        conceptCount: 42,
+        languages: ['eng', 'fra'],
+        owner: 'Test Owner',
+        tags: ['tag1', 'tag2'],
+        color: '#ff0000',
+      });
+
+      expect(adapter.manifest).not.toBeNull();
+      expect(adapter.manifest!.title).toBe('Test Summary');
+      expect(adapter.manifest!.description).toBe('Summary description');
+      expect(adapter.manifest!.conceptCount).toBe(42);
+      expect(adapter.manifest!.languages).toEqual(['eng', 'fra']);
+      expect(adapter.manifest!.owner).toBe('Test Owner');
+      expect(adapter.manifest!.tags).toEqual(['tag1', 'tag2']);
+      expect(adapter.manifest!.color).toBe('#ff0000');
+      expect(adapter.manifest!.id).toBe('test');
+      expect(adapter.manifest!.baseUrl).toBe('/data/test');
+    });
+
+    it('allows loadManifest to fetch the full manifest', async () => {
+      adapter.setSummaryManifest({
+        title: 'Summary',
+        description: '',
+        conceptCount: 10,
+        languages: ['eng'],
+        owner: '',
+        tags: [],
+      });
+
+      const fullManifest = {
+        id: 'test',
+        title: 'Full Dataset',
+        description: 'Full description',
+        owner: 'Test',
+        baseUrl: '/data/test',
+        languages: ['eng'],
+        conceptCount: 42,
+        chunkSize: 500,
+        sections: [{ id: 's1', names: { eng: 'Section 1' } }],
+      };
+      mockFetch.mockReturnValue(mockJsonResponse(fullManifest));
+
+      const result = await adapter.loadManifest();
+      expect(result.title).toBe('Full Dataset');
+      expect(result.conceptCount).toBe(42);
+      expect(mockFetch).toHaveBeenCalledWith('/data/test/manifest.json');
+    });
+
+    it('uses cached full manifest after first load', async () => {
+      adapter.setSummaryManifest({
+        title: 'Summary',
+        description: '',
+        conceptCount: 10,
+        languages: ['eng'],
+        owner: '',
+        tags: [],
+      });
+
+      const fullManifest = { id: 'test', title: 'Full', chunkSize: 500 };
+      mockFetch.mockReturnValue(mockJsonResponse(fullManifest));
+
+      await adapter.loadManifest();
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      mockFetch.mockReset();
+      await adapter.loadManifest();
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 });

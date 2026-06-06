@@ -489,23 +489,29 @@
         "prefLabel": "references",
         "definition": "This concept references another concept."
       },
-      "sequentially_related_concept": {
-        "id": "sequentially_related_concept",
+      "sequentially_related": {
+        "id": "sequentially_related",
         "iri": "gloss:rel/sequentially_related",
         "prefLabel": "sequentially related",
         "definition": "Sequential spatiotemporal relationship (ISO 25964 / TBX)."
       },
-      "spatially_related_concept": {
-        "id": "spatially_related_concept",
+      "spatially_related": {
+        "id": "spatially_related",
         "iri": "gloss:rel/spatially_related",
         "prefLabel": "spatially related",
         "definition": "Spatial relationship (ISO 25964 / TBX)."
       },
-      "temporally_related_concept": {
-        "id": "temporally_related_concept",
+      "temporally_related": {
+        "id": "temporally_related",
         "iri": "gloss:rel/temporally_related",
         "prefLabel": "temporally related",
         "definition": "Temporal relationship (ISO 25964 / TBX)."
+      },
+      "exact_match": {
+        "id": "exact_match",
+        "iri": "gloss:rel/exact_match",
+        "prefLabel": "exact match",
+        "definition": "Cross-vocabulary exact equivalence (SKOS skos:exactMatch)."
       }
     }
   },
