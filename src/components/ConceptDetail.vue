@@ -796,24 +796,6 @@ const nonVerbalReps = computed(() => {
             </div>
           </div>
 
-          <!-- Cross-references (concept-level related) -->
-          <div v-if="conceptRelated.length" class="card p-5">
-            <div class="section-label">{{ t('concept.relations') }}</div>
-            <div class="mt-3 space-y-1">
-              <button
-                v-for="(cr, cri) in conceptRelated"
-                :key="'cr'+cri"
-                @click="navigateRelated(cr.ref!)"
-                class="text-sm concept-link block truncate w-full text-left flex items-center gap-1.5"
-              >
-                <span class="badge text-[9px]" :class="edgeBadgeColor(cr.type, cr.type === 'superseded_by' ? 'in' : 'out')">{{ relationshipLabel(cr.type) }}<template v-if="cr.type === 'supersedes'"> →</template><template v-if="cr.type === 'superseded_by'"> ←</template></span>
-                <span v-if="getResolvedRef(cr.ref).target" class="text-ink-600">{{ getResolvedRef(cr.ref).target!.conceptId }}</span>
-                <span v-else class="text-ink-400">{{ cr.content || (cr.ref ? `${cr.ref.source || ''} ${cr.ref.id || ''}`.trim() : '') }}</span>
-                <span v-if="getResolvedRef(cr.ref).target && getResolvedRef(cr.ref).target!.registerId !== manifest.id" class="badge badge-gray text-[9px] flex-shrink-0">{{ getResolvedRef(cr.ref).target!.registerId }}</span>
-              </button>
-            </div>
-          </div>
-
           <!-- Domains -->
           <div v-if="conceptDomains.length" class="card p-5">
             <div class="section-label">{{ t('concept.domains') }}</div>
