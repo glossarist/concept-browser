@@ -41,10 +41,17 @@ function loadConceptFile(filePath) {
     if (mc.date_accepted) result._dateAccepted = mc.date_accepted;
 
     for (const doc of docs.slice(1)) {
-      if (!doc || !doc.data || !doc.data.language_code) continue;
-      const lang = doc.data.language_code;
-      const lcData = { ...doc.data };
+      if (!doc) continue;
+      const lang = doc.data?.language_code || doc.language_code;
+      if (!lang) continue;
+      const lcData = { ...(doc.data || {}) };
       delete lcData.language_code;
+      // Merge top-level fields (terms, definition, notes, etc.) into lcData
+      for (const key of ['terms', 'definition', 'notes', 'examples', 'sources', 'dates', 'domain', 'references', 'entry_status', 'classification', 'review_type', 'review_date', 'review_decision_date', 'review_decision_event', 'review_status', 'review_decision', 'review_decision_notes', 'lineage_source_similarity', 'release', 'script', 'system']) {
+        if (doc[key] !== undefined && lcData[key] === undefined) {
+          lcData[key] = doc[key];
+        }
+      }
       result[lang] = lcData;
     }
     return result;
@@ -55,7 +62,7 @@ function loadConceptFile(filePath) {
 
 function writeJson(filePath, data) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  fs.writeFileSync(filePath, JSON.stringify(data));
 }
 
 function termToDesignation(term) {
@@ -381,6 +388,13 @@ function getPrimaryDesignation(conceptYaml) {
 
 function getGroups(conceptYaml) {
   if (conceptYaml.eng && conceptYaml.eng.groups) return conceptYaml.eng.groups;
+  // Derive groups from domains (e.g. section-based grouping in G18)
+  if (conceptYaml._domains) {
+    const sectionIds = conceptYaml._domains
+      .filter(d => d.ref_type === 'section' && d.concept_id)
+      .map(d => d.concept_id.replace(/^section-/, ''));
+    if (sectionIds.length) return sectionIds;
+  }
   const termid = String(conceptYaml.termid);
   if (/^\d{3}-/.test(termid)) return [termid.substring(0, 3)];
   if (/^\d+\.\d+\.\d+/.test(termid)) {
@@ -466,7 +480,7 @@ function conceptJsonToSkosJsonLd(concept) {
   if (Object.keys(definitions).length) doc['skos:definition'] = definitions;
   if (Object.keys(scopeNotes).length) doc['skos:scopeNote'] = scopeNotes;
 
-  return JSON.stringify(doc, null, 2);
+  return JSON.stringify(doc);
 }
 
 function escapeXml(s) {
@@ -670,6 +684,7 @@ function processDataset(dir, register, opts) {
     designations: c.designations,
     eng: c.designations.eng || Object.values(c.designations)[0] || '',
     status: c.status,
+    groups: c.groups || [],
   }));
 
   // Strip HTML from index summary for text display
@@ -878,7 +893,19 @@ for (let i = 0; i < config.datasets.length; i++) {
     hasBibliography: fs.existsSync(path.join(ROOT, '.datasets', ds.id, 'bibliography.yaml')),
     hasImages: fs.existsSync(path.join(ROOT, '.datasets', ds.id, 'images')),
   });
-  registry.push({ id: ds.id, manifestUrl: `/data/${ds.id}/manifest.json` });
+  registry.push({
+    id: ds.id,
+    manifestUrl: `/data/${ds.id}/manifest.json`,
+    summary: {
+      title: resolvedTitle,
+      description: resolvedDescription,
+      conceptCount: counts[ds.id] || 0,
+      languages: dsLanguages,
+      owner: ds.owner || reg?.owner || '',
+      tags: ds.tags || reg?.tags || [],
+      color: ds.color || DS_PALETTE[i % DS_PALETTE.length],
+    },
+  });
 }
 writeJson(path.join(PUBLIC, 'datasets.json'), registry);
 

@@ -24,7 +24,6 @@ async function exploreRandom() {
     }
     const result = await store.getRandomConcept();
     if (result) {
-      await store.viewConcept(result.registerId, result.conceptId);
       router.push({ name: 'concept', params: { registerId: result.registerId, conceptId: result.conceptId } });
     }
   } finally {

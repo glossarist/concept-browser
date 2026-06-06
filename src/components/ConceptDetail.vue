@@ -81,6 +81,7 @@ const engConcept = computed((): LocalizedConcept | null => {
 });
 
 const primaryTerm = computed(() => getPreferredTerm(engConcept.value, conceptId.value));
+const renderedPrimaryTerm = computed(() => renderMath(primaryTerm.value));
 
 // Managed concept status from Concept.status (7 values from concept-status.ttl)
 const managedStatus = computed(() => props.concept.status);
@@ -139,7 +140,6 @@ function resolveRelatedRef(ref: { source: string | null; id: string | null } | n
 async function navigateRelated(ref: { source: string | null; id: string | null }) {
   const target = resolveRelatedRef(ref);
   if (!target) return;
-  await store.viewConcept(target.registerId, target.conceptId);
   router.push({ name: 'concept', params: { registerId: target.registerId, conceptId: target.conceptId } });
 }
 
@@ -178,7 +178,6 @@ function handleContentClick(e: MouseEvent) {
   const registerId = target.dataset.register;
   const conceptId = target.dataset.concept;
   if (registerId && conceptId) {
-    store.viewConcept(registerId, conceptId);
     router.push({ name: 'concept', params: { registerId, conceptId } });
   }
 }
@@ -187,11 +186,16 @@ function handleContentClick(e: MouseEvent) {
 interface LangContent {
   lang: string;
   lc: LocalizedConcept;
+  renderedTerm: string;
   definition: string;
+  renderedDefinition: string;
   notes: string[];
+  renderedNotes: string[];
   examples: string[];
+  renderedExamples: string[];
   sources: ConceptSource[];
   designations: Designation[];
+  renderedDesignations: Map<string, string>;
   entryStatus: string;
   classification: string | null;
   reviewType: string | null;
@@ -209,15 +213,22 @@ const allLangContent = computed(() => {
 
     const definition = lc.definitions
       .map(d => d.content).filter(Boolean).join('\n\n');
+    const notes = lc.notes.map(n => n.content).filter(Boolean);
+    const examples = lc.examples.map(e => e.content).filter(Boolean);
 
     result.push({
       lang,
       lc,
+      renderedTerm: renderMath(getPreferredTerm(lc, '')),
       definition,
-      notes: lc.notes.map(n => n.content).filter(Boolean),
-      examples: lc.examples.map(e => e.content).filter(Boolean),
+      renderedDefinition: renderMath(definition, renderOpts),
+      notes,
+      renderedNotes: notes.map(n => renderMath(n, renderOpts)),
+      examples,
+      renderedExamples: examples.map(e => renderMath(e, renderOpts)),
       sources: lc.sources,
       designations: lc.terms,
+      renderedDesignations: new Map(lc.terms.map(d => [d.designation, renderMath(d.designation)])),
       entryStatus: lc.entryStatus ?? '',
       classification: lc.classification,
       reviewType: lc.reviewType,
@@ -228,6 +239,12 @@ const allLangContent = computed(() => {
     });
   }
   return result;
+});
+
+const langContentMap = computed(() => {
+  const map = new Map<string, LangContent>();
+  for (const lc of allLangContent.value) map.set(lc.lang, lc);
+  return map;
 });
 
 function hasContent(lc: LangContent): boolean {
@@ -280,43 +297,83 @@ const conceptUriValue = computed(() =>
   conceptUri(props.concept, props.registerId, props.manifest.uriBase)
 );
 
-const outgoingEdges = computed(() => props.edges.filter(e => e.source === conceptUriValue.value));
-const incomingEdges = computed(() => props.edges.filter(e => e.target === conceptUriValue.value));
+const outgoingEdges = computed(() => props.edges.filter(e => e.source === conceptUriValue.value && e.type !== 'domain' && e.type !== 'section'));
+const incomingEdges = computed(() => props.edges.filter(e => e.target === conceptUriValue.value && e.type !== 'domain' && e.type !== 'section'));
 
-function isLocalRef(uri: string): boolean {
-  const resolution = factory.resolve(uri, props.registerId);
-  return resolution.type === 'internal' && resolution.registerId === props.registerId;
+function inverseEdgeType(type: string): string {
+  return INVERSE_RELATIONSHIPS[type] || type;
 }
 
-function edgeConceptId(uri: string): string {
-  const m = uri.match(/\/concept\/([^/]+)$/);
-  return m ? m[1] : uri.split('/').pop() || uri;
+function edgeBadgeColor(type: string, direction: 'out' | 'in'): string {
+  if (type === 'supersedes' || type === 'superseded_by') {
+    return direction === 'out' ? 'text-orange-700 bg-orange-50' : 'text-red-700 bg-red-50';
+  }
+  return categorizeRelationship(type).color;
 }
 
-function edgeNodeData(uri: string) {
-  return store.graph.getNode(uri);
+interface EdgeDisplay {
+  uri: string;
+  conceptId: string;
+  designation: string;
+  tooltip: string;
+  isLocal: boolean;
+  badge: { id: string; title: string } | null;
 }
 
-function edgeTooltip(uri: string): string {
-  const node = edgeNodeData(uri);
-  const lines: string[] = [uri];
-  if (node) {
-    for (const [lang, designation] of Object.entries(node.designations)) {
-      lines.push(`${langLabel(lang)}: ${designation}`);
+const edgeDisplayCache = computed(() => {
+  const cache = new Map<string, EdgeDisplay>();
+  for (const e of props.edges) {
+    const uri = e.source === conceptUriValue.value ? e.target : e.source;
+    if (cache.has(uri)) continue;
+    const resolution = factory.resolve(uri, props.registerId);
+    const isLocal = resolution.type === 'internal' && resolution.registerId === props.registerId;
+    const conceptId = uri.match(/\/concept\/([^/]+)$/)?.[1] ?? uri.split('/').pop() ?? uri;
+    const node = store.graph.getNode(uri);
+    const designation = node
+      ? (node.designations[locale.value] || node.designations.eng || Object.values(node.designations)[0] || '')
+      : '';
+    const tooltipLines: string[] = [uri];
+    if (node) {
+      for (const [lang, des] of Object.entries(node.designations)) {
+        tooltipLines.push(`${langLabel(lang)}: ${des}`);
+      }
     }
+    let badge: { id: string; title: string } | null = null;
+    if (resolution.type === 'internal' && resolution.registerId !== props.registerId) {
+      const m = store.manifests.get(resolution.registerId);
+      badge = { id: resolution.registerId, title: m?.shortname || m?.title || resolution.registerId };
+    } else if (resolution.type === 'site') {
+      badge = { id: '', title: resolution.label };
+    } else if (resolution.type === 'url') {
+      badge = { id: '', title: resolution.label };
+    }
+    cache.set(uri, { uri, conceptId, designation, tooltip: tooltipLines.join('\n'), isLocal, badge });
   }
-  return lines.join('\n');
+  return cache;
+});
+
+function getEdgeDisplay(uri: string): EdgeDisplay {
+  return edgeDisplayCache.value.get(uri) ?? { uri, conceptId: uri, tooltip: uri, isLocal: false, badge: null };
 }
 
-function edgeDatasetBadge(uri: string): { id: string; title: string } | null {
-  const resolution = factory.resolve(uri, props.registerId);
-  if (resolution.type === 'internal' && resolution.registerId !== props.registerId) {
-    const m = store.manifests.get(resolution.registerId);
-    return { id: resolution.registerId, title: m?.shortname || m?.title || resolution.registerId };
+interface ResolvedRef {
+  target: { registerId: string; conceptId: string } | null;
+}
+
+const resolvedRefs = computed(() => {
+  const map = new Map<string, ResolvedRef>();
+  for (const cr of conceptRelated.value) {
+    const key = `${cr.ref?.source ?? ''}:${cr.ref?.id ?? ''}`;
+    if (map.has(key)) continue;
+    map.set(key, { target: resolveRelatedRef(cr.ref) });
   }
-  if (resolution.type === 'site') return { id: '', title: resolution.label };
-  if (resolution.type === 'url') return { id: '', title: resolution.label };
-  return null;
+  return map;
+});
+
+function getResolvedRef(ref: { source: string | null; id: string | null } | null): ResolvedRef {
+  if (!ref) return { target: null };
+  const key = `${ref.source ?? ''}:${ref.id ?? ''}`;
+  return resolvedRefs.value.get(key) ?? { target: resolveRelatedRef(ref) };
 }
 
 async function navigateEdge(edge: GraphEdge) {
@@ -324,13 +381,17 @@ async function navigateEdge(edge: GraphEdge) {
   const resolution = factory.resolve(uri);
 
   if (resolution.type === 'internal') {
-    await store.viewConcept(resolution.registerId, resolution.conceptId);
     router.push({ name: 'concept', params: { registerId: resolution.registerId, conceptId: resolution.conceptId } });
   } else if (resolution.type === 'site') {
     window.open(`${resolution.baseUrl}/resolve/${encodeURIComponent(uri)}`, '_blank', 'noopener');
   } else if (resolution.type === 'url') {
     window.open(resolution.url, '_blank', 'noopener');
   }
+}
+
+function navigateDomain(domain: { slug: string; conceptId?: string }) {
+  const sectionId = domain.conceptId || domain.slug;
+  router.push({ name: 'dataset', params: { registerId: manifest.id }, query: { section: sectionId } });
 }
 
 function getTermForLang(lang: string): string {
@@ -452,7 +513,7 @@ const nonVerbalReps = computed(() => {
           </button>
         </div>
       </div>
-      <h1 class="font-serif text-2xl sm:text-3xl text-ink-800 leading-snug mb-3" v-html="renderMath(primaryTerm)"></h1>
+      <h1 class="font-serif text-2xl sm:text-3xl text-ink-800 leading-snug mb-3" v-html="renderedPrimaryTerm"></h1>
       <div class="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:flex-wrap sm:overflow-visible sm:mx-0 sm:pb-0 scrollbar-none">
         <span class="badge badge-blue font-mono">{{ conceptId }}</span>
         <span
@@ -537,13 +598,13 @@ const nonVerbalReps = computed(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
               </svg>
               <span class="text-xs font-semibold text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">{{ langName(lc.lang) }}</span>
-              <span class="font-medium text-ink-800 text-sm" v-html="renderMath(getTermForLang(lc.lang))"></span>
+              <span class="font-medium text-ink-800 text-sm" v-html="lc.renderedTerm"></span>
               <span v-if="lc.entryStatus" class="badge text-[10px] ml-auto" :class="entryStatusColor(lc.entryStatus)" :title="entryStatusDefinition(lc.entryStatus) ?? ''">{{ entryStatusLabel(lc.entryStatus) }}</span>
             </button>
             <!-- Non-collapsible header (designation only) -->
             <div v-else class="w-full flex items-center gap-2.5 px-3 sm:px-4 py-3">
               <span class="text-xs font-semibold text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">{{ langName(lc.lang) }}</span>
-              <span class="font-medium text-ink-800 text-sm" v-html="renderMath(getTermForLang(lc.lang))"></span>
+              <span class="font-medium text-ink-800 text-sm" v-html="lc.renderedTerm"></span>
               <span class="text-xs text-ink-200 ml-2 italic">{{ t('concept.designationOnly') }}</span>
               <span v-if="lc.entryStatus" class="badge text-[10px] ml-auto" :class="entryStatusColor(lc.entryStatus)" :title="entryStatusDefinition(lc.entryStatus) ?? ''">{{ entryStatusLabel(lc.entryStatus) }}</span>
             </div>
@@ -563,7 +624,7 @@ const nonVerbalReps = computed(() => {
               <div v-if="lc.designations.length > 0" class="space-y-1.5 pl-[22px]">
                 <div v-for="(d, i) in orderedDesignations(lc.lang)" :key="i">
                   <div class="flex items-center gap-1.5 text-sm flex-wrap">
-                    <span :class="d.normativeStatus === 'preferred' ? 'font-bold text-ink-800' : 'font-normal text-ink-700'" v-html="renderMath(d.designation)"></span>
+                    <span :class="d.normativeStatus === 'preferred' ? 'font-bold text-ink-800' : 'font-normal text-ink-700'" v-html="lc.renderedDesignations.get(d.designation) ?? d.designation"></span>
                     <span class="badge text-[10px] flex-shrink-0" :class="designationTypeInfo(d).color" :title="designationTypeInfo(d).definition ?? ''">{{ designationTypeInfo(d).label }}</span>
                     <span class="badge text-[10px] flex-shrink-0" :class="normativeStatusInfo(d.normativeStatus).color" :title="normativeStatusInfo(d.normativeStatus).definition ?? ''">{{ normativeStatusInfo(d.normativeStatus).label }}</span>
                     <!-- Abbreviation details -->
@@ -609,7 +670,7 @@ const nonVerbalReps = computed(() => {
                   <div v-if="d.related?.length" class="mt-0.5 space-y-0.5">
                     <div v-for="(dr, dri) in d.related" :key="'dr'+dri" class="text-xs text-ink-400 flex items-center gap-1.5">
                       <span class="badge text-[9px] bg-gray-50 text-gray-600">{{ relationshipLabel(dr.type) }}</span>
-                      <button v-if="resolveRelatedRef(dr.ref)" @click="navigateRelated(dr.ref!)" class="concept-link">{{ dr.content || (dr.ref ? `${dr.ref.source || ''} ${dr.ref.id || ''}`.trim() : '') }}</button>
+                      <button v-if="getResolvedRef(dr.ref).target" @click="navigateRelated(dr.ref!)" class="concept-link">{{ dr.content || (dr.ref ? `${dr.ref.source || ''} ${dr.ref.id || ''}`.trim() : '') }}</button>
                       <span v-else>{{ dr.content || (dr.ref ? `${dr.ref.source || ''} ${dr.ref.id || ''}`.trim() : '') }}</span>
                     </div>
                   </div>
@@ -618,22 +679,22 @@ const nonVerbalReps = computed(() => {
 
               <!-- Definition -->
               <div v-if="lc.definition" class="p-4 rounded-lg bg-surface border-l-2" :style="{ borderLeftColor: getColor(manifest.id) }">
-                <div class="text-ink-800 leading-relaxed" v-html="renderMath(lc.definition, renderOpts)"></div>
+                <div class="text-ink-800 leading-relaxed" v-html="lc.renderedDefinition"></div>
               </div>
 
               <!-- Notes -->
               <div v-if="lc.notes.length" class="space-y-2">
-                <div v-for="(note, i) in lc.notes" :key="i" class="text-ink-600 text-sm leading-relaxed">
+                <div v-for="(_, i) in lc.notes" :key="i" class="text-ink-600 text-sm leading-relaxed">
                   <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">{{ t('concept.note') }} {{ i + 1 }}</span>
-                  <div class="mt-1" v-html="renderMath(note, renderOpts)"></div>
+                  <div class="mt-1" v-html="lc.renderedNotes[i]"></div>
                 </div>
               </div>
 
               <!-- Examples -->
               <div v-if="lc.examples.length" class="space-y-2">
-                <div v-for="(ex, i) in lc.examples" :key="i" class="text-ink-600 text-sm leading-relaxed">
+                <div v-for="(_, i) in lc.examples" :key="i" class="text-ink-600 text-sm leading-relaxed">
                   <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">{{ t('concept.example') }} {{ i + 1 }}</span>
-                  <div class="mt-1" v-html="renderMath(ex, renderOpts)"></div>
+                  <div class="mt-1" v-html="lc.renderedExamples[i]"></div>
                 </div>
               </div>
 
@@ -704,13 +765,14 @@ const nonVerbalReps = computed(() => {
                   v-for="edge in outgoingEdges"
                   :key="edge.target + edge.type"
                   @click="navigateEdge(edge)"
-                  :title="edgeTooltip(edge.target)"
+                  :title="getEdgeDisplay(edge.target).tooltip"
                   class="text-sm concept-link block truncate w-full text-left flex items-center gap-1.5"
-                  :class="isLocalRef(edge.target) ? '' : 'xref-external'"
+                  :class="getEdgeDisplay(edge.target).isLocal ? '' : 'xref-external'"
                 >
-                  <span class="badge text-[9px] flex-shrink-0" :class="categorizeRelationship(edge.type).color">{{ relationshipLabel(edge.type) }}</span>
-                  {{ edge.label || edgeConceptId(edge.target) }}
-                  <span v-if="edgeDatasetBadge(edge.target)" class="badge badge-gray text-[9px] flex-shrink-0 truncate max-w-[100px]">{{ edgeDatasetBadge(edge.target)!.title }}</span>
+                  <span class="badge text-[9px] flex-shrink-0" :class="edgeBadgeColor(edge.type, 'out')">{{ relationshipLabel(edge.type) }} →</span>
+                  <span class="truncate">{{ getEdgeDisplay(edge.target).designation || edge.label || getEdgeDisplay(edge.target).conceptId }}</span>
+                  <span class="text-[9px] text-ink-300 flex-shrink-0 font-mono">{{ getEdgeDisplay(edge.target).conceptId }}</span>
+                  <span v-if="getEdgeDisplay(edge.target).badge" class="badge badge-gray text-[9px] flex-shrink-0 truncate max-w-[100px]">{{ getEdgeDisplay(edge.target).badge!.title }}</span>
                 </button>
               </div>
             </div>
@@ -721,12 +783,14 @@ const nonVerbalReps = computed(() => {
                   v-for="edge in incomingEdges"
                   :key="edge.source + edge.type"
                   @click="navigateEdge(edge)"
-                  :title="edgeTooltip(edge.source)"
+                  :title="getEdgeDisplay(edge.source).tooltip"
                   class="text-sm concept-link block truncate w-full text-left flex items-center gap-1.5"
-                  :class="isLocalRef(edge.source) ? '' : 'xref-external'"
+                  :class="getEdgeDisplay(edge.source).isLocal ? '' : 'xref-external'"
                 >
-                  {{ edgeConceptId(edge.source) }}
-                  <span v-if="edgeDatasetBadge(edge.source)" class="badge badge-gray text-[9px] flex-shrink-0 truncate max-w-[100px]">{{ edgeDatasetBadge(edge.source)!.title }}</span>
+                  <span class="badge text-[9px] flex-shrink-0" :class="edgeBadgeColor(edge.type, 'in')">← {{ relationshipLabel(inverseEdgeType(edge.type)) }}</span>
+                  <span class="truncate">{{ getEdgeDisplay(edge.source).designation || edge.label || getEdgeDisplay(edge.source).conceptId }}</span>
+                  <span class="text-[9px] text-ink-300 flex-shrink-0 font-mono">{{ getEdgeDisplay(edge.source).conceptId }}</span>
+                  <span v-if="getEdgeDisplay(edge.source).badge" class="badge badge-gray text-[9px] flex-shrink-0 truncate max-w-[100px]">{{ getEdgeDisplay(edge.source).badge!.title }}</span>
                 </button>
               </div>
             </div>
@@ -742,10 +806,10 @@ const nonVerbalReps = computed(() => {
                 @click="navigateRelated(cr.ref!)"
                 class="text-sm concept-link block truncate w-full text-left flex items-center gap-1.5"
               >
-                <span class="badge text-[9px] bg-gray-50 text-gray-600">{{ relationshipLabel(cr.type) }}</span>
-                <span v-if="resolveRelatedRef(cr.ref)" class="text-ink-600">{{ resolveRelatedRef(cr.ref)!.conceptId }}</span>
+                <span class="badge text-[9px]" :class="edgeBadgeColor(cr.type, cr.type === 'superseded_by' ? 'in' : 'out')">{{ relationshipLabel(cr.type) }}<template v-if="cr.type === 'supersedes'"> →</template><template v-if="cr.type === 'superseded_by'"> ←</template></span>
+                <span v-if="getResolvedRef(cr.ref).target" class="text-ink-600">{{ getResolvedRef(cr.ref).target!.conceptId }}</span>
                 <span v-else class="text-ink-400">{{ cr.content || (cr.ref ? `${cr.ref.source || ''} ${cr.ref.id || ''}`.trim() : '') }}</span>
-                <span v-if="resolveRelatedRef(cr.ref) && resolveRelatedRef(cr.ref)!.registerId !== manifest.id" class="badge badge-gray text-[9px] flex-shrink-0">{{ resolveRelatedRef(cr.ref)!.registerId }}</span>
+                <span v-if="getResolvedRef(cr.ref).target && getResolvedRef(cr.ref).target!.registerId !== manifest.id" class="badge badge-gray text-[9px] flex-shrink-0">{{ getResolvedRef(cr.ref).target!.registerId }}</span>
               </button>
             </div>
           </div>
@@ -754,14 +818,19 @@ const nonVerbalReps = computed(() => {
           <div v-if="conceptDomains.length" class="card p-5">
             <div class="section-label">{{ t('concept.domains') }}</div>
             <div class="space-y-1 mt-3">
-              <div v-for="domain in conceptDomains" :key="domain.slug" class="flex items-center gap-1.5 text-sm">
+              <button
+                v-for="domain in conceptDomains"
+                :key="domain.slug"
+                @click="navigateDomain(domain)"
+                class="flex items-center gap-1.5 text-sm concept-link w-full text-left"
+              >
                 <span class="w-2 h-1.5 rounded inline-block flex-shrink-0" style="background: #8b5cf6;"></span>
                 <span class="font-medium text-ink-700">{{ domain.label }}</span>
                 <span v-if="domain.conceptId" class="text-[10px] text-ink-300 font-mono">{{ domain.conceptId }}</span>
                 <span v-if="domain.langs.length > 0" class="text-[10px] text-ink-300 ml-1">
                   ({{ domain.langs.map(l => l.toUpperCase()).join(', ') }})
                 </span>
-              </div>
+              </button>
             </div>
           </div>
 
@@ -818,7 +887,7 @@ const nonVerbalReps = computed(() => {
                     :class="hasDefinition(lang) ? 'bg-emerald-400' : 'bg-ink-200'"
                     :title="hasDefinition(lang) ? t('concept.hasDefinition') : t('concept.designationOnlyTitle')"
                   ></span>
-                  <span class="text-sm font-medium text-ink-800 group-hover:text-ink-900 transition-colors" v-html="renderMath(getTermForLang(lang))"></span>
+                  <span class="text-sm font-medium text-ink-800 group-hover:text-ink-900 transition-colors" v-html="langContentMap.get(lang)?.renderedTerm ?? getTermForLang(lang)"></span>
                 </div>
                 <div v-if="getDesignationsForLang(lang).length > 1" class="ml-5 mt-0.5 flex flex-wrap gap-1">
                   <span

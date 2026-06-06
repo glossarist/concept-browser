@@ -20,7 +20,7 @@ export const RELATIONSHIP_CATEGORIES: RelationshipCategory[] = [
   {
     id: 'mapping',
     label: 'Equivalence',
-    types: ['equivalent', 'close_match', 'broad_match', 'narrow_match', 'related_match'],
+    types: ['equivalent', 'exact_match', 'close_match', 'broad_match', 'narrow_match', 'related_match'],
     color: 'text-emerald-600 bg-emerald-50',
   },
   {
@@ -53,7 +53,7 @@ export const RELATIONSHIP_CATEGORIES: RelationshipCategory[] = [
   {
     id: 'spatiotemporal',
     label: 'Spatiotemporal',
-    types: ['sequentially_related_concept', 'spatially_related_concept', 'temporally_related_concept'],
+    types: ['sequentially_related', 'spatially_related', 'temporally_related'],
     color: 'text-teal-600 bg-teal-50',
   },
   {
@@ -119,6 +119,7 @@ export const INVERSE_RELATIONSHIPS: Record<string, string> = {
 
   // Symmetric (self-inverse)
   equivalent: 'equivalent',
+  exact_match: 'exact_match',
   compare: 'compare',
   contrast: 'contrast',
   close_match: 'close_match',

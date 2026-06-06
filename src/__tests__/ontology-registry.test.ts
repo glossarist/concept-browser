@@ -8,7 +8,7 @@ describe('OntologyRegistry', () => {
     expect(ontology.getAll('normativeStatus').length).toBe(4);
     expect(ontology.getAll('sourceType').length).toBe(2);
     expect(ontology.getAll('sourceStatus').length).toBe(10);
-    expect(ontology.getAll('relationshipType').length).toBe(51);
+    expect(ontology.getAll('relationshipType').length).toBe(52);
     expect(ontology.getAll('designationType').length).toBe(5);
     expect(ontology.getAll('termType').length).toBe(24);
     expect(ontology.getAll('grammarGender').length).toBe(4);
@@ -100,9 +100,9 @@ describe('OntologyRegistry', () => {
     expect(types).toContain('false_friend');
     expect(types).toContain('abbreviated_form_for');
     expect(types).toContain('short_form_for');
-    expect(types).toContain('sequentially_related_concept');
-    expect(types).toContain('spatially_related_concept');
-    expect(types).toContain('temporally_related_concept');
+    expect(types).toContain('sequentially_related');
+    expect(types).toContain('spatially_related');
+    expect(types).toContain('temporally_related');
     expect(types).toContain('related_concept_broader');
     expect(types).toContain('related_concept_narrower');
   });

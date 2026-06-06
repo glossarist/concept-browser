@@ -12,30 +12,28 @@ const { loadConfig, config } = useSiteConfig();
 const { initLocale } = useI18n();
 const appReady = ref(false);
 const showScrollTop = ref(false);
-let mainEl: HTMLElement | null = null;
+const mainRef = ref<HTMLElement | null>(null);
 
 function onMainScroll() {
-  showScrollTop.value = (mainEl?.scrollTop ?? 0) > 400;
+  showScrollTop.value = (mainRef.value?.scrollTop ?? 0) > 400;
 }
 
 function scrollToTop() {
-  mainEl?.scrollTo({ top: 0, behavior: 'smooth' });
+  mainRef.value?.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 onMounted(async () => {
-  const [, cfg] = await Promise.all([store.discoverDatasets(), loadConfig()]);
-  if (cfg?.title) {
-    document.title = cfg.title;
+  await Promise.all([store.discoverDatasets(), loadConfig()]);
+  if (config.value?.title) {
+    document.title = config.value.title;
   }
-  initLocale(cfg?.defaults?.language);
+  initLocale(config.value?.defaults?.language);
   appReady.value = true;
-  // Watch scroll on main content area
-  mainEl = document.querySelector('main');
-  mainEl?.addEventListener('scroll', onMainScroll, { passive: true });
+  mainRef.value?.addEventListener('scroll', onMainScroll, { passive: true });
 });
 
 onUnmounted(() => {
-  mainEl?.removeEventListener('scroll', onMainScroll);
+  mainRef.value?.removeEventListener('scroll', onMainScroll);
 });
 </script>
 
@@ -44,7 +42,7 @@ onUnmounted(() => {
     <AppHeader />
     <div class="flex flex-1 overflow-hidden">
       <AppSidebar />
-      <main class="flex-1 overflow-y-auto bg-surface flex flex-col">
+      <main ref="mainRef" class="flex-1 overflow-y-auto bg-surface flex flex-col">
         <div v-if="!appReady" class="flex items-center justify-center h-[70vh]">
           <div class="w-full max-w-md px-6 space-y-6">
             <!-- Title skeleton -->

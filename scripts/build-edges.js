@@ -129,7 +129,7 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest)
   const conceptsDir = join(datasetDir, 'concepts');
   if (!existsSync(conceptsDir)) {
     console.log(`  Skipping ${registerId}: no concepts directory`);
-    return;
+    return [];
   }
 
   const files = readdirSync(conceptsDir).filter(f => f.endsWith('.json'));
@@ -177,7 +177,7 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest)
   };
 
   const outputPath = join(datasetDir, 'edges.json');
-  writeFileSync(outputPath, JSON.stringify(output, null, 2));
+  writeFileSync(outputPath, JSON.stringify(output));
   console.log(`  Written ${deduped.length} edges to edges.json (${(JSON.stringify(output).length / 1024).toFixed(1)} KB)`);
 
   // Build domain-nodes.json from manifest sections (authoritative source)
@@ -212,7 +212,7 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest)
 
     const domainOutput = { registerId, domainNodes };
     const domainPath = join(datasetDir, 'domain-nodes.json');
-    writeFileSync(domainPath, JSON.stringify(domainOutput, null, 2));
+    writeFileSync(domainPath, JSON.stringify(domainOutput));
     console.log(`  Written ${domainNodes.length} section-based domain nodes to domain-nodes.json`);
   } else {
     // Fallback: derive domain nodes from concept edges (legacy behavior)
@@ -237,9 +237,11 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest)
 
     const domainOutput = { registerId, domainNodes };
     const domainPath = join(datasetDir, 'domain-nodes.json');
-    writeFileSync(domainPath, JSON.stringify(domainOutput, null, 2));
+    writeFileSync(domainPath, JSON.stringify(domainOutput));
     console.log(`  Written ${domainNodes.length} edge-derived domain nodes to domain-nodes.json`);
   }
+
+  return deduped;
 }
 
 // Main
@@ -275,17 +277,60 @@ for (const ds of datasets) {
 }
 console.log(`URN resolution map: ${[...urnMap.entries()].map(([k,v]) => `${k}→${v}`).join(', ')}\n`);
 
+const allDatasetEdges = new Map();
+
 for (const ds of datasets) {
   const manifest = manifestCache.get(ds);
   if (!manifest) continue;
   try {
     console.log(`${manifest.title} (${ds}):`);
     const uriBase = manifest.uriBase || 'https://glossarist.org';
-    buildEdgesForDataset(join(DATA_DIR, ds), ds, uriBase, urnMap, manifest);
+    const edges = buildEdgesForDataset(join(DATA_DIR, ds), ds, uriBase, urnMap, manifest);
+    allDatasetEdges.set(ds, edges);
   } catch (e) {
     console.error(`Error reading manifest for ${ds}: ${e.message}`);
   }
   console.log();
 }
+
+// Build cross-reference index: for each dataset, which other datasets'
+// edges.json contains edges targeting that dataset's URIs.
+const datasetUriPrefixes = new Map();
+for (const [ds, manifest] of manifestCache) {
+  const uriBase = manifest.uriBase || 'https://glossarist.org';
+  datasetUriPrefixes.set(ds, `${uriBase}/${ds}/`);
+}
+
+const crossRefIndex = {};
+for (const ds of datasets) {
+  crossRefIndex[ds] = [];
+}
+
+for (const [sourceDs, edges] of allDatasetEdges) {
+  const targets = new Set();
+  for (const edge of edges) {
+    for (const [targetDs, prefix] of datasetUriPrefixes) {
+      if (targetDs !== sourceDs && edge.target.startsWith(prefix)) {
+        targets.add(targetDs);
+      }
+    }
+    // Also check source URIs targeting other datasets
+    for (const [targetDs, prefix] of datasetUriPrefixes) {
+      if (targetDs !== sourceDs && edge.source.startsWith(prefix)) {
+        targets.add(targetDs);
+      }
+    }
+  }
+  for (const targetDs of targets) {
+    if (!crossRefIndex[targetDs].includes(sourceDs)) {
+      crossRefIndex[targetDs].push(sourceDs);
+    }
+  }
+}
+
+const crossRefPath = join(DATA_DIR, 'cross-ref-index.json');
+writeFileSync(crossRefPath, JSON.stringify(crossRefIndex));
+const refCount = Object.values(crossRefIndex).reduce((sum, arr) => sum + arr.length, 0);
+console.log(`Written cross-ref-index.json (${refCount} cross-references across ${datasets.length} datasets)`);
 
 console.log('Done.');

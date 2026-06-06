@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { DEFAULT_LANG } from '../utils/lang';
 
 // Auto-discover all locale YAML files — adding a new .yml file is all that's needed
 const localeModules = import.meta.glob<{ default: Record<string, string> }>('./locales/*.yml', { eager: true });
@@ -14,7 +15,6 @@ for (const path of Object.keys(localeModules)) {
   }
 }
 
-const DEFAULT_LANG = 'eng';
 const stored = typeof localStorage !== 'undefined'
   ? (localStorage.getItem('ui-lang') || DEFAULT_LANG)
   : DEFAULT_LANG;

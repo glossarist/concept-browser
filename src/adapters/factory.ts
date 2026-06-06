@@ -9,25 +9,42 @@ export class AdapterFactory {
   private urnMap = new Map<string, string>();
   readonly router = new UriRouter();
   readonly resolver: ReferenceResolver;
+  private crossRefIndex: Record<string, string[]> | null = null;
 
   constructor() {
     this.resolver = new ReferenceResolver();
   }
 
   async discoverDatasets(datasetsUrl: string): Promise<DatasetAdapter[]> {
-    const resp = await fetch(datasetsUrl);
-    if (!resp.ok) throw new Error(`Failed to load dataset registry: ${resp.status}`);
-    const registry = (await resp.json()) as DatasetRegistry[];
+    let registry: DatasetRegistry[];
+    const inline = document.getElementById('datasets-json');
+    if (inline?.textContent) {
+      registry = JSON.parse(inline.textContent) as DatasetRegistry[];
+    } else {
+      const resp = await fetch(datasetsUrl);
+      if (!resp.ok) throw new Error(`Failed to load dataset registry: ${resp.status}`);
+      registry = await resp.json() as DatasetRegistry[];
+    }
 
     const base = import.meta.env.BASE_URL;
     const adapters: DatasetAdapter[] = [];
+    const needManifest: DatasetAdapter[] = [];
+
     for (const reg of registry) {
       const adapter = new DatasetAdapter(reg.id, `${base}data/${reg.id}`);
       this.adapters.set(reg.id, adapter);
       adapters.push(adapter);
+
+      if (reg.summary) {
+        adapter.setSummaryManifest(reg.summary);
+      } else {
+        needManifest.push(adapter);
+      }
     }
 
-    await Promise.all(adapters.map(a => a.loadManifest().catch(() => {})));
+    if (needManifest.length > 0) {
+      await Promise.all(needManifest.map(a => a.loadManifest().catch(() => {})));
+    }
 
     return adapters;
   }
@@ -88,6 +105,20 @@ export class AdapterFactory {
 
   resolveCitation(source: string, referenceFrom: string, sourceDatasetId?: string): Resolution | null {
     return this.resolver.resolveCitation(source, referenceFrom, sourceDatasetId);
+  }
+
+  async loadCrossRefIndex(): Promise<Record<string, string[]>> {
+    if (this.crossRefIndex) return this.crossRefIndex;
+    try {
+      const resp = await fetch(`${import.meta.env.BASE_URL}data/cross-ref-index.json`);
+      if (resp.ok) {
+        this.crossRefIndex = await resp.json();
+      }
+    } catch {
+      // Fall through to empty index
+    }
+    this.crossRefIndex = this.crossRefIndex || {};
+    return this.crossRefIndex;
   }
 }
 

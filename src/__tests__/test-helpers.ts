@@ -46,6 +46,8 @@ export interface AdapterStubOptions {
   extractEdges?: () => any[];
   extractDomainEdges?: () => any[];
   getIndexEntry?: () => any;
+  loadEdgeIndex?: () => Promise<any[]>;
+  loadDomainNodes?: () => Promise<any[]>;
 }
 
 export function makeAdapterStub(options: AdapterStubOptions = {}): any {
@@ -65,6 +67,8 @@ export function makeAdapterStub(options: AdapterStubOptions = {}): any {
     extractEdges: options.extractEdges ?? (() => []),
     extractDomainEdges: options.extractDomainEdges ?? (() => []),
     getIndexEntry: options.getIndexEntry ?? (() => null),
+    loadEdgeIndex: options.loadEdgeIndex ?? (() => Promise.resolve([])),
+    loadDomainNodes: options.loadDomainNodes ?? (() => Promise.resolve([])),
   };
 }
 

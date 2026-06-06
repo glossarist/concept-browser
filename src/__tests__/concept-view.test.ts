@@ -1,9 +1,13 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import ConceptView from '../views/ConceptView.vue';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { conceptFromJson } from '../adapters/model-bridge';
 import { createTestRouter, setupPinia, makeManifest, makeAdapterStub } from './test-helpers';
+
+// Mock fetch for cross-ref-index.json requests from ensureEdgesForDataset
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
 
 describe('ConceptView', () => {
   let pinia: ReturnType<typeof setupPinia>;
@@ -12,6 +16,8 @@ describe('ConceptView', () => {
   beforeEach(async () => {
     pinia = setupPinia();
     router = await createTestRouter('dataset', '/');
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({ ok: false, status: 404 } as Response);
     const store = useVocabularyStore();
     store.manifests.set('test', makeManifest());
     store.datasets.set('test', makeAdapterStub());
