@@ -9,7 +9,7 @@ import { useI18n } from '../i18n';
 const store = useVocabularyStore();
 const router = useRouter();
 const { getStyle } = useDsStyle();
-const { config: siteConfig, localizedTitle, localizedSubtitle, localizedDescription } = useSiteConfig();
+const { config: siteConfig, localizedTitle, localizedSubtitle, localizedDescription, localizedDatasetField } = useSiteConfig();
 const { t } = useI18n();
 const exploring = ref(false);
 
@@ -121,7 +121,7 @@ function goToGraph() { router.push({ name: 'graph' }); }
           </h2>
         </div>
         <p v-if="filteredDatasets[0].manifest.description" class="text-sm text-ink-400 mb-4 line-clamp-2 leading-relaxed pl-6">
-          {{ filteredDatasets[0].manifest.description }}
+          {{ localizedDatasetField(filteredDatasets[0].id, 'description', filteredDatasets[0].manifest.description) }}
         </p>
         <div class="flex items-center gap-3 pl-6 mb-4">
           <span :style="{ color: getStyle(filteredDatasets[0].id).color }" class="text-sm font-semibold tabular-nums">{{ filteredDatasets[0].manifest.conceptCount.toLocaleString() }}</span>
@@ -164,7 +164,7 @@ function goToGraph() { router.push({ name: 'graph' }); }
           </div>
 
           <p class="text-sm text-ink-400 mb-5 line-clamp-2 leading-relaxed pl-[22px]">
-            {{ ds.manifest.description }}
+            {{ localizedDatasetField(ds.id, 'description', ds.manifest.description) }}
           </p>
 
           <div class="flex items-center gap-3 pl-[22px] mb-3">
