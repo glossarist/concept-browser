@@ -252,7 +252,7 @@ const activeSectionId = computed(() => {
           <button
             v-if="group.label"
             @click="toggleGroup(group.id)"
-            class="w-full flex items-start gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-ink-50"
+            class="sidebar-group-label w-full flex items-start gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-ink-50"
             :style="group.color ? { color: group.color } : {}"
           >
             <span class="w-3 text-[10px] mt-0.5 flex-shrink-0">{{ isGroupExpanded(group.id) ? '▾' : '▸' }}</span>
