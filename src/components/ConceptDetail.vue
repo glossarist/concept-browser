@@ -143,7 +143,7 @@ async function navigateRelated(ref: { source: string | null; id: string | null }
   router.push({ name: 'concept', params: { registerId: target.registerId, conceptId: target.conceptId } });
 }
 
-function relatedLabel(dr: { content?: string; ref?: { source: string | null; id: string | null } | null }): string {
+function relatedLabel(dr: { content?: string | null; ref?: { source: string | null; id: string | null } | null }): string {
   if (dr.content) return dr.content;
   const resolved = dr.ref ? getResolvedRef(dr.ref).target : null;
   if (resolved) {
@@ -364,7 +364,7 @@ const edgeDisplayCache = computed(() => {
 });
 
 function getEdgeDisplay(uri: string): EdgeDisplay {
-  return edgeDisplayCache.value.get(uri) ?? { uri, conceptId: uri, tooltip: uri, isLocal: false, badge: null };
+  return edgeDisplayCache.value.get(uri) ?? { uri, conceptId: uri, designation: "", tooltip: uri, isLocal: false, badge: null };
 }
 
 interface ResolvedRef {
@@ -402,7 +402,7 @@ async function navigateEdge(edge: GraphEdge) {
 
 function navigateDomain(domain: { slug: string; conceptId?: string }) {
   const sectionId = domain.conceptId || domain.slug;
-  router.push({ name: 'dataset', params: { registerId: manifest.id }, query: { section: sectionId } });
+  router.push({ name: 'dataset', params: { registerId: props.manifest.id }, query: { section: sectionId } });
 }
 
 function getTermForLang(lang: string): string {
