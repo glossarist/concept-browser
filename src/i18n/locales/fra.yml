@@ -157,6 +157,7 @@ graph.stubStatus: non chargé
 graph.collapseControls: Réduire les contrôles
 graph.expandControls: Développer les contrôles
 graph.loading: Chargement des données du graphe...
+graph.showDomains: Afficher les domaines/sections
 
 # Sidebar provenance
 sidebar.provenance: Provenance

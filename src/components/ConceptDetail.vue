@@ -143,6 +143,17 @@ async function navigateRelated(ref: { source: string | null; id: string | null }
   router.push({ name: 'concept', params: { registerId: target.registerId, conceptId: target.conceptId } });
 }
 
+function relatedLabel(dr: { content?: string; ref?: { source: string | null; id: string | null } | null }): string {
+  if (dr.content) return dr.content;
+  const resolved = dr.ref ? getResolvedRef(dr.ref).target : null;
+  if (resolved) {
+    const m = store.manifests.get(resolved.registerId);
+    const dsLabel = m?.shortname || m?.title || resolved.registerId;
+    return `${resolved.conceptId} (${dsLabel})`;
+  }
+  return dr.ref ? `${dr.ref.id || ''} (${dr.ref.source || ''})`.trim() : '';
+}
+
 // Cross-reference resolver: generates clickable links for inline refs
 
 const { ensureBibLoaded, bibResolver, figResolver } = useRenderOptions(() => props.registerId);
@@ -670,8 +681,8 @@ const nonVerbalReps = computed(() => {
                   <div v-if="d.related?.length" class="mt-0.5 space-y-0.5">
                     <div v-for="(dr, dri) in d.related" :key="'dr'+dri" class="text-xs text-ink-400 flex items-center gap-1.5">
                       <span class="badge text-[9px] bg-gray-50 text-gray-600">{{ relationshipLabel(dr.type) }}</span>
-                      <button v-if="getResolvedRef(dr.ref).target" @click="navigateRelated(dr.ref!)" class="concept-link">{{ dr.content || (dr.ref ? `${dr.ref.source || ''} ${dr.ref.id || ''}`.trim() : '') }}</button>
-                      <span v-else>{{ dr.content || (dr.ref ? `${dr.ref.source || ''} ${dr.ref.id || ''}`.trim() : '') }}</span>
+                      <button v-if="getResolvedRef(dr.ref).target" @click="navigateRelated(dr.ref!)" class="concept-link">{{ relatedLabel(dr) }}</button>
+                      <span v-else>{{ relatedLabel(dr) }}</span>
                     </div>
                   </div>
                 </div>

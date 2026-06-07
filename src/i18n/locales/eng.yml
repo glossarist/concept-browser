@@ -157,6 +157,7 @@ graph.stubStatus: stub
 graph.collapseControls: Collapse controls
 graph.expandControls: Expand controls
 graph.loading: Loading graph data...
+graph.showDomains: Show domains/sections
 
 # Sidebar provenance
 sidebar.provenance: Provenance

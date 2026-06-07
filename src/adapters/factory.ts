@@ -46,7 +46,18 @@ export class AdapterFactory {
       await Promise.all(needManifest.map(a => a.loadManifest().catch(() => {})));
     }
 
+    // Register all datasets' URI patterns eagerly so cross-dataset refs resolve
+    for (const adapter of adapters) {
+      if (adapter.manifest) {
+        this.registerUriPatterns(adapter.registerId, adapter.manifest);
+      }
+    }
+    for (const adapter of this.adapters.values()) {
+      adapter.setUrnMap(this.urnMap);
+    }
+
     return adapters;
+
   }
 
   getAdapter(registerId: string): DatasetAdapter | undefined {
@@ -55,6 +66,29 @@ export class AdapterFactory {
 
   getAdapters(): DatasetAdapter[] {
     return [...this.adapters.values()];
+  }
+
+
+  private registerUriPatterns(registerId: string, manifest: Manifest): void {
+    const uriPatterns = [
+      manifest.datasetUri,
+      ...(manifest.uriAliases ?? []),
+      manifest.uriBase ? `${manifest.uriBase}/${registerId}/*` : undefined,
+    ].filter(Boolean) as string[];
+    this.resolver.registerDataset(registerId, uriPatterns);
+
+    if (manifest.ref) {
+      this.resolver.registerSourceRef(manifest.ref, registerId, manifest.datasetUri);
+    }
+    for (const alias of manifest.refAliases ?? []) {
+      this.resolver.registerSourceRef(alias, registerId, manifest.datasetUri);
+    }
+
+    if (manifest.datasetUri) this.urnMap.set(manifest.datasetUri, registerId);
+    for (const alias of manifest.uriAliases ?? []) {
+      const base = alias.endsWith('*') ? alias.slice(0, -1) : alias;
+      if (base.startsWith('urn:')) this.urnMap.set(base, registerId);
+    }
   }
 
   async loadDataset(registerId: string): Promise<DatasetAdapter> {

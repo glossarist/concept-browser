@@ -30,6 +30,7 @@ const containerRef = ref<HTMLDivElement | null>(null);
 const selectedNode = ref<GraphNode | null>(null);
 const detailCloseRef = ref<HTMLButtonElement | null>(null);
 const labelMode = ref<'designation' | 'identifier'>('designation');
+const showDomains = ref(true);
 
 // Dataset enable/disable state
 const registerEnabled = reactive<Record<string, boolean>>({});
@@ -74,7 +75,8 @@ const enabledRegisters = computed(() => {
 
 const visibleNodes = computed(() => {
   const enabled = enabledRegisters.value;
-  return props.nodes.filter(n => enabled.has(n.register));
+  const domains = showDomains.value;
+  return props.nodes.filter(n => enabled.has(n.register) && (domains || n.nodeType !== 'domain'));
 });
 
 const visibleNodeUris = computed(() => {
@@ -547,6 +549,14 @@ function selectedNodeColor(): string {
                 :class="labelMode === 'identifier' ? 'bg-ink-800 text-white' : 'text-ink-500 hover:bg-ink-50'"
               >{{ t('graph.identifier') }}</button>
             </div>
+          </div>
+
+          <!-- Domain/section toggle -->
+          <div class="flex items-center gap-2 mt-3">
+            <label class="flex items-center gap-1.5 cursor-pointer text-xs text-ink-500">
+              <input type="checkbox" v-model="showDomains" @change="rebuildGraph()" class="rounded border-ink-200 text-ink-800 focus:ring-ink-400 w-3.5 h-3.5" />
+              {{ t('graph.showDomains') }}
+            </label>
           </div>
 
           <div v-if="nodeCount === 0" class="text-xs text-ink-300 mt-3 leading-relaxed">
