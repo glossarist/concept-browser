@@ -49,6 +49,8 @@ page.goHome: Aller à l''accueil
 # Concept detail
 concept.definition: Définition
 concept.notes: Notes
+concept.annotation: Annotation
+concept.annotations: Annotations
 concept.note: Note
 concept.examples: Exemples
 concept.example: Exemple

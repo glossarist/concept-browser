@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Concept, LocalizedConcept, Designation, Expression, ConceptSource } from 'glossarist';
+import type { Concept, LocalizedConcept, Designation, ConceptSource } from 'glossarist';
 import type { Manifest, GraphEdge } from '../adapters/types';
 import { computed, ref, nextTick, watch } from 'vue';
 import { langName, langLabel, sortLanguages } from '../utils/lang';
@@ -7,8 +7,8 @@ import { renderMath, cleanContent } from '../utils/math';
 import type { RenderOptions } from '../utils/math';
 import { escapeAttr } from '../utils/escape';
 import { entryStatusColor, conceptStatusColor, conceptStatusLabel, conceptStatusDefinition, entryStatusLabel, entryStatusDefinition, getPreferredTerm } from '../utils/concept-helpers';
-import { designationTypeInfo, normativeStatusInfo, grammarBadges, pronunciationLabel, pronunciationTooltip, abbreviationDetails, sourceTypeInfo, sourceStatusInfo, termTypeInfo } from '../utils/designation-registry';
-import { conceptUri } from '../adapters/model-bridge';
+import { sourceTypeInfo, sourceStatusInfo } from '../utils/designation-registry';
+import { conceptUri, getAnnotations } from '../adapters/model-bridge';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
@@ -21,6 +21,7 @@ import ConceptRdfView from './ConceptRdfView.vue';
 import FormatDownloads from './FormatDownloads.vue';
 import NonVerbalRepDisplay from './NonVerbalRepDisplay.vue';
 import CitationDisplay from './CitationDisplay.vue';
+import DesignationList from './DesignationList.vue';
 import { useI18n } from '../i18n';
 
 const { t, locale } = useI18n();
@@ -200,6 +201,8 @@ interface LangContent {
   renderedTerm: string;
   definition: string;
   renderedDefinition: string;
+  annotations: string[];
+  renderedAnnotations: string[];
   notes: string[];
   renderedNotes: string[];
   examples: string[];
@@ -224,6 +227,7 @@ const allLangContent = computed(() => {
 
     const definition = lc.definitions
       .map(d => d.content).filter(Boolean).join('\n\n');
+    const annotations = getAnnotations(lc).map(a => a.content).filter(Boolean);
     const notes = lc.notes.map(n => n.content).filter(Boolean);
     const examples = lc.examples.map(e => e.content).filter(Boolean);
 
@@ -233,6 +237,8 @@ const allLangContent = computed(() => {
       renderedTerm: renderMath(getPreferredTerm(lc, '')),
       definition,
       renderedDefinition: renderMath(definition, renderOpts),
+      annotations,
+      renderedAnnotations: annotations.map((a: string) => renderMath(a, renderOpts)),
       notes,
       renderedNotes: notes.map(n => renderMath(n, renderOpts)),
       examples,
@@ -259,7 +265,7 @@ const langContentMap = computed(() => {
 });
 
 function hasContent(lc: LangContent): boolean {
-  return !!(lc.definition || lc.notes.length || lc.examples.length || lc.sources.length);
+  return !!(lc.definition || lc.annotations.length || lc.notes.length || lc.examples.length || lc.sources.length);
 }
 
 function initCollapsed() {
@@ -623,74 +629,36 @@ const nonVerbalReps = computed(() => {
             <div v-if="hasContent(lc) && collapsedLangs.has(lc.lang)" class="px-3 sm:px-4 pb-3 -mt-0.5">
               <p v-if="lc.definition" class="text-xs text-ink-300 leading-relaxed pl-[22px]">{{ plainTruncate(lc.definition) }}</p>
               <p v-else class="text-xs text-ink-200 leading-relaxed pl-[22px]">
+                <template v-if="lc.annotations.length">{{ lc.annotations.length }} annotation{{ lc.annotations.length > 1 ? 's' : '' }}</template>
+                <template v-if="lc.annotations.length && lc.notes.length"> &middot; </template>
                 <template v-if="lc.notes.length">{{ lc.notes.length }} note{{ lc.notes.length > 1 ? 's' : '' }}</template>
-                <template v-if="lc.notes.length && lc.examples.length"> &middot; </template>
+                <template v-if="(lc.annotations.length || lc.notes.length) && lc.examples.length"> &middot; </template>
                 <template v-if="lc.examples.length">{{ lc.examples.length }} example{{ lc.examples.length > 1 ? 's' : '' }}</template>
               </p>
             </div>
 
             <!-- Expandable content -->
             <div v-if="hasContent(lc)" v-show="!collapsedLangs.has(lc.lang)" class="lang-content px-3 sm:px-4 pb-4 space-y-3">
-              <!-- Designations (show all, with full metadata) -->
-              <div v-if="lc.designations.length > 0" class="space-y-1.5 pl-[22px]">
-                <div v-for="(d, i) in orderedDesignations(lc.lang)" :key="i">
-                  <div class="flex items-center gap-1.5 text-sm flex-wrap">
-                    <span :class="d.normativeStatus === 'preferred' ? 'font-bold text-ink-800' : 'font-normal text-ink-700'" v-html="lc.renderedDesignations.get(d.designation) ?? d.designation"></span>
-                    <span class="badge text-[10px] flex-shrink-0" :class="designationTypeInfo(d).color" :title="designationTypeInfo(d).definition ?? ''">{{ designationTypeInfo(d).label }}</span>
-                    <span class="badge text-[10px] flex-shrink-0" :class="normativeStatusInfo(d.normativeStatus).color" :title="normativeStatusInfo(d.normativeStatus).definition ?? ''">{{ normativeStatusInfo(d.normativeStatus).label }}</span>
-                    <!-- Abbreviation details -->
-                    <template v-if="abbreviationDetails(d).length">
-                      <span v-for="abbr in abbreviationDetails(d)" :key="abbr" class="badge text-[10px] bg-amber-50 text-amber-600">{{ abbr }}</span>
-                    </template>
-                    <!-- Term type (ISO 12620) -->
-                    <span v-if="d.termType" class="badge text-[10px] bg-gray-50 text-gray-600" :title="termTypeInfo(d.termType).definition ?? ''">{{ termTypeInfo(d.termType).label }}</span>
-                    <!-- Grammar info -->
-                    <template v-if="d.type === 'expression' && (d as Expression).grammarInfo?.length">
-                      <template v-for="(gi, giIdx) in (d as Expression).grammarInfo" :key="giIdx">
-                        <span v-for="badge in grammarBadges(gi)" :key="giIdx + '-' + badge.label"
-                          class="badge text-[10px] bg-gray-50 text-gray-600" :title="badge.definition ?? ''">{{ badge.label }}</span>
-                      </template>
-                    </template>
-                    <!-- Pronunciation -->
-                    <template v-if="d.pronunciations?.length">
-                      <span v-for="(p, pi) in d.pronunciations" :key="'p'+pi"
-                        class="text-xs text-ink-400 font-mono" :title="pronunciationTooltip(p)">{{ pronunciationLabel(p) }}</span>
-                    </template>
-                    <!-- Flags -->
-                    <span v-if="d.international" class="badge text-[10px] bg-sky-50 text-sky-600">international</span>
-                    <span v-if="d.absent" class="badge text-[10px] bg-red-50 text-red-600">absent</span>
-                    <span v-if="d.geographicalArea" class="badge text-[10px] bg-gray-50 text-gray-600">{{ d.geographicalArea }}</span>
-                    <span v-if="d.usageInfo" class="text-xs text-ink-300">{{ d.usageInfo }}</span>
-                    <span v-if="d.fieldOfApplication" class="text-xs text-ink-300">field: {{ d.fieldOfApplication }}</span>
-                    <!-- Per-designation language/script/system overrides -->
-                    <template v-if="d.language && d.language !== lc.lang">
-                      <span class="badge text-[10px] bg-teal-50 text-teal-600">lang: {{ langName(d.language) }}</span>
-                    </template>
-                    <span v-if="d.script" class="badge text-[10px] bg-gray-50 text-gray-600">script: {{ d.script }}</span>
-                    <span v-if="d.system" class="badge text-[10px] bg-gray-50 text-gray-600">system: {{ d.system }}</span>
-                  </div>
-                  <!-- Designation sources -->
-                  <div v-if="d.sources?.length" class="mt-1 space-y-0.5">
-                    <div v-for="(ds, dsi) in d.sources" :key="'ds'+dsi" class="text-xs text-ink-400 flex items-center gap-1.5">
-                      <span v-if="ds.type" class="badge text-[9px]" :class="sourceTypeInfo(ds.type).color">{{ sourceTypeInfo(ds.type).label }}</span>
-                      <CitationDisplay v-if="ds.origin" :citation="ds.origin" :register-id="registerId" />
-                      <span v-else-if="ds.modification" class="text-ink-300">{{ ds.modification }}</span>
-                    </div>
-                  </div>
-                  <!-- Designation relationships -->
-                  <div v-if="d.related?.length" class="mt-0.5 space-y-0.5">
-                    <div v-for="(dr, dri) in d.related" :key="'dr'+dri" class="text-xs text-ink-400 flex items-center gap-1.5">
-                      <span class="badge text-[9px] bg-gray-50 text-gray-600">{{ relationshipLabel(dr.type) }}</span>
-                      <button v-if="getResolvedRef(dr.ref).target" @click="navigateRelated(dr.ref!)" class="concept-link">{{ relatedLabel(dr) }}</button>
-                      <span v-else>{{ relatedLabel(dr) }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <!-- Designations -->
+              <DesignationList
+                :designations="orderedDesignations(lc.lang)"
+                :rendered-designations="lc.renderedDesignations"
+                :lang="lc.lang"
+                :register-id="registerId"
+                @navigate-related="(ref) => navigateRelated(ref)"
+              />
 
               <!-- Definition -->
               <div v-if="lc.definition" class="p-4 rounded-lg bg-surface border-l-2" :style="{ borderLeftColor: getColor(manifest.id) }">
                 <div class="text-ink-800 leading-relaxed" v-html="lc.renderedDefinition"></div>
+              </div>
+
+              <!-- Annotations -->
+              <div v-if="lc.annotations.length" class="space-y-2">
+                <div v-for="(_, i) in lc.annotations" :key="'ann-'+i" class="text-ink-500 text-sm leading-relaxed italic pl-3 border-l-2 border-ink-200">
+                  <span class="font-medium text-ink-400 text-xs uppercase tracking-wide not-italic">{{ t('concept.annotation') }}</span>
+                  <div class="mt-1 not-italic" v-html="lc.renderedAnnotations[i]"></div>
+                </div>
               </div>
 
               <!-- Notes -->
