@@ -34,9 +34,9 @@ watch(adapter, (a) => {
   if (idlePreloadHandle !== null) return;
   if (!a || !a.index) return;
 
-  const schedule = typeof requestIdleCallback !== 'undefined'
-    ? requestIdleCallback
-    : (cb: () => void) => setTimeout(cb, 0);
+  const schedule: (cb: () => void) => number = typeof requestIdleCallback !== 'undefined'
+    ? (cb) => requestIdleCallback(cb, { timeout: 2000 })
+    : (cb) => window.setTimeout(cb, 0);
 
   idlePreloadHandle = schedule(() => {
     if (allChunksLoaded.value || !a.index) {
@@ -52,7 +52,7 @@ watch(adapter, (a) => {
       a.ensureChunksForRange(0, 100).catch(() => {});
     }
     idlePreloadHandle = null;
-  }, { timeout: 2000 } as any);
+  });
 });
 
 onBeforeUnmount(() => {
