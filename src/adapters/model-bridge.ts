@@ -23,6 +23,7 @@ import {
   NonVerbRep,
   RELATIONSHIP_TYPES,
   DATE_TYPES,
+  ConceptRef,
 } from 'glossarist';
 import {
   LetterSymbol,
@@ -36,6 +37,218 @@ import {
 } from 'glossarist/models';
 import type { ConceptSummary } from './types';
 
+// ── JSON-LD wire-format types ─────────────────────────────────────────────
+
+interface JsonLdContent {
+  'gl:content'?: string;
+}
+
+interface JsonLdDate {
+  'gl:date'?: string;
+  'gl:dateType'?: string;
+}
+
+interface JsonLdPronunciation {
+  'gl:content'?: string;
+  'gl:language'?: string;
+  'gl:script'?: string;
+  'gl:system'?: string;
+  'gl:country'?: string;
+}
+
+interface JsonLdGrammarInfo {
+  'gl:gender'?: string;
+  'gl:number'?: string;
+  'gl:partOfSpeech'?: string;
+  'gl:noun'?: boolean;
+  'gl:verb'?: boolean;
+  'gl:adj'?: boolean;
+  'gl:adverb'?: boolean;
+  'gl:preposition'?: boolean;
+  'gl:participle'?: boolean;
+}
+
+interface JsonLdRef {
+  'gl:source'?: string;
+  'gl:id'?: string;
+  'gl:version'?: string;
+  'gl:text'?: string;
+  'source'?: string;
+  'id'?: string;
+  'version'?: string;
+}
+
+interface JsonLdLocality {
+  'gl:localityType'?: string;
+  'gl:referenceFrom'?: string;
+  'gl:referenceTo'?: string;
+  'type'?: string;
+  'reference_from'?: string;
+  'reference_to'?: string;
+}
+
+interface JsonLdOrigin {
+  'gl:ref'?: string | JsonLdRef;
+  'gl:locality'?: JsonLdLocality;
+  'gl:link'?: string;
+  'gl:id'?: string;
+  'gl:version'?: string;
+  'gl:source'?: string;
+}
+
+interface JsonLdSource {
+  'gl:sourceType'?: string;
+  'gl:sourceStatus'?: string;
+  'gl:modification'?: string;
+  'gl:origin'?: JsonLdOrigin;
+}
+
+interface JsonLdRelated {
+  'gl:relationshipType'?: string;
+  'gl:ref'?: JsonLdRef;
+  '@id'?: string;
+  'gl:term'?: string;
+  'gl:target'?: string;
+}
+
+interface JsonLdDesignation {
+  '@type'?: string;
+  'gl:term'?: string;
+  'gl:normativeStatus'?: string;
+  'gl:absent'?: unknown;
+  'gl:fieldOfApplication'?: string;
+  'gl:usageInfo'?: string;
+  'gl:geographicalArea'?: string;
+  'gl:language'?: string;
+  'gl:script'?: string;
+  'gl:system'?: string;
+  'gl:international'?: boolean;
+  'gl:termType'?: string;
+  'gl:pronunciation'?: JsonLdPronunciation[];
+  'gl:source'?: JsonLdSource[];
+  'gl:related'?: JsonLdRelated[];
+  'gl:prefix'?: string;
+  'gl:gender'?: string;
+  'gl:grammarInfo'?: JsonLdGrammarInfo[];
+}
+
+interface JsonLdLocalizedConcept {
+  'gl:languageCode'?: string;
+  'gl:entryStatus'?: string;
+  'gl:classification'?: string;
+  'gl:reviewType'?: string;
+  'gl:domain'?: string;
+  'gl:release'?: string;
+  'gl:lineageSourceSimilarity'?: number;
+  'gl:script'?: string;
+  'gl:system'?: string;
+  'gl:designation'?: JsonLdDesignation[];
+  'gl:definition'?: JsonLdContent[];
+  'gl:notes'?: JsonLdContent[];
+  'gl:annotations'?: JsonLdContent[];
+  'gl:examples'?: JsonLdContent[];
+  'gl:source'?: JsonLdSource[];
+  'gl:dates'?: JsonLdDate[];
+  'gl:references'?: JsonLdRelated[];
+  'gl:reviewDate'?: string;
+  'gl:reviewDecisionDate'?: string;
+  'gl:reviewDecisionEvent'?: string;
+  'gl:reviewStatus'?: string;
+  'gl:reviewDecision'?: string;
+  'gl:reviewDecisionNotes'?: string;
+}
+
+interface JsonLdConcept {
+  '@type'?: string;
+  '@id'?: string;
+  'gl:identifier'?: string | number;
+  'gl:term'?: string;
+  'gl:localizedConcept'?: Record<string, JsonLdLocalizedConcept>;
+  'gl:related'?: JsonLdRelated[];
+  'gl:tags'?: string[];
+}
+
+// ── Bridges for fields not yet in glossarist-js ────────────────────────────
+// Remove each bridge when glossarist-js publishes native support.
+
+// Annotations: LocalizedConcept.annotations
+const extraAnnotations = new WeakMap<LocalizedConcept, DetailedDefinition[]>();
+
+export function getAnnotations(lc: LocalizedConcept): DetailedDefinition[] {
+  return extraAnnotations.get(lc) ?? [];
+}
+
+// Designation relationship targets: RelatedConcept.target (string)
+const designationTargets = new WeakMap<RelatedConcept, string>();
+
+export function getDesignationTarget(rc: RelatedConcept): string | null {
+  return designationTargets.get(rc) ?? null;
+}
+
+// ConceptRef text: human-readable label alongside source/id
+const refTexts = new WeakMap<ConceptRef, string>();
+
+export function getRefText(ref: ConceptRef): string | null {
+  return refTexts.get(ref) ?? null;
+}
+
+// Relationship types whose target is a designation string, not a concept ref.
+const DESIGNATION_REL_TYPES = new Set(['abbreviated_form_for', 'short_form_for']);
+
+function attachAnnotations(concept: Concept, localizations: Record<string, unknown>): void {
+  for (const lang of concept.languages) {
+    const lc = concept.localization(lang);
+    const raw = localizations[lang];
+    if (!lc || !raw || typeof raw !== 'object') continue;
+    const rawObj = raw as Record<string, unknown>;
+
+    // Annotations
+    const annList = rawObj.annotations;
+    if (Array.isArray(annList) && annList.length > 0) {
+      extraAnnotations.set(lc, annList.map((a: Record<string, unknown>) =>
+        DetailedDefinition.fromJSON({ content: (a.content as string) ?? '' }) as DetailedDefinition,
+      ));
+    }
+
+    // Designation-level relationship targets and ref text
+    const rawTerms = rawObj.terms;
+    if (Array.isArray(rawTerms)) {
+      for (let i = 0; i < lc.terms.length && i < rawTerms.length; i++) {
+        const rawTerm = rawTerms[i] as Record<string, unknown>;
+        const rawRelated = rawTerm.related;
+        if (!Array.isArray(rawRelated)) continue;
+        const designation = lc.terms[i];
+        for (let j = 0; j < designation.related.length && j < rawRelated.length; j++) {
+          const rawRel = rawRelated[j] as Record<string, unknown>;
+          const rc = designation.related[j];
+          if (rawRel.target && typeof rawRel.target === 'string') {
+            designationTargets.set(rc, rawRel.target);
+          }
+          if (rc.ref) {
+            const rawRef = rawRel.ref as Record<string, unknown> | undefined;
+            if (rawRef?.text && typeof rawRef.text === 'string') {
+              refTexts.set(rc.ref, rawRef.text);
+            }
+          }
+        }
+      }
+    }
+
+    // Localization-level ref text
+    const rawRelated = rawObj.related;
+    if (Array.isArray(rawRelated)) {
+      for (let i = 0; i < lc.related.length && i < rawRelated.length; i++) {
+        const rc = lc.related[i];
+        const rawRel = rawRelated[i] as Record<string, unknown>;
+        const rawRef = rawRel.ref as Record<string, unknown> | undefined;
+        if (rc.ref && rawRef?.text && typeof rawRef.text === 'string') {
+          refTexts.set(rc.ref, rawRef.text);
+        }
+      }
+    }
+  }
+}
+
 // ── Detection ─────────────────────────────────────────────────────────────
 
 function isJsonLd(doc: Record<string, unknown>): boolean {
@@ -44,11 +257,10 @@ function isJsonLd(doc: Record<string, unknown>): boolean {
 
 // ── JSON-LD → Glossarist native mapping ───────────────────────────────────
 
-function mapDesignationFromJsonLd(d: any): Record<string, unknown> {
+function mapDesignationFromJsonLd(d: JsonLdDesignation): Record<string, unknown> {
   const result: Record<string, unknown> = {};
-  const rawType = (d['@type'] as string) || '';
+  const rawType = d['@type'] || '';
 
-  // Map type
   if (rawType.includes('Abbreviation')) result.type = 'abbreviation';
   else if (rawType.includes('LetterSymbol')) result.type = 'letter_symbol';
   else if (rawType.includes('GraphicalSymbol')) result.type = 'graphical_symbol';
@@ -69,7 +281,7 @@ function mapDesignationFromJsonLd(d: any): Record<string, unknown> {
   if (d['gl:termType']) result.term_type = d['gl:termType'];
 
   if (d['gl:pronunciation']?.length) {
-    result.pronunciation = d['gl:pronunciation'].map((p: any) => ({
+    result.pronunciation = d['gl:pronunciation'].map(p => ({
       content: p['gl:content'] ?? null,
       language: p['gl:language'] ?? null,
       script: p['gl:script'] ?? null,
@@ -83,16 +295,21 @@ function mapDesignationFromJsonLd(d: any): Record<string, unknown> {
   }
 
   if (d['gl:related']?.length) {
-    result.related = d['gl:related'].map(mapRelatedFromJsonLd);
+    result.related = d['gl:related'].map(r => {
+      const relType = r['gl:relationshipType'] ?? 'references';
+      if (DESIGNATION_REL_TYPES.has(relType) && r['gl:target']) {
+        return { type: relType, target: r['gl:target'] };
+      }
+      return mapRelatedFromJsonLd(r);
+    });
   }
 
-  // Expression-specific
   if (d['gl:prefix'] != null) result.prefix = d['gl:prefix'];
   if (d['gl:gender']) {
     result.grammar_info = [{ gender: d['gl:gender'] }];
   }
   if (d['gl:grammarInfo']?.length) {
-    result.grammar_info = d['gl:grammarInfo'].map((gi: any) => ({
+    result.grammar_info = d['gl:grammarInfo'].map(gi => ({
       gender: gi['gl:gender'] ?? null,
       number: gi['gl:number'] ?? null,
       part_of_speech: gi['gl:partOfSpeech'] ?? null,
@@ -108,7 +325,7 @@ function mapDesignationFromJsonLd(d: any): Record<string, unknown> {
   return result;
 }
 
-function mapSourceFromJsonLd(s: any): Record<string, unknown> {
+function mapSourceFromJsonLd(s: JsonLdSource): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   if (s['gl:sourceType']) result.type = s['gl:sourceType'];
   if (s['gl:sourceStatus']) result.status = s['gl:sourceStatus'];
@@ -120,7 +337,6 @@ function mapSourceFromJsonLd(s: any): Record<string, unknown> {
     if (o['gl:ref']) {
       const rawRef = o['gl:ref'];
       if (typeof rawRef === 'string') {
-        // Legacy format: gl:ref is a plain string (e.g. "ISO/TS 14812:2022")
         origin.ref = { source: rawRef };
       } else {
         const refObj: Record<string, unknown> = {};
@@ -154,7 +370,7 @@ function mapSourceFromJsonLd(s: any): Record<string, unknown> {
   return result;
 }
 
-function mapRelatedFromJsonLd(r: any): Record<string, unknown> {
+function mapRelatedFromJsonLd(r: JsonLdRelated): Record<string, unknown> {
   const result: Record<string, unknown> = { type: 'references' };
 
   if (r['gl:relationshipType']) {
@@ -168,11 +384,12 @@ function mapRelatedFromJsonLd(r: any): Record<string, unknown> {
     if (ref['gl:id']) refObj.id = ref['gl:id'];
     if (ref['source']) refObj.source = ref['source'];
     if (ref['id']) refObj.id = ref['id'];
+    if (ref['gl:text']) refObj.text = ref['gl:text'];
     if (Object.keys(refObj).length > 0) result.ref = refObj;
   }
 
   if (!result.ref && r['@id']) {
-    const uri = r['@id'] as string;
+    const uri = r['@id'];
     const idMatch = uri.match(/\/concept\/([^/]+)$/);
     result.ref = idMatch
       ? { source: uri.split('/').slice(-3, -2)[0] || '', id: idMatch[1] }
@@ -182,7 +399,7 @@ function mapRelatedFromJsonLd(r: any): Record<string, unknown> {
   return result;
 }
 
-function mapLocalizedFromJsonLd(lc: any): Record<string, unknown> {
+function mapLocalizedFromJsonLd(lc: JsonLdLocalizedConcept): Record<string, unknown> {
   const data: Record<string, unknown> = {};
 
   if (lc['gl:languageCode']) data.language_code = lc['gl:languageCode'];
@@ -200,18 +417,21 @@ function mapLocalizedFromJsonLd(lc: any): Record<string, unknown> {
   }
 
   if (lc['gl:definition']?.length) {
-    data.definition = lc['gl:definition'].map((d: any) => {
-      const def: Record<string, unknown> = { content: d['gl:content'] ?? '' };
-      return def;
-    });
+    data.definition = lc['gl:definition'].map(d => ({
+      content: d['gl:content'] ?? '',
+    }));
   }
 
   if (lc['gl:notes']?.length) {
-    data.notes = lc['gl:notes'].map((n: any) => ({ content: n['gl:content'] ?? '' }));
+    data.notes = lc['gl:notes'].map(n => ({ content: n['gl:content'] ?? '' }));
+  }
+
+  if (lc['gl:annotations']?.length) {
+    data.annotations = lc['gl:annotations'].map(a => ({ content: a['gl:content'] ?? '' }));
   }
 
   if (lc['gl:examples']?.length) {
-    data.examples = lc['gl:examples'].map((e: any) => ({ content: e['gl:content'] ?? '' }));
+    data.examples = lc['gl:examples'].map(e => ({ content: e['gl:content'] ?? '' }));
   }
 
   if (lc['gl:source']?.length) {
@@ -219,7 +439,7 @@ function mapLocalizedFromJsonLd(lc: any): Record<string, unknown> {
   }
 
   if (lc['gl:dates']?.length) {
-    data.dates = lc['gl:dates'].map((d: any) => ({
+    data.dates = lc['gl:dates'].map(d => ({
       date: d['gl:date'] ?? null,
       type: d['gl:dateType'] ?? null,
     }));
@@ -229,7 +449,6 @@ function mapLocalizedFromJsonLd(lc: any): Record<string, unknown> {
     data.related = lc['gl:references'].map(mapRelatedFromJsonLd);
   }
 
-  // Review metadata — passed through to LocalizedConcept constructor
   if (lc['gl:reviewDate']) data.review_date = lc['gl:reviewDate'];
   if (lc['gl:reviewDecisionDate']) data.review_decision_date = lc['gl:reviewDecisionDate'];
   if (lc['gl:reviewDecisionEvent']) data.review_decision_event = lc['gl:reviewDecisionEvent'];
@@ -240,9 +459,9 @@ function mapLocalizedFromJsonLd(lc: any): Record<string, unknown> {
   return data;
 }
 
-function conceptFromJsonLd(doc: Record<string, any>): Concept {
+function conceptFromJsonLd(doc: JsonLdConcept): Concept {
   const id = String(doc['gl:identifier'] ?? doc['@id']?.split('/').pop() ?? '');
-  const localizations: Record<string, any> = {};
+  const localizations: Record<string, unknown> = {};
 
   const rawLc = doc['gl:localizedConcept'] ?? {};
   for (const [lang, lc] of Object.entries(rawLc)) {
@@ -254,7 +473,7 @@ function conceptFromJsonLd(doc: Record<string, any>): Concept {
   const related = (doc['gl:related'] ?? []).map(mapRelatedFromJsonLd);
   const tags = Array.isArray(doc['gl:tags']) ? [...doc['gl:tags']] : [];
 
-  return Concept.fromJSON({
+  const concept = Concept.fromJSON({
     id,
     term: doc['gl:term'] ?? null,
     uri: doc['@id'] ?? null,
@@ -263,16 +482,21 @@ function conceptFromJsonLd(doc: Record<string, any>): Concept {
     tags,
     status: null,
   });
+
+  attachAnnotations(concept, localizations);
+  return concept;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────
 
-export function conceptFromJson(doc: Record<string, any>): Concept {
+export function conceptFromJson(doc: Record<string, unknown>): Concept {
   if (isJsonLd(doc)) {
-    return conceptFromJsonLd(doc);
+    return conceptFromJsonLd(doc as JsonLdConcept);
   }
-  // glossarist native format — use fromJSON directly
-  return Concept.fromJSON(doc as Record<string, unknown>);
+  const concept = Concept.fromJSON(doc);
+  const locs = (doc as Record<string, unknown>).localizations as Record<string, unknown> | undefined;
+  if (locs) attachAnnotations(concept, locs);
+  return concept;
 }
 
 export function conceptToSummary(concept: Concept): ConceptSummary {

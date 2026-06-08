@@ -47,7 +47,7 @@ function loadConceptFile(filePath) {
       const lcData = { ...(doc.data || {}) };
       delete lcData.language_code;
       // Merge top-level fields (terms, definition, notes, etc.) into lcData
-      for (const key of ['terms', 'definition', 'notes', 'examples', 'sources', 'dates', 'domain', 'references', 'entry_status', 'classification', 'review_type', 'review_date', 'review_decision_date', 'review_decision_event', 'review_status', 'review_decision', 'review_decision_notes', 'lineage_source_similarity', 'release', 'script', 'system']) {
+      for (const key of ['terms', 'definition', 'notes', 'annotations', 'examples', 'sources', 'dates', 'domain', 'references', 'entry_status', 'classification', 'review_type', 'review_date', 'review_decision_date', 'review_decision_event', 'review_status', 'review_decision', 'review_decision_notes', 'lineage_source_similarity', 'release', 'script', 'system']) {
         if (doc[key] !== undefined && lcData[key] === undefined) {
           lcData[key] = doc[key];
         }
@@ -105,6 +105,23 @@ function termToDesignation(term) {
 
   if (term.text) doc['gl:text'] = term.text;
   if (term.image) doc['gl:image'] = term.image;
+
+  if (term.related && term.related.length > 0) {
+    doc['gl:related'] = term.related.map(r => {
+      const rel = {};
+      if (r.type) rel['gl:relationshipType'] = r.type;
+      if (r.target) {
+        rel['gl:target'] = r.target;
+      } else if (r.ref) {
+        const ref = { '@type': 'gl:ConceptRef' };
+        if (r.ref.source) ref['gl:source'] = r.ref.source;
+        if (r.ref.id) ref['gl:id'] = r.ref.id;
+        if (r.ref.text) ref['gl:text'] = r.ref.text;
+        rel['gl:ref'] = ref;
+      }
+      return rel;
+    });
+  }
 
   return doc;
 }
@@ -295,6 +312,7 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
     if (lc.terms && lc.terms.length > 0) lDoc['gl:designation'] = lc.terms.map(termToDesignation);
     if (lc.definition) lDoc['gl:definition'] = defsToJsonLd(lc.definition);
     if (lc.notes && lc.notes.length > 0) lDoc['gl:notes'] = defsToJsonLd(lc.notes);
+    if (lc.annotations && lc.annotations.length > 0) lDoc['gl:annotations'] = defsToJsonLd(lc.annotations);
     if (lc.examples && lc.examples.length > 0) lDoc['gl:examples'] = defsToJsonLd(lc.examples);
     if (lc.sources && lc.sources.length > 0) lDoc['gl:source'] = sourcesToJsonLd(lc.sources);
     if (lc.lineage_source_similarity !== undefined) lDoc['gl:lineageSourceSimilarity'] = lc.lineage_source_similarity;
@@ -364,6 +382,7 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
         const ref = {};
         if (r.ref.source) ref['gl:source'] = r.ref.source;
         if (r.ref.id) ref['gl:id'] = r.ref.id;
+        if (r.ref.text) ref['gl:text'] = r.ref.text;
         rel['gl:ref'] = ref;
       }
       return rel;

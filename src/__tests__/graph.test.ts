@@ -91,6 +91,21 @@ describe('GraphEngine', () => {
       expect(g.edgeCount).toBe(1);
     });
 
+    it('deduplicates edges with matching source+target+type regardless of register field', () => {
+      const g = new GraphEngine();
+      g.addEdge({ source: 'https://example.org/g18/concept/1', target: 'https://example.org/vim-1993/concept/3.6', type: 'see', register: 'vim-1993' });
+      g.addEdge({ source: 'https://example.org/g18/concept/1', target: 'https://example.org/vim-1993/concept/3.6', type: 'see', register: 'g18' });
+      expect(g.edgeCount).toBe(1);
+    });
+
+    it('does not deduplicate when target URIs differ', () => {
+      const g = new GraphEngine();
+      g.addEdge({ source: 'https://example.org/g18/concept/1', target: 'https://example.org/vim-1993/concept/3.6', type: 'see', register: 'vim-1993' });
+      // URN not resolved → different target URI
+      g.addEdge({ source: 'https://example.org/g18/concept/1', target: 'https://example.org/urn:oiml:pub:v:2:1993/concept/3.6', type: 'see', register: 'g18' });
+      expect(g.edgeCount).toBe(2);
+    });
+
     it('keeps separate edges for different languages', () => {
       const g = new GraphEngine();
       g.addEdge({ source: 'uri:a', target: 'uri:b', type: 'references', register: 'test', lang: 'eng' });

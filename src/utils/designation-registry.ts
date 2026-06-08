@@ -8,45 +8,28 @@ export interface DesignationTypeInfo {
   definition?: string;
 }
 
-const TYPE_COLORS: Record<string, string> = {
-  expression: 'bg-sky-50 text-sky-700',
-  abbreviation: 'bg-amber-50 text-amber-700',
-  symbol: 'bg-violet-50 text-violet-700',
-  letter_symbol: 'bg-violet-50 text-violet-700',
-  graphical_symbol: 'bg-violet-50 text-violet-700',
-};
-
 export function designationTypeInfo(designation: Designation): DesignationTypeInfo {
   const type = designation.type;
   const concept = ontology.getConcept('designationType', type);
   return {
     label: concept?.prefLabel ?? type,
-    color: TYPE_COLORS[type] ?? 'bg-gray-50 text-gray-700',
+    color: ontology.getColor('designationType', type) ?? 'bg-gray-50 text-gray-700',
     definition: concept?.definition ?? undefined,
   };
 }
 
 export function normativeStatusInfo(status: string | null): { label: string; color: string; definition?: string } {
   if (!status) return { label: '', color: 'bg-gray-50 text-gray-700' };
-
-  const colors: Record<string, string> = {
-    preferred: 'bg-emerald-50 text-emerald-700',
-    admitted: 'bg-amber-50 text-amber-700',
-    deprecated: 'bg-red-50 text-red-700',
-    superseded: 'bg-red-50 text-red-700',
-  };
-
   const concept = ontology.getConcept('normativeStatus', status);
   return {
     label: concept?.prefLabel ?? status,
-    color: colors[status] ?? 'bg-gray-50 text-gray-700',
+    color: ontology.getColor('normativeStatus', status) ?? 'bg-gray-50 text-gray-700',
     definition: concept?.definition ?? undefined,
   };
 }
 
 export function sourceStatusInfo(status: string | null): { label: string; color: string; definition?: string } {
   if (!status) return { label: '', color: 'badge-gray' };
-
   const concept = ontology.getConcept('sourceStatus', status);
   return {
     label: concept?.prefLabel ?? status,
@@ -57,16 +40,10 @@ export function sourceStatusInfo(status: string | null): { label: string; color:
 
 export function sourceTypeInfo(type: string | null): { label: string; color: string; definition?: string } {
   if (!type) return { label: '', color: 'badge-gray' };
-
-  const colors: Record<string, string> = {
-    authoritative: 'badge-purple',
-    lineage: 'badge-blue',
-  };
-
   const concept = ontology.getConcept('sourceType', type);
   return {
     label: concept?.prefLabel ?? type,
-    color: colors[type] ?? 'badge-gray',
+    color: ontology.getColor('sourceType', type) ?? 'badge-gray',
     definition: concept?.definition ?? undefined,
   };
 }

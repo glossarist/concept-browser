@@ -187,7 +187,9 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
       ]);
       currentConcept.value = concept;
 
-      const edges = adapter.extractEdges(concept);
+      // Note: edges are loaded from the pre-built edges.json via ensureEdgesForDataset.
+      // We do NOT call adapter.extractEdges(concept) here because that would duplicate
+      // edges already present in edges.json, causing double-rendering of relations.
       const domainEdges = adapter.extractDomainEdges(concept);
       const uriBase = adapter.manifest?.uriBase || 'https://glossarist.org';
       const uri = conceptUri(concept, registerId, uriBase);
@@ -215,10 +217,6 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
         status: indexEntry?.status ?? 'unknown',
         loaded: true,
       });
-
-      for (const edge of edges) {
-        engine.addEdge(edge);
-      }
 
       for (const edge of domainEdges) {
         engine.addEdge(edge);

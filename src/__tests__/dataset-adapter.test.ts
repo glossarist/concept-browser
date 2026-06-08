@@ -429,6 +429,64 @@ describe('DatasetAdapter', () => {
       expect(edges[0].target).toBe('https://metanorma.github.io/oiml-viml/viml-2000/concept/2.23');
       expect(edges[0].type).toBe('supersedes');
     });
+
+    it('extracts concept-level gl:related "see" edges (OIML pattern)', () => {
+      const urnMap = new Map([
+        ['urn:oiml:pub:v:2:1993', 'vim-1993'],
+      ]);
+      adapter.setUrnMap(urnMap);
+
+      const concept = conceptFromJson({
+        '@id': 'https://metanorma.github.io/oiml-vocab/g18/concept/01643',
+        '@type': 'gl:Concept',
+        'gl:localizedConcept': {
+          eng: {
+            'gl:languageCode': 'eng',
+            'gl:designation': [{ '@type': 'gl:Expression', 'gl:normativeStatus': 'preferred', 'gl:term': 'repeatability' }],
+            'gl:definition': [{ '@type': 'gl:DetailedDefinition', 'gl:content': 'the closeness of agreement...' }],
+          },
+        },
+        'gl:related': [
+          {
+            'gl:relationshipType': 'see',
+            'gl:ref': { 'gl:source': 'urn:oiml:pub:v:2:1993', 'gl:id': '3.6' },
+          },
+        ],
+      });
+
+      adapter.manifest = { uriBase: 'https://metanorma.github.io/oiml-vocab' } as any;
+      const edges = adapter.extractEdges(concept);
+      expect(edges.length).toBe(1);
+      expect(edges[0].target).toBe('https://metanorma.github.io/oiml-vocab/vim-1993/concept/3.6');
+      expect(edges[0].type).toBe('see');
+    });
+
+    it('produces a single edge per relation when both concept-level and localization have same target', () => {
+      const concept = conceptFromJson({
+        '@id': 'https://glossarist.org/test/concept/1',
+        '@type': 'gl:Concept',
+        'gl:related': [
+          {
+            'gl:relationshipType': 'see',
+            'gl:ref': { 'gl:source': 'https://glossarist.org/other', 'gl:id': '42' },
+          },
+        ],
+        'gl:localizedConcept': {
+          eng: {
+            'gl:references': [
+              { '@id': 'https://glossarist.org/other/concept/42', 'gl:term': 'related term' },
+            ],
+          },
+        },
+      });
+
+      const edges = adapter.extractEdges(concept);
+      // Concept-level "see" edge + localization "references" edge = 2 edges
+      // (different types: 'see' vs 'references')
+      expect(edges.length).toBe(2);
+      expect(edges.find(e => e.type === 'see')).toBeDefined();
+      expect(edges.find(e => e.type === 'references')).toBeDefined();
+    });
   });
 
   describe('extractDomainEdges', () => {
