@@ -310,6 +310,18 @@
       "disjointWith": null,
       "children": [],
       "ancestors": []
+    },
+    "gloss:DesignationRelationship": {
+      "iri": "https://www.glossarist.org/ontologies/DesignationRelationship",
+      "compact": "gloss:DesignationRelationship",
+      "label": "Designation Relationship",
+      "comment": "A typed relationship between designations (e.g. abbreviated_form_for, short_form_for). The target is a designation string, not a concept reference.",
+      "subClassOf": "gloss:RelatedConcept",
+      "disjointWith": null,
+      "children": [],
+      "ancestors": [
+        "gloss:RelatedConcept"
+      ]
     }
   },
   "classHierarchyRoots": [
@@ -323,6 +335,7 @@
     "gloss:ConceptSource",
     "gloss:Reference",
     "gloss:RelatedConcept",
+    "gloss:DesignationRelationship",
     "gloss:ConceptDate",
     "gloss:NonVerbalRepresentation",
     "gloss:Citation",
@@ -1619,6 +1632,42 @@
       "range": "gloss:Designation",
       "rangeUnion": null,
       "inverseOf": "gloss:abbreviatedFormFor"
+    },
+    "gloss:relationshipTarget": {
+      "iri": "https://www.glossarist.org/ontologies/relationshipTarget",
+      "compact": "gloss:relationshipTarget",
+      "label": "relationship target",
+      "comment": "The target designation text for a designation-level relationship (string, not a concept ref).",
+      "type": "datatype",
+      "domain": "gloss:DesignationRelationship",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:conceptRefText": {
+      "iri": "https://www.glossarist.org/ontologies/conceptRefText",
+      "compact": "gloss:conceptRefText",
+      "label": "concept ref text",
+      "comment": "Human-readable text label for the referenced concept (e.g. the term or designation).",
+      "type": "datatype",
+      "domain": "gloss:ConceptRef",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:hasAnnotation": {
+      "iri": "https://www.glossarist.org/ontologies/hasAnnotation",
+      "compact": "gloss:hasAnnotation",
+      "label": "has annotation",
+      "comment": "Links a localized concept to an annotation (editorial or explanatory note).",
+      "type": "object",
+      "domain": "gloss:LocalizedConcept",
+      "domainUnion": null,
+      "range": "gloss:DetailedDefinition",
+      "rangeUnion": null,
+      "inverseOf": null
     }
   },
   "propertiesByDomain": {
@@ -1648,7 +1697,8 @@
         "gloss:hasNote",
         "gloss:hasExample",
         "gloss:hasNonVerbalRep",
-        "gloss:hasReference"
+        "gloss:hasReference",
+        "gloss:hasAnnotation"
       ],
       "datatype": [
         "gloss:domain",
@@ -1667,9 +1717,7 @@
         "gloss:hasSource",
         "gloss:normativeStatus",
         "gloss:hasPronunciation",
-        "gloss:hasTermType",
-        "gloss:abbreviatedFormFor",
-        "gloss:shortFormFor"
+        "gloss:hasTermType"
       ],
       "datatype": [
         "gloss:language",
@@ -1797,7 +1845,8 @@
       "object": [],
       "datatype": [
         "gloss:conceptRefSource",
-        "gloss:conceptRefId"
+        "gloss:conceptRefId",
+        "gloss:conceptRefText"
       ]
     },
     "gloss:CustomLocality": {
@@ -1856,6 +1905,15 @@
         "gloss:relatedConceptNarrower"
       ],
       "datatype": []
+    },
+    "gloss:DesignationRelationship": {
+      "object": [
+        "gloss:relationshipType"
+      ],
+      "datatype": [
+        "gloss:relationshipTarget",
+        "gloss:relationshipContent"
+      ]
     }
   },
   "shapes": {
@@ -3110,9 +3168,9 @@
     }
   ],
   "stats": {
-    "classCount": 24,
-    "objectPropertyCount": 45,
-    "datatypePropertyCount": 60,
+    "classCount": 25,
+    "objectPropertyCount": 46,
+    "datatypePropertyCount": 62,
     "shapeCount": 22,
     "annotationPropertyCount": 11
   }

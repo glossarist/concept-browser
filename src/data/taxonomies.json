@@ -46,6 +46,15 @@
         "prefLabel": "retired",
         "definition": "The concept has been retired from active use."
       }
+    },
+    "colors": {
+      "draft": "badge-yellow",
+      "submitted": "badge-blue",
+      "valid": "badge-green",
+      "not_valid": "bg-red-50 text-red-700",
+      "invalid": "bg-red-50 text-red-700",
+      "superseded": "bg-red-50 text-red-700",
+      "retired": "badge-gray"
     }
   },
   "entryStatus": {
@@ -77,6 +86,14 @@
         "prefLabel": "retired",
         "definition": "The localized entry has been retired from active use."
       }
+    },
+    "colors": {
+      "valid": "badge-green",
+      "not_valid": "bg-red-50 text-red-700",
+      "superseded": "bg-red-50 text-red-700",
+      "retired": "badge-gray",
+      "withdrawn": "bg-red-100 text-red-800",
+      "draft": "badge-yellow"
     }
   },
   "normativeStatus": {
@@ -108,6 +125,12 @@
         "prefLabel": "superseded",
         "definition": "A superseded designation that has been replaced."
       }
+    },
+    "colors": {
+      "preferred": "bg-emerald-50 text-emerald-700",
+      "admitted": "bg-amber-50 text-amber-700",
+      "deprecated": "bg-red-50 text-red-700",
+      "superseded": "bg-red-50 text-red-700"
     }
   },
   "sourceType": {
@@ -127,6 +150,10 @@
         "prefLabel": "lineage",
         "definition": "The concept's lineage or historical reference."
       }
+    },
+    "colors": {
+      "authoritative": "badge-purple",
+      "lineage": "badge-blue"
     }
   },
   "sourceStatus": {
@@ -205,313 +232,451 @@
         "id": "deprecates",
         "iri": "gloss:rel/deprecates",
         "prefLabel": "deprecates",
-        "definition": "This concept deprecates another concept."
+        "definition": "This concept deprecates another concept.",
+        "category": "lifecycle",
+        "inverseOf": "deprecated_by"
       },
       "supersedes": {
         "id": "supersedes",
         "iri": "gloss:rel/supersedes",
         "prefLabel": "supersedes",
-        "definition": "This concept supersedes another concept."
+        "definition": "This concept supersedes another concept.",
+        "category": "lifecycle",
+        "inverseOf": "superseded_by"
       },
       "superseded_by": {
         "id": "superseded_by",
         "iri": "gloss:rel/superseded_by",
         "prefLabel": "superseded by",
-        "definition": "This concept has been superseded by another concept."
+        "definition": "This concept has been superseded by another concept.",
+        "category": "lifecycle",
+        "inverseOf": "supersedes"
       },
       "compare": {
         "id": "compare",
         "iri": "gloss:rel/compare",
         "prefLabel": "compare",
-        "definition": "This concept is compared to another concept (ISO 10241-1)."
+        "definition": "This concept is compared to another concept (ISO 10241-1).",
+        "category": "comparative",
+        "inverseOf": "compare"
       },
       "contrast": {
         "id": "contrast",
         "iri": "gloss:rel/contrast",
         "prefLabel": "contrast",
-        "definition": "This concept contrasts with another concept (ISO 10241-1)."
+        "definition": "This concept contrasts with another concept (ISO 10241-1).",
+        "category": "comparative",
+        "inverseOf": "contrast"
       },
       "related_concept_broader": {
         "id": "related_concept_broader",
         "iri": "gloss:rel/related_concept_broader",
         "prefLabel": "related concept (broader)",
-        "definition": "Associative relationship to a concept with broader scope (ISO 25964 / TBX)."
+        "definition": "Associative relationship to a concept with broader scope (ISO 25964 / TBX).",
+        "category": "associative",
+        "inverseOf": "related_concept_narrower"
       },
       "related_concept_narrower": {
         "id": "related_concept_narrower",
         "iri": "gloss:rel/related_concept_narrower",
         "prefLabel": "related concept (narrower)",
-        "definition": "Associative relationship to a concept with narrower scope (ISO 25964 / TBX)."
+        "definition": "Associative relationship to a concept with narrower scope (ISO 25964 / TBX).",
+        "category": "associative",
+        "inverseOf": "related_concept_broader"
       },
       "homograph": {
         "id": "homograph",
         "iri": "gloss:rel/homograph",
         "prefLabel": "homograph",
-        "definition": "This concept has a homograph in another entry (ISO 12620 / TBX)."
+        "definition": "This concept has a homograph in another entry (ISO 12620 / TBX).",
+        "category": "lexical",
+        "inverseOf": "homograph"
       },
       "false_friend": {
         "id": "false_friend",
         "iri": "gloss:rel/false_friend",
         "prefLabel": "false friend",
-        "definition": "This concept has a false friend in another language (ISO 12620 / TBX)."
+        "definition": "This concept has a false friend in another language (ISO 12620 / TBX).",
+        "category": "lexical",
+        "inverseOf": "false_friend"
       },
       "abbreviated_form_for": {
         "id": "abbreviated_form_for",
         "iri": "gloss:rel/abbreviated_form_for",
         "prefLabel": "abbreviated form for",
-        "definition": "This designation is an abbreviated form of another designation."
+        "definition": "This designation is an abbreviated form of another designation.",
+        "category": "designation"
       },
       "short_form_for": {
         "id": "short_form_for",
         "iri": "gloss:rel/short_form_for",
         "prefLabel": "short form for",
-        "definition": "This designation is a short form of another designation."
+        "definition": "This designation is a short form of another designation.",
+        "category": "designation"
       },
       "deprecated_by": {
         "id": "deprecated_by",
-        "iri": "https://glossarist.org/ontologies/relationship-type#deprecated_by",
+        "iri": "gloss:rel/deprecated_by",
         "prefLabel": "deprecated by",
-        "definition": "This concept has been deprecated by another concept (ISO 10241-1)."
+        "definition": "This concept has been deprecated by another concept (ISO 10241-1).",
+        "category": "lifecycle",
+        "inverseOf": "deprecates"
       },
       "replaces": {
         "id": "replaces",
-        "iri": "https://glossarist.org/ontologies/relationship-type#replaces",
+        "iri": "gloss:rel/replaces",
         "prefLabel": "replaces",
-        "definition": "This concept replaces another concept (ISO 10241-1)."
+        "definition": "This concept replaces another concept (ISO 10241-1).",
+        "category": "lifecycle",
+        "inverseOf": "replaced_by"
       },
       "replaced_by": {
         "id": "replaced_by",
-        "iri": "https://glossarist.org/ontologies/relationship-type#replaced_by",
+        "iri": "gloss:rel/replaced_by",
         "prefLabel": "replaced by",
-        "definition": "This concept has been replaced by another concept (ISO 10241-1)."
+        "definition": "This concept has been replaced by another concept (ISO 10241-1).",
+        "category": "lifecycle",
+        "inverseOf": "replaces"
       },
       "invalidates": {
         "id": "invalidates",
-        "iri": "https://glossarist.org/ontologies/relationship-type#invalidates",
+        "iri": "gloss:rel/invalidates",
         "prefLabel": "invalidates",
-        "definition": "This concept invalidates another concept, indicating it contains a substantial error and should not be used (ISO 19135)."
+        "definition": "This concept invalidates another concept, indicating it contains a substantial error and should not be used (ISO 19135).",
+        "category": "lifecycle",
+        "inverseOf": "invalidated_by"
       },
       "invalidated_by": {
         "id": "invalidated_by",
-        "iri": "https://glossarist.org/ontologies/relationship-type#invalidated_by",
+        "iri": "gloss:rel/invalidated_by",
         "prefLabel": "invalidated by",
-        "definition": "This concept has been invalidated by another concept due to a substantial error (ISO 19135)."
+        "definition": "This concept has been invalidated by another concept due to a substantial error (ISO 19135).",
+        "category": "lifecycle",
+        "inverseOf": "invalidates"
       },
       "retires": {
         "id": "retires",
-        "iri": "https://glossarist.org/ontologies/relationship-type#retires",
+        "iri": "gloss:rel/retires",
         "prefLabel": "retires",
-        "definition": "This concept retires another concept, indicating it is no longer recommended for use (ISO 19135)."
+        "definition": "This concept retires another concept, indicating it is no longer recommended for use (ISO 19135).",
+        "category": "lifecycle",
+        "inverseOf": "retired_by"
       },
       "retired_by": {
         "id": "retired_by",
-        "iri": "https://glossarist.org/ontologies/relationship-type#retired_by",
+        "iri": "gloss:rel/retired_by",
         "prefLabel": "retired by",
-        "definition": "This concept has been retired by another concept (ISO 19135)."
+        "definition": "This concept has been retired by another concept (ISO 19135).",
+        "category": "lifecycle",
+        "inverseOf": "retires"
       },
       "has_concept": {
         "id": "has_concept",
-        "iri": "https://glossarist.org/ontologies/relationship-type#has_concept",
+        "iri": "gloss:rel/has_concept",
         "prefLabel": "has concept",
-        "definition": "This concept has the nominated concept as a specialisation of its definition (ISO 19135)."
+        "definition": "This concept has the nominated concept as a specialisation of its definition (ISO 19135).",
+        "category": "hierarchical",
+        "inverseOf": "is_concept_of"
       },
       "is_concept_of": {
         "id": "is_concept_of",
-        "iri": "https://glossarist.org/ontologies/relationship-type#is_concept_of",
+        "iri": "gloss:rel/is_concept_of",
         "prefLabel": "is concept of",
-        "definition": "This concept is a specialisation of the source concept (ISO 19135)."
+        "definition": "This concept is a specialisation of the source concept (ISO 19135).",
+        "category": "hierarchical",
+        "inverseOf": "has_concept"
       },
       "instance_of": {
         "id": "instance_of",
-        "iri": "https://glossarist.org/ontologies/relationship-type#instance_of",
+        "iri": "gloss:rel/instance_of",
         "prefLabel": "instance of",
-        "definition": "This concept is an instance of the nominated concept (ISO 19135)."
+        "definition": "This concept is an instance of the nominated concept (ISO 19135).",
+        "category": "hierarchical",
+        "inverseOf": "has_instance"
       },
       "has_instance": {
         "id": "has_instance",
-        "iri": "https://glossarist.org/ontologies/relationship-type#has_instance",
+        "iri": "gloss:rel/has_instance",
         "prefLabel": "has instance",
-        "definition": "This concept has the nominated concept as an instance (ISO 19135)."
+        "definition": "This concept has the nominated concept as an instance (ISO 19135).",
+        "category": "hierarchical",
+        "inverseOf": "instance_of"
       },
       "has_definition": {
         "id": "has_definition",
-        "iri": "https://glossarist.org/ontologies/relationship-type#has_definition",
+        "iri": "gloss:rel/has_definition",
         "prefLabel": "has definition",
-        "definition": "This concept has the nominated concept as its definition (ISO 19135)."
+        "definition": "This concept has the nominated concept as its definition (ISO 19135).",
+        "category": "definitional",
+        "inverseOf": "definition_of"
       },
       "definition_of": {
         "id": "definition_of",
-        "iri": "https://glossarist.org/ontologies/relationship-type#definition_of",
+        "iri": "gloss:rel/definition_of",
         "prefLabel": "definition of",
-        "definition": "This concept is the definition of the source concept (ISO 19135)."
+        "definition": "This concept is the definition of the source concept (ISO 19135).",
+        "category": "definitional",
+        "inverseOf": "has_definition"
       },
       "has_part": {
         "id": "has_part",
-        "iri": "https://glossarist.org/ontologies/relationship-type#has_part",
+        "iri": "gloss:rel/has_part",
         "prefLabel": "has part",
-        "definition": "This concept has the nominated concept as a part of its composition (ISO 19135)."
+        "definition": "This concept has the nominated concept as a part of its composition (ISO 19135).",
+        "category": "hierarchical",
+        "inverseOf": "is_part_of"
       },
       "is_part_of": {
         "id": "is_part_of",
-        "iri": "https://glossarist.org/ontologies/relationship-type#is_part_of",
+        "iri": "gloss:rel/is_part_of",
         "prefLabel": "is part of",
-        "definition": "This concept is a part of the source concept (ISO 19135)."
+        "definition": "This concept is a part of the source concept (ISO 19135).",
+        "category": "hierarchical",
+        "inverseOf": "has_part"
       },
       "inherits": {
         "id": "inherits",
-        "iri": "https://glossarist.org/ontologies/relationship-type#inherits",
+        "iri": "gloss:rel/inherits",
         "prefLabel": "inherits",
-        "definition": "This concept inherits and extends properties from the nominated concept (ISO 19135)."
+        "definition": "This concept inherits and extends properties from the nominated concept (ISO 19135).",
+        "category": "hierarchical",
+        "inverseOf": "inherited_by"
       },
       "inherited_by": {
         "id": "inherited_by",
-        "iri": "https://glossarist.org/ontologies/relationship-type#inherited_by",
+        "iri": "gloss:rel/inherited_by",
         "prefLabel": "inherited by",
-        "definition": "This concept is inherited by the source concept (ISO 19135)."
+        "definition": "This concept is inherited by the source concept (ISO 19135).",
+        "category": "hierarchical",
+        "inverseOf": "inherits"
       },
       "has_version": {
         "id": "has_version",
-        "iri": "https://glossarist.org/ontologies/relationship-type#has_version",
+        "iri": "gloss:rel/has_version",
         "prefLabel": "has version",
-        "definition": "This concept has the nominated concept as a version (ISO 19135)."
+        "definition": "This concept has the nominated concept as a version (ISO 19135).",
+        "category": "definitional",
+        "inverseOf": "version_of"
       },
       "version_of": {
         "id": "version_of",
-        "iri": "https://glossarist.org/ontologies/relationship-type#version_of",
+        "iri": "gloss:rel/version_of",
         "prefLabel": "version of",
-        "definition": "This concept is a version of the source concept (ISO 19135)."
+        "definition": "This concept is a version of the source concept (ISO 19135).",
+        "category": "definitional",
+        "inverseOf": "has_version"
       },
       "current_version": {
         "id": "current_version",
-        "iri": "https://glossarist.org/ontologies/relationship-type#current_version",
+        "iri": "gloss:rel/current_version",
         "prefLabel": "current version",
-        "definition": "This concept has the nominated concept as its current version (ISO 19135)."
+        "definition": "This concept has the nominated concept as its current version (ISO 19135).",
+        "category": "definitional",
+        "inverseOf": "current_version_of"
       },
       "current_version_of": {
         "id": "current_version_of",
-        "iri": "https://glossarist.org/ontologies/relationship-type#current_version_of",
+        "iri": "gloss:rel/current_version_of",
         "prefLabel": "current version of",
-        "definition": "This concept is the current version of the source concept (ISO 19135)."
+        "definition": "This concept is the current version of the source concept (ISO 19135).",
+        "category": "definitional",
+        "inverseOf": "current_version"
       },
       "broader": {
         "id": "broader",
-        "iri": "https://glossarist.org/ontologies/relationship-type#broader",
+        "iri": "gloss:rel/broader",
         "prefLabel": "broader",
-        "definition": "This concept has a broader (more general) scope (SKOS)."
+        "definition": "This concept has a broader (more general) scope (SKOS).",
+        "category": "hierarchical",
+        "inverseOf": "narrower"
       },
       "narrower": {
         "id": "narrower",
-        "iri": "https://glossarist.org/ontologies/relationship-type#narrower",
+        "iri": "gloss:rel/narrower",
         "prefLabel": "narrower",
-        "definition": "This concept has a narrower (more specific) scope (SKOS)."
+        "definition": "This concept has a narrower (more specific) scope (SKOS).",
+        "category": "hierarchical",
+        "inverseOf": "broader"
       },
       "broader_generic": {
         "id": "broader_generic",
-        "iri": "https://glossarist.org/ontologies/relationship-type#broader_generic",
+        "iri": "gloss:rel/broader_generic",
         "prefLabel": "broader (generic)",
-        "definition": "Generic (is-a) broader relationship (ISO 25964)."
+        "definition": "Generic (is-a) broader relationship (ISO 25964).",
+        "category": "hierarchical",
+        "inverseOf": "narrower_generic"
       },
       "narrower_generic": {
         "id": "narrower_generic",
-        "iri": "https://glossarist.org/ontologies/relationship-type#narrower_generic",
+        "iri": "gloss:rel/narrower_generic",
         "prefLabel": "narrower (generic)",
-        "definition": "Generic (is-a) narrower relationship (ISO 25964)."
+        "definition": "Generic (is-a) narrower relationship (ISO 25964).",
+        "category": "hierarchical",
+        "inverseOf": "broader_generic"
       },
       "broader_partitive": {
         "id": "broader_partitive",
-        "iri": "https://glossarist.org/ontologies/relationship-type#broader_partitive",
+        "iri": "gloss:rel/broader_partitive",
         "prefLabel": "broader (partitive)",
-        "definition": "Partitive (whole-of) broader relationship (ISO 25964)."
+        "definition": "Partitive (whole-of) broader relationship (ISO 25964).",
+        "category": "hierarchical",
+        "inverseOf": "narrower_partitive"
       },
       "narrower_partitive": {
         "id": "narrower_partitive",
-        "iri": "https://glossarist.org/ontologies/relationship-type#narrower_partitive",
+        "iri": "gloss:rel/narrower_partitive",
         "prefLabel": "narrower (partitive)",
-        "definition": "Partitive (part-of) narrower relationship (ISO 25964)."
+        "definition": "Partitive (part-of) narrower relationship (ISO 25964).",
+        "category": "hierarchical",
+        "inverseOf": "broader_partitive"
       },
       "broader_instantial": {
         "id": "broader_instantial",
-        "iri": "https://glossarist.org/ontologies/relationship-type#broader_instantial",
+        "iri": "gloss:rel/broader_instantial",
         "prefLabel": "broader (instantial)",
-        "definition": "Instantial broader relationship (ISO 25964)."
+        "definition": "Instantial broader relationship (ISO 25964).",
+        "category": "hierarchical",
+        "inverseOf": "narrower_instantial"
       },
       "narrower_instantial": {
         "id": "narrower_instantial",
-        "iri": "https://glossarist.org/ontologies/relationship-type#narrower_instantial",
+        "iri": "gloss:rel/narrower_instantial",
         "prefLabel": "narrower (instantial)",
-        "definition": "Instantial narrower relationship (ISO 25964)."
+        "definition": "Instantial narrower relationship (ISO 25964).",
+        "category": "hierarchical",
+        "inverseOf": "broader_instantial"
       },
       "equivalent": {
         "id": "equivalent",
-        "iri": "https://glossarist.org/ontologies/relationship-type#equivalent",
+        "iri": "gloss:rel/equivalent",
         "prefLabel": "equivalent",
-        "definition": "This concept is equivalent to another concept (SKOS)."
+        "definition": "This concept is equivalent to another concept (SKOS).",
+        "category": "mapping",
+        "inverseOf": "equivalent"
       },
       "close_match": {
         "id": "close_match",
-        "iri": "https://glossarist.org/ontologies/relationship-type#close_match",
+        "iri": "gloss:rel/close_match",
         "prefLabel": "close match",
-        "definition": "This concept is a close match to another concept (SKOS)."
+        "definition": "This concept is a close match to another concept (SKOS).",
+        "category": "mapping",
+        "inverseOf": "close_match"
       },
       "broad_match": {
         "id": "broad_match",
-        "iri": "https://glossarist.org/ontologies/relationship-type#broad_match",
+        "iri": "gloss:rel/broad_match",
         "prefLabel": "broad match",
-        "definition": "This concept has a broader match to another concept (SKOS)."
+        "definition": "This concept has a broader match to another concept (SKOS).",
+        "category": "mapping",
+        "inverseOf": "narrow_match"
       },
       "narrow_match": {
         "id": "narrow_match",
-        "iri": "https://glossarist.org/ontologies/relationship-type#narrow_match",
+        "iri": "gloss:rel/narrow_match",
         "prefLabel": "narrow match",
-        "definition": "This concept has a narrower match to another concept (SKOS)."
+        "definition": "This concept has a narrower match to another concept (SKOS).",
+        "category": "mapping",
+        "inverseOf": "broad_match"
       },
       "related_match": {
         "id": "related_match",
-        "iri": "https://glossarist.org/ontologies/relationship-type#related_match",
+        "iri": "gloss:rel/related_match",
         "prefLabel": "related match",
-        "definition": "This concept has a related match to another concept (SKOS)."
+        "definition": "This concept has a related match to another concept (SKOS).",
+        "category": "mapping",
+        "inverseOf": "related_match"
       },
       "see": {
         "id": "see",
-        "iri": "https://glossarist.org/ontologies/relationship-type#see",
+        "iri": "gloss:rel/see",
         "prefLabel": "see",
-        "definition": "Reference to another concept (ISO 10241-1)."
+        "definition": "Reference to another concept (ISO 10241-1).",
+        "category": "associative"
       },
       "related_concept": {
         "id": "related_concept",
-        "iri": "https://glossarist.org/ontologies/relationship-type#related_concept",
+        "iri": "gloss:rel/related_concept",
         "prefLabel": "related concept",
-        "definition": "Associative relationship to another concept (ISO 25964)."
+        "definition": "Associative relationship to another concept (ISO 25964).",
+        "category": "associative",
+        "inverseOf": "related_concept"
       },
       "references": {
         "id": "references",
-        "iri": "https://glossarist.org/ontologies/relationship-type#references",
+        "iri": "gloss:rel/references",
         "prefLabel": "references",
-        "definition": "This concept references another concept."
+        "definition": "This concept references another concept.",
+        "category": "associative"
       },
       "sequentially_related": {
         "id": "sequentially_related",
         "iri": "gloss:rel/sequentially_related",
         "prefLabel": "sequentially related",
-        "definition": "Sequential spatiotemporal relationship (ISO 25964 / TBX)."
+        "definition": "Sequential spatiotemporal relationship (ISO 25964 / TBX).",
+        "category": "spatiotemporal",
+        "inverseOf": "sequentially_related"
       },
       "spatially_related": {
         "id": "spatially_related",
         "iri": "gloss:rel/spatially_related",
         "prefLabel": "spatially related",
-        "definition": "Spatial relationship (ISO 25964 / TBX)."
+        "definition": "Spatial relationship (ISO 25964 / TBX).",
+        "category": "spatiotemporal",
+        "inverseOf": "spatially_related"
       },
       "temporally_related": {
         "id": "temporally_related",
         "iri": "gloss:rel/temporally_related",
         "prefLabel": "temporally related",
-        "definition": "Temporal relationship (ISO 25964 / TBX)."
+        "definition": "Temporal relationship (ISO 25964 / TBX).",
+        "category": "spatiotemporal",
+        "inverseOf": "temporally_related"
       },
       "exact_match": {
         "id": "exact_match",
         "iri": "gloss:rel/exact_match",
         "prefLabel": "exact match",
-        "definition": "Cross-vocabulary exact equivalence (SKOS skos:exactMatch)."
+        "definition": "Cross-vocabulary exact equivalence (SKOS skos:exactMatch).",
+        "category": "mapping",
+        "inverseOf": "exact_match"
+      }
+    },
+    "categories": {
+      "hierarchical": {
+        "label": "Hierarchy",
+        "color": "text-blue-600 bg-blue-50"
+      },
+      "mapping": {
+        "label": "Equivalence",
+        "color": "text-emerald-600 bg-emerald-50"
+      },
+      "associative": {
+        "label": "Associative",
+        "color": "text-violet-600 bg-violet-50"
+      },
+      "lifecycle": {
+        "label": "Lifecycle",
+        "color": "text-red-600 bg-red-50"
+      },
+      "comparative": {
+        "label": "Comparison",
+        "color": "text-amber-600 bg-amber-50"
+      },
+      "definitional": {
+        "label": "Definitional",
+        "color": "text-cyan-600 bg-cyan-50"
+      },
+      "spatiotemporal": {
+        "label": "Spatiotemporal",
+        "color": "text-teal-600 bg-teal-50"
+      },
+      "lexical": {
+        "label": "Lexical",
+        "color": "text-pink-600 bg-pink-50"
+      },
+      "designation": {
+        "label": "Designation",
+        "color": "text-gray-600 bg-gray-50"
       }
     }
   },
@@ -553,6 +718,13 @@
         "definition": "An iconic or graphical symbol.",
         "broader": "symbol"
       }
+    },
+    "colors": {
+      "expression": "bg-sky-50 text-sky-700",
+      "abbreviation": "bg-amber-50 text-amber-700",
+      "symbol": "bg-violet-50 text-violet-700",
+      "letter_symbol": "bg-violet-50 text-violet-700",
+      "graphical_symbol": "bg-violet-50 text-violet-700"
     }
   },
   "termType": {

@@ -14,12 +14,20 @@ export interface TaxonomyConcept {
   altLabel?: string;
   definition?: string;
   broader?: string;
+  category?: string;
+  inverseOf?: string;
+}
+
+export interface TaxonomyCategory {
+  label: string;
+  color: string;
 }
 
 export interface Taxonomy {
   scheme: string;
   schemeLabel: string | null;
   schemeDefinition: string | null;
+  categories?: Record<string, TaxonomyCategory>;
   concepts: Record<string, TaxonomyConcept>;
 }
 
@@ -61,14 +69,34 @@ export class OntologyRegistry {
     return id in (this.data[taxonomy]?.concepts ?? {});
   }
 
-  /** Get broader concept ID, if any (for hierarchical taxonomies like designation-type). */
   getBroader(taxonomy: TaxonomyKey, id: string): string | null {
     return this.getConcept(taxonomy, id)?.broader ?? null;
   }
 
-  /** Get all child concept IDs of a given concept. */
   getNarrower(taxonomy: TaxonomyKey, id: string): TaxonomyConcept[] {
     return this.getAll(taxonomy).filter(c => c.broader === id);
+  }
+
+  getCategory(taxonomy: TaxonomyKey, id: string): string | null {
+    return this.getConcept(taxonomy, id)?.category ?? null;
+  }
+
+  getInverse(taxonomy: TaxonomyKey, id: string): string | null {
+    return this.getConcept(taxonomy, id)?.inverseOf ?? null;
+  }
+
+  getCategoryConfig(taxonomy: TaxonomyKey, categoryId: string): TaxonomyCategory | null {
+    return this.data[taxonomy]?.categories?.[categoryId] ?? null;
+  }
+
+  getCategories(taxonomy: TaxonomyKey): Record<string, TaxonomyCategory> {
+    return this.data[taxonomy]?.categories ?? {};
+  }
+
+  getColor(taxonomy: TaxonomyKey, id: string): string | null {
+    const entry = this.data[taxonomy] as unknown as Record<string, unknown>;
+    const colors = entry?.colors as Record<string, string> | undefined;
+    return colors?.[id] ?? null;
   }
 }
 
