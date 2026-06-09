@@ -56,8 +56,8 @@ describe('AdapterFactory — lazy discovery', () => {
     expect(adapters[0].manifest).not.toBeNull();
     expect(adapters[0].manifest!.title).toBe('Dataset 1');
     expect(adapters[0].manifest!.conceptCount).toBe(100);
-    // Should NOT fetch manifest.json — only datasets.json
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    // Should NOT fetch manifest.json — only datasets.json + source-refs.json
+    expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(mockFetch).toHaveBeenCalledWith('/datasets.json');
   });
 
@@ -89,8 +89,8 @@ describe('AdapterFactory — lazy discovery', () => {
 
     expect(adapters.length).toBe(1);
     expect(adapters[0].manifest!.title).toBe('Full Dataset');
-    // Should fetch both datasets.json and manifest.json
-    expect(mockFetch).toHaveBeenCalledTimes(2);
+    // Should fetch datasets.json, manifest.json, and source-refs.json
+    expect(mockFetch).toHaveBeenCalledTimes(3);
   });
 
   it('loads full manifest in loadDataset after summary discovery', async () => {
@@ -140,10 +140,10 @@ describe('AdapterFactory — lazy discovery', () => {
       return Promise.resolve({ ok: false, status: 404 } as Response);
     });
 
-    // Discover with summary — no manifest fetch
+    // Discover with summary — no manifest fetch (datasets.json + source-refs.json)
     const adapters = await factory.discoverDatasets('/datasets.json');
     expect(adapters[0].manifest!.title).toBe('Summary Title');
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
 
     // Load full dataset — fetches full manifest + index
     const loaded = await factory.loadDataset('ds1');

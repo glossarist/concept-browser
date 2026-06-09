@@ -23,6 +23,32 @@ function slugify(text) {
 
 // --- Extractors (open/closed: add new extractors to EXTRACTORS array) ---
 
+function extractSourceRefs(concept, registerId) {
+  const refs = new Set();
+
+  // Managed concept-level sources
+  for (const src of concept['gl:source'] || []) {
+    const origin = src['gl:origin'];
+    if (origin) {
+      const ref = origin['gl:ref'];
+      if (ref?.['gl:source']) refs.add(ref['gl:source']);
+    }
+  }
+
+  // Localized concept-level sources
+  for (const lc of Object.values(concept['gl:localizedConcept'] || {})) {
+    for (const src of lc['gl:source'] || []) {
+      const origin = src['gl:origin'];
+      if (origin) {
+        const ref = origin['gl:ref'];
+        if (ref?.['gl:source']) refs.add(ref['gl:source']);
+      }
+    }
+  }
+
+  return [...refs].map(source => ({ source, registerId }));
+}
+
 function extractReferences(concept, registerId) {
   const edges = [];
   const sourceUri = concept['@id'];
@@ -129,13 +155,14 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest)
   const conceptsDir = join(datasetDir, 'concepts');
   if (!existsSync(conceptsDir)) {
     console.log(`  Skipping ${registerId}: no concepts directory`);
-    return [];
+    return { edges: [], sourceRefs: [] };
   }
 
   const files = readdirSync(conceptsDir).filter(f => f.endsWith('.json'));
   console.log(`  Processing ${files.length} concepts...`);
 
   const allEdges = [];
+  const allSourceRefs = [];
   const domainConceptCount = new Map();
   let processed = 0;
 
@@ -144,6 +171,7 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest)
       const data = JSON.parse(readFileSync(join(conceptsDir, file), 'utf-8'));
       const edges = extractAllEdges(data, registerId, uriBase, urnMap);
       allEdges.push(...edges);
+      allSourceRefs.push(...extractSourceRefs(data, registerId));
 
       for (const edge of edges) {
         if (edge.type === 'domain' || edge.type === 'section') {
@@ -241,7 +269,7 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest)
     console.log(`  Written ${domainNodes.length} edge-derived domain nodes to domain-nodes.json`);
   }
 
-  return deduped;
+  return { edges: deduped, sourceRefs: allSourceRefs };
 }
 
 // Main
@@ -278,6 +306,7 @@ for (const ds of datasets) {
 console.log(`URN resolution map: ${[...urnMap.entries()].map(([k,v]) => `${k}→${v}`).join(', ')}\n`);
 
 const allDatasetEdges = new Map();
+const allSourceRefs = [];
 
 for (const ds of datasets) {
   const manifest = manifestCache.get(ds);
@@ -285,13 +314,43 @@ for (const ds of datasets) {
   try {
     console.log(`${manifest.title} (${ds}):`);
     const uriBase = manifest.uriBase || 'https://glossarist.org';
-    const edges = buildEdgesForDataset(join(DATA_DIR, ds), ds, uriBase, urnMap, manifest);
-    allDatasetEdges.set(ds, edges);
+    const result = buildEdgesForDataset(join(DATA_DIR, ds), ds, uriBase, urnMap, manifest);
+    allDatasetEdges.set(ds, result.edges);
+    allSourceRefs.push(...result.sourceRefs);
   } catch (e) {
     console.error(`Error reading manifest for ${ds}: ${e.message}`);
   }
   console.log();
 }
+
+// Build source-refs index: maps every source string to its dataset ID.
+// Uses manifest ref/refAliases as authoritative keys, augmented by
+// actual source strings found in concept data.
+const sourceRefMap = {};
+
+// Seed from manifests (authoritative)
+for (const [ds, manifest] of manifestCache) {
+  if (manifest.ref) sourceRefMap[manifest.ref] = ds;
+  for (const alias of manifest.refAliases ?? []) {
+    sourceRefMap[alias] = ds;
+  }
+  if (manifest.datasetUri) sourceRefMap[manifest.datasetUri] = ds;
+  for (const alias of manifest.uriAliases ?? []) {
+    const base = alias.endsWith('*') ? alias.slice(0, -1) : alias;
+    sourceRefMap[base] = ds;
+  }
+}
+
+// Augment with actual source strings from concepts
+for (const { source, registerId } of allSourceRefs) {
+  if (!sourceRefMap[source]) {
+    sourceRefMap[source] = registerId;
+  }
+}
+
+const sourceRefPath = join(DATA_DIR, 'source-refs.json');
+writeFileSync(sourceRefPath, JSON.stringify(sourceRefMap));
+console.log(`Written source-refs.json (${Object.keys(sourceRefMap).length} source references across ${datasets.length} datasets)\n`);
 
 // Build cross-reference index: for each dataset, which other datasets'
 // edges.json contains edges targeting that dataset's URIs.

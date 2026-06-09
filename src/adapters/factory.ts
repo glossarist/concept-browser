@@ -56,6 +56,9 @@ export class AdapterFactory {
       adapter.setUrnMap(this.urnMap);
     }
 
+    // Load source-refs index for citation resolution
+    await this.loadSourceRefs();
+
     return adapters;
 
   }
@@ -153,6 +156,21 @@ export class AdapterFactory {
     }
     this.crossRefIndex = this.crossRefIndex || {};
     return this.crossRefIndex;
+  }
+
+  async loadSourceRefs(): Promise<void> {
+    try {
+      const resp = await fetch(`${import.meta.env.BASE_URL}data/source-refs.json`);
+      if (!resp.ok) return;
+      const refs: Record<string, string> = await resp.json();
+      for (const [source, datasetId] of Object.entries(refs)) {
+        const adapter = this.adapters.get(datasetId);
+        if (!adapter?.manifest) continue;
+        this.resolver.registerSourceRef(source, datasetId, adapter.manifest.datasetUri);
+      }
+    } catch {
+      // source-refs.json is optional
+    }
   }
 }
 
