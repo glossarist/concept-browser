@@ -98,6 +98,21 @@ export class GraphEngine {
     return result;
   }
 
+  getUniqueEdges(uri: string, direction: 'outgoing' | 'incoming' | 'both', dedupeBy: 'source' | 'target' = 'target'): GraphEdge[] {
+    const raw = direction === 'outgoing'
+      ? this.getEdges(uri)
+      : direction === 'incoming'
+        ? this.getIncomingEdges(uri)
+        : [...this.getEdges(uri), ...this.getIncomingEdges(uri)];
+    const seen = new Set<string>();
+    return raw.filter(e => {
+      const key = `${e[dedupeBy]}\0${e.type}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
   getNeighbors(uri: string): { outgoing: string[]; incoming: string[] } {
     const outgoing: string[] = [];
     const adj = this.adjacency.get(uri);

@@ -9,15 +9,47 @@ import type {
   SectionNode,
   DatasetSummary,
 } from './types';
-import type { Concept, LocalizedConcept, Designation } from 'glossarist';
+import type { Concept, LocalizedConcept, Designation, RelatedConcept } from 'glossarist';
 import { conceptFromJson, conceptUri } from './model-bridge';
 import { UriRouter } from './UriRouter';
+import { slugify } from '../utils/slugify';
 
-function slugify(text: string): string {
-  return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s/]+/g, '-');
+// ── Wire-format types for JSON responses ────────────────────────────────────
+
+interface IndexJson {
+  registerId: string;
+  schemaVersion: string;
+  conceptCount: number;
+  chunkSize: number;
+  chunks: { file: string; count: number }[];
+  concepts: IndexConceptJson[];
 }
 
-function resolveRefTarget(rc: any, uriBase: string, registerId: string, urnMap?: ReadonlyMap<string, string>): string {
+interface IndexConceptJson {
+  id: string;
+  designations?: Record<string, string>;
+  eng?: string;
+  status: string;
+  groups?: string[];
+}
+
+interface DomainNodeJson {
+  uri?: string;
+  id?: string;
+  registerId?: string;
+  label?: string;
+  names?: Record<string, string>;
+  conceptCount?: number;
+  children?: DomainNodeJson[];
+}
+
+interface SectionJson {
+  id: string;
+  names?: Record<string, string>;
+  children?: SectionJson[];
+}
+
+function resolveRefTarget(rc: RelatedConcept, uriBase: string, registerId: string, urnMap?: ReadonlyMap<string, string>): string {
   if (!rc.ref) return '';
   const ref = rc.ref;
   if (ref.id) {
@@ -99,13 +131,13 @@ export class DatasetAdapter {
     const data = await resp.json();
 
     // Handle both old format (with eng/status fields) and new format (with designations map)
-    this.index = this.normalizeIndex(data);
+    this.index = this.normalizeIndex(data as IndexJson);
     this.buildSummaryIndex();
     return this.index;
   }
 
-  private normalizeIndex(data: any): ConceptIndex {
-    const concepts: ConceptSummary[] = (data.concepts || []).map((c: any) => ({
+  private normalizeIndex(data: IndexJson): ConceptIndex {
+    const concepts: ConceptSummary[] = (data.concepts || []).map((c) => ({
       id: c.id,
       designations: c.designations || {},
       eng: c.eng || c.designations?.eng || Object.values(c.designations || {})[0] || '',
@@ -144,7 +176,7 @@ export class DatasetAdapter {
       const resp = await fetch(`${this.baseUrl}/index.json`);
       if (!resp.ok) throw new Error(`Failed to load index for ${this.registerId}`);
       const data = await resp.json();
-      this.index = this.normalizeIndex(data);
+      this.index = this.normalizeIndex(data as IndexJson);
       this.buildSummaryIndex();
       return this.index;
     }
@@ -412,34 +444,34 @@ export class DatasetAdapter {
     const resp = await fetch(`${this.baseUrl}/domain-nodes.json`);
     if (!resp.ok) return [];
     const data = await resp.json();
-    return (data.domainNodes || []).map((dn: any) => this.mapDomainNode(dn));
+    return (data.domainNodes || []).map((dn: DomainNodeJson) => this.mapDomainNode(dn));
   }
 
-  private mapDomainNode(dn: any): GraphNode {
+  private mapDomainNode(dn: DomainNodeJson): GraphNode {
     const node: GraphNode = {
-      uri: dn.uri,
-      register: dn.registerId,
+      uri: dn.uri ?? '',
+      register: dn.registerId ?? '',
       conceptId: dn.uri?.split('/domain/')[1] || dn.id || '',
-      designations: dn.names || { eng: dn.label },
+      designations: dn.names || (dn.label ? { eng: dn.label } : {}),
       status: 'domain',
       loaded: true,
       nodeType: 'domain' as const,
       conceptCount: dn.conceptCount || 0,
     };
     if (dn.children && dn.children.length > 0) {
-      node.children = dn.children.map((c: any) => this.mapSectionNode(c));
+      node.children = dn.children.map((c) => this.mapSectionNode(c));
     }
     return node;
   }
 
-  private mapSectionNode(dn: any): SectionNode {
+  private mapSectionNode(dn: DomainNodeJson): SectionNode {
     const node: SectionNode = {
-      id: dn.id,
-      names: dn.names || { eng: dn.label },
+      id: dn.id ?? '',
+      names: dn.names || (dn.label ? { eng: dn.label } : {}),
       conceptCount: dn.conceptCount || 0,
     };
     if (dn.children && dn.children.length > 0) {
-      node.children = dn.children.map((c: any) => this.mapSectionNode(c));
+      node.children = dn.children.map((c) => this.mapSectionNode(c));
     }
     return node;
   }
@@ -450,7 +482,7 @@ export class DatasetAdapter {
     return nodes.map(s => this.mapManifestSection(s));
   }
 
-  private mapManifestSection(s: { id: string; names: Record<string, string>; children?: any[] }): SectionNode {
+  private mapManifestSection(s: SectionJson): SectionNode {
     const node: SectionNode = { id: s.id, names: s.names || {}, conceptCount: 0 };
     if (s.children && s.children.length > 0) {
       node.children = s.children.map(c => this.mapManifestSection(c));

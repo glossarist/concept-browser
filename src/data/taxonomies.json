@@ -221,6 +221,18 @@
         "prefLabel": "not equal",
         "definition": "The concept is not equal to the source."
       }
+    },
+    "colors": {
+      "identical": "badge-green",
+      "similar": "badge-blue",
+      "modified": "badge-yellow",
+      "restyle": "badge-yellow",
+      "context_added": "badge-blue",
+      "generalisation": "badge-purple",
+      "specialisation": "badge-purple",
+      "unspecified": "badge-gray",
+      "related": "badge-gray",
+      "not_equal": "bg-red-50 text-red-700"
     }
   },
   "relationshipType": {
