@@ -314,8 +314,18 @@ const conceptUriValue = computed(() =>
   conceptUri(props.concept, props.registerId, props.manifest.uriBase)
 );
 
-const outgoingEdges = computed(() => props.edges.filter(e => e.source === conceptUriValue.value && e.type !== 'domain' && e.type !== 'section'));
-const incomingEdges = computed(() => props.edges.filter(e => e.target === conceptUriValue.value && e.type !== 'domain' && e.type !== 'section'));
+const outgoingEdges = computed(() => dedupeEdges(props.edges.filter(e => e.source === conceptUriValue.value && e.type !== 'domain' && e.type !== 'section'), 'target'));
+const incomingEdges = computed(() => dedupeEdges(props.edges.filter(e => e.target === conceptUriValue.value && e.type !== 'domain' && e.type !== 'section'), 'source'));
+
+function dedupeEdges(edges: GraphEdge[], direction: 'source' | 'target'): GraphEdge[] {
+  const seen = new Set<string>();
+  return edges.filter(e => {
+    const key = `${e[direction]}\0${e.type}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 function inverseEdgeType(type: string): string {
   return INVERSE_RELATIONSHIPS[type] || type;
