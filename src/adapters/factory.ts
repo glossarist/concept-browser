@@ -36,7 +36,7 @@ export class AdapterFactory {
       adapters.push(adapter);
 
       if (reg.summary) {
-        adapter.setSummaryManifest(reg.summary);
+        adapter.setSummaryManifest(reg.summary, reg);
       } else {
         needManifest.push(adapter);
       }

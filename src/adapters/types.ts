@@ -113,6 +113,9 @@ export interface DatasetRegistry {
   id: string;
   manifestUrl: string;
   summary?: DatasetSummary;
+  datasetUri?: string;
+  uriBase?: string;
+  uriAliases?: string[];
 }
 
 // ── Graph types ────────────────────────────────────────────────────────────

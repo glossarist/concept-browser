@@ -1,6 +1,11 @@
 import type { GraphNode, GraphEdge } from '../adapters/types';
 import { UriRouter } from '../adapters/UriRouter';
 
+function hasDesignations(node: GraphNode): boolean {
+  const d = node.designations;
+  return d != null && typeof d === 'object' && Object.keys(d).length > 0;
+}
+
 /**
  * Directed multigraph engine for concept relationships.
  * Supports cross-register edges with stub nodes for unresolved targets.
@@ -17,6 +22,8 @@ export class GraphEngine {
     if (!existing) {
       this.nodes.set(node.uri, node);
     } else if (node.loaded && !existing.loaded) {
+      this.nodes.set(node.uri, node);
+    } else if (!existing.loaded && hasDesignations(node) && !hasDesignations(existing)) {
       this.nodes.set(node.uri, node);
     }
   }

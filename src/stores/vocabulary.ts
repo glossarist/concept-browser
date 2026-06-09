@@ -6,11 +6,12 @@ import type { Manifest, SearchHit, GraphEdge } from '../adapters/types';
 import type { Concept } from 'glossarist';
 import { conceptUri } from '../adapters/model-bridge';
 import { GraphEngine } from '../graph';
+import { UriRouter } from '../adapters/UriRouter';
 import { deduplicateSearchHits } from '../utils/search';
 
 export const useVocabularyStore = defineStore('vocabulary', () => {
   // State
-  const datasets = ref<Map<string, DatasetAdapter>>(new Map());
+  const datasets = shallowRef<Map<string, DatasetAdapter>>(new Map());
   const manifests = ref<Map<string, Manifest>>(new Map());
   const currentConcept = ref<Concept | null>(null);
   const currentRegisterId = ref<string>('');
@@ -54,12 +55,14 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
     error.value = null;
     try {
       const adapters = await factory.discoverDatasets(`${import.meta.env.BASE_URL}datasets.json`);
+      const newMap = new Map(datasets.value);
       for (const adapter of adapters) {
-        datasets.value.set(adapter.registerId, adapter);
+        newMap.set(adapter.registerId, adapter);
         if (adapter.manifest) {
           manifests.value.set(adapter.registerId, adapter.manifest);
         }
       }
+      datasets.value = newMap;
       initialized.value = true;
     } catch (e: unknown) {
       error.value = `Failed to discover datasets: ${e instanceof Error ? e.message : String(e)}`;
@@ -72,7 +75,9 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
     error.value = null;
     try {
       const adapter = await factory.loadDataset(registerId);
-      datasets.value.set(registerId, adapter);
+      const newMap = new Map(datasets.value);
+      newMap.set(registerId, adapter);
+      datasets.value = newMap;
       if (adapter.manifest) {
         manifests.value.set(registerId, adapter.manifest);
       }
@@ -136,29 +141,76 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
     touchGraph();
   }
 
-  async function loadEdges(adapter: DatasetAdapter) {
+  async function loadEdges(adapter: DatasetAdapter): Promise<GraphEdge[]> {
     try {
-      const [edges, domainNodes] = await Promise.all([
+      const [edges, domainNodes, graphNodes] = await Promise.all([
         adapter.loadEdgeIndex(),
         adapter.loadDomainNodes(),
+        adapter.loadGraphNodes(),
       ]);
       const engine = graph.value;
       for (const dn of domainNodes) {
         engine.addNode(dn);
       }
+      if (graphNodes.uriPrefix) {
+        for (const [id, designations, status] of graphNodes.nodes) {
+          engine.addNode({
+            uri: graphNodes.uriPrefix + id,
+            register: adapter.registerId,
+            conceptId: id,
+            designations: designations || {},
+            status: status || 'unknown',
+            loaded: false,
+          });
+        }
+      }
       for (const edge of edges) {
         engine.addEdge(edge);
       }
       edgeStatus.value[adapter.registerId] = { loaded: true, count: edges.length };
+      return edges;
     } catch {
       edgeStatus.value[adapter.registerId] = { loaded: false, count: 0 };
+      return [];
     }
   }
 
   async function ensureEdgesForDataset(registerId: string) {
     const adapter = datasets.value.get(registerId);
+    let loadedEdges: GraphEdge[] = [];
     if (adapter && !edgeStatus.value[registerId]?.loaded) {
-      await loadEdges(adapter);
+      loadedEdges = await loadEdges(adapter);
+    }
+
+    // Load graph nodes for any target datasets referenced by this dataset's edges
+    if (adapter && loadedEdges.length > 0) {
+      const targetRegisters = new Set<string>();
+      for (const edge of loadedEdges) {
+        const parsed = UriRouter.parseUri(edge.target);
+        if (parsed?.registerId && parsed.registerId !== registerId) {
+          targetRegisters.add(parsed.registerId);
+        }
+      }
+      await Promise.all([...targetRegisters].map(async (targetId) => {
+        const targetAdapter = datasets.value.get(targetId);
+        if (!targetAdapter) return;
+        try {
+          const gn = await targetAdapter.loadGraphNodes();
+          if (gn.uriPrefix) {
+            const engine = graph.value;
+            for (const [id, designations, status] of gn.nodes) {
+              engine.addNode({
+                uri: gn.uriPrefix + id,
+                register: targetId,
+                conceptId: id,
+                designations: designations || {},
+                status: status || 'unknown',
+                loaded: false,
+              });
+            }
+          }
+        } catch { /* non-critical */ }
+      }));
     }
 
     const index = await factory.loadCrossRefIndex();

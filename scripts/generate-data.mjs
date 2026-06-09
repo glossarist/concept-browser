@@ -924,6 +924,9 @@ for (let i = 0; i < config.datasets.length; i++) {
       tags: ds.tags || reg?.tags || [],
       color: ds.color || DS_PALETTE[i % DS_PALETTE.length],
     },
+    datasetUri: ds.uri || reg?.urn || undefined,
+    uriBase: config.uriBase || undefined,
+    uriAliases: ds.uriAliases || reg?.urnAliases || undefined,
   });
 }
 writeJson(path.join(PUBLIC, 'datasets.json'), registry);

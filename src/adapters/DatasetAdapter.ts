@@ -51,10 +51,10 @@ export class DatasetAdapter {
     this.baseUrl = baseUrl;
   }
 
-  setSummaryManifest(summary: DatasetSummary): void {
+  setSummaryManifest(summary: DatasetSummary, registry?: { datasetUri?: string; uriBase?: string; uriAliases?: string[] }): void {
     this.manifest = {
       id: this.registerId,
-      datasetUri: '',
+      datasetUri: registry?.datasetUri || '',
       title: summary.title,
       description: summary.description,
       owner: summary.owner,
@@ -64,7 +64,8 @@ export class DatasetAdapter {
       conceptUrlTemplate: '',
       indexUrl: '',
       contextUrl: '',
-      uriBase: '',
+      uriBase: registry?.uriBase || '',
+      uriAliases: registry?.uriAliases,
       status: '',
       schemaVersion: '',
       tags: summary.tags,
