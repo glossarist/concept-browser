@@ -221,13 +221,15 @@ function attachAnnotations(concept: Concept, localizations: Record<string, unkno
         for (let j = 0; j < designation.related.length && j < rawRelated.length; j++) {
           const rawRel = rawRelated[j] as Record<string, unknown>;
           const rc = designation.related[j];
-          if (rawRel.target && typeof rawRel.target === 'string') {
-            designationTargets.set(rc, rawRel.target);
-          }
-          if (rc.ref) {
-            const rawRef = rawRel.ref as Record<string, unknown> | undefined;
-            if (rawRef?.text && typeof rawRef.text === 'string') {
-              refTexts.set(rc.ref, rawRef.text);
+          if ('type' in rc) {
+            if (rawRel.target && typeof rawRel.target === 'string') {
+              designationTargets.set(rc as RelatedConcept, rawRel.target);
+            }
+            if ('ref' in rc && rc.ref) {
+              const rawRef = rawRel.ref as Record<string, unknown> | undefined;
+              if (rawRef?.text && typeof rawRef.text === 'string') {
+                refTexts.set((rc as RelatedConcept).ref!, rawRef.text);
+              }
             }
           }
         }

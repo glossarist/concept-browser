@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Designation, Expression, ConceptSource } from 'glossarist';
+import type { Designation, Expression, ConceptSource, RelatedConcept } from 'glossarist';
 import { designationTypeInfo, normativeStatusInfo, abbreviationDetails, termTypeInfo, grammarBadges, pronunciationLabel, pronunciationTooltip, sourceTypeInfo } from '../utils/designation-registry';
 import { relationshipLabel } from '../utils/relationship-categories';
 import { langName } from '../utils/lang';
@@ -16,6 +16,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'navigate-related', ref: { source: string | null; id: string | null }): void;
 }>();
+
+function asRelated(dr: unknown): RelatedConcept | null {
+  return dr && typeof dr === 'object' && 'ref' in dr ? dr as RelatedConcept : null;
+}
 
 function resolvedLabel(dr: { content: string | null; ref: { source: string | null; id: string | null } | null }): string {
   if (dr.content) return dr.content;
@@ -66,11 +70,11 @@ function resolvedLabel(dr: { content: string | null; ref: { source: string | nul
       <div v-if="d.related?.length" class="mt-0.5 space-y-0.5">
         <div v-for="(dr, dri) in d.related" :key="'dr'+dri" class="text-xs text-ink-400 flex items-center gap-1.5">
           <span class="badge text-[9px] bg-gray-50 text-gray-600">{{ relationshipLabel(dr.type) }}</span>
-          <template v-if="getDesignationTarget(dr)">
-            <span class="italic">{{ getDesignationTarget(dr) }}</span>
+          <template v-if="getDesignationTarget(dr as any)">
+            <span class="italic">{{ getDesignationTarget(dr as any) }}</span>
           </template>
-          <button v-else-if="dr.ref" @click="emit('navigate-related', dr.ref)" class="concept-link">{{ resolvedLabel(dr) }}</button>
-          <span v-else>{{ resolvedLabel(dr) }}</span>
+          <button v-else-if="asRelated(dr)" @click="emit('navigate-related', asRelated(dr)!.ref)" class="concept-link">{{ resolvedLabel(asRelated(dr)!) }}</button>
+          <span v-else>{{ resolvedLabel(dr as any) }}</span>
         </div>
       </div>
     </div>
