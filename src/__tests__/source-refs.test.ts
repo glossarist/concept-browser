@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ReferenceResolver } from '../adapters/ReferenceResolver';
+import type { Resolution } from '../adapters/types';
+
+type InternalResolution = Extract<Resolution, { type: 'internal' }>;
+
+function asInternal(r: Resolution | null): InternalResolution | null {
+  return r?.type === 'internal' ? (r as InternalResolution) : null;
+}
 
 describe('Source reference resolution (citation linking)', () => {
   let resolver: ReferenceResolver;
@@ -105,10 +112,10 @@ describe('Source reference resolution (citation linking)', () => {
       resolver.registerSourceRef('VIM', 'vim-2012', 'urn:oiml:pub:v:2:2012');
       resolver.registerSourceRef('ISO Guide 99:2007', 'vim-2012', 'urn:oiml:pub:v:2:2012');
 
-      expect(resolver.resolveCitation('OIML V 2-200:2012', '2.2')?.registerId).toBe('vim-2012');
-      expect(resolver.resolveCitation('OIML V2-200:2012', '2.2')?.registerId).toBe('vim-2012');
-      expect(resolver.resolveCitation('VIM', '2.2')?.registerId).toBe('vim-2012');
-      expect(resolver.resolveCitation('ISO Guide 99:2007', '2.2')?.registerId).toBe('vim-2012');
+      expect(asInternal(resolver.resolveCitation('OIML V 2-200:2012', '2.2'))?.registerId).toBe('vim-2012');
+      expect(asInternal(resolver.resolveCitation('OIML V2-200:2012', '2.2'))?.registerId).toBe('vim-2012');
+      expect(asInternal(resolver.resolveCitation('VIM', '2.2'))?.registerId).toBe('vim-2012');
+      expect(asInternal(resolver.resolveCitation('ISO Guide 99:2007', '2.2'))?.registerId).toBe('vim-2012');
     });
   });
 
@@ -156,7 +163,7 @@ describe('Source reference resolution (citation linking)', () => {
       resolver.registerDataset('vim-1993', ['urn:oiml:pub:v:2:1993*']);
       resolver.registerSourceRef('OIML V 2:1993', 'vim-1993', 'urn:oiml:pub:v:2:1993');
       const result = resolver.resolveCitation('OIML V 2:1993', '3.6');
-      expect(result?.registerId).toBe('vim-1993');
+      expect(asInternal(result)?.registerId).toBe('vim-1993');
     });
 
     it('does not confuse similar source strings', () => {
@@ -166,8 +173,8 @@ describe('Source reference resolution (citation linking)', () => {
       const result2007 = resolver.resolveCitation('OIML V 2-200:2007', '2.2');
       const result2012 = resolver.resolveCitation('OIML V 2-200:2012', '2.2');
 
-      expect(result2007?.registerId).toBe('vim-2007');
-      expect(result2012?.registerId).toBe('vim-2012');
+      expect(asInternal(result2007)?.registerId).toBe('vim-2007');
+      expect(asInternal(result2012)?.registerId).toBe('vim-2012');
     });
   });
 });
