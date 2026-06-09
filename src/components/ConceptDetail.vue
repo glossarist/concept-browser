@@ -14,7 +14,10 @@ import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
 import { getFactory } from '../adapters/factory';
 import { useRenderOptions } from '../composables/use-render-options';
-import { categorizeRelationship, relationshipLabel, relationshipDefinition, INVERSE_RELATIONSHIPS } from '../utils/relationship-categories';
+import { useConceptEdges } from '../composables/use-concept-edges';
+import { useConceptContent, type LangContent } from '../composables/use-concept-content';
+import { relationshipLabel, INVERSE_RELATIONSHIPS } from '../utils/relationship-categories';
+import { slugify } from '../utils/slugify';
 import { useSiteConfig } from '../config/use-site-config';
 import ConceptTimeline from './ConceptTimeline.vue';
 import ConceptRdfView from './ConceptRdfView.vue';
@@ -38,7 +41,6 @@ const router = useRouter();
 const store = useVocabularyStore();
 const { getColor } = useDsStyle();
 const { config: siteConfig, localizedDatasetField } = useSiteConfig();
-const factory = getFactory();
 
 const activeTab = ref<'rdf' | 'definition' | 'history'>('definition');
 const activeHistoryLang = ref('eng');
@@ -52,6 +54,25 @@ const conceptPosition = computed(() => {
   if (idx < 0) return null;
   return { index: idx + 1, total: adapter.getConceptCount() };
 });
+
+const conceptComputed = computed(() => props.concept);
+const registerIdComputed = computed(() => props.registerId);
+const manifestComputed = computed(() => props.manifest);
+const edgesComputed = computed(() => props.edges);
+
+const {
+  conceptUriValue,
+  outgoingEdges,
+  incomingEdges,
+  getEdgeDisplay,
+  edgeBadgeColor,
+  inverseEdgeType,
+  conceptRelated,
+  getResolvedRef,
+  relatedLabel,
+  navigateEdge,
+  navigateRelated,
+} = useConceptEdges(conceptComputed, registerIdComputed, manifestComputed, edgesComputed);
 
 const uriCopied = ref(false);
 function copyUri() {
@@ -84,79 +105,19 @@ const engConcept = computed((): LocalizedConcept | null => {
 const primaryTerm = computed(() => getPreferredTerm(engConcept.value, conceptId.value));
 const renderedPrimaryTerm = computed(() => renderMath(primaryTerm.value));
 
-// Managed concept status from Concept.status (7 values from concept-status.ttl)
 const managedStatus = computed(() => props.concept.status);
 
-// ConceptReference domains from managed concept level
 const conceptRefDomains = computed(() => props.concept.domains);
 
-// Managed concept dates
 const conceptDates = computed(() => props.concept.dates);
 
-// Managed concept sources (distinct from localized sources)
 const conceptSources = computed(() => props.concept.sources);
 
-// Managed concept tags
 const conceptTags = computed(() => props.concept.tags ?? []);
-
-// Managed concept related (concept-level cross-references)
-// Derives inverse relationships from incoming edges (e.g. supersedes → superseded_by).
-const conceptRelated = computed(() => {
-  const direct = props.concept.relatedConcepts?.filter(rc => !INVERSE_RELATIONSHIPS[rc.type]) ?? [];
-  const derived = incomingEdges.value
-    .filter(e => INVERSE_RELATIONSHIPS[e.type])
-    .map(e => {
-      const parsed = factory.resolve(e.source, props.registerId);
-      const sourceUrn = parsed.type === 'internal'
-        ? store.manifests.get(parsed.registerId)?.datasetUri
-        : null;
-      const conceptId = e.source.match(/\/concept\/([^/]+)$/)?.[1];
-      return {
-        type: INVERSE_RELATIONSHIPS[e.type],
-        ref: sourceUrn && conceptId ? { source: sourceUrn, id: conceptId } : null,
-        content: '',
-      };
-    });
-  return [...direct, ...derived];
-});
-
-function resolveRelatedRef(ref: { source: string | null; id: string | null } | null): { registerId: string; conceptId: string } | null {
-  if (!ref?.source || !ref?.id) return null;
-  const uri = `${ref.source}/${ref.id}`;
-  const resolution = factory.resolve(uri, props.registerId);
-  if (resolution.type === 'internal') {
-    const conceptId = resolution.conceptId.replace(/^\//, '');
-    return { registerId: resolution.registerId, conceptId };
-  }
-  if (ref.source.startsWith('urn:')) {
-    const directUri = ref.source + ref.id;
-    const directRes = factory.resolve(directUri, props.registerId);
-    if (directRes.type === 'internal') {
-      return { registerId: directRes.registerId, conceptId: directRes.conceptId.replace(/^\//, '') };
-    }
-  }
-  return null;
-}
-
-async function navigateRelated(ref: { source: string | null; id: string | null }) {
-  const target = resolveRelatedRef(ref);
-  if (!target) return;
-  router.push({ name: 'concept', params: { registerId: target.registerId, conceptId: target.conceptId } });
-}
-
-function relatedLabel(dr: { content?: string | null; ref?: { source: string | null; id: string | null } | null }): string {
-  if (dr.content) return dr.content;
-  const resolved = dr.ref ? getResolvedRef(dr.ref).target : null;
-  if (resolved) {
-    const m = store.manifests.get(resolved.registerId);
-    const dsLabel = m?.shortname || m?.title || resolved.registerId;
-    return `${resolved.conceptId} (${dsLabel})`;
-  }
-  return dr.ref ? `${dr.ref.id || ''} (${dr.ref.source || ''})`.trim() : '';
-}
 
 // Cross-reference resolver: generates clickable links for inline refs
 
+const factory = getFactory();
 const { ensureBibLoaded, bibResolver, figResolver } = useRenderOptions(() => props.registerId);
 
 const renderOpts: RenderOptions = {
@@ -194,30 +155,7 @@ function handleContentClick(e: MouseEvent) {
   }
 }
 
-// Pre-computed content for all languages (sorted eng first)
-interface LangContent {
-  lang: string;
-  lc: LocalizedConcept;
-  renderedTerm: string;
-  definition: string;
-  renderedDefinition: string;
-  annotations: string[];
-  renderedAnnotations: string[];
-  notes: string[];
-  renderedNotes: string[];
-  examples: string[];
-  renderedExamples: string[];
-  sources: ConceptSource[];
-  designations: Designation[];
-  renderedDesignations: Map<string, string>;
-  entryStatus: string;
-  classification: string | null;
-  reviewType: string | null;
-  release: string | null;
-  lineageSourceSimilarity: number | null;
-  lcScript: string | null;
-  lcSystem: string | null;
-}
+// LangContent type is imported from the composable
 
 const allLangContent = computed(() => {
   const result: LangContent[] = [];
@@ -310,112 +248,6 @@ function scrollToLang(lang: string) {
   });
 }
 
-const conceptUriValue = computed(() =>
-  conceptUri(props.concept, props.registerId, props.manifest.uriBase)
-);
-
-const outgoingEdges = computed(() => dedupeEdges(props.edges.filter(e => e.source === conceptUriValue.value && e.type !== 'domain' && e.type !== 'section'), 'target'));
-const incomingEdges = computed(() => dedupeEdges(props.edges.filter(e => e.target === conceptUriValue.value && e.type !== 'domain' && e.type !== 'section'), 'source'));
-
-function dedupeEdges(edges: GraphEdge[], direction: 'source' | 'target'): GraphEdge[] {
-  const seen = new Set<string>();
-  return edges.filter(e => {
-    const key = `${e[direction]}\0${e.type}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-function inverseEdgeType(type: string): string {
-  return INVERSE_RELATIONSHIPS[type] || type;
-}
-
-function edgeBadgeColor(type: string, direction: 'out' | 'in'): string {
-  if (type === 'supersedes' || type === 'superseded_by') {
-    return direction === 'out' ? 'text-orange-700 bg-orange-50' : 'text-red-700 bg-red-50';
-  }
-  return categorizeRelationship(type).color;
-}
-
-interface EdgeDisplay {
-  uri: string;
-  conceptId: string;
-  designation: string;
-  tooltip: string;
-  isLocal: boolean;
-  badge: { id: string; title: string } | null;
-}
-
-const edgeDisplayCache = computed(() => {
-  const cache = new Map<string, EdgeDisplay>();
-  for (const e of props.edges) {
-    const uri = e.source === conceptUriValue.value ? e.target : e.source;
-    if (cache.has(uri)) continue;
-    const resolution = factory.resolve(uri, props.registerId);
-    const isLocal = resolution.type === 'internal' && resolution.registerId === props.registerId;
-    const conceptId = uri.match(/\/concept\/([^/]+)$/)?.[1] ?? uri.split('/').pop() ?? uri;
-    const node = store.graph.getNode(uri);
-    const designation = node
-      ? (node.designations[locale.value] || node.designations.eng || Object.values(node.designations)[0] || '')
-      : '';
-    const tooltipLines: string[] = [uri];
-    if (node) {
-      for (const [lang, des] of Object.entries(node.designations)) {
-        tooltipLines.push(`${langLabel(lang)}: ${des}`);
-      }
-    }
-    let badge: { id: string; title: string } | null = null;
-    if (resolution.type === 'internal' && resolution.registerId !== props.registerId) {
-      const m = store.manifests.get(resolution.registerId);
-      badge = { id: resolution.registerId, title: m?.shortname || m?.title || resolution.registerId };
-    } else if (resolution.type === 'site') {
-      badge = { id: '', title: resolution.label };
-    } else if (resolution.type === 'url') {
-      badge = { id: '', title: resolution.label };
-    }
-    cache.set(uri, { uri, conceptId, designation, tooltip: tooltipLines.join('\n'), isLocal, badge });
-  }
-  return cache;
-});
-
-function getEdgeDisplay(uri: string): EdgeDisplay {
-  return edgeDisplayCache.value.get(uri) ?? { uri, conceptId: uri, designation: "", tooltip: uri, isLocal: false, badge: null };
-}
-
-interface ResolvedRef {
-  target: { registerId: string; conceptId: string } | null;
-}
-
-const resolvedRefs = computed(() => {
-  const map = new Map<string, ResolvedRef>();
-  for (const cr of conceptRelated.value) {
-    const key = `${cr.ref?.source ?? ''}:${cr.ref?.id ?? ''}`;
-    if (map.has(key)) continue;
-    map.set(key, { target: resolveRelatedRef(cr.ref) });
-  }
-  return map;
-});
-
-function getResolvedRef(ref: { source: string | null; id: string | null } | null): ResolvedRef {
-  if (!ref) return { target: null };
-  const key = `${ref.source ?? ''}:${ref.id ?? ''}`;
-  return resolvedRefs.value.get(key) ?? { target: resolveRelatedRef(ref) };
-}
-
-async function navigateEdge(edge: GraphEdge) {
-  const uri = edge.source === conceptUriValue.value ? edge.target : edge.source;
-  const resolution = factory.resolve(uri);
-
-  if (resolution.type === 'internal') {
-    router.push({ name: 'concept', params: { registerId: resolution.registerId, conceptId: resolution.conceptId } });
-  } else if (resolution.type === 'site') {
-    window.open(`${resolution.baseUrl}/resolve/${encodeURIComponent(uri)}`, '_blank', 'noopener');
-  } else if (resolution.type === 'url') {
-    window.open(resolution.url, '_blank', 'noopener');
-  }
-}
-
 function navigateDomain(domain: { slug: string; conceptId?: string }) {
   const sectionId = domain.conceptId || domain.slug;
   router.push({ name: 'dataset', params: { registerId: props.manifest.id }, query: { section: sectionId } });
@@ -453,10 +285,6 @@ function goAdjacent(id: string) {
 function plainTruncate(html: string, max: number = 120): string {
   const text = cleanContent(html).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
   return text.length <= max ? text : text.slice(0, max).trimEnd() + '…';
-}
-
-function slugify(text: string): string {
-  return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s/]+/g, '-');
 }
 
 // Domain rendering: merge ConceptReference domains and per-localization domain strings

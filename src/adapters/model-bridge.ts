@@ -179,10 +179,10 @@ export function getAnnotations(lc: LocalizedConcept): DetailedDefinition[] {
 }
 
 // Designation relationship targets: RelatedConcept.target (string)
-const designationTargets = new WeakMap<RelatedConcept, string>();
+const designationTargets = new WeakMap<object, string>();
 
-export function getDesignationTarget(rc: RelatedConcept): string | null {
-  return designationTargets.get(rc) ?? null;
+export function getDesignationTarget(rc: { type?: string | null; content?: string | null; target?: string | null; ref?: any }): string | null {
+  return designationTargets.get(rc) ?? rc.target ?? null;
 }
 
 // ConceptRef text: human-readable label alongside source/id
@@ -213,23 +213,28 @@ function attachAnnotations(concept: Concept, localizations: Record<string, unkno
     // Designation-level relationship targets and ref text
     const rawTerms = rawObj.terms;
     if (Array.isArray(rawTerms)) {
-      for (let i = 0; i < lc.terms.length && i < rawTerms.length; i++) {
-        const rawTerm = rawTerms[i] as Record<string, unknown>;
-        const rawRelated = rawTerm.related;
+      for (const rawTerm of rawTerms) {
+        if (!rawTerm || typeof rawTerm !== 'object') continue;
+        const rawT = rawTerm as Record<string, unknown>;
+        const rawDesignation = rawT.designation as string | undefined;
+        if (!rawDesignation) continue;
+        const designation = lc.terms.find(d => d.designation === rawDesignation);
+        if (!designation) continue;
+        const rawRelated = rawT.related;
         if (!Array.isArray(rawRelated)) continue;
-        const designation = lc.terms[i];
-        for (let j = 0; j < designation.related.length && j < rawRelated.length; j++) {
-          const rawRel = rawRelated[j] as Record<string, unknown>;
-          const rc = designation.related[j];
-          if ('type' in rc) {
-            if (rawRel.target && typeof rawRel.target === 'string') {
-              designationTargets.set(rc as RelatedConcept, rawRel.target);
-            }
-            if ('ref' in rc && rc.ref) {
-              const rawRef = rawRel.ref as Record<string, unknown> | undefined;
-              if (rawRef?.text && typeof rawRef.text === 'string') {
-                refTexts.set((rc as RelatedConcept).ref!, rawRef.text);
-              }
+        for (const rawRel of rawRelated) {
+          if (!rawRel || typeof rawRel !== 'object') continue;
+          const rel = rawRel as Record<string, unknown>;
+          const relType = rel.type as string | undefined;
+          const rc = designation.related.find(r => r.type === relType);
+          if (!rc) continue;
+          if (rel.target && typeof rel.target === 'string') {
+            designationTargets.set(rc as object, rel.target);
+          }
+          if ('ref' in rc && rc.ref) {
+            const rawRef = rel.ref as Record<string, unknown> | undefined;
+            if (rawRef?.text && typeof rawRef.text === 'string') {
+              refTexts.set(rc.ref, rawRef.text);
             }
           }
         }
@@ -239,11 +244,14 @@ function attachAnnotations(concept: Concept, localizations: Record<string, unkno
     // Localization-level ref text
     const rawRelated = rawObj.related;
     if (Array.isArray(rawRelated)) {
-      for (let i = 0; i < lc.related.length && i < rawRelated.length; i++) {
-        const rc = lc.related[i];
-        const rawRel = rawRelated[i] as Record<string, unknown>;
-        const rawRef = rawRel.ref as Record<string, unknown> | undefined;
-        if (rc.ref && rawRef?.text && typeof rawRef.text === 'string') {
+      for (const rawRel of rawRelated) {
+        if (!rawRel || typeof rawRel !== 'object') continue;
+        const rel = rawRel as Record<string, unknown>;
+        const relType = rel.type as string | undefined;
+        const rc = relType ? lc.related.find(r => r.type === relType) : undefined;
+        if (!rc || !rc.ref) continue;
+        const rawRef = rel.ref as Record<string, unknown> | undefined;
+        if (rawRef?.text && typeof rawRef.text === 'string') {
           refTexts.set(rc.ref, rawRef.text);
         }
       }

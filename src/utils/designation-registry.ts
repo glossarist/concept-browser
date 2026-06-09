@@ -9,52 +9,28 @@ export interface DesignationTypeInfo {
 }
 
 export function designationTypeInfo(designation: Designation): DesignationTypeInfo {
-  const type = designation.type;
-  const concept = ontology.getConcept('designationType', type);
-  return {
-    label: concept?.prefLabel ?? type,
-    color: ontology.getColor('designationType', type) ?? 'bg-gray-50 text-gray-700',
-    definition: concept?.definition ?? undefined,
-  };
+  return ontology.getDisplay('designationType', designation.type, 'bg-gray-50 text-gray-700');
 }
 
 export function normativeStatusInfo(status: string | null): { label: string; color: string; definition?: string } {
-  if (!status) return { label: '', color: 'bg-gray-50 text-gray-700' };
-  const concept = ontology.getConcept('normativeStatus', status);
-  return {
-    label: concept?.prefLabel ?? status,
-    color: ontology.getColor('normativeStatus', status) ?? 'bg-gray-50 text-gray-700',
-    definition: concept?.definition ?? undefined,
-  };
+  return ontology.getDisplay('normativeStatus', status, 'bg-gray-50 text-gray-700');
 }
 
 export function sourceStatusInfo(status: string | null): { label: string; color: string; definition?: string } {
-  if (!status) return { label: '', color: 'badge-gray' };
-  const concept = ontology.getConcept('sourceStatus', status);
-  return {
-    label: concept?.prefLabel ?? status,
-    color: 'badge-gray',
-    definition: concept?.definition ?? undefined,
-  };
+  return ontology.getDisplay('sourceStatus', status, 'badge-gray');
 }
 
 export function sourceTypeInfo(type: string | null): { label: string; color: string; definition?: string } {
-  if (!type) return { label: '', color: 'badge-gray' };
-  const concept = ontology.getConcept('sourceType', type);
-  return {
-    label: concept?.prefLabel ?? type,
-    color: ontology.getColor('sourceType', type) ?? 'badge-gray',
-    definition: concept?.definition ?? undefined,
-  };
+  return ontology.getDisplay('sourceType', type, 'badge-gray');
 }
 
 export function termTypeInfo(termType: string | null): { label: string; category: string; definition?: string } {
   if (!termType) return { label: '', category: '' };
-  const concept = ontology.getConcept('termType', termType);
+  const display = ontology.getDisplay('termType', termType);
   return {
-    label: concept?.prefLabel ?? termType,
-    category: concept?.broader ?? '',
-    definition: concept?.definition ?? undefined,
+    label: display.label,
+    category: ontology.getBroader('termType', termType) ?? '',
+    definition: display.definition,
   };
 }
 
@@ -68,18 +44,20 @@ export function abbreviationDetails(designation: Designation): string[] {
   return parts;
 }
 
+const GRAMMAR_BOOLEAN_POS = ['noun', 'verb', 'adj', 'adverb', 'preposition', 'participle'] as const;
+
 export function grammarBadges(gi: GrammarInfo): { label: string; definition?: string }[] {
   const badges: { label: string; definition?: string }[] = [];
   if (gi.gender) {
-    const concept = ontology.getConcept('grammarGender', gi.gender);
-    badges.push({ label: concept?.prefLabel ?? gi.gender, definition: concept?.definition ?? undefined });
+    const display = ontology.getDisplay('grammarGender', gi.gender);
+    badges.push({ label: display.label, definition: display.definition });
   }
   if (gi.number) {
-    const concept = ontology.getConcept('grammarNumber', gi.number);
-    badges.push({ label: concept?.prefLabel ?? gi.number, definition: concept?.definition ?? undefined });
+    const display = ontology.getDisplay('grammarNumber', gi.number);
+    badges.push({ label: display.label, definition: display.definition });
   }
   if (gi.partOfSpeech) badges.push({ label: gi.partOfSpeech });
-  for (const pos of ['noun', 'verb', 'adj', 'adverb', 'preposition', 'participle'] as const) {
+  for (const pos of GRAMMAR_BOOLEAN_POS) {
     if (gi[pos]) badges.push({ label: pos });
   }
   return badges;

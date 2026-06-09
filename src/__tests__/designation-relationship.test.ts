@@ -171,6 +171,37 @@ describe('ConceptRef text bridge', () => {
   });
 });
 
+// ── Robustness: matching by designation string, not array index ────────────
+
+describe('designation target matching robustness', () => {
+  it('matches designation targets correctly even when raw terms are reordered', () => {
+    const doc = {
+      id: '1',
+      localizations: {
+        eng: {
+          language_code: 'eng',
+          terms: [
+            { designation: 'PDF', type: 'abbreviation', related: [{ type: 'abbreviated_form_for', target: 'Portable Document Format' }] },
+            { designation: 'ISO', type: 'abbreviation', related: [{ type: 'abbreviated_form_for', target: 'International Organization for Standardization' }] },
+          ],
+          definition: [{ content: 'test' }],
+        },
+      },
+    };
+    // Reverse the raw terms to simulate reordering
+    const rawTerms = doc.localizations.eng.terms.slice().reverse();
+    doc.localizations.eng.terms = rawTerms;
+
+    const concept = conceptFromJson(doc);
+    const lc = concept.localization('eng')!;
+    // Terms are in model order, not raw order
+    const pdf = lc.terms.find(t => t.designation === 'PDF')!;
+    const iso = lc.terms.find(t => t.designation === 'ISO')!;
+    expect(getDesignationTarget(pdf.related[0])).toBe('Portable Document Format');
+    expect(getDesignationTarget(iso.related[0])).toBe('International Organization for Standardization');
+  });
+});
+
 // ── Generate-data serialization ────────────────────────────────────────────
 
 describe('generate-data designation serialization', () => {
