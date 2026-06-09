@@ -2,17 +2,15 @@ import type { LocalizedConcept } from 'glossarist';
 import { ontology } from '../adapters/ontology-registry';
 
 export function entryStatusColor(status: string): string {
-  return ontology.getColor('entryStatus', status) ?? 'badge-gray';
+  return ontology.getDisplay('entryStatus', status).color;
 }
 
 export function conceptStatusColor(status: string | null): string {
-  if (!status) return 'badge-gray';
-  return ontology.getColor('conceptStatus', status) ?? 'badge-gray';
+  return ontology.getDisplay('conceptStatus', status).color;
 }
 
 export function conceptStatusLabel(status: string | null): string {
-  if (!status) return '';
-  return ontology.getLabel('conceptStatus', status) || status;
+  return ontology.getDisplay('conceptStatus', status).label;
 }
 
 export function conceptStatusDefinition(status: string | null): string | null {
@@ -21,8 +19,7 @@ export function conceptStatusDefinition(status: string | null): string | null {
 }
 
 export function entryStatusLabel(status: string | null): string {
-  if (!status) return '';
-  return ontology.getLabel('entryStatus', status) || status;
+  return ontology.getDisplay('entryStatus', status).label;
 }
 
 export function entryStatusDefinition(status: string | null): string | null {

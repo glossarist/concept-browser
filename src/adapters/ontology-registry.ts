@@ -1,5 +1,5 @@
 /**
- * Ontology Registry — taxonomy-driven labels and definitions for the browser.
+ * Ontology Registry — taxonomy-driven labels, definitions, and colors for the browser.
  *
  * All enumeration labels, definitions, and colors come from the SKOS taxonomy
  * data extracted at build time from concept-model/ontologies/taxonomies/*.ttl.
@@ -29,9 +29,18 @@ export interface Taxonomy {
   schemeDefinition: string | null;
   categories?: Record<string, TaxonomyCategory>;
   concepts: Record<string, TaxonomyConcept>;
+  colors?: Record<string, string>;
+}
+
+export interface TaxonomyDisplay {
+  label: string;
+  color: string;
+  definition?: string;
 }
 
 type TaxonomyKey = keyof typeof taxonomyData;
+
+const DEFAULT_COLOR = 'badge-gray';
 
 export class OntologyRegistry {
   private data: Record<string, Taxonomy>;
@@ -94,9 +103,17 @@ export class OntologyRegistry {
   }
 
   getColor(taxonomy: TaxonomyKey, id: string): string | null {
-    const entry = this.data[taxonomy] as unknown as Record<string, unknown>;
-    const colors = entry?.colors as Record<string, string> | undefined;
-    return colors?.[id] ?? null;
+    return this.data[taxonomy]?.colors?.[id] ?? null;
+  }
+
+  getDisplay(taxonomy: TaxonomyKey, id: string | null | undefined, colorFallback?: string): TaxonomyDisplay {
+    if (!id) return { label: '', color: colorFallback ?? DEFAULT_COLOR };
+    const concept = this.getConcept(taxonomy, id);
+    return {
+      label: concept?.prefLabel ?? id,
+      color: this.data[taxonomy]?.colors?.[id] ?? colorFallback ?? DEFAULT_COLOR,
+      definition: concept?.definition ?? undefined,
+    };
   }
 }
 
