@@ -42,7 +42,7 @@ describe('designation relationship bridge', () => {
 
     const rc = term.related[0];
     expect(rc.type).toBe('abbreviated_form_for');
-    expect(getDesignationTarget(rc)).toBe('Portable Document Format');
+    expect(getDesignationTarget(rc as any)).toBe('Portable Document Format');
   });
 
   it('returns null for concept-level relationships (no target)', () => {
@@ -50,7 +50,7 @@ describe('designation relationship bridge', () => {
     const concept = conceptFromJson(doc);
     const rc = concept.localization('eng')!.terms[0].related[0];
     expect(rc.type).toBe('abbreviated_form_for');
-    expect(getDesignationTarget(rc)).toBeNull();
+    expect(getDesignationTarget(rc as any)).toBeNull();
   });
 
   it('handles short_form_for designation target', () => {
@@ -58,7 +58,7 @@ describe('designation relationship bridge', () => {
     const concept = conceptFromJson(doc);
     const rc = concept.localization('eng')!.terms[0].related[0];
     expect(rc.type).toBe('short_form_for');
-    expect(getDesignationTarget(rc)).toBe('kilogram');
+    expect(getDesignationTarget(rc as any)).toBe('kilogram');
   });
 
   it('preserves designation target from glossarist native format', () => {
@@ -78,7 +78,7 @@ describe('designation relationship bridge', () => {
     };
     const concept = conceptFromJson(doc);
     const rc = concept.localization('eng')!.terms[0].related[0];
-    expect(getDesignationTarget(rc)).toBe('Portable Document Format');
+    expect(getDesignationTarget(rc as any)).toBe('Portable Document Format');
   });
 
   it('designation without related returns empty related array', () => {
