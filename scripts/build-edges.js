@@ -5,6 +5,7 @@
  *
  * Usage: node scripts/build-edges.js
  */
+import { extractSourceRefs } from './extract-source-refs.js';
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -22,32 +23,6 @@ function slugify(text) {
 }
 
 // --- Extractors (open/closed: add new extractors to EXTRACTORS array) ---
-
-function extractSourceRefs(concept, registerId) {
-  const refs = new Set();
-
-  // Managed concept-level sources
-  for (const src of concept['gl:source'] || []) {
-    const origin = src['gl:origin'];
-    if (origin) {
-      const ref = origin['gl:ref'];
-      if (ref?.['gl:source']) refs.add(ref['gl:source']);
-    }
-  }
-
-  // Localized concept-level sources
-  for (const lc of Object.values(concept['gl:localizedConcept'] || {})) {
-    for (const src of lc['gl:source'] || []) {
-      const origin = src['gl:origin'];
-      if (origin) {
-        const ref = origin['gl:ref'];
-        if (ref?.['gl:source']) refs.add(ref['gl:source']);
-      }
-    }
-  }
-
-  return [...refs].map(source => ({ source, registerId }));
-}
 
 function extractReferences(concept, registerId) {
   const edges = [];
