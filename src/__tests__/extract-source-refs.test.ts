@@ -1,7 +1,8 @@
+// @ts-nocheck — ESM .js import without type declarations
 import { describe, it, expect } from 'vitest';
 import { extractSourceRefs } from '../../scripts/extract-source-refs.js';
 
-function makeConcept(sources, localizedSources) {
+function makeConcept(sources: any[], localizedSources?: any) {
   return {
     '@id': 'https://glossarist.org/ds1/concept/1.1',
     'gl:source': sources || [],
@@ -9,7 +10,7 @@ function makeConcept(sources, localizedSources) {
   };
 }
 
-function makeSource(source, refFrom, type = 'authoritative') {
+function makeSource(source: string, refFrom: string, type = 'authoritative') {
   return {
     'gl:origin': {
       'gl:ref': { 'gl:source': source },
