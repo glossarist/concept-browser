@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { getFactory, resetFactory } from '../adapters/factory';
+import type { Resolution } from '../adapters/types';
+
+type InternalResolution = Extract<Resolution, { type: 'internal' }>;
+
+function asInternal(r: Resolution | null): InternalResolution | null {
+  return r?.type === 'internal' ? (r as InternalResolution) : null;
+}
 
 describe('AdapterFactory.loadSourceRefs', () => {
   beforeEach(() => {
@@ -60,7 +67,7 @@ describe('AdapterFactory.loadSourceRefs', () => {
     });
 
     const aliasResult = factory.resolveCitation('VIM', '2.2', 'viml-2022');
-    expect(aliasResult?.registerId).toBe('vim-2012');
+    expect(asInternal(aliasResult)?.registerId).toBe('vim-2012');
   });
 
   it('gracefully handles missing source-refs.json', async () => {
@@ -175,7 +182,7 @@ describe('AdapterFactory.loadSourceRefs', () => {
 
     // Known source resolves
     const known = factory.resolveCitation('OIML V2-200:2012', '2.2');
-    expect(known?.type).toBe('internal');
+    expect(asInternal(known)?.registerId).toBe('vim-2012');
 
     // Unknown dataset source — not registered (no adapter for nonexistent-dataset)
     const unknown = factory.resolveCitation('Unknown Source', '1.1');
