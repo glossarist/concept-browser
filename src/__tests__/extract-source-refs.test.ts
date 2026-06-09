@@ -95,7 +95,6 @@ describe('extractSourceRefs', () => {
       fra: { 'gl:source': [makeSource('OIML V 1:2022', '0.01')] },
     });
     const result = extractSourceRefs(concept, 'viml-2022');
-    // Same source in both languages — deduplicated
     expect(result).toEqual([{ source: 'OIML V 1:2022', registerId: 'viml-2022' }]);
   });
 
@@ -127,5 +126,11 @@ describe('extractSourceRefs', () => {
       { source: 'OIML V2-200:2012', registerId: 'viml-2022' },
       { source: 'ISO/IEC 17000:2020', registerId: 'viml-2022' },
     ]);
+  });
+
+  it('extracts URN-based source strings', () => {
+    const concept = makeConcept([makeSource('urn:oiml:pub:v:2:2012', '2.2')]);
+    const result = extractSourceRefs(concept, 'viml-2022');
+    expect(result).toEqual([{ source: 'urn:oiml:pub:v:2:2012', registerId: 'viml-2022' }]);
   });
 });

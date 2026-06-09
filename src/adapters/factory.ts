@@ -52,8 +52,17 @@ export class AdapterFactory {
       }
     }
 
-    // Load source-refs index for citation resolution
-    await this.loadSourceRefs();
+    // Register bibliography from registry config (ref/refAliases → URN)
+    // This is the single source of truth — no separate source-refs file needed.
+    for (const reg of registry) {
+      if (!reg.datasetUri) continue;
+      if (reg.ref) {
+        this.resolver.registerSourceRef(reg.ref, reg.id, reg.datasetUri);
+      }
+      for (const alias of reg.refAliases ?? []) {
+        this.resolver.registerSourceRef(alias, reg.id, reg.datasetUri);
+      }
+    }
 
     return adapters;
   }
@@ -75,13 +84,6 @@ export class AdapterFactory {
       manifest.uriBase ? `${manifest.uriBase}/${registerId}/*` : undefined,
     ].filter(Boolean) as string[];
     this.resolver.registerDataset(registerId, uriPatterns);
-
-    if (manifest.ref) {
-      this.resolver.registerSourceRef(manifest.ref, registerId, manifest.datasetUri);
-    }
-    for (const alias of manifest.refAliases ?? []) {
-      this.resolver.registerSourceRef(alias, registerId, manifest.datasetUri);
-    }
 
     if (manifest.datasetUri) this.urnMap.set(manifest.datasetUri, registerId);
     for (const alias of manifest.uriAliases ?? []) {
@@ -147,21 +149,6 @@ export class AdapterFactory {
     }
     this.crossRefIndex = this.crossRefIndex || {};
     return this.crossRefIndex;
-  }
-
-  async loadSourceRefs(): Promise<void> {
-    try {
-      const resp = await fetch(`${import.meta.env.BASE_URL}data/source-refs.json`);
-      if (!resp.ok) return;
-      const refs: Record<string, string> = await resp.json();
-      for (const [source, datasetId] of Object.entries(refs)) {
-        const adapter = this.adapters.get(datasetId);
-        if (!adapter?.manifest) continue;
-        this.resolver.registerSourceRef(source, datasetId, adapter.manifest.datasetUri);
-      }
-    } catch {
-      // source-refs.json is optional
-    }
   }
 }
 

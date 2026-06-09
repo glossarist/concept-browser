@@ -110,4 +110,34 @@ describe('CitationDisplay — source reference linking', () => {
     expect(wrapper.text()).toContain('OIML V 2-200:2012');
     expect(wrapper.text()).toContain('5.1');
   });
+
+  it('shows cross-dataset arrow indicator for cross-dataset citations', () => {
+    const wrapper = mountCitation(makeCitation('VIM', '2.2'), 'viml-2022');
+    expect(wrapper.text()).toContain('↗');
+  });
+
+  it('does not show cross-dataset arrow for same-dataset citations', () => {
+    // Same dataset: registerId matches resolved target
+    const wrapper = mountCitation(makeCitation('OIML V 2-200:2012', '2.2'), 'vim-2012');
+    expect(wrapper.text()).not.toContain('↗');
+  });
+
+  it('does not show cross-dataset arrow for unresolved citations', () => {
+    const wrapper = mountCitation(makeCitation('Unknown', '1.1'));
+    expect(wrapper.text()).not.toContain('↗');
+  });
+
+  it('renders hover preview elements for resolved citations', () => {
+    const wrapper = mountCitation(makeCitation('VIM', '2.2'), 'viml-2022');
+    // The component should have mouseenter handlers on the button
+    const buttons = wrapper.findAll('button.concept-link');
+    expect(buttons.length).toBeGreaterThanOrEqual(1);
+    // Teleport content is not rendered in test env, but the template structure is present
+    expect(wrapper.html()).toContain('Hover preview');
+  });
+
+  it('does not render preview elements for unresolved citations', () => {
+    const wrapper = mountCitation(makeCitation('Unknown', '1.1'));
+    expect(wrapper.html()).not.toContain('citation-preview');
+  });
 });

@@ -116,6 +116,8 @@ export interface DatasetRegistry {
   datasetUri?: string;
   uriBase?: string;
   uriAliases?: string[];
+  ref?: string;
+  refAliases?: string[];
 }
 
 // ── Graph types ────────────────────────────────────────────────────────────
