@@ -10,7 +10,7 @@ import { deduplicateSearchHits } from '../utils/search';
 
 export const useVocabularyStore = defineStore('vocabulary', () => {
   // State
-  const datasets = shallowRef<Map<string, DatasetAdapter>>(new Map());
+  const datasets = ref<Map<string, DatasetAdapter>>(new Map());
   const manifests = ref<Map<string, Manifest>>(new Map());
   const currentConcept = ref<Concept | null>(null);
   const currentRegisterId = ref<string>('');
