@@ -19,6 +19,17 @@ describe('Source reference resolution (citation linking)', () => {
     resolver.registerDataset('vim-2007', ['urn:oiml:pub:v:2:2007*']);
   });
 
+  describe('hasSourceRef', () => {
+    it('returns true for registered source ref', () => {
+      resolver.registerSourceRef('VIM', 'vim-2012', 'urn:oiml:pub:v:2:2012');
+      expect(resolver.hasSourceRef('VIM')).toBe(true);
+    });
+
+    it('returns false for unregistered source ref', () => {
+      expect(resolver.hasSourceRef('Unknown')).toBe(false);
+    });
+  });
+
   describe('registerSourceRef', () => {
     it('resolves citation when source ref matches exactly', () => {
       resolver.registerSourceRef('OIML V 2-200:2012', 'vim-2012', 'urn:oiml:pub:v:2:2012');

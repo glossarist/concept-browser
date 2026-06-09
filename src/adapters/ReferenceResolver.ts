@@ -40,6 +40,10 @@ export class ReferenceResolver {
     this.sourceRefs.set(sourceRef, { datasetId, uriPrefix });
   }
 
+  hasSourceRef(sourceRef: string): boolean {
+    return this.sourceRefs.has(sourceRef);
+  }
+
   loadRouting(entries: RoutingEntry[]): void {
     this.routing = entries;
   }
@@ -90,6 +94,7 @@ export class ReferenceResolver {
   resolveCitation(source: string, referenceFrom: string, sourceDatasetId?: string): Resolution | null {
     const entry = this.sourceRefs.get(source);
     if (!entry) {
+      // URN-based source strings resolve directly via dataset URI patterns
       if (!source.startsWith('urn:')) return null;
       return this.tryResolveCitationUri(source, referenceFrom, sourceDatasetId);
     }

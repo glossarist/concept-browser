@@ -927,6 +927,8 @@ for (let i = 0; i < config.datasets.length; i++) {
     datasetUri: ds.uri || reg?.urn || undefined,
     uriBase: config.uriBase || undefined,
     uriAliases: ds.uriAliases || reg?.urnAliases || undefined,
+    ref: ds.ref || reg?.ref || undefined,
+    refAliases: ds.refAliases || reg?.refAliases || undefined,
   });
 }
 writeJson(path.join(PUBLIC, 'datasets.json'), registry);

@@ -298,34 +298,42 @@ for (const ds of datasets) {
   console.log();
 }
 
-// Build source-refs index: maps every source string to its dataset ID.
-// Uses manifest ref/refAliases as authoritative keys, augmented by
-// actual source strings found in concept data.
-const sourceRefMap = {};
+// Audit — report concept source strings not covered by manifest refs.
+// Bibliography mapping (ref → URN) is declared in register.yaml and flows
+// through manifest.json to datasets.json at generate time. No separate
+// source-refs file needed — the registry IS the single source of truth.
 
-// Seed from manifests (authoritative)
+// Build a lookup of all known source strings from manifests
+const knownSourceStrings = new Set();
 for (const [ds, manifest] of manifestCache) {
-  if (manifest.ref) sourceRefMap[manifest.ref] = ds;
+  if (manifest.ref) knownSourceStrings.add(manifest.ref);
   for (const alias of manifest.refAliases ?? []) {
-    sourceRefMap[alias] = ds;
+    knownSourceStrings.add(alias);
   }
-  if (manifest.datasetUri) sourceRefMap[manifest.datasetUri] = ds;
+  if (manifest.datasetUri) knownSourceStrings.add(manifest.datasetUri);
   for (const alias of manifest.uriAliases ?? []) {
     const base = alias.endsWith('*') ? alias.slice(0, -1) : alias;
-    sourceRefMap[base] = ds;
+    knownSourceStrings.add(base);
   }
 }
 
-// Augment with actual source strings from concepts
+const auditUnmatched = new Map();
 for (const { source, registerId } of allSourceRefs) {
-  if (!sourceRefMap[source]) {
-    sourceRefMap[source] = registerId;
+  if (knownSourceStrings.has(source)) continue;
+  // URN source strings resolve via URI routing — not a bibliography concern
+  if (source.startsWith('urn:')) continue;
+  if (!auditUnmatched.has(source)) {
+    auditUnmatched.set(source, registerId);
   }
 }
 
-const sourceRefPath = join(DATA_DIR, 'source-refs.json');
-writeFileSync(sourceRefPath, JSON.stringify(sourceRefMap));
-console.log(`Written source-refs.json (${Object.keys(sourceRefMap).length} source references across ${datasets.length} datasets)\n`);
+if (auditUnmatched.size > 0) {
+  console.warn(`\n⚠ ${auditUnmatched.size} source string(s) in concept data have no matching dataset ref:`);
+  for (const [source, fromDataset] of auditUnmatched) {
+    console.warn(`  "${source}" (from ${fromDataset})`);
+  }
+  console.warn('Add refAliases to the target dataset manifest, or fix source strings to use URNs.\n');
+}
 
 // Build cross-reference index: for each dataset, which other datasets'
 // edges.json contains edges targeting that dataset's URIs.

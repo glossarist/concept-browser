@@ -8,13 +8,13 @@ function asInternal(r: Resolution | null): InternalResolution | null {
   return r?.type === 'internal' ? (r as InternalResolution) : null;
 }
 
-describe('AdapterFactory.loadSourceRefs', () => {
+describe('AdapterFactory — bibliography resolution from registry', () => {
   beforeEach(() => {
     resetFactory();
     vi.restoreAllMocks();
   });
 
-  it('registers source refs from source-refs.json', async () => {
+  it('registers bibliography from registry ref/refAliases', async () => {
     const factory = getFactory();
     const mockFetch = vi.fn((url: string) => {
       if (url.endsWith('datasets.json')) {
@@ -35,17 +35,10 @@ describe('AdapterFactory.loadSourceRefs', () => {
               datasetUri: 'urn:oiml:pub:v:2:2012',
               uriBase: 'https://glossarist.org',
               uriAliases: ['urn:oiml:pub:v:2:2012*'],
+              ref: 'OIML V 2-200:2012',
+              refAliases: ['VIM'],
             },
           ]),
-        });
-      }
-      if (url.endsWith('source-refs.json')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            'OIML V2-200:2012': 'vim-2012',
-            'VIM': 'vim-2012',
-          }),
         });
       }
       return Promise.resolve({ ok: false, status: 404 } as Response);
@@ -54,11 +47,11 @@ describe('AdapterFactory.loadSourceRefs', () => {
 
     await factory.discoverDatasets('/datasets.json');
 
-    // Should have fetched datasets.json + source-refs.json
-    expect(mockFetch).toHaveBeenCalledWith('/data/source-refs.json');
+    // No source-refs.json fetch — bibliography comes from registry config
+    expect(mockFetch).not.toHaveBeenCalledWith(expect.stringContaining('source-refs'));
 
-    // Source refs should be registered — resolveCitation should now work
-    const result = factory.resolveCitation('OIML V2-200:2012', '2.2', 'viml-2022');
+    // ref resolves via bibliography config
+    const result = factory.resolveCitation('OIML V 2-200:2012', '2.2', 'viml-2022');
     expect(result).toEqual({
       type: 'internal',
       registerId: 'vim-2012',
@@ -66,11 +59,16 @@ describe('AdapterFactory.loadSourceRefs', () => {
       crossDataset: true,
     });
 
-    const aliasResult = factory.resolveCitation('VIM', '2.2', 'viml-2022');
-    expect(asInternal(aliasResult)?.registerId).toBe('vim-2012');
+    // refAlias resolves too
+    const alias = factory.resolveCitation('VIM', '2.2', 'viml-2022');
+    expect(asInternal(alias)?.registerId).toBe('vim-2012');
+
+    // URN resolves directly via URI pattern matching (no bibliography entry needed)
+    const urn = factory.resolveCitation('urn:oiml:pub:v:2:2012', '2.2', 'viml-2022');
+    expect(asInternal(urn)?.registerId).toBe('vim-2012');
   });
 
-  it('gracefully handles missing source-refs.json', async () => {
+  it('resolves without ref/refAliases when only datasetUri is present', async () => {
     const factory = getFactory();
     const mockFetch = vi.fn((url: string) => {
       if (url.endsWith('datasets.json')) {
@@ -92,17 +90,15 @@ describe('AdapterFactory.loadSourceRefs', () => {
           ]),
         });
       }
-      // source-refs.json returns 404
       return Promise.resolve({ ok: false, status: 404 } as Response);
     });
     vi.stubGlobal('fetch', mockFetch);
 
-    // Should not throw
     const adapters = await factory.discoverDatasets('/datasets.json');
     expect(adapters).toHaveLength(1);
   });
 
-  it('gracefully handles malformed source-refs.json', async () => {
+  it('skips registry entries without datasetUri for bibliography', async () => {
     const factory = getFactory();
     const mockFetch = vi.fn((url: string) => {
       if (url.endsWith('datasets.json')) {
@@ -112,66 +108,11 @@ describe('AdapterFactory.loadSourceRefs', () => {
             {
               id: 'ds1',
               manifestUrl: '/data/ds1/manifest.json',
-              summary: {
-                title: 'DS1',
-                description: 'Test',
-                conceptCount: 10,
-                languages: ['eng'],
-                owner: 'Test',
-                tags: [],
-              },
+              summary: { title: 'DS1', description: 'Test', conceptCount: 10, languages: ['eng'], owner: 'Test', tags: [] },
+              ref: 'Some Ref',
+              // No datasetUri — bibliography entry skipped
             },
           ]),
-        });
-      }
-      if (url.endsWith('source-refs.json')) {
-        // Malformed JSON
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.reject(new Error('Invalid JSON')),
-        });
-      }
-      return Promise.resolve({ ok: false, status: 404 } as Response);
-    });
-    vi.stubGlobal('fetch', mockFetch);
-
-    // Should not throw
-    const adapters = await factory.discoverDatasets('/datasets.json');
-    expect(adapters).toHaveLength(1);
-  });
-
-  it('skips source refs for unknown datasets', async () => {
-    const factory = getFactory();
-    const mockFetch = vi.fn((url: string) => {
-      if (url.endsWith('datasets.json')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([
-            {
-              id: 'vim-2012',
-              manifestUrl: '/data/vim-2012/manifest.json',
-              summary: {
-                title: 'VIM 2012',
-                description: 'Vocabulary',
-                conceptCount: 144,
-                languages: ['eng', 'fra'],
-                owner: 'OIML',
-                tags: [],
-              },
-              datasetUri: 'urn:oiml:pub:v:2:2012',
-              uriBase: 'https://glossarist.org',
-              uriAliases: ['urn:oiml:pub:v:2:2012*'],
-            },
-          ]),
-        });
-      }
-      if (url.endsWith('source-refs.json')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            'OIML V2-200:2012': 'vim-2012', // known dataset
-            'Unknown Source': 'nonexistent-dataset', // unknown dataset
-          }),
         });
       }
       return Promise.resolve({ ok: false, status: 404 } as Response);
@@ -180,12 +121,8 @@ describe('AdapterFactory.loadSourceRefs', () => {
 
     await factory.discoverDatasets('/datasets.json');
 
-    // Known source resolves
-    const known = factory.resolveCitation('OIML V2-200:2012', '2.2');
-    expect(asInternal(known)?.registerId).toBe('vim-2012');
-
-    // Unknown dataset source — not registered (no adapter for nonexistent-dataset)
-    const unknown = factory.resolveCitation('Unknown Source', '1.1');
-    expect(unknown).toBeNull();
+    // ref without URN can't resolve — no datasetUri to route to
+    const result = factory.resolveCitation('Some Ref', '1.1');
+    expect(result).toBeNull();
   });
 });
