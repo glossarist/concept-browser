@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import type { Concept, LocalizedConcept, Designation, ConceptSource } from 'glossarist';
+import type { Concept, LocalizedConcept, Designation } from 'glossarist';
 import type { Manifest, GraphEdge } from '../adapters/types';
 import { computed, ref, nextTick, watch } from 'vue';
-import { langName, langLabel, sortLanguages } from '../utils/lang';
-import { renderMath, cleanContent } from '../utils/math';
+import { langName } from '../utils/lang';
+import { renderMath } from '../utils/math';
 import type { RenderOptions } from '../utils/math';
 import { escapeAttr } from '../utils/escape';
 import { entryStatusColor, conceptStatusColor, conceptStatusLabel, conceptStatusDefinition, entryStatusLabel, entryStatusDefinition, getPreferredTerm } from '../utils/concept-helpers';
 import { sourceTypeInfo, sourceStatusInfo } from '../utils/designation-registry';
-import { conceptUri, getAnnotations } from '../adapters/model-bridge';
+import { conceptUri } from '../adapters/model-bridge';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
 import { getFactory } from '../adapters/factory';
 import { useRenderOptions } from '../composables/use-render-options';
 import { useConceptEdges } from '../composables/use-concept-edges';
-import { useConceptContent, type LangContent } from '../composables/use-concept-content';
+import { useConceptContent } from '../composables/use-concept-content';
 import { relationshipLabel, INVERSE_RELATIONSHIPS } from '../utils/relationship-categories';
 import { slugify } from '../utils/slugify';
 import { useSiteConfig } from '../config/use-site-config';
@@ -83,21 +83,6 @@ function copyUri() {
   });
 }
 
-const languages = computed(() => {
-  const sorted = sortLanguages(props.concept.languages, props.manifest.languageOrder);
-  // Put current UI locale first
-  const current = locale.value;
-  const idx = sorted.indexOf(current);
-  if (idx > 0) {
-    sorted.splice(idx, 1);
-    sorted.unshift(current);
-  }
-  return sorted;
-});
-
-// Collapsible language sections — expand all with content, collapse those without
-const collapsedLangs = ref(new Set<string>());
-
 const engConcept = computed((): LocalizedConcept | null => {
   return props.concept.localization('eng') ?? null;
 });
@@ -115,12 +100,10 @@ const conceptSources = computed(() => props.concept.sources);
 
 const conceptTags = computed(() => props.concept.tags ?? []);
 
-// Cross-reference resolver: generates clickable links for inline refs
-
 const factory = getFactory();
 const { ensureBibLoaded, bibResolver, figResolver } = useRenderOptions(() => props.registerId);
 
-const renderOpts: RenderOptions = {
+const renderOpts = computed<RenderOptions>(() => ({
   xrefResolver: (uri, term) => {
     const resolution = factory.resolve(uri, props.registerId);
     if (resolution.type === 'internal') {
@@ -139,11 +122,10 @@ const renderOpts: RenderOptions = {
   },
   bibResolver,
   figResolver,
-};
+}));
 
 watch(() => props.registerId, () => { ensureBibLoaded(); }, { immediate: true });
 
-// Handle clicks on cross-reference links via event delegation
 function handleContentClick(e: MouseEvent) {
   const target = (e.target as HTMLElement).closest('.xref-link') as HTMLElement | null;
   if (!target) return;
@@ -155,86 +137,18 @@ function handleContentClick(e: MouseEvent) {
   }
 }
 
-// LangContent type is imported from the composable
-
-const allLangContent = computed(() => {
-  const result: LangContent[] = [];
-  for (const lang of languages.value) {
-    const lc = props.concept.localization(lang);
-    if (!lc) continue;
-
-    const definition = lc.definitions
-      .map(d => d.content).filter(Boolean).join('\n\n');
-    const annotations = getAnnotations(lc).map(a => a.content).filter(Boolean);
-    const notes = lc.notes.map(n => n.content).filter(Boolean);
-    const examples = lc.examples.map(e => e.content).filter(Boolean);
-
-    result.push({
-      lang,
-      lc,
-      renderedTerm: renderMath(getPreferredTerm(lc, '')),
-      definition,
-      renderedDefinition: renderMath(definition, renderOpts),
-      annotations,
-      renderedAnnotations: annotations.map((a: string) => renderMath(a, renderOpts)),
-      notes,
-      renderedNotes: notes.map(n => renderMath(n, renderOpts)),
-      examples,
-      renderedExamples: examples.map(e => renderMath(e, renderOpts)),
-      sources: lc.sources,
-      designations: lc.terms,
-      renderedDesignations: new Map(lc.terms.map(d => [d.designation, renderMath(d.designation)])),
-      entryStatus: lc.entryStatus ?? '',
-      classification: lc.classification,
-      reviewType: lc.reviewType,
-      release: lc.release,
-      lineageSourceSimilarity: lc.lineageSourceSimilarity,
-      lcScript: lc.script,
-      lcSystem: lc.system,
-    });
-  }
-  return result;
-});
-
-const langContentMap = computed(() => {
-  const map = new Map<string, LangContent>();
-  for (const lc of allLangContent.value) map.set(lc.lang, lc);
-  return map;
-});
-
-function hasContent(lc: LangContent): boolean {
-  return !!(lc.definition || lc.annotations.length || lc.notes.length || lc.examples.length || lc.sources.length);
-}
-
-function initCollapsed() {
-  const mainLangs = siteConfig.value?.defaults?.mainLanguages || [];
-  const mainSet = new Set(mainLangs.length ? mainLangs : ['eng']);
-  const collapsed = new Set<string>();
-  for (const lc of allLangContent.value) {
-    if (!hasContent(lc) && !mainSet.has(lc.lang)) {
-      collapsed.add(lc.lang);
-    }
-  }
-  collapsedLangs.value = collapsed;
-}
-
-watch(languages, () => { initCollapsed(); }, { immediate: true });
-
-const allCollapsed = computed(() => collapsedLangs.value.size === allLangContent.value.length);
-
-function toggleLang(lang: string) {
-  const s = new Set(collapsedLangs.value);
-  if (s.has(lang)) s.delete(lang); else s.add(lang);
-  collapsedLangs.value = s;
-}
-
-function toggleAll() {
-  if (allCollapsed.value) {
-    collapsedLangs.value = new Set();
-  } else {
-    collapsedLangs.value = new Set(allLangContent.value.map(lc => lc.lang));
-  }
-}
+const {
+  languages,
+  allLangContent,
+  langContentMap,
+  hasContent,
+  collapsedLangs,
+  allCollapsed,
+  toggleLang,
+  toggleAll,
+  plainTruncate,
+  orderedDesignations,
+} = useConceptContent(conceptComputed, manifestComputed, renderOpts);
 
 function scrollToLang(lang: string) {
   if (collapsedLangs.value.has(lang)) {
@@ -263,14 +177,6 @@ function getDesignationsForLang(lang: string): Designation[] {
   return lc?.terms ?? [];
 }
 
-function orderedDesignations(lang: string): Designation[] {
-  const desigs = getDesignationsForLang(lang);
-  const preferred = desigs.filter(d => d.normativeStatus === 'preferred');
-  const admitted = desigs.filter(d => d.normativeStatus === 'admitted' || d.normativeStatus === 'deprecated');
-  const rest = desigs.filter(d => d.normativeStatus !== 'preferred' && d.normativeStatus !== 'admitted' && d.normativeStatus !== 'deprecated');
-  return [...preferred, ...admitted, ...rest];
-}
-
 function hasDefinition(lang: string): boolean {
   const lc = props.concept.localization(lang);
   if (!lc) return false;
@@ -282,16 +188,9 @@ function goAdjacent(id: string) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function plainTruncate(html: string, max: number = 120): string {
-  const text = cleanContent(html).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-  return text.length <= max ? text : text.slice(0, max).trimEnd() + '…';
-}
-
-// Domain rendering: merge ConceptReference domains and per-localization domain strings
 const conceptDomains = computed(() => {
   const domainMap = new Map<string, { slug: string; label: string; langs: string[]; conceptId?: string }>();
 
-  // Managed concept level ConceptReference domains (authoritative)
   for (const ref of conceptRefDomains.value) {
     const id = ref.conceptId ?? '';
     const label = id || ref.urn || '';
@@ -301,7 +200,6 @@ const conceptDomains = computed(() => {
     }
   }
 
-  // Per-localization domain strings
   for (const lang of props.concept.languages) {
     const lc = props.concept.localization(lang);
     const domain = lc?.domain;
@@ -318,7 +216,6 @@ const conceptDomains = computed(() => {
   return [...domainMap.values()].sort((a, b) => b.langs.length - a.langs.length);
 });
 
-// Non-verbal reps: aggregate across all localizations
 const nonVerbalReps = computed(() => {
   const reps: typeof import('glossarist').NonVerbRep.prototype[] = [];
   for (const lang of props.concept.languages) {
@@ -329,7 +226,6 @@ const nonVerbalReps = computed(() => {
   }
   return reps;
 });
-
 </script>
 
 <template>

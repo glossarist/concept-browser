@@ -1,5 +1,5 @@
 import type { GraphNode, GraphEdge } from '../adapters/types';
-import { UriRouter } from '../adapters/UriRouter';
+import { ReferenceResolver } from '../adapters/ReferenceResolver';
 
 function hasDesignations(node: GraphNode): boolean {
   const d = node.designations;
@@ -33,9 +33,9 @@ export class GraphEngine {
     if (this.edgeKeys.has(key)) return;
     this.edgeKeys.add(key);
 
-    const parsed = UriRouter.parseUri(edge.target);
+    const parsed = ReferenceResolver.parseUri(edge.target);
     if (!this.nodes.has(edge.source)) {
-      const sourceParsed = UriRouter.parseUri(edge.source);
+      const sourceParsed = ReferenceResolver.parseUri(edge.source);
       this.nodes.set(edge.source, {
         uri: edge.source,
         register: sourceParsed?.registerId ?? edge.register,
@@ -159,6 +159,71 @@ export class GraphEngine {
 
   getAllNodes(): GraphNode[] {
     return [...this.nodes.values()];
+  }
+
+  // ── Bulk seeding: accept domain-level data, construct nodes internally ──────
+
+  addGraphNodes(uriPrefix: string, registerId: string, nodes: [string, Record<string, string>, string][]): void {
+    for (const [id, designations, status] of nodes) {
+      this.addNode({
+        uri: uriPrefix + id,
+        register: registerId,
+        conceptId: id,
+        designations: designations || {},
+        status: status || 'unknown',
+        loaded: false,
+      });
+    }
+  }
+
+  addEdges(edges: GraphEdge[]): void {
+    for (const edge of edges) {
+      this.addEdge(edge);
+    }
+  }
+
+  addDomainNodes(nodes: GraphNode[]): void {
+    for (const node of nodes) {
+      this.addNode(node);
+    }
+  }
+
+  seedConceptNode(uri: string, registerId: string, conceptId: string, designations: Record<string, string>, status: string): void {
+    this.addNode({
+      uri,
+      register: registerId,
+      conceptId,
+      designations,
+      status,
+      loaded: true,
+    });
+  }
+
+  addDomainEdgesWithNodes(edges: GraphEdge[], registerId: string): void {
+    for (const edge of edges) {
+      // Create domain target node before addEdge so addEdge finds it and skips stub creation
+      if (!this.nodes.has(edge.target)) {
+        this.nodes.set(edge.target, {
+          uri: edge.target,
+          register: registerId,
+          conceptId: '',
+          designations: edge.label ? { eng: edge.label } : {},
+          status: 'domain',
+          loaded: true,
+          nodeType: 'domain',
+        });
+      }
+      this.addEdge(edge);
+    }
+  }
+
+  getRelated(uri: string): { outgoing: GraphEdge[]; incoming: GraphEdge[] } {
+    return {
+      outgoing: this.getUniqueEdges(uri, 'outgoing', 'target')
+        .filter(e => e.type !== 'domain' && e.type !== 'section'),
+      incoming: this.getUniqueEdges(uri, 'incoming', 'source')
+        .filter(e => e.type !== 'domain' && e.type !== 'section'),
+    };
   }
 
   get nodeCount(): number {
