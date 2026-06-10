@@ -72,7 +72,7 @@ const {
   relatedLabel,
   navigateEdge,
   navigateRelated,
-} = useConceptEdges(conceptComputed, registerIdComputed, manifestComputed, edgesComputed);
+} = useConceptEdges(conceptComputed, registerIdComputed, manifestComputed, edgesComputed, router);
 
 const uriCopied = ref(false);
 function copyUri() {

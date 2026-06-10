@@ -1,4 +1,5 @@
 import { computed, type ComputedRef } from 'vue';
+import type { Router } from 'vue-router';
 import type { Concept, RelatedConcept } from 'glossarist';
 import type { Manifest, GraphEdge } from '../adapters/types';
 import { getFactory } from '../adapters/factory';
@@ -24,6 +25,7 @@ export function useConceptEdges(
   registerId: ComputedRef<string>,
   manifest: ComputedRef<Manifest>,
   edges: ComputedRef<GraphEdge[]>,
+  router: Router,
 ) {
   const factory = getFactory();
   const store = useVocabularyStore();
@@ -145,7 +147,6 @@ export function useConceptEdges(
   async function navigateEdge(edge: GraphEdge) {
     const uri = edge.source === conceptUriValue.value ? edge.target : edge.source;
     const resolution = factory.resolve(uri);
-    const router = (await import('vue-router')).useRouter();
 
     if (resolution.type === 'internal') {
       router.push({ name: 'concept', params: { registerId: resolution.registerId, conceptId: resolution.conceptId } });
@@ -159,7 +160,6 @@ export function useConceptEdges(
   async function navigateRelated(ref: { source: string | null; id: string | null }) {
     const target = resolveRelatedRef(ref);
     if (!target) return;
-    const router = (await import('vue-router')).useRouter();
     router.push({ name: 'concept', params: { registerId: target.registerId, conceptId: target.conceptId } });
   }
 
