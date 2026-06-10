@@ -1,13 +1,11 @@
 import type { DatasetRegistry, Manifest, Resolution } from './types';
 import type { RoutingEntry as ConfigRoutingEntry } from '../config/types';
 import { DatasetAdapter } from './DatasetAdapter';
-import { UriRouter } from './UriRouter';
 import { ReferenceResolver } from './ReferenceResolver';
 
 export class AdapterFactory {
   private adapters = new Map<string, DatasetAdapter>();
   private urnMap = new Map<string, string>();
-  readonly router = new UriRouter();
   readonly resolver: ReferenceResolver;
   private crossRefIndex: Record<string, string[]> | null = null;
 
@@ -76,8 +74,6 @@ export class AdapterFactory {
   }
 
   private registerDataset(registerId: string, manifest: Manifest): void {
-    this.router.registerDataset(registerId, `${import.meta.env.BASE_URL}data/${registerId}`, manifest);
-
     const uriPatterns = [
       manifest.datasetUri,
       ...(manifest.uriAliases ?? []),
@@ -117,20 +113,7 @@ export class AdapterFactory {
   }
 
   resolveRelatedRef(ref: { source: string | null; id: string | null } | null, sourceDatasetId?: string): { registerId: string; conceptId: string } | null {
-    if (!ref?.source || !ref?.id) return null;
-    const uri = `${ref.source}/${ref.id}`;
-    const resolution = this.resolve(uri, sourceDatasetId);
-    if (resolution.type === 'internal') {
-      return { registerId: resolution.registerId, conceptId: resolution.conceptId.replace(/^\//, '') };
-    }
-    if (ref.source.startsWith('urn:')) {
-      const directUri = ref.source + ref.id;
-      const directRes = this.resolve(directUri, sourceDatasetId);
-      if (directRes.type === 'internal') {
-        return { registerId: directRes.registerId, conceptId: directRes.conceptId.replace(/^\//, '') };
-      }
-    }
-    return null;
+    return this.resolver.resolveRelatedRef(ref, sourceDatasetId);
   }
 
   resolveCitation(source: string, referenceFrom: string, sourceDatasetId?: string): Resolution | null {

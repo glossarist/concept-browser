@@ -9,10 +9,9 @@ import type {
   SectionNode,
   DatasetSummary,
 } from './types';
-import type { Concept, LocalizedConcept, Designation, RelatedConcept } from 'glossarist';
-import { conceptFromJson, conceptUri } from './model-bridge';
-import { UriRouter } from './UriRouter';
-import { slugify } from '../utils/slugify';
+import type { Concept } from 'glossarist';
+import { conceptFromJson } from './model-bridge';
+import { GraphDataSource } from './GraphDataSource';
 
 // ── Wire-format types for JSON responses ────────────────────────────────────
 
@@ -31,36 +30,6 @@ interface IndexConceptJson {
   eng?: string;
   status: string;
   groups?: string[];
-}
-
-interface DomainNodeJson {
-  uri?: string;
-  id?: string;
-  registerId?: string;
-  label?: string;
-  names?: Record<string, string>;
-  conceptCount?: number;
-  children?: DomainNodeJson[];
-}
-
-interface SectionJson {
-  id: string;
-  names?: Record<string, string>;
-  children?: SectionJson[];
-}
-
-function resolveRefTarget(rc: RelatedConcept, uriBase: string, registerId: string, urnMap?: ReadonlyMap<string, string>): string {
-  if (!rc.ref) return '';
-  const ref = rc.ref;
-  if (ref.id) {
-    let reg = registerId;
-    if (ref.source && !ref.source.startsWith('http')) {
-      reg = urnMap?.get(ref.source) ?? ref.source;
-    }
-    return `${uriBase}/${reg}/concept/${ref.id}`;
-  }
-  if (ref.source && ref.source.startsWith('http')) return ref.source;
-  return ref.source || '';
 }
 
 export class DatasetAdapter {
@@ -376,131 +345,42 @@ export class DatasetAdapter {
     this._urnMap = map;
   }
 
+  get dataUrl(): string {
+    return this.baseUrl;
+  }
+
+  get urnMap(): ReadonlyMap<string, string> {
+    return this._urnMap;
+  }
+
+  private _graphDataSource: GraphDataSource | null = null;
+  get graphDataSource(): GraphDataSource {
+    if (!this._graphDataSource) this._graphDataSource = new GraphDataSource(this);
+    return this._graphDataSource;
+  }
+
   extractEdges(concept: Concept): GraphEdge[] {
-    const edges: GraphEdge[] = [];
-    const uriBase = this.manifest?.uriBase || 'https://glossarist.org';
-    const sourceUri = concept.uri || `${uriBase}/${this.registerId}/concept/${concept.id}`;
-
-    // Managed concept level relationships
-    for (const rc of concept.relatedConcepts) {
-      const target = resolveRefTarget(rc, uriBase, this.registerId, this._urnMap);
-      if (target && target !== sourceUri) {
-        const parsed = UriRouter.parseUri(target);
-        edges.push({
-          source: sourceUri,
-          target,
-          type: rc.type || 'references',
-          label: rc.content || undefined,
-          register: parsed?.registerId ?? this.registerId,
-        });
-      }
-    }
-
-    // Per-localization references (from inline extraction in generate-data)
-    for (const lang of concept.languages) {
-      const lc = concept.localization(lang);
-      if (!lc) continue;
-      for (const rc of lc.related) {
-        const target = resolveRefTarget(rc, uriBase, this.registerId, this._urnMap);
-        if (target && target !== sourceUri) {
-          const parsed = UriRouter.parseUri(target);
-          edges.push({
-            source: sourceUri,
-            target,
-            type: rc.type || 'references',
-            label: rc.content || undefined,
-            register: parsed?.registerId ?? this.registerId,
-            lang,
-          });
-        }
-      }
-    }
-
-    return edges;
+    return this.graphDataSource.extractEdges(concept);
   }
 
   extractDomainEdges(concept: Concept): GraphEdge[] {
-    const edges: GraphEdge[] = [];
-    const uriBase = this.manifest?.uriBase || 'https://glossarist.org';
-    const sourceUri = concept.uri || `${uriBase}/${this.registerId}/concept/${concept.id}`;
-
-    for (const lang of concept.languages) {
-      const lc = concept.localization(lang);
-      if (lc?.domain) {
-        edges.push({
-          source: sourceUri,
-          target: `${uriBase}/${this.registerId}/domain/${slugify(lc.domain)}`,
-          type: 'domain',
-          label: lc.domain,
-          register: this.registerId,
-          lang,
-        });
-      }
-    }
-    return edges;
+    return this.graphDataSource.extractDomainEdges(concept);
   }
 
   async loadDomainNodes(): Promise<GraphNode[]> {
-    const resp = await fetch(`${this.baseUrl}/domain-nodes.json`);
-    if (!resp.ok) return [];
-    const data = await resp.json();
-    return (data.domainNodes || []).map((dn: DomainNodeJson) => this.mapDomainNode(dn));
-  }
-
-  private mapDomainNode(dn: DomainNodeJson): GraphNode {
-    const node: GraphNode = {
-      uri: dn.uri ?? '',
-      register: dn.registerId ?? '',
-      conceptId: dn.uri?.split('/domain/')[1] || dn.id || '',
-      designations: dn.names || (dn.label ? { eng: dn.label } : {}),
-      status: 'domain',
-      loaded: true,
-      nodeType: 'domain' as const,
-      conceptCount: dn.conceptCount || 0,
-    };
-    if (dn.children && dn.children.length > 0) {
-      node.children = dn.children.map((c) => this.mapSectionNode(c));
-    }
-    return node;
-  }
-
-  private mapSectionNode(dn: DomainNodeJson): SectionNode {
-    const node: SectionNode = {
-      id: dn.id ?? '',
-      names: dn.names || (dn.label ? { eng: dn.label } : {}),
-      conceptCount: dn.conceptCount || 0,
-    };
-    if (dn.children && dn.children.length > 0) {
-      node.children = dn.children.map((c) => this.mapSectionNode(c));
-    }
-    return node;
-  }
-
-  getSectionTree(): SectionNode[] {
-    const nodes = this.manifest?.sections;
-    if (!nodes || nodes.length === 0) return [];
-    return nodes.map(s => this.mapManifestSection(s));
-  }
-
-  private mapManifestSection(s: SectionJson): SectionNode {
-    const node: SectionNode = { id: s.id, names: s.names || {}, conceptCount: 0 };
-    if (s.children && s.children.length > 0) {
-      node.children = s.children.map(c => this.mapManifestSection(c));
-    }
-    return node;
+    return this.graphDataSource.loadDomainNodes();
   }
 
   async loadEdgeIndex(): Promise<GraphEdge[]> {
-    const resp = await fetch(`${this.baseUrl}/edges.json`);
-    if (!resp.ok) return [];
-    const data = await resp.json();
-    return data.edges ?? [];
+    return this.graphDataSource.loadEdgeIndex();
   }
 
   async loadGraphNodes(): Promise<{ uriPrefix: string; nodes: [string, Record<string, string>, string][] }> {
-    const resp = await fetch(`${this.baseUrl}/graph-nodes.json`);
-    if (!resp.ok) return { uriPrefix: '', nodes: [] };
-    return await resp.json();
+    return this.graphDataSource.loadGraphNodes();
+  }
+
+  getSectionTree(): SectionNode[] {
+    return this.graphDataSource.getSectionTree();
   }
 
   getLanguages(): string[] {

@@ -6,7 +6,7 @@ import type { Manifest, SearchHit, GraphEdge } from '../adapters/types';
 import type { Concept } from 'glossarist';
 import { conceptUri } from '../adapters/model-bridge';
 import { GraphEngine } from '../graph';
-import { UriRouter } from '../adapters/UriRouter';
+import { ReferenceResolver } from '../adapters/ReferenceResolver';
 import { deduplicateSearchHits } from '../utils/search';
 
 export const useVocabularyStore = defineStore('vocabulary', () => {
@@ -107,31 +107,17 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
           adapter.loadDomainNodes(),
         ]);
 
-        if (nodeResult.status === 'fulfilled') {
-          const { uriPrefix, nodes } = nodeResult.value;
-          for (const [id, designations, status] of nodes) {
-            engine.addNode({
-              uri: uriPrefix + id,
-              register: adapter.registerId,
-              conceptId: id,
-              designations: designations || {},
-              status: status || 'unknown',
-              loaded: false,
-            });
-          }
+        if (nodeResult.status === 'fulfilled' && nodeResult.value.uriPrefix) {
+          engine.addGraphNodes(nodeResult.value.uriPrefix, adapter.registerId, nodeResult.value.nodes);
         }
 
         if (edgeResult.status === 'fulfilled' && Array.isArray(edgeResult.value)) {
-          for (const edge of edgeResult.value) {
-            engine.addEdge(edge);
-          }
+          engine.addEdges(edgeResult.value);
           edgeStatus.value[adapter.registerId] = { loaded: true, count: edgeResult.value.length };
         }
 
         if (domainResult.status === 'fulfilled') {
-          for (const dn of domainResult.value) {
-            engine.addNode(dn);
-          }
+          engine.addDomainNodes(domainResult.value);
         }
       } catch {
         // Individual adapter failures are non-critical for graph view
@@ -149,24 +135,11 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
         adapter.loadGraphNodes(),
       ]);
       const engine = graph.value;
-      for (const dn of domainNodes) {
-        engine.addNode(dn);
-      }
+      engine.addDomainNodes(domainNodes);
       if (graphNodes.uriPrefix) {
-        for (const [id, designations, status] of graphNodes.nodes) {
-          engine.addNode({
-            uri: graphNodes.uriPrefix + id,
-            register: adapter.registerId,
-            conceptId: id,
-            designations: designations || {},
-            status: status || 'unknown',
-            loaded: false,
-          });
-        }
+        engine.addGraphNodes(graphNodes.uriPrefix, adapter.registerId, graphNodes.nodes);
       }
-      for (const edge of edges) {
-        engine.addEdge(edge);
-      }
+      engine.addEdges(edges);
       edgeStatus.value[adapter.registerId] = { loaded: true, count: edges.length };
       return edges;
     } catch {
@@ -186,7 +159,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
     if (adapter && loadedEdges.length > 0) {
       const targetRegisters = new Set<string>();
       for (const edge of loadedEdges) {
-        const parsed = UriRouter.parseUri(edge.target);
+        const parsed = ReferenceResolver.parseUri(edge.target);
         if (parsed?.registerId && parsed.registerId !== registerId) {
           targetRegisters.add(parsed.registerId);
         }
@@ -197,17 +170,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
         try {
           const gn = await targetAdapter.loadGraphNodes();
           if (gn.uriPrefix) {
-            const engine = graph.value;
-            for (const [id, designations, status] of gn.nodes) {
-              engine.addNode({
-                uri: gn.uriPrefix + id,
-                register: targetId,
-                conceptId: id,
-                designations: designations || {},
-                status: status || 'unknown',
-                loaded: false,
-              });
-            }
+            graph.value.addGraphNodes(gn.uriPrefix, targetId, gn.nodes);
           }
         } catch { /* non-critical */ }
       }));
@@ -261,36 +224,12 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
       }
 
       const engine = graph.value;
-      engine.addNode({
-        uri,
-        register: registerId,
-        conceptId,
-        designations,
-        status: indexEntry?.status ?? 'unknown',
-        loaded: true,
-      });
-
-      for (const edge of domainEdges) {
-        engine.addEdge(edge);
-        const existing = engine.getNode(edge.target);
-        if (!existing || !existing.loaded) {
-          engine.addNode({
-            uri: edge.target,
-            register: registerId,
-            conceptId: '',
-            designations: edge.label ? { eng: edge.label } : {},
-            status: 'domain',
-            loaded: true,
-            nodeType: 'domain',
-          });
-        }
-      }
+      engine.seedConceptNode(uri, registerId, conceptId, designations, indexEntry?.status ?? 'unknown');
+      engine.addDomainEdgesWithNodes(domainEdges, registerId);
 
       touchGraph();
-      conceptEdges.value = [
-        ...engine.getEdges(uri),
-        ...engine.getIncomingEdges(uri),
-      ];
+      const related = engine.getRelated(uri);
+      conceptEdges.value = [...related.outgoing, ...related.incoming];
     } catch (e: unknown) {
       error.value = `Failed to load concept ${conceptId}: ${e instanceof Error ? e.message : String(e)}`;
       currentConcept.value = null;

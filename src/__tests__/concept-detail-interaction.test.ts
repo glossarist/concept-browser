@@ -242,10 +242,6 @@ describe('ConceptDetail interactions', () => {
     // Register the URI pattern via factory so it resolves as internal
     const { getFactory } = await import('../adapters/factory');
     const factory = getFactory();
-    factory.router.registerDataset('test', '/data/test', {
-      ...makeManifest(),
-      uriBase: 'https://glossarist.org',
-    });
     factory.resolver.registerDataset('test', ['https://glossarist.org/test/concept/*']);
 
     const wrapper = mountDetail(json);

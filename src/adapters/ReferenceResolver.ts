@@ -32,6 +32,13 @@ export class ReferenceResolver {
   private routing: RoutingEntry[] = [];
   private sourceRefs = new Map<string, { datasetId: string; uriPrefix: string }>();
 
+  private static readonly URI_REGISTER_RE = /\/([^/]+)\/concept\/([^/]+)$/;
+
+  static parseUri(uri: string): { registerId: string; conceptId: string } | null {
+    const m = uri.match(ReferenceResolver.URI_REGISTER_RE);
+    return m ? { registerId: m[1], conceptId: m[2] } : null;
+  }
+
   registerDataset(id: string, uriPatterns: string[]): void {
     this.datasets.push({ id, uriPatterns });
   }
@@ -111,6 +118,23 @@ export class ReferenceResolver {
     const directResult = this.resolveReference(directUri, sourceDatasetId);
     if (directResult.type === 'internal') {
       return { ...directResult, conceptId: directResult.conceptId.replace(/^\//, '') };
+    }
+    return null;
+  }
+
+  resolveRelatedRef(ref: { source: string | null; id: string | null } | null, sourceDatasetId?: string): { registerId: string; conceptId: string } | null {
+    if (!ref?.source || !ref?.id) return null;
+    const uri = `${ref.source}/${ref.id}`;
+    const resolution = this.resolveReference(uri, sourceDatasetId);
+    if (resolution.type === 'internal') {
+      return { registerId: resolution.registerId, conceptId: resolution.conceptId.replace(/^\//, '') };
+    }
+    if (ref.source.startsWith('urn:')) {
+      const directUri = ref.source + ref.id;
+      const directRes = this.resolveReference(directUri, sourceDatasetId);
+      if (directRes.type === 'internal') {
+        return { registerId: directRes.registerId, conceptId: directRes.conceptId.replace(/^\//, '') };
+      }
     }
     return null;
   }
