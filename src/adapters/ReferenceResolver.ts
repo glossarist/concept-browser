@@ -1,5 +1,6 @@
 import type { Resolution } from './types';
 import type { RoutingEntry } from '../config/types';
+import { UriRouter } from './UriRouter';
 
 // ── Citation classification ────────────────────────────────────────────────
 
@@ -24,50 +25,21 @@ interface CitationInput {
   link?: string | null;
 }
 
-// ── URI pattern matching ───────────────────────────────────────────────────
-
-interface DatasetEntry {
-  id: string;
-  uriPatterns: string[];
-}
-
-function extractConceptId(uri: string, pattern: string): string | null {
-  if (!pattern.endsWith('*')) return null;
-  const base = pattern.slice(0, -1);
-  if (!uri.startsWith(base)) return null;
-  const remainder = uri.slice(base.length);
-
-  if (uri.startsWith('https://') || uri.startsWith('http://')) {
-    const match = remainder.match(/^\/?concept\/([^/?#]+)/);
-    return match ? match[1] : null;
-  }
-  if (uri.startsWith('urn:')) {
-    return remainder || null;
-  }
-  return null;
-}
-
-function matchUriPattern(uri: string, pattern: string): boolean {
-  if (!pattern.endsWith('*')) return uri === pattern;
-  return uri.startsWith(pattern.slice(0, -1));
-}
-
 // ── ReferenceResolver ──────────────────────────────────────────────────────
 
+/**
+ * Resolves references (citations, source refs, URNs) to concepts.
+ *
+ * Delegates URI pattern matching to UriRouter (the single authority for URI routing).
+ * Adds its own concerns on top: source-ref mapping, routing table, citation classification.
+ */
 export class ReferenceResolver {
-  private datasets: DatasetEntry[] = [];
   private routing: RoutingEntry[] = [];
   private sourceRefs = new Map<string, { datasetId: string; uriPrefix: string }>();
+  private readonly uriRouter: UriRouter;
 
-  private static readonly URI_REGISTER_RE = /\/([^/]+)\/concept\/([^/]+)$/;
-
-  static parseUri(uri: string): { registerId: string; conceptId: string } | null {
-    const m = uri.match(ReferenceResolver.URI_REGISTER_RE);
-    return m ? { registerId: m[1], conceptId: m[2] } : null;
-  }
-
-  registerDataset(id: string, uriPatterns: string[]): void {
-    this.datasets.push({ id, uriPatterns });
+  constructor(uriRouter: UriRouter) {
+    this.uriRouter = uriRouter;
   }
 
   registerSourceRef(sourceRef: string, datasetId: string, uriPrefix: string): void {
@@ -83,26 +55,20 @@ export class ReferenceResolver {
   }
 
   resolveReference(uri: string, sourceDatasetId?: string): Resolution {
-    // Step 1: Check provided datasets
-    for (const ds of this.datasets) {
-      for (const pattern of ds.uriPatterns) {
-        if (matchUriPattern(uri, pattern)) {
-          const conceptId = extractConceptId(uri, pattern);
-          if (conceptId) {
-            return {
-              type: 'internal',
-              registerId: ds.id,
-              conceptId,
-              crossDataset: sourceDatasetId != null && sourceDatasetId !== ds.id,
-            };
-          }
-        }
-      }
+    // Step 1: Check registered datasets via UriRouter
+    const resolved = this.uriRouter.resolveUri(uri);
+    if (resolved) {
+      return {
+        type: 'internal',
+        registerId: resolved.registerId,
+        conceptId: resolved.conceptId,
+        crossDataset: sourceDatasetId != null && sourceDatasetId !== resolved.registerId,
+      };
     }
 
     // Step 2: Check routing table
     for (const entry of this.routing) {
-      if (matchUriPattern(uri, entry.uri)) {
+      if (this.matchesRoutingPattern(uri, entry.uri)) {
         if (entry.type === 'site') {
           return {
             type: 'site',
@@ -113,7 +79,7 @@ export class ReferenceResolver {
         }
         if (entry.type === 'url') {
           const template = entry.url!;
-          const conceptId = this.extractConceptIdFromRouting(uri, entry.uri);
+          const conceptId = this.extractConceptIdFromRouting(uri);
           const url = template.includes('{conceptId}') && conceptId
             ? template.replace('{conceptId}', conceptId)
             : template;
@@ -192,14 +158,25 @@ export class ReferenceResolver {
     return null;
   }
 
-  private extractConceptIdFromRouting(uri: string, pattern: string): string | null {
-    for (const ds of this.datasets) {
-      for (const dsPattern of ds.uriPatterns) {
-        if (matchUriPattern(uri, dsPattern)) {
-          return extractConceptId(uri, dsPattern);
-        }
-      }
+  // ── Routing table helpers ────────────────────────────────────────────────
+
+  private matchesRoutingPattern(uri: string, pattern: string): boolean {
+    if (!pattern.endsWith('*')) return uri === pattern;
+    return uri.startsWith(pattern.slice(0, -1));
+  }
+
+  private extractConceptIdFromRouting(uri: string): string | null {
+    const resolved = this.uriRouter.resolveUri(uri);
+    if (resolved) return resolved.conceptId;
+    // Fallback: extract from URI structure
+    // HTTP: /concept/{id}
+    const httpMatch = uri.match(/\/concept\/([^/?#]+)/);
+    if (httpMatch) return httpMatch[1];
+    // URN: last colon-separated segment
+    if (uri.startsWith('urn:')) {
+      const parts = uri.split(':');
+      return parts.length > 0 ? parts[parts.length - 1] : null;
     }
-    return extractConceptId(uri, pattern);
+    return null;
   }
 }

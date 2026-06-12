@@ -1,7 +1,7 @@
 import type { GraphEdge, GraphNode, SectionNode } from './types';
 import type { Concept, RelatedConcept } from 'glossarist';
 import type { DatasetAdapter } from './DatasetAdapter';
-import { ReferenceResolver } from './ReferenceResolver';
+import { UriRouter } from './UriRouter';
 import { slugify } from '../utils/slugify';
 
 interface DomainNodeJson {
@@ -80,7 +80,7 @@ export class GraphDataSource {
     for (const rc of concept.relatedConcepts) {
       const target = resolveRefTarget(rc, this.uriBase, this.registerId, this.urnMap);
       if (target && target !== sourceUri) {
-        const parsed = ReferenceResolver.parseUri(target);
+        const parsed = UriRouter.parseUri(target);
         edges.push({
           source: sourceUri,
           target,
@@ -97,7 +97,7 @@ export class GraphDataSource {
       for (const rc of lc.related) {
         const target = resolveRefTarget(rc, this.uriBase, this.registerId, this.urnMap);
         if (target && target !== sourceUri) {
-          const parsed = ReferenceResolver.parseUri(target);
+          const parsed = UriRouter.parseUri(target);
           edges.push({
             source: sourceUri,
             target,
