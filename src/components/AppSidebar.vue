@@ -114,8 +114,8 @@ const showDatasetNav = computed(() => !!currentManifest.value || !!siteConfig.va
 const provenance = computed(() => {
   const manifest = currentManifest.value;
   return {
-    owner: manifest?.owner || (siteConfig.value as any)?.branding?.ownerName,
-    ownerUrl: (siteConfig.value as any)?.branding?.ownerUrl,
+    owner: manifest?.owner || siteConfig.value?.branding?.ownerName,
+    ownerUrl: siteConfig.value?.branding?.ownerUrl,
     ref: manifest?.ref,
     status: manifest?.status,
     lastUpdated: manifest?.lastUpdated,
@@ -155,11 +155,11 @@ function isActive(page: { route: string; datasetScoped?: boolean }): boolean {
   return route.name === page.route || route.name === `${page.route}-global`;
 }
 
-function navTitle(page: { route: string }): string {
+function navTitle(page: { route: string; title?: string }): string {
   const route = page.route || 'home';
   const key = `nav.${route}`;
   const translated = t(key);
-  return translated === key ? (page as any).title : translated;
+  return translated === key ? (page.title ?? route) : translated;
 }
 
 const expandedSectionNodes = ref<Set<string>>(new Set());
