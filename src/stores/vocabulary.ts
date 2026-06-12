@@ -6,7 +6,7 @@ import type { Manifest, SearchHit, GraphEdge } from '../adapters/types';
 import type { Concept } from 'glossarist';
 import { conceptUri } from '../adapters/model-bridge';
 import { GraphEngine } from '../graph';
-import { ReferenceResolver } from '../adapters/ReferenceResolver';
+import { UriRouter } from '../adapters/UriRouter';
 import { deduplicateSearchHits } from '../utils/search';
 
 export const useVocabularyStore = defineStore('vocabulary', () => {
@@ -159,7 +159,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
     if (adapter && loadedEdges.length > 0) {
       const targetRegisters = new Set<string>();
       for (const edge of loadedEdges) {
-        const parsed = ReferenceResolver.parseUri(edge.target);
+        const parsed = UriRouter.parseUri(edge.target);
         if (parsed?.registerId && parsed.registerId !== registerId) {
           targetRegisters.add(parsed.registerId);
         }

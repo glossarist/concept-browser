@@ -2,15 +2,17 @@ import type { DatasetRegistry, Manifest, Resolution } from './types';
 import type { RoutingEntry as ConfigRoutingEntry } from '../config/types';
 import { DatasetAdapter } from './DatasetAdapter';
 import { ReferenceResolver } from './ReferenceResolver';
+import { UriRouter } from './UriRouter';
 
 export class AdapterFactory {
   private adapters = new Map<string, DatasetAdapter>();
-  private urnMap = new Map<string, string>();
-  readonly resolver: ReferenceResolver;
   private crossRefIndex: Record<string, string[]> | null = null;
+  readonly uriRouter: UriRouter;
+  readonly resolver: ReferenceResolver;
 
   constructor() {
-    this.resolver = new ReferenceResolver();
+    this.uriRouter = new UriRouter();
+    this.resolver = new ReferenceResolver(this.uriRouter);
   }
 
   async discoverDatasets(datasetsUrl: string): Promise<DatasetAdapter[]> {
@@ -79,16 +81,38 @@ export class AdapterFactory {
       ...(manifest.uriAliases ?? []),
       manifest.uriBase ? `${manifest.uriBase}/${registerId}/*` : undefined,
     ].filter(Boolean) as string[];
-    this.resolver.registerDataset(registerId, uriPatterns);
 
-    if (manifest.datasetUri) this.urnMap.set(manifest.datasetUri, registerId);
-    for (const alias of manifest.uriAliases ?? []) {
-      const base = alias.endsWith('*') ? alias.slice(0, -1) : alias;
-      if (base.startsWith('urn:')) this.urnMap.set(base, registerId);
+    this.uriRouter.registerDataset(
+      registerId,
+      manifest.baseUrl,
+      manifest.uriBase,
+      uriPatterns,
+    );
+
+    // Propagate URN map to all adapters for ref-target resolution
+    const urnMap = new Map<string, string>();
+    for (const id of this.uriRouter.getRegisteredIds()) {
+      const uriBase = this.uriRouter.getUriBase(id);
+      if (!uriBase) continue;
+      // Reconstruct URN map from uriRouter registrations
+      for (const pattern of [manifest.datasetUri, ...(manifest.uriAliases ?? [])]) {
+        if (!pattern) continue;
+        const base = pattern.endsWith('*') ? pattern.slice(0, -1) : pattern;
+        if (base.startsWith('urn:')) urnMap.set(base, registerId);
+      }
     }
-
+    // Include URNs from all previously registered datasets
     for (const adapter of this.adapters.values()) {
-      adapter.setUrnMap(this.urnMap);
+      const m = adapter.manifest;
+      if (!m) continue;
+      for (const pattern of [m.datasetUri, ...(m.uriAliases ?? [])]) {
+        if (!pattern) continue;
+        const base = pattern.endsWith('*') ? pattern.slice(0, -1) : pattern;
+        if (base.startsWith('urn:')) urnMap.set(base, adapter.registerId);
+      }
+    }
+    for (const adapter of this.adapters.values()) {
+      adapter.setUrnMap(urnMap);
     }
   }
 

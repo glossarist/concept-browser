@@ -1,5 +1,5 @@
 import type { GraphNode, GraphEdge } from '../adapters/types';
-import { ReferenceResolver } from '../adapters/ReferenceResolver';
+import { UriRouter } from '../adapters/UriRouter';
 
 function hasDesignations(node: GraphNode): boolean {
   const d = node.designations;
@@ -33,9 +33,9 @@ export class GraphEngine {
     if (this.edgeKeys.has(key)) return;
     this.edgeKeys.add(key);
 
-    const parsed = ReferenceResolver.parseUri(edge.target);
+    const parsed = UriRouter.parseUri(edge.target);
     if (!this.nodes.has(edge.source)) {
-      const sourceParsed = ReferenceResolver.parseUri(edge.source);
+      const sourceParsed = UriRouter.parseUri(edge.source);
       this.nodes.set(edge.source, {
         uri: edge.source,
         register: sourceParsed?.registerId ?? edge.register,
