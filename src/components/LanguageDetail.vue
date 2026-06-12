@@ -2,8 +2,8 @@
 import type { Concept, LocalizedConcept, Designation, Expression, Abbreviation as AbbreviationType } from 'glossarist';
 import { computed } from 'vue';
 import { langName, langLabel } from '../utils/lang';
-import { renderMath } from '../utils/math';
-import type { RenderOptions } from '../utils/math';
+import { renderContent } from '../utils/content-renderer';
+import type { RenderOptions } from '../utils/content-renderer';
 import { escapeAttr } from '../utils/escape';
 import { entryStatusColor } from '../utils/concept-helpers';
 import { designationTypeInfo, normativeStatusInfo, grammarBadges, pronunciationLabel, pronunciationTooltip } from '../utils/designation-registry';
@@ -115,7 +115,7 @@ function handleContentClick(e: MouseEvent) {
         <div class="section-label">{{ t('concept.designations') }}</div>
         <div class="space-y-2 mt-3">
           <div v-for="(d, i) in designations" :key="i" class="flex items-center gap-2 flex-wrap">
-            <span class="font-medium text-ink-800 text-lg" v-html="renderMath(d.designation)"></span>
+            <span class="font-medium text-ink-800 text-lg" v-html="renderContent(d.designation)"></span>
             <span class="badge text-[10px]" :class="designationTypeInfo(d).color">{{ designationTypeInfo(d).label }}</span>
             <span class="badge text-[10px]" :class="normativeStatusInfo(d.normativeStatus).color">{{ normativeStatusInfo(d.normativeStatus).label }}</span>
             <template v-if="d.type === 'expression' && (d as Expression).grammarInfo?.length">
@@ -142,7 +142,7 @@ function handleContentClick(e: MouseEvent) {
       <!-- Definition -->
       <div v-if="definition" class="card p-5">
         <div class="section-label">{{ t('concept.definition') }}</div>
-        <div class="text-ink-800 leading-relaxed mt-3" v-html="renderMath(definition, renderOpts)"></div>
+        <div class="text-ink-800 leading-relaxed mt-3" v-html="renderContent(definition, renderOpts)"></div>
       </div>
 
       <!-- Notes -->
@@ -151,7 +151,7 @@ function handleContentClick(e: MouseEvent) {
         <div class="space-y-3 mt-3">
           <div v-for="(note, i) in notes" :key="i" class="text-ink-600 text-sm leading-relaxed">
             <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">{{ t('concept.note') }} {{ i + 1 }}</span>
-            <div class="mt-1" v-html="renderMath(note, renderOpts)"></div>
+            <div class="mt-1" v-html="renderContent(note, renderOpts)"></div>
           </div>
         </div>
       </div>
@@ -162,7 +162,7 @@ function handleContentClick(e: MouseEvent) {
         <div class="space-y-3 mt-3">
           <div v-for="(ex, i) in examples" :key="i" class="text-ink-600 text-sm leading-relaxed">
             <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">{{ t('concept.example') }} {{ i + 1 }}</span>
-            <div class="mt-1" v-html="renderMath(ex, renderOpts)"></div>
+            <div class="mt-1" v-html="renderContent(ex, renderOpts)"></div>
           </div>
         </div>
       </div>

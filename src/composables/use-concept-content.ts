@@ -1,8 +1,8 @@
 import { computed, ref, watch, type ComputedRef } from 'vue';
 import type { Concept, LocalizedConcept, ConceptSource, Designation } from 'glossarist';
 import type { Manifest } from '../adapters/types';
-import type { RenderOptions } from '../utils/math';
-import { renderMath, cleanContent } from '../utils/math';
+import type { RenderOptions } from '../utils/content-renderer';
+import { renderContent, cleanContent } from '../utils/content-renderer';
 import { getAnnotations } from '../adapters/model-bridge';
 import { getPreferredTerm, entryStatusColor, entryStatusLabel, entryStatusDefinition } from '../utils/concept-helpers';
 import { sortLanguages } from '../utils/lang';
@@ -68,18 +68,18 @@ export function useConceptContent(
       result.push({
         lang,
         lc,
-        renderedTerm: renderMath(getPreferredTerm(lc, '')),
+        renderedTerm: renderContent(getPreferredTerm(lc, '')),
         definition,
-        renderedDefinition: renderMath(definition, opts),
+        renderedDefinition: renderContent(definition, opts),
         annotations,
-        renderedAnnotations: annotations.map((a: string) => renderMath(a, opts)),
+        renderedAnnotations: annotations.map((a: string) => renderContent(a, opts)),
         notes,
-        renderedNotes: notes.map(n => renderMath(n, opts)),
+        renderedNotes: notes.map(n => renderContent(n, opts)),
         examples,
-        renderedExamples: examples.map(e => renderMath(e, opts)),
+        renderedExamples: examples.map(e => renderContent(e, opts)),
         sources: lc.sources,
         designations: lc.terms,
-        renderedDesignations: new Map(lc.terms.map(d => [d.designation, renderMath(d.designation)])),
+        renderedDesignations: new Map(lc.terms.map(d => [d.designation, renderContent(d.designation)])),
         entryStatus: lc.entryStatus ?? '',
         classification: lc.classification,
         reviewType: lc.reviewType,

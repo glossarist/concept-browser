@@ -1,5 +1,5 @@
 import { ref, watch } from 'vue';
-import type { RenderOptions, BibResolver, FigResolver } from '../utils/math';
+import type { RenderOptions, BibResolver, FigResolver } from '../utils/content-renderer';
 import { getFactory } from '../adapters/factory';
 import { escapeAttr } from '../utils/escape';
 

@@ -1,9 +1,22 @@
+/**
+ * Content renderer: transforms Glossarist inline content notation to HTML.
+ *
+ * Handles ALL inline rendering — mentions, cross-references, citations,
+ * math placeholders, tables, lists, and text formatting. This is the single
+ * source of truth for content rendering in the browser.
+ *
+ * Math-specific helpers (replaceBracketed, mathPlaceholder) are internal.
+ * The v-math directive upgrades the placeholders to KaTeX at runtime.
+ */
 import { escapeHtml, escapeAttr } from './escape';
+import { parseMention } from 'glossarist';
+
+// ── Resolver types ────────────────────────────────────────────────────────
 
 export type XrefResolver = (uri: string, term: string) => string;
 export type BibResolver = (refId: string, title: string) => string;
 export type FigResolver = (figId: string) => string;
-
+export type CiteResolver = (key: string, label: string | null) => string;
 export type ConceptRefResolver = (conceptId: string, term: string) => string;
 
 export interface RenderOptions {
@@ -11,7 +24,10 @@ export interface RenderOptions {
   bibResolver?: BibResolver;
   figResolver?: FigResolver;
   conceptRefResolver?: ConceptRefResolver;
+  citeResolver?: CiteResolver;
 }
+
+// ── Math placeholders ────────────────────────────────────────────────────
 
 function replaceBracketed(text: string, prefix: string, handler: (content: string, bold: boolean) => string): string {
   let result = '';
@@ -56,6 +72,8 @@ function mathPlaceholder(expr: string, format: string, bold: boolean): string {
   return `<span class="math-pending${bold ? ' math-bold' : ''}" data-expr="${escapeAttr(expr)}" data-format="${format}">${escapeAttr(expr)}</span>`;
 }
 
+// ── Block transforms ─────────────────────────────────────────────────────
+
 function convertAsciiDocTables(text: string): string {
   return text.replace(/\n?\|===\n([\s\S]*?)\n\|===/g, (_: string, body: string) => {
     const rows: string[] = body.split('\n').filter((line: string) => line.trim() !== '');
@@ -98,7 +116,6 @@ function convertLists(text: string): string {
     return `\n<ul class="concept-list">${lis}</ul>`;
   });
 
-  // Numbered lists: 1) item or 1. item
   result = result.replace(/(?:^|\n)((?:[ \t]*\d+[).][ \t]+[^\n]+)(?:\n[ \t]*\d+[).][ \t]+[^\n]+)*)/g, (_, block) => {
     const items: string[] = [];
     const re = /[ \t]*\d+[).][ \t]+([^\n]+)/g;
@@ -114,38 +131,29 @@ function convertLists(text: string): string {
   return result;
 }
 
-export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | RenderOptions): string {
-  if (!text) return '';
-  let result = text;
+// ── Inline reference resolution ──────────────────────────────────────────
 
-  const opts: RenderOptions = typeof xrefResolverOrOpts === 'function'
-    ? { xrefResolver: xrefResolverOrOpts }
-    : (xrefResolverOrOpts ?? {});
-
-  // Math expressions: output placeholders for v-math directive to upgrade
-  result = replaceBracketed(result, 'stem:', (expr, bold) => mathPlaceholder(expr, 'asciimath', bold));
-  result = replaceBracketed(result, 'latexmath:', (expr, bold) => mathPlaceholder(expr, 'latex', bold));
-
-  result = convertAsciiDocTables(result);
-  result = convertLists(result);
-  result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  result = result.replace(/~([^~]+)~/g, '<sub>$1</sub>');
-
-  result = result.replace(/<<([^,>]+),([^>]+)>>/g, (_, refId, title) => {
+function resolveBibRefs(text: string, opts: RenderOptions): string {
+  return text.replace(/<<([^,>]+),([^>]+)>>/g, (_, refId, title) => {
     if (opts.bibResolver) {
       return opts.bibResolver(refId.trim(), title.trim());
     }
     return `<span class="bib-ref">${escapeHtml(title.trim())}</span>`;
   });
+}
 
-  result = result.replace(/<<(fig_[^>]+)>>/g, (_, figId) => {
+function resolveFigRefs(text: string, opts: RenderOptions): string {
+  return text.replace(/<<(fig_[^>]+)>>/g, (_, figId) => {
     if (opts.figResolver) {
       return opts.figResolver(figId.trim());
     }
     return `<span class="fig-ref">${escapeHtml(figId.trim())}</span>`;
   });
+}
 
-  result = result.replace(/\{\{(urn:[^,}]+),([^,}]+)(?:,([^}]+))?\}\}/g, (_, uri, term, display) => {
+function resolveUrnRefs(text: string, opts: RenderOptions): string {
+  // Double-brace URN refs: {{urn:...,term}} or {{urn:...,term,display}}
+  let result = text.replace(/\{\{(urn:[^,}]+),([^,}]+)(?:,([^}]+))?\}\}/g, (_, uri, term, display) => {
     const t = (display || term).trim();
     if (opts.xrefResolver) {
       return opts.xrefResolver(uri, t);
@@ -153,6 +161,7 @@ export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | Ren
     return t;
   });
 
+  // Single-brace URN refs: {urn:...,term} or {urn:...,term,display}
   result = result.replace(/\{(urn:[^,}]+),([^,}]+)(?:,([^}]+))?\}/g, (_, uri, term, display) => {
     const t = (display || term).trim();
     if (opts.xrefResolver) {
@@ -161,27 +170,102 @@ export function renderMath(text: string, xrefResolverOrOpts?: XrefResolver | Ren
     return t;
   });
 
-  result = result.replace(/\{\{([^,}]+),\s*([^}]+)\}\}/g, (_, term, id) => {
-    if (opts.conceptRefResolver) {
-      return opts.conceptRefResolver(id.trim(), term.trim());
+  return result;
+}
+
+function resolveMentions(text: string, opts: RenderOptions): string {
+  // Single-pass {{...}} mention dispatcher via parseMention (SSOT)
+  return text.replace(/\{\{([^{}]+?)\}\}/g, (_orig, body) => {
+    const parsed = parseMention(body);
+
+    if (parsed.kind === 'cite-ref') {
+      const key = parsed.key!;
+      const label = parsed.label ?? null;
+      if (opts.citeResolver) return opts.citeResolver(key, label);
+      return `<span class="bib-ref">${escapeHtml(label ?? key)}</span>`;
     }
-    return term.trim();
+
+    if (parsed.kind === 'numeric') {
+      return `<span class="gl-mention">${escapeHtml(parsed.id!)}</span>`;
+    }
+
+    // parseMention says unresolved — check for two-arg form
+    const commaIdx = body.indexOf(',');
+    if (commaIdx > 0) {
+      const term = body.slice(0, commaIdx).trim();
+      const id = body.slice(commaIdx + 1).trim();
+      if (opts.conceptRefResolver) return opts.conceptRefResolver(id, term);
+      return term;
+    }
+
+    return `<span class="gl-mention">${escapeHtml(body.trim())}</span>`;
   });
+}
+
+// ── Public API ───────────────────────────────────────────────────────────
+
+/**
+ * Render Glossarist inline content notation to HTML.
+ *
+ * Pipeline stages (in order):
+ * 1. Math placeholders (stem:, latexmath:)
+ * 2. AsciiDoc tables
+ * 3. Bullet and numbered lists
+ * 4. Text formatting (bold, italic, subscript)
+ * 5. Bibliography cross-references (<<ref,title>>)
+ * 6. Figure references (<<fig_...>>)
+ * 7. URN inline references ({{urn:...}} and {urn:...})
+ * 8. Mention dispatcher (cite-ref, numeric, two-arg concept refs)
+ */
+export function renderContent(text: string, xrefResolverOrOpts?: XrefResolver | RenderOptions): string {
+  if (!text) return '';
+  let result = text;
+
+  const opts: RenderOptions = typeof xrefResolverOrOpts === 'function'
+    ? { xrefResolver: xrefResolverOrOpts }
+    : (xrefResolverOrOpts ?? {});
+
+  // Stage 1: Math expressions → placeholders for v-math directive
+  result = replaceBracketed(result, 'stem:', (expr, bold) => mathPlaceholder(expr, 'asciimath', bold));
+  result = replaceBracketed(result, 'latexmath:', (expr, bold) => mathPlaceholder(expr, 'latex', bold));
+
+  // Stage 2: Block structures
+  result = convertAsciiDocTables(result);
+  result = convertLists(result);
+
+  // Stage 3: Inline formatting
+  result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  result = result.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+  result = result.replace(/~([^~]+)~/g, '<sub>$1</sub>');
+
+  // Stage 4: Reference resolution
+  result = resolveBibRefs(result, opts);
+  result = resolveFigRefs(result, opts);
+  result = resolveUrnRefs(result, opts);
+
+  // Stage 5: Mention dispatcher (parseMention SSOT)
+  result = resolveMentions(result, opts);
 
   return result;
 }
 
+/**
+ * Strip all inline notation to produce plain text.
+ * Used for search indexing, previews, and accessibility.
+ */
 export function cleanContent(text: string): string {
   if (!text) return '';
   let result = text
     .replace(/<[^>]+>/g, '')
-    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '$1')
     .replace(/~([^~]+)~/g, '_$1')
     .replace(/\n[ \t]*\* /g, '; ')
     .replace(/<<([^,>]+),([^>]+)>>/g, '$2')
     .replace(/<<(fig_[^>]+)>>/g, '$1')
     .replace(/\{\{urn:[^,}]+,([^,}]+)(?:,[^}]+)?\}\}/g, '$1')
     .replace(/\{urn:[^,}]+,([^,}]+)(?:,[^}]+)?\}/g, '$1')
+    .replace(/\{\{cite:[^,}]+(?:,([^}]+))?\}\}/g, (_, label) => label ? label.trim() : '')
     .replace(/\{\{([^,}]+)(?:,\s*[^}]+)?\}\}/g, '$1')
     .replace(/(?:\*?)stem:\[([^\]]*)\]/g, '$1')
     .replace(/(?:\*?)latexmath:\[([^\]]*)\]/g, '$1');
