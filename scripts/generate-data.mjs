@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
-import { naturalSort, Register } from 'glossarist';
+import { naturalSort, Register, parseMention } from 'glossarist';
 import { loadSiteConfig } from './load-site-config.mjs';
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
@@ -136,36 +136,43 @@ function defsToJsonLd(defs) {
     .filter(d => d['gl:content']);
 }
 
+function refToJsonLd(ref) {
+  if (!ref) return undefined;
+  const refObj = { '@type': 'gl:Ref' };
+  if (typeof ref === 'string') {
+    refObj['gl:source'] = ref;
+  } else {
+    if (ref.source) refObj['gl:source'] = ref.source;
+    if (ref.id) refObj['gl:id'] = ref.id;
+    if (ref.version) refObj['gl:version'] = ref.version;
+  }
+  return refObj;
+}
+
+function localityToJsonLd(loc) {
+  if (!loc) return undefined;
+  const locObj = {};
+  if (loc.type) locObj['gl:localityType'] = loc.type;
+  if (loc.reference_from) locObj['gl:referenceFrom'] = loc.reference_from;
+  if (loc.referenceFrom) locObj['gl:referenceFrom'] = loc.referenceFrom;
+  if (loc.reference_to) locObj['gl:referenceTo'] = loc.reference_to;
+  if (loc.referenceTo) locObj['gl:referenceTo'] = loc.referenceTo;
+  return Object.keys(locObj).length > 0 ? locObj : undefined;
+}
+
 function sourcesToJsonLd(sources) {
   if (!sources || !Array.isArray(sources)) return [];
   return sources.map(s => {
     const doc = { '@type': 'gl:ConceptSource' };
+    if (s.id) doc['gl:id'] = s.id;
     if (s.type) doc['gl:sourceType'] = s.type;
     if (s.status) doc['gl:sourceStatus'] = s.status;
     if (s.origin) {
       const origin = { '@type': 'gl:Citation' };
-      if (s.origin.ref) {
-        const ref = s.origin.ref;
-        const refObj = { '@type': 'gl:Ref' };
-        if (typeof ref === 'string') {
-          refObj['gl:source'] = ref;
-        } else {
-          if (ref.source) refObj['gl:source'] = ref.source;
-          if (ref.id) refObj['gl:id'] = ref.id;
-          if (ref.version) refObj['gl:version'] = ref.version;
-        }
-        origin['gl:ref'] = refObj;
-      }
-      if (s.origin.locality) {
-        const loc = s.origin.locality;
-        const locObj = {};
-        if (loc.type) locObj['gl:localityType'] = loc.type;
-        if (loc.reference_from) locObj['gl:referenceFrom'] = loc.reference_from;
-        if (loc.referenceFrom) locObj['gl:referenceFrom'] = loc.referenceFrom;
-        if (loc.reference_to) locObj['gl:referenceTo'] = loc.reference_to;
-        if (loc.referenceTo) locObj['gl:referenceTo'] = loc.referenceTo;
-        origin['gl:locality'] = locObj;
-      }
+      const ref = refToJsonLd(s.origin.ref);
+      if (ref) origin['gl:ref'] = ref;
+      const loc = localityToJsonLd(s.origin.locality);
+      if (loc) origin['gl:locality'] = loc;
       if (s.origin.link) origin['gl:link'] = s.origin.link;
       doc['gl:origin'] = origin;
     }
@@ -176,7 +183,12 @@ function sourcesToJsonLd(sources) {
 function refsToJsonLd(refs, refMaps) {
   if (!refs || !Array.isArray(refs)) return [];
   return refs.map(r => {
-    if (r.id) return { '@id': r.id, 'gl:term': r.term };
+    if (r.id) {
+      const ref = { '@id': r.id, 'gl:term': r.term };
+      if (r.sourceId) ref['gl:sourceId'] = r.sourceId;
+      if (r.citation) ref['gl:citation'] = citationToJsonLd(r.citation);
+      return ref;
+    }
     if (r.term && refMaps) {
       const uri = resolveRefUri(r.term, refMaps);
       if (uri) return { '@id': uri, 'gl:term': r.term };
@@ -185,34 +197,70 @@ function refsToJsonLd(refs, refMaps) {
   }).filter(r => r['@id']);
 }
 
-function resolveRefUri(term, refMaps) {
-  const base = refMaps.uriBase;
-  const urnPrefix = 'urn:iso:std:iso:';
-  if (term.startsWith(urnPrefix)) {
-    const rest = term.slice(urnPrefix.length);
-    const match = rest.match(/^(\d+):(.+)$/);
-    if (match) {
-      const dsId = refMaps.urnStandardMap[match[1]];
-      if (dsId) return `${base}/${dsId}/concept/${match[2]}`;
+function citationToJsonLd(citation) {
+  const obj = {};
+  const ref = refToJsonLd(citation.ref);
+  if (ref) obj['gl:ref'] = ref;
+  const loc = localityToJsonLd(citation.locality);
+  if (loc) obj['gl:locality'] = loc;
+  if (citation.link) obj['gl:link'] = citation.link;
+  return obj;
+}
+
+function buildPatternIndex(datasets, registerCache) {
+  const entries = [];
+
+  for (const ds of datasets) {
+    const reg = registerCache[ds.id] || null;
+    const patterns = new Set();
+
+    // Site-config patterns (primary)
+    if (ds.uri) patterns.add(ds.uri);
+    for (const alias of ds.uriAliases || []) patterns.add(alias);
+
+    // Register.yaml patterns (supplementary)
+    if (reg) {
+      if (reg.urn && reg.urn.endsWith('*')) patterns.add(reg.urn);
+      for (const alias of reg.urnAliases || []) patterns.add(alias);
+    }
+
+    for (const pattern of patterns) {
+      if (!pattern.endsWith('*')) continue;
+      const prefix = pattern.slice(0, -1);
+      if (prefix) entries.push({ prefix, datasetId: ds.id });
     }
   }
+
+  // Sort longest prefix first for correct longest-prefix matching
+  entries.sort((a, b) => b.prefix.length - a.prefix.length);
+
+  function resolve(uri) {
+    for (const { prefix, datasetId } of entries) {
+      if (uri.startsWith(prefix)) {
+        return { datasetId, conceptId: uri.slice(prefix.length) };
+      }
+    }
+    return null;
+  }
+
+  return { resolve, entries };
+}
+
+function resolveRefUri(term, refMaps) {
+  const resolved = refMaps.patternIndex.resolve(term);
+  if (resolved) return `${refMaps.uriBase}/${resolved.datasetId}/concept/${resolved.conceptId}`;
+
   const ievMatch = term.match(/^IEV:(\d+[-\d]+)$/);
   if (ievMatch) {
     const dsId = refMaps.refPrefixMap['IEV'];
-    if (dsId) return `${base}/${dsId}/concept/${ievMatch[1]}`;
+    if (dsId) return `${refMaps.uriBase}/${dsId}/concept/${ievMatch[1]}`;
   }
   return null;
 }
 
-function buildRefMaps(config) {
+function buildRefMaps(config, registerCache) {
   const refPrefixMap = {};
-  const urnStandardMap = {};
-
-  for (const ds of config.datasets) {
-    const uri = ds.uri || '';
-    const urnMatch = uri.match(/^urn:iso:std:iso:(\d+):\*$/);
-    if (urnMatch) urnStandardMap[urnMatch[1]] = ds.id;
-  }
+  const patternIndex = buildPatternIndex(config.datasets, registerCache);
 
   for (const route of config.routing || []) {
     if (route.uri && route.uri.includes('iec') && route.uri.includes('60050')) {
@@ -223,56 +271,141 @@ function buildRefMaps(config) {
 
   const xref = config.crossReferences || {};
   if (xref.refPrefixMap) Object.assign(refPrefixMap, xref.refPrefixMap);
-  if (xref.urnStandardMap) Object.assign(urnStandardMap, xref.urnStandardMap);
 
   const uriBase = config.uriBase || `https://${config.domain}`;
-  return { refPrefixMap, urnStandardMap, uriBase, register: null };
+  return { patternIndex, refPrefixMap, uriBase, register: null };
 }
 
-function extractInlineRefs(localizedData, refMaps) {
-  const refs = [];
-  const texts = [];
-  const { refPrefixMap, urnStandardMap, uriBase } = refMaps;
 
-  if (localizedData.definition) {
-    const defs = Array.isArray(localizedData.definition) ? localizedData.definition : [localizedData.definition];
-    for (const d of defs) texts.push(typeof d === 'string' ? d : (d.content || ''));
-  }
-  if (localizedData.notes) {
-    for (const n of localizedData.notes) texts.push(typeof n === 'string' ? n : (n.content || ''));
-  }
-  if (localizedData.examples) {
-    for (const e of localizedData.examples) texts.push(typeof e === 'string' ? e : (e.content || ''));
-  }
-  const fullText = texts.join(' ');
+// ── Mention handlers (OCP: add new mention kinds by adding handlers) ─────
 
-  for (const m of fullText.matchAll(/\{\{([^,}]+),\s*IEV:([^}]+)\}\}/g)) {
-    const datasetId = refPrefixMap['IEV'];
-    if (datasetId) refs.push({ id: `${uriBase}/${datasetId}/concept/${m[2]}`, term: m[1].trim() });
-  }
+/**
+ * Resolve an IEV:NNN-NN-NN display form to a concept URI.
+ */
+function resolveIevRef(display, term, refPrefixMap, uriBase) {
+  if (!display.startsWith('IEV:')) return null;
+  const datasetId = refPrefixMap['IEV'];
+  if (!datasetId) return null;
+  return { id: `${uriBase}/${datasetId}/concept/${display.slice(4)}`, term };
+}
 
-  for (const m of fullText.matchAll(/\{urn:iso:std:iso:(\d+):([^,}]+),([^,}]+)(?:,([^}]+))?\}/g)) {
-    const datasetId = urnStandardMap[m[1]];
-    if (datasetId) refs.push({ id: `${uriBase}/${datasetId}/concept/${m[2]}`, term: (m[4] || m[3]).trim() });
-  }
+/**
+ * Resolve a URI identifier via the pattern index.
+ */
+function resolvePatternRef(identifier, display, refPrefixMap, patternIndex, uriBase) {
+  const r = patternIndex.resolve(identifier);
+  if (!r) return null;
+  return { id: `${uriBase}/${r.datasetId}/concept/${r.conceptId}`, term: display };
+}
 
-  for (const m of fullText.matchAll(/\{\{urn:iso:std:iso:(\d+):([^,}]+),([^,}]+)(?:,([^}]+))?\}\}/g)) {
-    const datasetId = urnStandardMap[m[1]];
-    if (datasetId) refs.push({ id: `${uriBase}/${datasetId}/concept/${m[2]}`, term: (m[4] || m[3]).trim() });
+/**
+ * Handle a cite-ref mention: links to a ConceptSource entry.
+ */
+function handleCiteRef(parsed, allSources) {
+  const sourceEntry = allSources.find(s => s.id === parsed.key);
+  if (sourceEntry) {
+    return {
+      id: `cite:${sourceEntry.id}`,
+      term: parsed.label || sourceEntry.origin?.toString?.() || sourceEntry.id,
+      sourceId: sourceEntry.id,
+      citation: sourceEntry.origin || null,
+    };
   }
+  return {
+    id: `cite:${parsed.key}`,
+    term: parsed.label || parsed.key,
+    sourceId: parsed.key,
+    citation: null,
+  };
+}
 
-  // Generic {{term, concept_id}} — same-dataset cross-reference (e.g. VIML)
+/**
+ * Handle a numeric mention: bare concept ID in same dataset.
+ */
+function handleNumeric(parsed, register, uriBase) {
+  if (!register) return null;
+  return { id: `${uriBase}/${register}/concept/${parsed.id}`, term: parsed.raw };
+}
+
+/**
+ * Handle an unresolved double-brace mention: try two-arg form.
+ * Format: {{identifier, display}} — tries IEV, pattern index, same-dataset.
+ */
+function handleUnresolved(body, refMaps) {
+  const commaMatch = body.match(/^([^,}]+),\s*(.+)$/);
+  if (!commaMatch) return null;
+  const identifier = commaMatch[1].trim();
+  const display = commaMatch[2].trim();
+
+  // IEV shortform in display position
+  const iev = resolveIevRef(display, identifier, refMaps.refPrefixMap, refMaps.uriBase);
+  if (iev) return iev;
+
+  // URI pattern match
+  const pattern = resolvePatternRef(identifier, display, refMaps.refPrefixMap, refMaps.patternIndex, refMaps.uriBase);
+  if (pattern) return pattern;
+
+  // Same-dataset: {{termName, conceptId}} where conceptId is numeric/X.Y
   const register = refMaps.register;
-  for (const m of fullText.matchAll(/\{\{([^,}]+),\s*([A-Za-z0-9.]+)\}\}/g)) {
-    const termName = m[1].trim();
-    const conceptId = m[2].trim();
-    // Skip if already matched by IEV or URN patterns
-    if (refPrefixMap && refPrefixMap[termName]) continue;
-    if (/^\d/.test(conceptId) || /^[A-Z]\.\d/.test(conceptId)) {
-      refs.push({ id: `${uriBase}/${register}/concept/${conceptId}`, term: termName });
+  if (register && (/^\d/.test(display) || /^[A-Z]\.\d/.test(display))) {
+    return { id: `${refMaps.uriBase}/${register}/concept/${display}`, term: identifier };
+  }
+  return null;
+}
+
+// ── Inline reference extraction ───────────────────────────────────────────
+
+function collectTextContent(localizedData) {
+  const texts = [];
+  const textFields = ['definition', 'notes', 'examples'];
+  for (const field of textFields) {
+    const items = localizedData[field];
+    if (!items) continue;
+    const arr = Array.isArray(items) ? items : [items];
+    for (const item of arr) {
+      texts.push(typeof item === 'string' ? item : (item.content || ''));
     }
   }
+  return texts.join(' ');
+}
 
+function extractInlineRefs(localizedData, refMaps, conceptSources = []) {
+  const refs = [];
+  const { refPrefixMap, patternIndex, uriBase } = refMaps;
+  const fullText = collectTextContent(localizedData);
+  const allSources = [...(localizedData.sources || []), ...conceptSources];
+
+  // Single-brace mentions: {uri,display} (not {{...}})
+  for (const m of fullText.matchAll(/\{([^,}]+),([^,}]+)(?:,([^}]+))?\}/g)) {
+    const identifier = m[1].trim();
+    const display = m[2].trim();
+    const altDisplay = (m[3] || '').trim();
+    if (!identifier || !display) continue;
+
+    const iev = resolveIevRef(display, identifier, refPrefixMap, uriBase);
+    if (iev) { refs.push(iev); continue; }
+
+    const pattern = resolvePatternRef(identifier, altDisplay || display, refPrefixMap, patternIndex, uriBase);
+    if (pattern) { refs.push(pattern); }
+  }
+
+  // Double-brace mentions: dispatched by parseMention kind
+  for (const m of fullText.matchAll(/\{\{([^{}]+?)\}\}/g)) {
+    const body = m[1];
+    const parsed = parseMention(body);
+
+    let ref = null;
+    if (parsed.kind === 'cite-ref') {
+      ref = handleCiteRef(parsed, allSources);
+    } else if (parsed.kind === 'numeric') {
+      ref = handleNumeric(parsed, refMaps.register, uriBase);
+    } else {
+      ref = handleUnresolved(body, refMaps);
+    }
+    if (ref) refs.push(ref);
+  }
+
+  // Deduplicate by id
   const seen = new Set();
   return refs.filter(r => {
     if (seen.has(r.id)) return false;
@@ -333,7 +466,7 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
     if (lc.references && lc.references.length > 0) {
       lDoc['gl:references'] = refsToJsonLd(lc.references, refMaps);
     } else if (refMaps) {
-      const inlineRefs = extractInlineRefs(lc, refMaps);
+      const inlineRefs = extractInlineRefs(lc, refMaps, conceptYaml._sources);
       if (inlineRefs.length > 0) {
         lDoc['gl:references'] = refsToJsonLd(inlineRefs, refMaps);
       }
@@ -845,12 +978,11 @@ function processDataset(dir, register, opts) {
 console.log('Generating Glossarist vocabulary browser data...\n');
 
 const { config } = loadSiteConfig();
-const refMaps = buildRefMaps(config);
 const counts = {};
 const registry = [];
 const registerCache = {};
 
-// Pre-load all register.yaml files
+// Pre-load all register.yaml files (needed before buildRefMaps for URI pattern indexing)
 for (const ds of config.datasets) {
   const registerDir = path.join(ROOT, '.datasets', ds.id);
   const registerYamlPath = path.join(registerDir, 'register.yaml');
@@ -863,6 +995,8 @@ for (const ds of config.datasets) {
     }
   }
 }
+
+const refMaps = buildRefMaps(config, registerCache);
 
 for (let i = 0; i < config.datasets.length; i++) {
   const ds = config.datasets[i];
