@@ -190,12 +190,13 @@ function resolveMentions(text: string, opts: RenderOptions): string {
     }
 
     // parseMention says unresolved — check for two-arg form
+    // Convention: {{id, display}} — concept ID first, render term last
     const commaIdx = body.indexOf(',');
     if (commaIdx > 0) {
-      const term = body.slice(0, commaIdx).trim();
-      const id = body.slice(commaIdx + 1).trim();
-      if (opts.conceptRefResolver) return opts.conceptRefResolver(id, term);
-      return term;
+      const id = body.slice(0, commaIdx).trim();
+      const display = body.slice(commaIdx + 1).trim();
+      if (opts.conceptRefResolver) return opts.conceptRefResolver(id, display);
+      return display;
     }
 
     return `<span class="gl-mention">${escapeHtml(body.trim())}</span>`;
@@ -266,7 +267,8 @@ export function cleanContent(text: string): string {
     .replace(/\{\{urn:[^,}]+,([^,}]+)(?:,[^}]+)?\}\}/g, '$1')
     .replace(/\{urn:[^,}]+,([^,}]+)(?:,[^}]+)?\}/g, '$1')
     .replace(/\{\{cite:[^,}]+(?:,([^}]+))?\}\}/g, (_, label) => label ? label.trim() : '')
-    .replace(/\{\{([^,}]+)(?:,\s*[^}]+)?\}\}/g, '$1')
+    .replace(/\{\{([^,}]+),\s*([^}]+)\}\}/g, '$2')
+    .replace(/\{\{([^,}]+)\}\}/g, '$1')
     .replace(/(?:\*?)stem:\[([^\]]*)\]/g, '$1')
     .replace(/(?:\*?)latexmath:\[([^\]]*)\]/g, '$1');
   return result;

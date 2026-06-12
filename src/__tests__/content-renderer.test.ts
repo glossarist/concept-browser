@@ -88,9 +88,11 @@ describe('renderContent', () => {
     expect(result).toBe('[users→urn:iso:std:iso:14812:3.5.3.4] are people');
   });
 
-  it('strips remaining {{...}} to just the term', () => {
+  it('displays render term (second part) for unresolved two-arg mentions', () => {
     const result = renderContent('see {{some term, unknown ref}}');
-    expect(result).toBe('see some term');
+    // Per spec: {{identifier,render term}} — identifier first, render term last
+    // Without a resolver, the render term is what should display
+    expect(result).toBe('see unknown ref');
   });
 
   it('resolves cross-refs even in pre-rendered content', () => {
