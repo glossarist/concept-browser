@@ -1,3 +1,5 @@
+import { escapeHtml } from './escape';
+
 const INLINE_PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/\*\*(.+?)\*\*/g, m => `<strong>${m[1]}</strong>`],
   [/(?<!\*)\*([^*]+?)\*(?!\*)/g, m => `<em>${m[1]}</em>`],
@@ -118,5 +120,3 @@ export function renderMarkdown(input: string): string {
 
   return blocks.join('\n');
 }
-
-import { escapeHtml } from './escape';
