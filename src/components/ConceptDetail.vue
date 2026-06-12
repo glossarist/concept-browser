@@ -3,8 +3,8 @@ import type { Concept, LocalizedConcept, Designation } from 'glossarist';
 import type { Manifest, GraphEdge } from '../adapters/types';
 import { computed, ref, nextTick, watch } from 'vue';
 import { langName } from '../utils/lang';
-import { renderMath } from '../utils/math';
-import type { RenderOptions } from '../utils/math';
+import { renderContent } from '../utils/content-renderer';
+import type { RenderOptions } from '../utils/content-renderer';
 import { escapeAttr } from '../utils/escape';
 import { entryStatusColor, conceptStatusColor, conceptStatusLabel, conceptStatusDefinition, entryStatusLabel, entryStatusDefinition, getPreferredTerm } from '../utils/concept-helpers';
 import { sourceTypeInfo, sourceStatusInfo } from '../utils/designation-registry';
@@ -88,7 +88,7 @@ const engConcept = computed((): LocalizedConcept | null => {
 });
 
 const primaryTerm = computed(() => getPreferredTerm(engConcept.value, conceptId.value));
-const renderedPrimaryTerm = computed(() => renderMath(primaryTerm.value));
+const renderedPrimaryTerm = computed(() => renderContent(primaryTerm.value));
 
 const managedStatus = computed(() => props.concept.status);
 
