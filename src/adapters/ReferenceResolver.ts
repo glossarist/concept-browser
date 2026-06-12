@@ -1,6 +1,31 @@
 import type { Resolution } from './types';
 import type { RoutingEntry } from '../config/types';
 
+// ── Citation classification ────────────────────────────────────────────────
+
+export type CitationClassification =
+  | 'internal-citation'
+  | 'self-contained-citation'
+  | 'external-citation'
+  | 'unresolved-citation';
+
+export interface CiteResolution {
+  classification: CitationClassification;
+  resolved: { registerId: string; conceptId: string } | null;
+}
+
+/**
+ * Lightweight citation shape used for classification.
+ * Uses snake_case to match glossarist's Citation model conventions.
+ */
+interface CitationInput {
+  ref?: { source?: string | null; id?: string | null; version?: string | null } | null;
+  locality?: { type?: string | null; reference_from?: string | null; reference_to?: string | null; referenceFrom?: string | null; referenceTo?: string | null } | null;
+  link?: string | null;
+}
+
+// ── URI pattern matching ───────────────────────────────────────────────────
+
 interface DatasetEntry {
   id: string;
   uriPatterns: string[];
@@ -26,6 +51,8 @@ function matchUriPattern(uri: string, pattern: string): boolean {
   if (!pattern.endsWith('*')) return uri === pattern;
   return uri.startsWith(pattern.slice(0, -1));
 }
+
+// ── ReferenceResolver ──────────────────────────────────────────────────────
 
 export class ReferenceResolver {
   private datasets: DatasetEntry[] = [];
@@ -120,6 +147,32 @@ export class ReferenceResolver {
       return { ...directResult, conceptId: directResult.conceptId.replace(/^\//, '') };
     }
     return null;
+  }
+
+  /**
+   * Classify a citation and resolve it to a concept if possible.
+   * Single source of truth for citation resolution — both classification
+   * and navigation target come from this one method.
+   */
+  resolveCite(citation: CitationInput | null | undefined, sourceDatasetId?: string): CiteResolution {
+    if (!citation?.ref?.source) {
+      return { classification: 'unresolved-citation', resolved: null };
+    }
+
+    const referenceFrom = citation.locality?.reference_from ?? citation.locality?.referenceFrom ?? '';
+    const resolution = this.resolveCitation(citation.ref.source, referenceFrom, sourceDatasetId);
+    if (resolution?.type === 'internal') {
+      return {
+        classification: 'internal-citation',
+        resolved: { registerId: resolution.registerId, conceptId: resolution.conceptId },
+      };
+    }
+
+    if (citation.link) {
+      return { classification: 'self-contained-citation', resolved: null };
+    }
+
+    return { classification: 'external-citation', resolved: null };
   }
 
   resolveRelatedRef(ref: { source: string | null; id: string | null } | null, sourceDatasetId?: string): { registerId: string; conceptId: string } | null {
