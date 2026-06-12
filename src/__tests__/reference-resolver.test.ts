@@ -1,16 +1,21 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ReferenceResolver } from '../adapters/ReferenceResolver';
+import { createResolverPair } from './test-helpers';
+import type { ReferenceResolver } from '../adapters/ReferenceResolver';
+import type { UriRouter } from '../adapters/UriRouter';
 
 describe('ReferenceResolver', () => {
   let resolver: ReferenceResolver;
+  let uriRouter: UriRouter;
 
   beforeEach(() => {
-    resolver = new ReferenceResolver();
+    const pair = createResolverPair();
+    resolver = pair.resolver;
+    uriRouter = pair.uriRouter;
   });
 
   describe('resolveReference', () => {
     it('resolves internal URI for provided dataset', () => {
-      resolver.registerDataset('isotc204', ['urn:iso:std:iso:14812:*', 'https://glossarist.org/isotc204/*']);
+      uriRouter.registerDataset('isotc204', '', '', ['urn:iso:std:iso:14812:*', 'https://glossarist.org/isotc204/*']);
       const result = resolver.resolveReference('https://glossarist.org/isotc204/concept/3.1.1.1');
       expect(result).toEqual({
         type: 'internal',
@@ -21,7 +26,7 @@ describe('ReferenceResolver', () => {
     });
 
     it('resolves URN to internal for provided dataset', () => {
-      resolver.registerDataset('isotc204', ['urn:iso:std:iso:14812:*']);
+      uriRouter.registerDataset('isotc204', '', '', ['urn:iso:std:iso:14812:*']);
       const result = resolver.resolveReference('urn:iso:std:iso:14812:3.1.1.1');
       expect(result).toEqual({
         type: 'internal',
@@ -32,8 +37,8 @@ describe('ReferenceResolver', () => {
     });
 
     it('sets crossDataset=true when source dataset differs', () => {
-      resolver.registerDataset('iev', ['urn:iec:std:iec:60050:*']);
-      resolver.registerDataset('isotc204', ['urn:iso:std:iso:14812:*']);
+      uriRouter.registerDataset('iev', '', '', ['urn:iec:std:iec:60050:*']);
+      uriRouter.registerDataset('isotc204', '', '', ['urn:iso:std:iso:14812:*']);
       const result = resolver.resolveReference('urn:iec:std:iec:60050:103-01-02', 'isotc204');
       expect(result).toEqual({
         type: 'internal',
@@ -96,7 +101,7 @@ describe('ReferenceResolver', () => {
     });
 
     it('prefers provided dataset over routing', () => {
-      resolver.registerDataset('iev', ['urn:iec:std:iec:60050:*']);
+      uriRouter.registerDataset('iev', '', '', ['urn:iec:std:iec:60050:*']);
       resolver.loadRouting([
         {
           uri: 'urn:iec:std:iec:60050:*',

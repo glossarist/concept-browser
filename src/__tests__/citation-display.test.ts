@@ -5,6 +5,13 @@ import { createPinia, setActivePinia } from 'pinia';
 import CitationDisplay from '../components/CitationDisplay.vue';
 import { getFactory, resetFactory } from '../adapters/factory';
 import { ReferenceResolver } from '../adapters/ReferenceResolver';
+import { UriRouter } from '../adapters/UriRouter';
+
+function createTestResolver() {
+  const uriRouter = new UriRouter();
+  const resolver = new ReferenceResolver(uriRouter);
+  return { uriRouter, resolver };
+}
 
 // Minimal Citation type matching the glossarist Citation interface
 function makeCitation(source: string, referenceFrom: string, type = 'clause') {
@@ -21,8 +28,8 @@ describe('CitationDisplay — source reference linking', () => {
     resetFactory();
     const factory = getFactory();
     // Register dataset patterns
-    factory.resolver.registerDataset('vim-2012', ['urn:oiml:pub:v:2:2012*']);
-    factory.resolver.registerDataset('viml-2022', ['urn:oiml:pub:v:1:2022*']);
+    factory.uriRouter.registerDataset('vim-2012', '', '', ['urn:oiml:pub:v:2:2012*']);
+    factory.uriRouter.registerDataset('viml-2022', '', '', ['urn:oiml:pub:v:1:2022*']);
     // Register source refs
     factory.resolver.registerSourceRef('OIML V 2-200:2012', 'vim-2012', 'urn:oiml:pub:v:2:2012');
     factory.resolver.registerSourceRef('OIML V2-200:2012', 'vim-2012', 'urn:oiml:pub:v:2:2012');
@@ -148,8 +155,8 @@ describe('CitationDisplay — classification-based rendering', () => {
   beforeEach(async () => {
     resetFactory();
     const factory = getFactory();
-    factory.resolver.registerDataset('vim-2012', ['urn:oiml:pub:v:2:2012*']);
-    factory.resolver.registerDataset('viml-2022', ['urn:oiml:pub:v:1:2022*']);
+    factory.uriRouter.registerDataset('vim-2012', '', '', ['urn:oiml:pub:v:2:2012*']);
+    factory.uriRouter.registerDataset('viml-2022', '', '', ['urn:oiml:pub:v:1:2022*']);
     factory.resolver.registerSourceRef('OIML V2-200:2012', 'vim-2012', 'urn:oiml:pub:v:2:2012');
 
     router = createRouter({
@@ -207,11 +214,12 @@ describe('CitationDisplay — classification-based rendering', () => {
 
 describe('ReferenceResolver — resolveCite', () => {
   let resolver: ReferenceResolver;
+  let uriRouter: UriRouter;
 
   beforeEach(() => {
-    resolver = new ReferenceResolver();
-    resolver.registerDataset('vim-2012', ['urn:oiml:pub:v:2:2012*']);
-    resolver.registerDataset('viml-2022', ['urn:oiml:pub:v:1:2022*']);
+    ({ uriRouter, resolver } = createTestResolver());
+    uriRouter.registerDataset('vim-2012', '', '', ['urn:oiml:pub:v:2:2012*']);
+    uriRouter.registerDataset('viml-2022', '', '', ['urn:oiml:pub:v:1:2022*']);
     resolver.registerSourceRef('OIML V2-200:2012', 'vim-2012', 'urn:oiml:pub:v:2:2012');
   });
 
@@ -262,10 +270,11 @@ describe('ReferenceResolver — resolveCite', () => {
 
 describe('ReferenceResolver — classifyCitation via resolveCite', () => {
   let resolver: ReferenceResolver;
+  let uriRouter: UriRouter;
 
   beforeEach(() => {
-    resolver = new ReferenceResolver();
-    resolver.registerDataset('vim-2012', ['urn:oiml:pub:v:2:2012*']);
+    ({ uriRouter, resolver } = createTestResolver());
+    uriRouter.registerDataset('vim-2012', '', '', ['urn:oiml:pub:v:2:2012*']);
     resolver.registerSourceRef('VIM', 'vim-2012', 'urn:oiml:pub:v:2:2012');
   });
 

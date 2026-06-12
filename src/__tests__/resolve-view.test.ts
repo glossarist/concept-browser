@@ -68,7 +68,7 @@ describe('ResolveView', () => {
 
   it('resolves the URI via the factory resolver', async () => {
     const factory = getFactory();
-    factory.resolver.registerDataset('test', ['https://glossarist.org/test/*']);
+    factory.uriRouter.registerDataset('test', '', '', ['https://glossarist.org/test/*']);
     const resolution = factory.resolve(TEST_URI);
     expect(resolution.type).toBe('internal');
     expect(resolution).toHaveProperty('registerId', 'test');

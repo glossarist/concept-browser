@@ -1,12 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ReferenceResolver } from '../adapters/ReferenceResolver';
+import { createResolverPair } from './test-helpers';
 
 describe('ReferenceResolver — resolveCite edge cases', () => {
-  let resolver: ReferenceResolver;
+  let resolver: ReturnType<typeof createResolverPair>['resolver'];
+  let uriRouter: ReturnType<typeof createResolverPair>['uriRouter'];
 
   beforeEach(() => {
-    resolver = new ReferenceResolver();
-    resolver.registerDataset('vim-2012', ['urn:oiml:pub:v:2:2012*']);
+    const pair = createResolverPair();
+    resolver = pair.resolver;
+    uriRouter = pair.uriRouter;
+    uriRouter.registerDataset('vim-2012', '', '', ['urn:oiml:pub:v:2:2012*']);
     resolver.registerSourceRef('VIM', 'vim-2012', 'urn:oiml:pub:v:2:2012');
   });
 
@@ -87,8 +90,8 @@ describe('ReferenceResolver — resolveCite edge cases', () => {
 
 describe('ReferenceResolver — URI pattern matching', () => {
   it('matches URN patterns with wildcard', () => {
-    const resolver = new ReferenceResolver();
-    resolver.registerDataset('iso-10303', ['urn:iso:std:iso:10303:*']);
+    const { resolver, uriRouter } = createResolverPair();
+    uriRouter.registerDataset('iso-10303', '', '', ['urn:iso:std:iso:10303:*']);
 
     const result = resolver.resolveReference('urn:iso:std:iso:10303:3.1.1.1');
     expect(result.type).toBe('internal');
@@ -99,8 +102,8 @@ describe('ReferenceResolver — URI pattern matching', () => {
   });
 
   it('matches HTTPS patterns with wildcard', () => {
-    const resolver = new ReferenceResolver();
-    resolver.registerDataset('iev', ['https://glossarist.org/iev/*']);
+    const { resolver, uriRouter } = createResolverPair();
+    uriRouter.registerDataset('iev', '', '', ['https://glossarist.org/iev/*']);
 
     const result = resolver.resolveReference('https://glossarist.org/iev/concept/103-01-02');
     expect(result.type).toBe('internal');
@@ -111,7 +114,7 @@ describe('ReferenceResolver — URI pattern matching', () => {
   });
 
   it('returns unresolved for unknown URIs', () => {
-    const resolver = new ReferenceResolver();
+    const { resolver } = createResolverPair();
     const result = resolver.resolveReference('https://unknown.example.com/concept/1');
     expect(result.type).toBe('unresolved');
   });
