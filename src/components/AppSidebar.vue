@@ -149,6 +149,9 @@ function isActive(page: { route: string; datasetScoped?: boolean }): boolean {
   const target = pageRoute(page);
   if (route.path === target) return true;
   if (page.datasetScoped) return route.name === page.route;
+  // Non-dataset-scoped page: only match if we're NOT inside a dataset route
+  const inDataset = 'registerId' in route.params;
+  if (inDataset) return false;
   return route.name === page.route || route.name === `${page.route}-global`;
 }
 
