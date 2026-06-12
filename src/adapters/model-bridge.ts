@@ -73,18 +73,18 @@ interface JsonLdRef {
   'gl:id'?: string;
   'gl:version'?: string;
   'gl:text'?: string;
-  'source'?: string;
-  'id'?: string;
-  'version'?: string;
+  source?: string;
+  id?: string;
+  version?: string;
 }
 
 interface JsonLdLocality {
   'gl:localityType'?: string;
   'gl:referenceFrom'?: string;
   'gl:referenceTo'?: string;
-  'type'?: string;
-  'reference_from'?: string;
-  'reference_to'?: string;
+  type?: string;
+  reference_from?: string;
+  reference_to?: string;
 }
 
 interface JsonLdOrigin {
@@ -97,6 +97,7 @@ interface JsonLdOrigin {
 }
 
 interface JsonLdSource {
+  'gl:id'?: string;
   'gl:sourceType'?: string;
   'gl:sourceStatus'?: string;
   'gl:modification'?: string;
@@ -109,6 +110,8 @@ interface JsonLdRelated {
   '@id'?: string;
   'gl:term'?: string;
   'gl:target'?: string;
+  'gl:sourceId'?: string;
+  'gl:citation'?: JsonLdOrigin;
 }
 
 interface JsonLdDesignation {
@@ -192,10 +195,24 @@ export function getRefText(ref: ConceptRef): string | null {
   return refTexts.get(ref) ?? null;
 }
 
+// RelatedConcept.sourceId: links a citation reference back to its source entry
+const relatedSourceIds = new WeakMap<object, string>();
+
+export function getRelatedSourceId(rc: object): string | null {
+  return relatedSourceIds.get(rc) ?? null;
+}
+
+// RelatedConcept.citation: embedded citation data for cite-ref references
+const relatedCitations = new WeakMap<object, Record<string, unknown>>();
+
+export function getRelatedCitation(rc: object): Record<string, unknown> | null {
+  return relatedCitations.get(rc) ?? null;
+}
+
 // Relationship types whose target is a designation string, not a concept ref.
 const DESIGNATION_REL_TYPES = new Set(['abbreviated_form_for', 'short_form_for']);
 
-function attachAnnotations(concept: Concept, localizations: Record<string, unknown>): void {
+function attachBridges(concept: Concept, localizations: Record<string, unknown>): void {
   for (const lang of concept.languages) {
     const lc = concept.localization(lang);
     const raw = localizations[lang];
@@ -210,7 +227,7 @@ function attachAnnotations(concept: Concept, localizations: Record<string, unkno
       ));
     }
 
-    // Designation-level relationship targets and ref text
+    // Designation-level relationship targets, ref text, sourceId, citation
     const rawTerms = rawObj.terms;
     if (Array.isArray(rawTerms)) {
       for (const rawTerm of rawTerms) {
@@ -222,39 +239,55 @@ function attachAnnotations(concept: Concept, localizations: Record<string, unkno
         if (!designation) continue;
         const rawRelated = rawT.related;
         if (!Array.isArray(rawRelated)) continue;
-        for (const rawRel of rawRelated) {
-          if (!rawRel || typeof rawRel !== 'object') continue;
-          const rel = rawRel as Record<string, unknown>;
-          const relType = rel.type as string | undefined;
-          const rc = designation.related.find(r => r.type === relType);
-          if (!rc) continue;
-          if (rel.target && typeof rel.target === 'string') {
-            designationTargets.set(rc as object, rel.target);
-          }
-          if ('ref' in rc && rc.ref) {
-            const rawRef = rel.ref as Record<string, unknown> | undefined;
-            if (rawRef?.text && typeof rawRef.text === 'string') {
-              refTexts.set(rc.ref, rawRef.text);
-            }
-          }
-        }
+        attachRelatedBridges(designation.related, rawRelated);
       }
     }
 
-    // Localization-level ref text
+    // Localization-level related concepts
     const rawRelated = rawObj.related;
     if (Array.isArray(rawRelated)) {
-      for (const rawRel of rawRelated) {
-        if (!rawRel || typeof rawRel !== 'object') continue;
-        const rel = rawRel as Record<string, unknown>;
-        const relType = rel.type as string | undefined;
-        const rc = relType ? lc.related.find(r => r.type === relType) : undefined;
-        if (!rc || !rc.ref) continue;
-        const rawRef = rel.ref as Record<string, unknown> | undefined;
-        if (rawRef?.text && typeof rawRef.text === 'string') {
-          refTexts.set(rc.ref, rawRef.text);
-        }
+      attachRelatedBridges(lc.related, rawRelated);
+    }
+  }
+}
+
+/**
+ * Attach bridged fields (ref text, sourceId, citation) to RelatedConcept instances
+ * from the raw deserialized data. Called after Concept.fromJSON creates the model
+ * instances, since RelatedConcept.fromJSON only reads type/content/ref.
+ */
+function attachRelatedBridges(
+  modelRelated: Array<{ type?: string | null; content?: string | null; ref?: any; related?: any[] }>,
+  rawRelated: unknown[],
+): void {
+  for (const rawRel of rawRelated) {
+    if (!rawRel || typeof rawRel !== 'object') continue;
+    const rel = rawRel as Record<string, unknown>;
+    const relType = rel.type as string | undefined;
+    const rc = relType ? modelRelated.find(r => r.type === relType) : undefined;
+    if (!rc) continue;
+
+    // Ref text
+    if (rc.ref) {
+      const rawRef = rel.ref as Record<string, unknown> | undefined;
+      if (rawRef?.text && typeof rawRef.text === 'string') {
+        refTexts.set(rc.ref, rawRef.text);
       }
+    }
+
+    // Designation target
+    if (rel.target && typeof rel.target === 'string') {
+      designationTargets.set(rc, rel.target);
+    }
+
+    // Source ID — links citation reference back to the ConceptSource entry
+    if (rel.sourceId && typeof rel.sourceId === 'string') {
+      relatedSourceIds.set(rc, rel.sourceId);
+    }
+
+    // Citation — embedded origin data for cite-ref references
+    if (rel.citation && typeof rel.citation === 'object') {
+      relatedCitations.set(rc, rel.citation as Record<string, unknown>);
     }
   }
 }
@@ -335,8 +368,37 @@ function mapDesignationFromJsonLd(d: JsonLdDesignation): Record<string, unknown>
   return result;
 }
 
+function mapRefFromJsonLd(rawRef: JsonLdRef | string | undefined): Record<string, unknown> | null {
+  if (!rawRef) return null;
+  if (typeof rawRef === 'string') return { source: rawRef };
+  const refObj: Record<string, unknown> = {};
+  // gl:-prefixed keys take precedence over unprefixed keys
+  refObj.source = rawRef['gl:source'] ?? rawRef.source;
+  refObj.id = rawRef['gl:id'] ?? rawRef.id;
+  refObj.version = rawRef['gl:version'] ?? rawRef.version;
+  if (rawRef['gl:text']) refObj.text = rawRef['gl:text'];
+  return (refObj.source ?? refObj.id ?? refObj.version ?? refObj.text) != null
+    ? refObj : null;
+}
+
+/**
+ * Map JSON-LD locality to glossarist's snake_case format.
+ * Always uses snake_case (reference_from/reference_to) for consistency
+ * with the glossarist model.
+ */
+function mapLocalityFromJsonLd(rawLoc: JsonLdLocality | undefined): Record<string, unknown> | null {
+  if (!rawLoc) return null;
+  const locObj: Record<string, unknown> = {};
+  locObj.type = rawLoc['gl:localityType'] ?? rawLoc.type;
+  locObj.reference_from = rawLoc['gl:referenceFrom'] ?? rawLoc.reference_from;
+  locObj.reference_to = rawLoc['gl:referenceTo'] ?? rawLoc.reference_to;
+  return (locObj.type ?? locObj.reference_from ?? locObj.reference_to) != null
+    ? locObj : null;
+}
+
 function mapSourceFromJsonLd(s: JsonLdSource): Record<string, unknown> {
   const result: Record<string, unknown> = {};
+  if (s['gl:id']) result.id = s['gl:id'];
   if (s['gl:sourceType']) result.type = s['gl:sourceType'];
   if (s['gl:sourceStatus']) result.status = s['gl:sourceStatus'];
   if (s['gl:modification']) result.modification = s['gl:modification'];
@@ -344,32 +406,10 @@ function mapSourceFromJsonLd(s: JsonLdSource): Record<string, unknown> {
   if (s['gl:origin']) {
     const origin: Record<string, unknown> = {};
     const o = s['gl:origin'];
-    if (o['gl:ref']) {
-      const rawRef = o['gl:ref'];
-      if (typeof rawRef === 'string') {
-        origin.ref = { source: rawRef };
-      } else {
-        const refObj: Record<string, unknown> = {};
-        if (rawRef['gl:source']) refObj.source = rawRef['gl:source'];
-        if (rawRef['gl:id']) refObj.id = rawRef['gl:id'];
-        if (rawRef['gl:version']) refObj.version = rawRef['gl:version'];
-        if (rawRef['source']) refObj.source = rawRef['source'];
-        if (rawRef['id']) refObj.id = rawRef['id'];
-        if (rawRef['version']) refObj.version = rawRef['version'];
-        if (Object.keys(refObj).length > 0) origin.ref = refObj;
-      }
-    }
-    if (o['gl:locality']) {
-      const loc: Record<string, unknown> = {};
-      const rawLoc = o['gl:locality'];
-      if (rawLoc['gl:localityType']) loc.type = rawLoc['gl:localityType'];
-      if (rawLoc['gl:referenceFrom']) loc.reference_from = rawLoc['gl:referenceFrom'];
-      if (rawLoc['gl:referenceTo']) loc.reference_to = rawLoc['gl:referenceTo'];
-      if (rawLoc['type']) loc.type = rawLoc['type'];
-      if (rawLoc['reference_from']) loc.reference_from = rawLoc['reference_from'];
-      if (rawLoc['reference_to']) loc.reference_to = rawLoc['reference_to'];
-      origin.locality = loc;
-    }
+    const ref = mapRefFromJsonLd(o['gl:ref']);
+    if (ref) origin.ref = ref;
+    const loc = mapLocalityFromJsonLd(o['gl:locality']);
+    if (loc) origin.locality = loc;
     if (o['gl:link']) origin.link = o['gl:link'];
     if (o['gl:id']) origin.id = o['gl:id'];
     if (o['gl:version']) origin.version = o['gl:version'];
@@ -388,14 +428,8 @@ function mapRelatedFromJsonLd(r: JsonLdRelated): Record<string, unknown> {
   }
 
   if (r['gl:ref']) {
-    const ref = r['gl:ref'];
-    const refObj: Record<string, unknown> = {};
-    if (ref['gl:source']) refObj.source = ref['gl:source'];
-    if (ref['gl:id']) refObj.id = ref['gl:id'];
-    if (ref['source']) refObj.source = ref['source'];
-    if (ref['id']) refObj.id = ref['id'];
-    if (ref['gl:text']) refObj.text = ref['gl:text'];
-    if (Object.keys(refObj).length > 0) result.ref = refObj;
+    const ref = mapRefFromJsonLd(r['gl:ref']);
+    if (ref) result.ref = ref;
   }
 
   if (!result.ref && r['@id']) {
@@ -406,6 +440,22 @@ function mapRelatedFromJsonLd(r: JsonLdRelated): Record<string, unknown> {
       : { source: uri, id: null };
   }
   if (r['gl:term']) result.content = r['gl:term'];
+
+  // Bridged fields — stored in raw dict, extracted by attachBridges()
+  if (r['gl:sourceId']) result.sourceId = r['gl:sourceId'];
+  if (r['gl:citation']) {
+    const c = r['gl:citation'];
+    const citation: Record<string, unknown> = {};
+    if (c['gl:ref']) {
+      const cr = mapRefFromJsonLd(c['gl:ref']);
+      if (cr) citation.ref = cr;
+    }
+    const loc = mapLocalityFromJsonLd(c['gl:locality']);
+    if (loc) citation.locality = loc;
+    if (c['gl:link']) citation.link = c['gl:link'];
+    if (Object.keys(citation).length > 0) result.citation = citation;
+  }
+
   return result;
 }
 
@@ -493,7 +543,7 @@ function conceptFromJsonLd(doc: JsonLdConcept): Concept {
     status: null,
   });
 
-  attachAnnotations(concept, localizations);
+  attachBridges(concept, localizations);
   return concept;
 }
 
@@ -505,7 +555,7 @@ export function conceptFromJson(doc: Record<string, unknown>): Concept {
   }
   const concept = Concept.fromJSON(doc);
   const locs = (doc as Record<string, unknown>).localizations as Record<string, unknown> | undefined;
-  if (locs) attachAnnotations(concept, locs);
+  if (locs) attachBridges(concept, locs);
   return concept;
 }
 
