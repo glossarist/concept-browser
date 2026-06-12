@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Citation } from 'glossarist';
+import type { CitationClassification, CiteResolution } from '../adapters/types';
 import { computed, ref } from 'vue';
 import { getFactory } from '../adapters/factory';
 import { useRouter } from 'vue-router';
@@ -14,21 +15,25 @@ const router = useRouter();
 const store = useVocabularyStore();
 const factory = getFactory();
 
-function resolveCitation(): { registerId: string; conceptId: string } | null {
-  const ref = props.citation.ref;
-  const locality = props.citation.locality;
-  if (!ref?.source || !locality?.referenceFrom) return null;
+// ── Single source of truth for citation resolution ────────────────────────
+// Both classification and navigation target come from the same resolveCite()
+// call, so they can never disagree.
 
-  const resolution = factory.resolveCitation(ref.source, locality.referenceFrom, props.registerId);
-  if (!resolution || resolution.type !== 'internal') return null;
+const citeResolution = computed<CiteResolution>(() =>
+  factory.resolver.resolveCite(props.citation, props.registerId),
+);
 
-  return { registerId: resolution.registerId, conceptId: resolution.conceptId };
-}
+const classification = computed<CitationClassification>(() =>
+  citeResolution.value.classification,
+);
 
-const resolvedTarget = computed(() => resolveCitation());
+const resolvedTarget = computed(() => citeResolution.value.resolved);
+
 const isCrossDataset = computed(() =>
   resolvedTarget.value != null && resolvedTarget.value.registerId !== props.registerId,
 );
+
+// ── Navigation ────────────────────────────────────────────────────────────
 
 async function navigateToCitation() {
   if (!resolvedTarget.value) return;
@@ -37,7 +42,37 @@ async function navigateToCitation() {
   router.push({ name: 'concept', params: { registerId, conceptId } });
 }
 
-// --- Hover preview ---
+// ── Wrapper element determined by classification ──────────────────────────
+// Internal → button (navigates to concept)
+// Self-contained with link → anchor (external link)
+// Everything else → span (plain text)
+
+const sourceTag = computed(() => {
+  if (classification.value === 'internal-citation') return 'button';
+  if (classification.value === 'self-contained-citation' && props.citation.link) return 'a';
+  return 'span';
+});
+
+const sourceAttrs = computed(() => {
+  if (sourceTag.value === 'button') {
+    return { class: 'concept-link font-medium inline-flex items-center gap-0.5' };
+  }
+  if (sourceTag.value === 'a') {
+    return { href: props.citation.link!, target: '_blank', rel: 'noopener', class: 'concept-link font-medium' };
+  }
+  return { class: 'font-medium' };
+});
+
+const sourceEvents = computed(() => {
+  if (sourceTag.value !== 'button') return {};
+  return {
+    onClick: navigateToCitation,
+    onMouseenter: schedulePreview,
+  };
+});
+
+// ── Hover preview ─────────────────────────────────────────────────────────
+
 const triggerEl = ref<HTMLElement | null>(null);
 const preview = ref<{ designation: string; definition: string } | null>(null);
 const previewVisible = ref(false);
@@ -90,39 +125,60 @@ function hidePreview() {
   if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; }
   previewVisible.value = false;
 }
+
+// ── Locality formatting ───────────────────────────────────────────────────
+
+function formatLocality(loc: NonNullable<Citation['locality']>): string {
+  const parts: string[] = [];
+  const lType = (loc as unknown as Record<string, unknown>).type as string | null;
+  const from = (loc as unknown as Record<string, unknown>).referenceFrom ?? (loc as unknown as Record<string, unknown>).reference_from;
+  const to = (loc as unknown as Record<string, unknown>).referenceTo ?? (loc as unknown as Record<string, unknown>).reference_to;
+  if (lType) parts.push(`, ${lType}`);
+  if (from) parts.push(to ? ` ${from}–${to}` : ` ${from}`);
+  return parts.join('');
+}
 </script>
 
 <template>
   <span class="inline" @mouseleave="hidePreview">
-    <template v-if="citation.ref">
-      <button
-        v-if="resolvedTarget"
-        @click="navigateToCitation"
-        @mouseenter="schedulePreview"
-        class="concept-link font-medium inline-flex items-center gap-0.5"
+    <!-- Source reference: dynamic wrapper (button/a/span) -->
+    <template v-if="citation.ref?.source">
+      <component
+        :is="sourceTag"
+        v-bind="sourceAttrs"
+        v-on="sourceEvents"
       >
         {{ citation.ref.source }}
         <span v-if="isCrossDataset" class="text-[10px] opacity-60 leading-none">↗</span>
-      </button>
-      <span v-else-if="citation.ref.source" class="font-medium">{{ citation.ref.source }}</span>
+      </component>
       <span v-if="citation.ref.id"> {{ citation.ref.id }}</span>
       <span v-if="citation.ref.version" class="text-ink-400"> ({{ citation.ref.version }})</span>
     </template>
+
+    <!-- Locality: same formatting across all classifications -->
     <template v-if="citation.locality">
-      <button v-if="resolvedTarget" @click="navigateToCitation" @mouseenter="schedulePreview" class="concept-link">
-        <span v-if="citation.locality.type" class="text-ink-400">, {{ citation.locality.type }}</span>
-        <span v-if="citation.locality.referenceFrom" class="text-ink-400">
-          {{ citation.locality.referenceTo ? ` ${citation.locality.referenceFrom}–${citation.locality.referenceTo}` : ` ${citation.locality.referenceFrom}` }}
-        </span>
+      <button
+        v-if="classification === 'internal-citation'"
+        @click="navigateToCitation"
+        @mouseenter="schedulePreview"
+        class="concept-link"
+      >
+        {{ formatLocality(citation.locality) }}
       </button>
-      <template v-else>
-        <span v-if="citation.locality.type" class="text-ink-400">, {{ citation.locality.type }}</span>
-        <span v-if="citation.locality.referenceFrom" class="text-ink-400">
-          {{ citation.locality.referenceTo ? ` ${citation.locality.referenceFrom}–${citation.locality.referenceTo}` : ` ${citation.locality.referenceFrom}` }}
-        </span>
-      </template>
+      <span v-else class="text-ink-400">
+        {{ formatLocality(citation.locality) }}
+      </span>
     </template>
-    <a v-if="citation.link" :href="citation.link" target="_blank" rel="noopener" class="concept-link ml-1">[link]</a>
+
+    <!-- External link badge (only for non-self-contained citations that have a link) -->
+    <a
+      v-if="citation.link && classification !== 'self-contained-citation'"
+      :href="citation.link"
+      target="_blank"
+      rel="noopener"
+      class="concept-link ml-1"
+    >[link]</a>
+
     <span v-if="citation.original" class="text-xs text-ink-300 ml-1">(orig: {{ citation.original }})</span>
     <span v-if="resolvedTarget" class="text-[9px] text-ink-300 ml-1">→ {{ resolvedTarget.registerId }}/{{ resolvedTarget.conceptId }}</span>
 
