@@ -55,7 +55,7 @@ Concepts use URIs like `https://glossarist.org/{registerId}/concept/{conceptId}`
 Each dataset gets a dynamic color from its `manifest.json` `color` field (set via `datasets.yml`). Colors are used via `useDsStyle()` composable with per-register caching. No hardcoded per-dataset CSS classes — all dataset colors are data-driven.
 
 ### Content Rendering
-`src/utils/math.ts` renders `stem:[...]` AsciiMath notation to KaTeX HTML, plus inline formatting (italic, subscript, cross-reference resolution). `renderMath` is a pure function that accepts `RenderOptions` (urnMap, refPrefixMap) — no module-level state. `cleanContent` strips formatting for plain-text display.
+`src/utils/content-renderer.ts` is the single source of truth for ALL inline content rendering. Pipeline stages (in order): math placeholders (`stem:`, `latexmath:`), AsciiDoc tables, lists, text formatting (bold/italic/subscript), bibliography cross-refs, figure refs, URN inline refs, and the mention dispatcher (cite-ref, numeric, two-arg concept refs via `parseMention` from glossarist). `renderContent()` is a pure function accepting `RenderOptions` — no module-level state. `cleanContent()` strips all notation to plain text. `math.ts` re-exports for backward compat only — new code imports from `content-renderer.ts`.
 
 ## Tech Stack
 
