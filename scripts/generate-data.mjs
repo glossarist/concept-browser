@@ -19,6 +19,11 @@ function readYaml(filePath) {
   return yaml.load(fs.readFileSync(filePath, 'utf8'));
 }
 
+/** Strip HTML tags and normalize whitespace for plain-text display. */
+function stripHtml(s) {
+  return s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+}
+
 function loadConceptFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
   const docs = yaml.loadAll(content, null, { schema: yaml.DEFAULT_SCHEMA });
@@ -840,15 +845,22 @@ function processDataset(dir, register, opts) {
   }));
 
   // Strip HTML from index summary for text display
-  const plainSummary = summary.map(c => ({
-    ...c,
-    eng: c.eng.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(),
-  }));
+  const plainSummary = summary.map(c => {
+    const designations = {};
+    for (const [lang, term] of Object.entries(c.designations)) {
+      if (term) designations[lang] = stripHtml(term);
+    }
+    return {
+      ...c,
+      designations,
+      eng: stripHtml(c.eng),
+    };
+  });
 
   const graphNodeEntries = concepts.map(c => {
     const cleanDesignations = {};
     for (const [l, t] of Object.entries(c.designations)) {
-      if (t) cleanDesignations[l] = t.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      if (t) cleanDesignations[l] = stripHtml(t);
     }
     return [c.id, cleanDesignations, c.status];
   });
@@ -1071,8 +1083,8 @@ writeJson(path.join(PUBLIC, 'datasets.json'), registry);
 const configuredIds = new Set(config.datasets.map(d => d.id));
 if (fs.existsSync(DATA)) {
   for (const entry of fs.readdirSync(DATA)) {
-    if (!configuredIds.has(entry)) {
       const stalePath = path.join(DATA, entry);
+    if (!configuredIds.has(entry) && fs.statSync(stalePath).isDirectory()) {
       fs.rmSync(stalePath, { recursive: true, force: true });
       console.log(`  Removed stale data directory: ${entry}`);
     }
