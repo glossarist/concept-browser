@@ -25,7 +25,7 @@
     "autoprefixer": "^10.4.21",
     "d3": "^7.9.0",
     "favicons": "^7.2.0",
-    "glossarist": "^0.3.3",
+    "glossarist": "^0.3.5",
     "js-yaml": "^4.1.0",
     "pinia": "^2.3.1",
     "postcss": "^8.5.3",

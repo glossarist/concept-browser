@@ -23,3 +23,6 @@ public/logos/
 public/routing.json
 public/site-config.json
 site-configs.yml
+
+# Test snapshots
+__snapshots__/
