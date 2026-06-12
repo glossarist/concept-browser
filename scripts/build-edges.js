@@ -31,14 +31,16 @@ function extractReferences(concept, registerId) {
     if (lc['gl:references']) {
       for (const ref of lc['gl:references']) {
         if (ref['@id'] && ref['@id'] !== sourceUri) {
-          edges.push({
+          const edge = {
             source: sourceUri,
             target: ref['@id'],
-            type: 'references',
+            type: ref['@id'].startsWith('cite:') ? 'citation' : 'references',
             label: ref['gl:term'] || undefined,
             register: registerId,
             lang,
-          });
+          };
+          if (ref['gl:sourceId']) edge.sourceId = ref['gl:sourceId'];
+          edges.push(edge);
         }
       }
     }
@@ -263,7 +265,7 @@ const datasets = readdirSync(DATA_DIR).filter(f => {
   }
 });
 
-// Build URN→datasetId map from all manifests
+// Build URI→datasetId prefix map from all manifests
 const urnMap = new Map();
 const manifestCache = new Map();
 for (const ds of datasets) {
@@ -271,14 +273,17 @@ for (const ds of datasets) {
   try {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
     manifestCache.set(ds, manifest);
-    if (manifest.datasetUri) urnMap.set(manifest.datasetUri, ds);
+    if (manifest.datasetUri) {
+      const base = manifest.datasetUri.endsWith('*') ? manifest.datasetUri.slice(0, -1) : manifest.datasetUri;
+      if (base) urnMap.set(base, ds);
+    }
     for (const alias of manifest.uriAliases ?? []) {
       const base = alias.endsWith('*') ? alias.slice(0, -1) : alias;
-      if (base.startsWith('urn:')) urnMap.set(base, ds);
+      if (base) urnMap.set(base, ds);
     }
   } catch {}
 }
-console.log(`URN resolution map: ${[...urnMap.entries()].map(([k,v]) => `${k}→${v}`).join(', ')}\n`);
+console.log(`URI resolution map: ${[...urnMap.entries()].map(([k,v]) => `${k}→${v}`).join(', ')}\n`);
 
 const allDatasetEdges = new Map();
 const allSourceRefs = [];
@@ -310,7 +315,10 @@ for (const [ds, manifest] of manifestCache) {
   for (const alias of manifest.refAliases ?? []) {
     knownSourceStrings.add(alias);
   }
-  if (manifest.datasetUri) knownSourceStrings.add(manifest.datasetUri);
+  if (manifest.datasetUri) {
+    const base = manifest.datasetUri.endsWith('*') ? manifest.datasetUri.slice(0, -1) : manifest.datasetUri;
+    knownSourceStrings.add(base);
+  }
   for (const alias of manifest.uriAliases ?? []) {
     const base = alias.endsWith('*') ? alias.slice(0, -1) : alias;
     knownSourceStrings.add(base);
