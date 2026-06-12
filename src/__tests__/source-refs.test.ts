@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ReferenceResolver } from '../adapters/ReferenceResolver';
+import { UriRouter } from '../adapters/UriRouter';
 import type { Resolution } from '../adapters/types';
 
 type InternalResolution = Extract<Resolution, { type: 'internal' }>;
@@ -10,13 +11,15 @@ function asInternal(r: Resolution | null): InternalResolution | null {
 
 describe('Source reference resolution (citation linking)', () => {
   let resolver: ReferenceResolver;
+  let uriRouter: UriRouter;
 
   beforeEach(() => {
-    resolver = new ReferenceResolver();
+    uriRouter = new UriRouter();
+    resolver = new ReferenceResolver(uriRouter);
     // Register datasets with URI patterns
-    resolver.registerDataset('vim-2012', ['urn:oiml:pub:v:2:2012*']);
-    resolver.registerDataset('viml-2022', ['urn:oiml:pub:v:1:2022*']);
-    resolver.registerDataset('vim-2007', ['urn:oiml:pub:v:2:2007*']);
+    uriRouter.registerDataset('vim-2012', '', '', ['urn:oiml:pub:v:2:2012*']);
+    uriRouter.registerDataset('viml-2022', '', '', ['urn:oiml:pub:v:1:2022*']);
+    uriRouter.registerDataset('vim-2007', '', '', ['urn:oiml:pub:v:2:2007*']);
   });
 
   describe('hasSourceRef', () => {
@@ -132,7 +135,7 @@ describe('Source reference resolution (citation linking)', () => {
 
   describe('ISO source references', () => {
     it('resolves ISO/IEC references when registered', () => {
-      resolver.registerDataset('iso-17000', ['urn:iso:std:iso:iec:17000*']);
+      uriRouter.registerDataset('iso-17000', '', '', ['urn:iso:std:iso:iec:17000*']);
       resolver.registerSourceRef('ISO/IEC 17000:2020', 'iso-17000', 'urn:iso:std:iso:iec:17000');
 
       const result = resolver.resolveCitation('ISO/IEC 17000:2020', '3.1', 'viml-2022');
@@ -171,7 +174,7 @@ describe('Source reference resolution (citation linking)', () => {
     });
 
     it('handles source strings with special characters', () => {
-      resolver.registerDataset('vim-1993', ['urn:oiml:pub:v:2:1993*']);
+      uriRouter.registerDataset('vim-1993', '', '', ['urn:oiml:pub:v:2:1993*']);
       resolver.registerSourceRef('OIML V 2:1993', 'vim-1993', 'urn:oiml:pub:v:2:1993');
       const result = resolver.resolveCitation('OIML V 2:1993', '3.6');
       expect(asInternal(result)?.registerId).toBe('vim-1993');

@@ -66,8 +66,10 @@ describe('extractInlineRefs — cite-ref integration', () => {
 describe('ReferenceResolver — resolveCite integration', () => {
   it('resolves cite-ref citation with source match to internal', async () => {
     const { ReferenceResolver } = await import('../adapters/ReferenceResolver');
-    const resolver = new ReferenceResolver();
-    resolver.registerDataset('vim-2012', ['urn:oiml:pub:v:2:2012*']);
+    const { UriRouter } = await import('../adapters/UriRouter');
+    const uriRouter = new UriRouter();
+    const resolver = new ReferenceResolver(uriRouter);
+    uriRouter.registerDataset('vim-2012', '', '', ['urn:oiml:pub:v:2:2012*']);
     resolver.registerSourceRef('VIM', 'vim-2012', 'urn:oiml:pub:v:2:2012');
 
     const citation = {
@@ -82,7 +84,8 @@ describe('ReferenceResolver — resolveCite integration', () => {
 
   it('classifies citation with link but no resolution as self-contained', async () => {
     const { ReferenceResolver } = await import('../adapters/ReferenceResolver');
-    const resolver = new ReferenceResolver();
+    const { UriRouter } = await import('../adapters/UriRouter');
+    const resolver = new ReferenceResolver(new UriRouter());
 
     const citation = {
       ref: { source: 'Unknown' },
@@ -96,7 +99,8 @@ describe('ReferenceResolver — resolveCite integration', () => {
 
   it('classifies citation without ref source as unresolved', async () => {
     const { ReferenceResolver } = await import('../adapters/ReferenceResolver');
-    const resolver = new ReferenceResolver();
+    const { UriRouter } = await import('../adapters/UriRouter');
+    const resolver = new ReferenceResolver(new UriRouter());
 
     const result = resolver.resolveCite({ ref: null, locality: null });
     expect(result.classification).toBe('unresolved-citation');

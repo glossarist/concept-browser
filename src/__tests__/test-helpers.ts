@@ -2,6 +2,8 @@ import { createPinia, setActivePinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import { LocalizedConcept } from 'glossarist';
 import type { Manifest, ConceptSummary, SearchHit } from '../adapters/types';
+import { ReferenceResolver } from '../adapters/ReferenceResolver';
+import { UriRouter } from '../adapters/UriRouter';
 
 // ── Manifest Factory ──────────────────────────────────────────────────
 
@@ -172,4 +174,22 @@ export function setupPinia() {
   const pinia = createPinia();
   setActivePinia(pinia);
   return pinia;
+}
+
+// ── ReferenceResolver Setup ──────────────────────────────────────────
+
+export interface ResolverPair {
+  uriRouter: UriRouter;
+  resolver: ReferenceResolver;
+}
+
+/**
+ * Create a UriRouter + ReferenceResolver pair for testing.
+ * Use `pair.uriRouter.registerDataset()` to register URI patterns,
+ * then use `pair.resolver` for reference resolution.
+ */
+export function createResolverPair(): ResolverPair {
+  const uriRouter = new UriRouter();
+  const resolver = new ReferenceResolver(uriRouter);
+  return { uriRouter, resolver };
 }
