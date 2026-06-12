@@ -32,6 +32,9 @@ export type {
 export { RELATIONSHIP_TYPES, DATE_TYPES } from 'glossarist';
 export { GRAMMAR_GENDERS, GRAMMAR_NUMBERS, GRAMMAR_PARTS_OF_SPEECH } from 'glossarist/models';
 
+// Re-export citation classification from ReferenceResolver (single definition site)
+export type { CitationClassification, CiteResolution } from './ReferenceResolver';
+
 // ── Dataset metadata ──────────────────────────────────────────────────────
 
 export interface ManifestSection {
