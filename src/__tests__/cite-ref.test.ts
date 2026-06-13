@@ -35,14 +35,18 @@ describe('parseMention — cite-ref detection', () => {
     expect(result.id).toBe('103-01-02');
   });
 
-  it('classifies URI mentions as unresolved', () => {
+  it('classifies URN mentions as urn-ref (glossarist >= 0.3.7)', () => {
     const result = parseMention('urn:iso:std:iso:10303:-2:ed-1:en:term:foo,bar');
-    expect(result.kind).toBe('unresolved');
+    expect(result.kind).toBe('urn-ref');
+    expect(result.uri).toBe('urn:iso:std:iso:10303:-2:ed-1:en:term:foo');
+    expect(result.label).toBe('bar');
   });
 
-  it('classifies IEV mentions as unresolved', () => {
+  it('classifies IEV-style mentions as designation (glossarist >= 0.3.7)', () => {
     const result = parseMention('term, IEV:103-01-02');
-    expect(result.kind).toBe('unresolved');
+    expect(result.kind).toBe('designation');
+    expect(result.id).toBe('term');
+    expect(result.label).toBe('IEV:103-01-02');
   });
 });
 

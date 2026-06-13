@@ -118,7 +118,9 @@ const renderOpts = computed<RenderOptions>(() => ({
     return escapeAttr(term);
   },
   conceptRefResolver: (conceptId, term) => {
-    return `<a href="#" class="xref-link" data-register="${escapeAttr(props.registerId)}" data-concept="${escapeAttr(conceptId)}">${escapeAttr(term)}</a>`;
+    const adapter = factory.getAdapter(props.registerId);
+    const resolvedId = adapter?.lookupByDesignation(conceptId) ?? conceptId;
+    return `<a href="#" class="xref-link" data-register="${escapeAttr(props.registerId)}" data-concept="${escapeAttr(resolvedId)}">${escapeAttr(term)}</a>`;
   },
   bibResolver,
   figResolver,

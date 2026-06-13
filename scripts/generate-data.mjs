@@ -329,12 +329,30 @@ function handleCiteRef(parsed, allSources) {
  */
 function handleNumeric(parsed, register, uriBase) {
   if (!register) return null;
-  return { id: `${uriBase}/${register}/concept/${parsed.id}`, term: parsed.raw };
+  const term = parsed.label ?? parsed.id;
+  return { id: `${uriBase}/${register}/concept/${parsed.id}`, term };
+}
+
+/**
+ * Handle a designation mention (glossarist >= 0.3.7):
+ * {{designation,render term}} — resolve designation to concept ID in same dataset.
+ * Falls back to the raw designation as the concept ID if no lookup table exists.
+ */
+function handleDesignation(parsed, refMaps) {
+  const register = refMaps.register;
+  if (!register) return null;
+  const designation = parsed.id;
+  const display = parsed.label ?? designation;
+  const conceptId = refMaps.designationLookup?.get(designation.toLowerCase());
+  return {
+    id: `${refMaps.uriBase}/${register}/concept/${conceptId ?? designation}`,
+    term: display,
+  };
 }
 
 /**
  * Handle an unresolved double-brace mention: try two-arg form.
- * Format: {{identifier, display}} — tries IEV, pattern index, same-dataset.
+ * Format: {{conceptId, displayTerm}} — concept ID first, render term last.
  */
 function handleUnresolved(body, refMaps) {
   const commaMatch = body.match(/^([^,}]+),\s*(.+)$/);
@@ -342,18 +360,18 @@ function handleUnresolved(body, refMaps) {
   const identifier = commaMatch[1].trim();
   const display = commaMatch[2].trim();
 
-  // IEV shortform in display position
-  const iev = resolveIevRef(display, identifier, refMaps.refPrefixMap, refMaps.uriBase);
+  // IEV shortform: {{IEV:shortform, display_term}}
+  const iev = resolveIevRef(identifier, display, refMaps.refPrefixMap, refMaps.uriBase);
   if (iev) return iev;
 
   // URI pattern match
   const pattern = resolvePatternRef(identifier, display, refMaps.refPrefixMap, refMaps.patternIndex, refMaps.uriBase);
   if (pattern) return pattern;
 
-  // Same-dataset: {{termName, conceptId}} where conceptId is numeric/X.Y
+  // Same-dataset: {{conceptId, displayTerm}} where conceptId is numeric/X.Y
   const register = refMaps.register;
-  if (register && (/^\d/.test(display) || /^[A-Z]\.\d/.test(display))) {
-    return { id: `${refMaps.uriBase}/${register}/concept/${display}`, term: identifier };
+  if (register && (/^\d/.test(identifier) || /^[A-Z]\.\d/.test(identifier))) {
+    return { id: `${refMaps.uriBase}/${register}/concept/${identifier}`, term: display };
   }
   return null;
 }
@@ -404,6 +422,19 @@ function extractInlineRefs(localizedData, refMaps, conceptSources = []) {
       ref = handleCiteRef(parsed, allSources);
     } else if (parsed.kind === 'numeric') {
       ref = handleNumeric(parsed, refMaps.register, uriBase);
+    } else if (parsed.kind === 'urn-ref') {
+      // {{urn:...,render term}} — resolve URN via pattern index (cross-dataset)
+      const uri = parsed.uri;
+      const term = parsed.label ?? uri;
+      const pattern = refMaps.patternIndex.resolve(uri);
+      if (pattern) {
+        ref = { id: `${refMaps.uriBase}/${pattern.datasetId}/concept/${pattern.conceptId}`, term };
+      } else {
+        ref = { id: uri, term };
+      }
+    } else if (parsed.kind === 'designation') {
+      // {{designation,render term}} — same-dataset designation reference
+      ref = handleDesignation(parsed, refMaps);
     } else {
       ref = handleUnresolved(body, refMaps);
     }
@@ -770,7 +801,28 @@ function processDataset(dir, register, opts) {
   const langTermCounts = {};
   const langDefCounts = {};
   const availableFormats = ['ttl', 'jsonld', 'yaml', 'tbx'];
-  const dsRefMaps = { ...refMaps, register };
+
+  // Pre-scan: build designation → concept ID lookup for same-dataset designation refs
+  const designationLookup = new Map();
+  for (const file of files) {
+    try {
+      const conceptYaml = loadConceptFile(path.join(dir, file));
+      if (!conceptYaml?.termid) continue;
+      const termid = String(conceptYaml.termid);
+      for (const lang of Object.keys(conceptYaml)) {
+        const lc = conceptYaml[lang];
+        if (!lc || typeof lc !== 'object' || !Array.isArray(lc.terms)) continue;
+        for (const term of lc.terms) {
+          const designation = term.designation;
+          if (typeof designation === 'string' && designation && !designationLookup.has(designation.toLowerCase())) {
+            designationLookup.set(designation.toLowerCase(), termid);
+          }
+        }
+      }
+    } catch {}
+  }
+
+  const dsRefMaps = { ...refMaps, register, designationLookup };
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
