@@ -44,6 +44,7 @@ export class DatasetAdapter {
   private conceptCache = new Map<string, Concept>();
   private static MAX_CACHE = 100;
   private summaryMap = new Map<string, ConceptSummary>();
+  private designationMap = new Map<string, string>();
   private loadedChunks = new Set<number>();
   private indexMeta: { conceptCount: number; chunkSize: number; chunks: { file: string; count: number }[] } | null = null;
 
@@ -127,11 +128,17 @@ export class DatasetAdapter {
   private buildSummaryIndex() {
     this.summaryMap.clear();
     this.positionIndex.clear();
+    this.designationMap.clear();
     for (let i = 0; i < this.index!.concepts.length; i++) {
       const entry = this.index!.concepts[i];
       if (entry) {
         this.summaryMap.set(entry.id, entry);
         this.positionIndex.set(entry.id, i);
+        for (const term of Object.values(entry.designations)) {
+          if (term && !this.designationMap.has(term.toLowerCase())) {
+            this.designationMap.set(term.toLowerCase(), entry.id);
+          }
+        }
       }
     }
   }
@@ -261,6 +268,11 @@ export class DatasetAdapter {
 
   getIndexEntry(conceptId: string): ConceptSummary | undefined {
     return this.summaryMap.get(conceptId);
+  }
+
+  /** Look up a concept ID by its designation string (case-insensitive). */
+  lookupByDesignation(designation: string): string | undefined {
+    return this.designationMap.get(designation.toLowerCase());
   }
 
   getConcepts(): (ConceptSummary | undefined)[] {
