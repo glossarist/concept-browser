@@ -18,6 +18,7 @@ export type BibResolver = (refId: string, title: string) => string;
 export type FigResolver = (figId: string) => string;
 export type CiteResolver = (key: string, label: string | null) => string;
 export type ConceptRefResolver = (conceptId: string, term: string) => string;
+export type UrnRefResolver = (uri: string, term: string) => string;
 
 export interface RenderOptions {
   xrefResolver?: XrefResolver;
@@ -25,6 +26,7 @@ export interface RenderOptions {
   figResolver?: FigResolver;
   conceptRefResolver?: ConceptRefResolver;
   citeResolver?: CiteResolver;
+  urnRefResolver?: UrnRefResolver;
 }
 
 // ── Math placeholders ────────────────────────────────────────────────────
@@ -153,6 +155,8 @@ function resolveFigRefs(text: string, opts: RenderOptions): string {
 
 function resolveUrnRefs(text: string, opts: RenderOptions): string {
   // Double-brace URN refs: {{urn:...,term}} or {{urn:...,term,display}}
+  // Note: glossarist ≥ 0.3.7 parseMention handles these as 'urn-ref', but we
+  // keep this handler for when parseMention returns 'unresolved' (glossarist < 0.3.7)
   let result = text.replace(/\{\{(urn:[^,}]+),([^,}]+)(?:,([^}]+))?\}\}/g, (_, uri, term, display) => {
     const t = (display || term).trim();
     if (opts.xrefResolver) {
@@ -178,6 +182,7 @@ function resolveMentions(text: string, opts: RenderOptions): string {
   return text.replace(/\{\{([^{}]+?)\}\}/g, (_orig, body) => {
     const parsed = parseMention(body);
 
+    // cite:key[,render term] — bibliography citation
     if (parsed.kind === 'cite-ref') {
       const key = parsed.key!;
       const label = parsed.label ?? null;
@@ -185,18 +190,45 @@ function resolveMentions(text: string, opts: RenderOptions): string {
       return `<span class="bib-ref">${escapeHtml(label ?? key)}</span>`;
     }
 
-    if (parsed.kind === 'numeric') {
-      return `<span class="gl-mention">${escapeHtml(parsed.id!)}</span>`;
+    // urn:...[,render term] — URN cross-reference (glossarist ≥ 0.3.7)
+    const anyParsed = parsed as Record<string, unknown>;
+    if ((anyParsed.kind as string) === 'urn-ref') {
+      const uri = anyParsed.uri as string;
+      const label = (anyParsed.label as string) ?? uri;
+      if (opts.urnRefResolver) return opts.urnRefResolver(uri, label);
+      if (opts.xrefResolver) return opts.xrefResolver(uri, label);
+      return escapeHtml(label);
     }
 
-    // parseMention says unresolved — check for two-arg form
-    // Convention: {{id, display}} — concept ID first, render term last
+    // numeric_id[,render term] — local concept ID
+    if (parsed.kind === 'numeric') {
+      const id = parsed.id!;
+      const label = parsed.label;
+      if (label && opts.conceptRefResolver) {
+        return opts.conceptRefResolver(id, label);
+      }
+      return `<span class="gl-mention">${escapeHtml(id)}</span>`;
+    }
+
+    // designation[,render term] — designation matching (glossarist ≥ 0.3.7)
+    if ((anyParsed.kind as string) === 'designation') {
+      const designation = anyParsed.id as string;
+      const label = (anyParsed.label as string) ?? designation;
+      if (opts.conceptRefResolver) {
+        return opts.conceptRefResolver(designation, label);
+      }
+      return escapeHtml(label);
+    }
+
+    // Fallback for unresolved: handle two-arg form or render as plain text
+    // This handles cases where parseMention doesn't recognize the kind
+    // (e.g. glossarist < 0.3.7 before urn-ref/designation kinds were added)
     const commaIdx = body.indexOf(',');
     if (commaIdx > 0) {
       const id = body.slice(0, commaIdx).trim();
       const display = body.slice(commaIdx + 1).trim();
       if (opts.conceptRefResolver) return opts.conceptRefResolver(id, display);
-      return display;
+      return escapeHtml(display);
     }
 
     return `<span class="gl-mention">${escapeHtml(body.trim())}</span>`;
@@ -215,8 +247,8 @@ function resolveMentions(text: string, opts: RenderOptions): string {
  * 4. Text formatting (bold, italic, subscript)
  * 5. Bibliography cross-references (<<ref,title>>)
  * 6. Figure references (<<fig_...>>)
- * 7. URN inline references ({{urn:...}} and {urn:...})
- * 8. Mention dispatcher (cite-ref, numeric, two-arg concept refs)
+ * 7. Single-brace URN inline references ({urn:...})
+ * 8. Mention dispatcher via parseMention (cite-ref, urn-ref, numeric, designation)
  */
 export function renderContent(text: string, xrefResolverOrOpts?: XrefResolver | RenderOptions): string {
   if (!text) return '';
@@ -264,10 +296,15 @@ export function cleanContent(text: string): string {
     .replace(/\n[ \t]*\* /g, '; ')
     .replace(/<<([^,>]+),([^>]+)>>/g, '$2')
     .replace(/<<(fig_[^>]+)>>/g, '$1')
-    .replace(/\{\{urn:[^,}]+,([^,}]+)(?:,[^}]+)?\}\}/g, '$1')
+    // URN refs — show render term (second part for two-arg, third part for three-arg)
+    .replace(/\{\{urn:[^,}]+,([^,}]+),([^}]+)\}\}/g, '$1')  // three-arg: {{urn:...,term,display}} → term
+    .replace(/\{\{urn:[^,}]+(?:,([^}]+))?\}\}/g, (_, label) => label ? label.trim() : '')  // two-arg or bare
     .replace(/\{urn:[^,}]+,([^,}]+)(?:,[^}]+)?\}/g, '$1')
+    // Cite refs — show render term (or empty if bare)
     .replace(/\{\{cite:[^,}]+(?:,([^}]+))?\}\}/g, (_, label) => label ? label.trim() : '')
+    // Two-arg mentions: show render term (second part)
     .replace(/\{\{([^,}]+),\s*([^}]+)\}\}/g, '$2')
+    // One-arg mentions: show the identifier
     .replace(/\{\{([^,}]+)\}\}/g, '$1')
     .replace(/(?:\*?)stem:\[([^\]]*)\]/g, '$1')
     .replace(/(?:\*?)latexmath:\[([^\]]*)\]/g, '$1');
