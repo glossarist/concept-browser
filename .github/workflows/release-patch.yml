@@ -59,8 +59,6 @@ jobs:
       - name: Publish to npm
         if: ${{ !inputs.dry_run }}
         run: npm publish --provenance --access public --tag latest
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         if: ${{ !inputs.dry_run }}
