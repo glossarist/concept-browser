@@ -11,11 +11,14 @@ on:
 
 permissions:
   contents: write
-  id-token: write
+  actions: write
 
 jobs:
   release-patch:
     runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
+      pushed: ${{ steps.push.outputs.pushed }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,14 +27,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - run: npm install -g npm@latest
 
       - name: Install dependencies
         run: npm ci
@@ -50,6 +50,7 @@ jobs:
           echo "Bumping $OLD_VERSION → $NEW_VERSION"
 
       - name: Commit, tag, and push
+        id: push
         if: ${{ !inputs.dry_run }}
         run: |
           git add package.json package-lock.json
@@ -57,22 +58,18 @@ jobs:
           git tag "v${{ steps.bump.outputs.new_version }}"
           git push origin main
           git push origin "v${{ steps.bump.outputs.new_version }}"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
 
-      - name: Publish to npm
+      - name: Trigger release workflow
         if: ${{ !inputs.dry_run }}
-        run: npm publish --provenance --access public --tag latest
+        run: |
+          gh workflow run release.yml \
+            --ref main \
+            -f version="${{ steps.bump.outputs.new_version }}"
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-
-      - name: Create GitHub Release
-        if: ${{ !inputs.dry_run }}
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.bump.outputs.new_version }}
-          generate_release_notes: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Dry run summary
         if: ${{ inputs.dry_run }}
         run: |
           echo "Dry run: would bump ${{ steps.bump.outputs.old_version }} → ${{ steps.bump.outputs.new_version }}"
-          echo "No tag pushed, no publish triggered."
