@@ -334,6 +334,35 @@
   color: #dddde6;
 }
 
+/* ── Brand colors: lighten for dark backgrounds ── */
+/* ISO red (#e3000f) is too harsh on dark — use a softer coral */
+.dark {
+  --brand-primary: #ff5d5d;
+  --brand-primary-rgb: 255, 93, 93;
+  --brand-dark: #1a1b2e;
+}
+
+/* Concept/xref links: lighten in dark mode (override pure red) */
+.dark .concept-link,
+.dark .xref-link {
+  color: #ff6b6b;
+}
+.dark .concept-link:hover,
+.dark .xref-link:hover {
+  filter: brightness(1.15);
+}
+
+/* Brand badges: readable background in dark mode */
+.dark .badge-brand {
+  background-color: rgba(255, 93, 93, 0.15);
+  color: #ff8a8a;
+}
+
+/* Primary buttons: avoid harsh red hover in dark mode */
+.dark .btn-primary:hover {
+  background-color: #c41818;
+}
+
 /* ── Surfaces ── */
 .dark .bg-surface { background-color: #0f1020 !important; }
 .dark .bg-surface-alt { background-color: #161728 !important; }
