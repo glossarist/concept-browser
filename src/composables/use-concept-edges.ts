@@ -58,12 +58,13 @@ export function useConceptEdges(
       const designation = node
         ? (node.designations[locale.value] || node.designations.eng || Object.values(node.designations)[0] || '')
         : '';
-      const tooltipLines: string[] = [uri];
+      const tooltipLines: string[] = [conceptId];
       if (node) {
         for (const [lang, des] of Object.entries(node.designations)) {
           tooltipLines.push(`${langLabel(lang)}: ${des}`);
         }
       }
+      tooltipLines.push(uri);
       let badge: { id: string; title: string } | null = null;
       if (resolution.type === 'internal' && resolution.registerId !== registerId.value) {
         const m = store.manifests.get(resolution.registerId);

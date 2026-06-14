@@ -74,6 +74,8 @@ const {
   navigateRelated,
 } = useConceptEdges(conceptComputed, registerIdComputed, manifestComputed, edgesComputed, router);
 
+const hoveredEdgeDisplay = ref<{ designation: string; conceptId: string; tooltip: string } | null>(null);
+
 const uriCopied = ref(false);
 function copyUri() {
   const uri = conceptUri(props.concept, props.registerId, props.manifest.uriBase);
@@ -473,42 +475,63 @@ const nonVerbalReps = computed(() => {
           <!-- Relations -->
           <div v-if="outgoingEdges.length || incomingEdges.length" class="card p-5">
             <div class="section-label">{{ t('concept.relations') }}</div>
+
+            <!-- Outgoing -->
             <div v-if="outgoingEdges.length" class="mt-3">
-              <div class="text-xs text-ink-300 mb-2">{{ t('concept.outgoing') }} ({{ outgoingEdges.length }})</div>
-              <div class="space-y-1 max-h-64 overflow-y-auto">
+              <div class="text-xs text-ink-300 mb-1.5">{{ t('concept.outgoing') }} ({{ outgoingEdges.length }})</div>
+              <div class="space-y-0.5 max-h-56 overflow-y-auto pr-1 -mr-1">
                 <button
                   v-for="edge in outgoingEdges"
                   :key="edge.target + edge.type"
                   @click="navigateEdge(edge)"
-                  :title="getEdgeDisplay(edge.target).tooltip"
-                  class="text-sm concept-link block truncate w-full text-left flex items-center gap-1.5"
+                  @mouseenter="hoveredEdgeDisplay = getEdgeDisplay(edge.target)"
+                  @mouseleave="hoveredEdgeDisplay = null"
+                  @focus="hoveredEdgeDisplay = getEdgeDisplay(edge.target)"
+                  class="concept-link block w-full text-left rounded-md px-1.5 py-1 hover:bg-ink-50 transition-colors"
                   :class="getEdgeDisplay(edge.target).isLocal ? '' : 'xref-external'"
                 >
-                  <span class="badge text-[9px] flex-shrink-0" :class="edgeBadgeColor(edge.type, 'out')">{{ relationshipLabel(edge.type) }} →</span>
-                  <span class="truncate">{{ getEdgeDisplay(edge.target).designation || edge.label || getEdgeDisplay(edge.target).conceptId }}</span>
-                  <span class="text-[9px] text-ink-300 flex-shrink-0 font-mono">{{ getEdgeDisplay(edge.target).conceptId }}</span>
-                  <span v-if="getEdgeDisplay(edge.target).badge" class="badge badge-gray text-[9px] flex-shrink-0 truncate max-w-[100px]">{{ getEdgeDisplay(edge.target).badge!.title }}</span>
+                  <div class="flex items-center gap-1 mb-0.5">
+                    <span class="badge text-[9px] flex-shrink-0" :class="edgeBadgeColor(edge.type, 'out')">{{ relationshipLabel(edge.type) }} →</span>
+                    <span v-if="getEdgeDisplay(edge.target).badge" class="badge badge-gray text-[9px] flex-shrink-0 truncate">{{ getEdgeDisplay(edge.target).badge!.title }}</span>
+                  </div>
+                  <div class="text-sm text-ink-700 leading-snug line-clamp-2">{{ getEdgeDisplay(edge.target).designation || edge.label || getEdgeDisplay(edge.target).conceptId }}</div>
                 </button>
               </div>
             </div>
+
+            <!-- Incoming -->
             <div v-if="incomingEdges.length" class="mt-3 pt-3 border-t border-ink-100/60">
-              <div class="text-xs text-ink-300 mb-2">{{ t('concept.incoming') }} ({{ incomingEdges.length }})</div>
-              <div class="space-y-1 max-h-48 overflow-y-auto">
+              <div class="text-xs text-ink-300 mb-1.5">{{ t('concept.incoming') }} ({{ incomingEdges.length }})</div>
+              <div class="space-y-0.5 max-h-40 overflow-y-auto pr-1 -mr-1">
                 <button
                   v-for="edge in incomingEdges"
                   :key="edge.source + edge.type"
                   @click="navigateEdge(edge)"
-                  :title="getEdgeDisplay(edge.source).tooltip"
-                  class="text-sm concept-link block truncate w-full text-left flex items-center gap-1.5"
+                  @mouseenter="hoveredEdgeDisplay = getEdgeDisplay(edge.source)"
+                  @mouseleave="hoveredEdgeDisplay = null"
+                  @focus="hoveredEdgeDisplay = getEdgeDisplay(edge.source)"
+                  class="concept-link block w-full text-left rounded-md px-1.5 py-1 hover:bg-ink-50 transition-colors"
                   :class="getEdgeDisplay(edge.source).isLocal ? '' : 'xref-external'"
                 >
-                  <span class="badge text-[9px] flex-shrink-0" :class="edgeBadgeColor(edge.type, 'in')">← {{ relationshipLabel(inverseEdgeType(edge.type)) }}</span>
-                  <span class="truncate">{{ getEdgeDisplay(edge.source).designation || edge.label || getEdgeDisplay(edge.source).conceptId }}</span>
-                  <span class="text-[9px] text-ink-300 flex-shrink-0 font-mono">{{ getEdgeDisplay(edge.source).conceptId }}</span>
-                  <span v-if="getEdgeDisplay(edge.source).badge" class="badge badge-gray text-[9px] flex-shrink-0 truncate max-w-[100px]">{{ getEdgeDisplay(edge.source).badge!.title }}</span>
+                  <div class="flex items-center gap-1 mb-0.5">
+                    <span class="badge text-[9px] flex-shrink-0" :class="edgeBadgeColor(edge.type, 'in')">← {{ relationshipLabel(inverseEdgeType(edge.type)) }}</span>
+                    <span v-if="getEdgeDisplay(edge.source).badge" class="badge badge-gray text-[9px] flex-shrink-0 truncate">{{ getEdgeDisplay(edge.source).badge!.title }}</span>
+                  </div>
+                  <div class="text-sm text-ink-700 leading-snug line-clamp-2">{{ getEdgeDisplay(edge.source).designation || edge.label || getEdgeDisplay(edge.source).conceptId }}</div>
                 </button>
               </div>
             </div>
+
+            <!-- Hover detail strip (fixed area at bottom of card) -->
+            <Transition name="fade">
+              <div
+                v-if="hoveredEdgeDisplay"
+                class="mt-3 pt-3 border-t border-ink-100/60"
+              >
+                <div class="text-xs text-ink-300 mb-0.5">{{ t('concept.identifier') || 'Identifier' }}</div>
+                <div class="font-mono text-[10px] text-ink-500 break-all leading-tight">{{ hoveredEdgeDisplay.conceptId }}</div>
+              </div>
+            </Transition>
           </div>
 
           <!-- Domains -->
@@ -659,3 +682,14 @@ const nonVerbalReps = computed(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
