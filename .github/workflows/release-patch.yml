@@ -47,14 +47,27 @@ jobs:
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "Bumping $OLD_VERSION → $NEW_VERSION"
 
-      - name: Commit version bump and tag
+      - name: Commit, tag, and push
         if: ${{ !inputs.dry_run }}
         run: |
           git add package.json package-lock.json
           git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }}"
           git tag "v${{ steps.bump.outputs.new_version }}"
+          git push origin main
           git push origin "v${{ steps.bump.outputs.new_version }}"
-          echo "Tag v${{ steps.bump.outputs.new_version }} pushed — release.yml will publish."
+
+      - name: Publish to npm
+        if: ${{ !inputs.dry_run }}
+        run: npm publish --provenance --access public --tag latest
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        if: ${{ !inputs.dry_run }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.bump.outputs.new_version }}
+          generate_release_notes: true
 
       - name: Dry run summary
         if: ${{ inputs.dry_run }}
