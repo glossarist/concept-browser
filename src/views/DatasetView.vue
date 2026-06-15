@@ -30,9 +30,16 @@ const chunkLoading = ref(false);
 // Background chunk preloading via requestIdleCallback
 let idlePreloadHandle: ReturnType<typeof requestIdleCallback> | ReturnType<typeof setTimeout> | null = null;
 
-watch(adapter, (a) => {
-  if (idlePreloadHandle !== null) return;
+watch(adapter, async (a) => {
   if (!a || !a.index) return;
+
+  // If a section filter is active, load all chunks immediately (not idle)
+  if (sectionQuery.value && !allChunksLoaded.value) {
+    await ensureAllChunksForFilter(true);
+    return;
+  }
+
+  if (idlePreloadHandle !== null) return;
 
   const schedule: (cb: () => void) => number = typeof requestIdleCallback !== 'undefined'
     ? (cb) => requestIdleCallback(cb, { timeout: 2000 })
@@ -87,6 +94,7 @@ const allChunksLoaded = ref(false);
 const selectedLang = ref<string | null>(null);
 const viewMode = ref<'systematic' | 'alphabetical'>('systematic');
 const sectionQuery = computed(() => (route.query.section as string) || null);
+const page = ref(1);
 
 interface LangOption {
   code: string;
@@ -124,10 +132,14 @@ onUnmounted(() => window.removeEventListener('keydown', onGlobalKeydown));
 
 async function ensureAllChunksForFilter(needsLoad: boolean) {
   page.value = 1;
-  if (needsLoad && !allChunksLoaded.value && adapter.value) {
-    chunkLoading.value = true;
-    await adapter.value.ensureAllChunksLoaded();
+  if (!needsLoad || allChunksLoaded.value) return;
+  const a = adapter.value;
+  if (!a?.index) return;
+  chunkLoading.value = true;
+  try {
+    await a.ensureAllChunksLoaded();
     allChunksLoaded.value = true;
+  } finally {
     chunkLoading.value = false;
   }
 }
@@ -138,7 +150,7 @@ watch(filter, async (q) => {
 
 watch(sectionQuery, async () => {
   await ensureAllChunksForFilter(!!sectionQuery.value);
-});
+}, { immediate: true });
 
 watch(selectedLang, async (lang) => {
   await ensureAllChunksForFilter(!!lang);
@@ -202,7 +214,6 @@ const alphabetGroups = computed(() => {
   return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 });
 
-const page = ref(1);
 const perPage = 50;
 
 // Check if the current page range is loaded in the index
