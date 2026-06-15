@@ -3,7 +3,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { naturalSort, Register, parseMention } from 'glossarist';
 import { loadSiteConfig } from './load-site-config.mjs';
-
+import { getGroups } from './lib/concept-groups.mjs';
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
@@ -574,54 +574,6 @@ function getPrimaryDesignation(conceptYaml) {
   return descs;
 }
 
-/**
- * Build a child-section-ID → parent-group-ID map from register sections.
- *
- * For hierarchical registers (e.g. EXPRESS with resources/modules groups),
- * this enables filtering by the parent group in the dataset view.
- *
- * @param {Register} register
- * @returns {Map<string, string>}
- */
-function buildSectionParentMap(register) {
-  const map = new Map();
-  if (!register?.sections) return map;
-  for (const parent of register.sections) {
-    for (const child of parent.children ?? []) {
-      map.set(child.id, parent.id);
-    }
-  }
-  return map;
-}
-
-function getGroups(conceptYaml, sectionParentMap) {
-  if (conceptYaml.eng && conceptYaml.eng.groups) return conceptYaml.eng.groups;
-  // Derive groups from domains (e.g. section-based grouping in G18)
-  if (conceptYaml._domains) {
-    const sectionIds = conceptYaml._domains
-      .filter(d => d.ref_type === 'section' && d.concept_id)
-      .map(d => d.concept_id.replace(/^section-/, ''));
-    if (sectionIds.length) {
-      // Include parent group IDs for hierarchical registers
-      const groups = [...sectionIds];
-      if (sectionParentMap) {
-        for (const id of sectionIds) {
-          const parent = sectionParentMap.get(id);
-          if (parent && !groups.includes(parent)) groups.push(parent);
-        }
-      }
-      return groups;
-    }
-  }
-  const termid = String(conceptYaml.termid);
-  if (/^\d{3}-/.test(termid)) return [termid.substring(0, 3)];
-  if (/^\d+\.\d+\.\d+/.test(termid)) {
-    const parts = termid.split('.');
-    return [`${parts[0]}.${parts[1]}.${parts[2]}`];
-  }
-  return [];
-}
-
 function escapeTurtle(s) {
   return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
 }
@@ -884,7 +836,7 @@ function processDataset(dir, register, opts) {
       concepts.push({
         id: termid,
         designations: getPrimaryDesignation(conceptYaml),
-        groups: getGroups(conceptYaml, opts.sectionParentMap),
+        groups: getGroups(conceptYaml),
         status: conceptYaml.eng?.entry_status || 'valid',
       });
 
@@ -1132,7 +1084,6 @@ for (let i = 0; i < config.datasets.length; i++) {
     refAliases: ds.refAliases || reg?.refAliases,
     tags: ds.tags || reg?.tags,
     color: ds.color || DS_PALETTE[i % DS_PALETTE.length],
-    sectionParentMap: buildSectionParentMap(reg),
     datasetUri: ds.uri || reg?.urn,
     uriAliases: ds.uriAliases || reg?.urnAliases,
     status: ds.editionStatus || reg?.status,

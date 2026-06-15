@@ -142,6 +142,30 @@ Prefix resolution: `IEV:103-01-02` → look up `IEV` in `refPrefixMap` → get r
 
 ---
 
+### Hierarchical Sections
+
+Registers can define hierarchical sections in `register.yaml` using the
+`children` field. The section tree is serialized verbatim into
+`manifest.sections` by `generate-data.mjs` — it is the **single source of
+truth** for hierarchy at runtime.
+
+- **Build (`scripts/lib/concept-groups.mjs`):** `getGroups(conceptYaml)`
+  produces a concept's direct section memberships. No parent inflation;
+  hierarchy is recovered at runtime.
+- **Runtime (`src/utils/section-tree.ts`):** pure helpers operate on the
+  `SectionNode` tree — `findSectionNode`, `collectDescendantSectionIds`,
+  `toSectionNode`, `toSectionTree`. Single definition site for tree
+  mapping (previously duplicated in three places).
+- **Filtering (`src/views/DatasetView.vue`):** when a user selects a
+  parent section, `collectDescendantSectionIds` computes the closure
+  once per filter change; the matcher intersects each concept's
+  `groups` with the closure. Arbitrary depth works for free.
+- **Display (`src/utils/section-display.ts`):** `formatSectionLabel` is
+  the single source for the "id — name" disambiguation rule (handles
+  EXPRESS-style IDs where `name === id.replace(/_/g, ' ')`).
+
+---
+
 ## Adding a New Dataset
 
 New datasets require **zero code changes**. See `docs/adding-a-dataset.md` for the step-by-step guide. The adapter follows the **open/closed principle** — just edit `datasets.yml` and run the pipeline.

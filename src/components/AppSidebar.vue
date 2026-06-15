@@ -8,6 +8,8 @@ import { useSiteConfig } from '../config/use-site-config';
 import NavIcon from './NavIcon.vue';
 import { useI18n, locale } from '../i18n';
 import type { SectionNode } from '../adapters/types';
+import { toSectionTree } from '../utils/section-tree';
+import { formatSectionLabel, sectionName as sectionLocalized } from '../utils/section-display';
 
 const OntologySidebarSection = defineAsyncComponent(() => import('./OntologySidebarSection.vue'));
 
@@ -174,26 +176,15 @@ function toggleSectionNode(id: string) {
 function getDatasetSections(dsId: string): SectionNode[] {
   const m = store.manifests.get(dsId);
   if (!m?.sections?.length) return [];
-  return m.sections.map(s => enrichSectionNode(s));
-}
-
-function enrichSectionNode(s: { id: string; names: Record<string, string>; children?: any[] }): SectionNode {
-  const node: SectionNode = { id: s.id, names: s.names || {}, conceptCount: 0 };
-  if (s.children && s.children.length > 0) {
-    node.children = s.children.map(c => enrichSectionNode(c));
-  }
-  return node;
+  return toSectionTree(m.sections);
 }
 
 function sectionLabel(section: SectionNode): string {
-  const name = section.names[locale.value] || section.names.eng || '';
-  return name || section.id;
+  return sectionLocalized(section, locale.value);
 }
 
 function sectionDisplay(section: SectionNode): string {
-  const name = sectionLabel(section);
-  if (name && name !== section.id && name !== section.id.replace(/_/g, ' ')) return `${section.id} — ${name}`;
-  return name || section.id;
+  return formatSectionLabel(section, locale.value);
 }
 
 function goToSection(dsId: string, sectionId: string) {

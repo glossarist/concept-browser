@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import DatasetView from '../views/DatasetView.vue';
 import { useVocabularyStore } from '../stores/vocabulary';
-import type { Manifest, ConceptSummary } from '../adapters/types';
+import type { Manifest, ConceptSummary, SectionNode } from '../adapters/types';
 
 function makeManifest(overrides: Partial<Manifest> = {}): Manifest {
   return {
@@ -229,5 +229,99 @@ describe('DatasetView', () => {
     const prevBtn = wrapper.findAll('button').find(b => b.text().includes('Prev'));
     expect(prevBtn).toBeDefined();
     expect(prevBtn!.attributes('disabled')).toBeDefined();
+  });
+
+  describe('hierarchical section filter', () => {
+    const HIERARCHICAL_TREE: SectionNode[] = [
+      {
+        id: '102',
+        names: { eng: 'Mathematics' },
+        conceptCount: 0,
+        children: [
+          { id: '102-01', names: { eng: 'Sets' }, conceptCount: 2 },
+          {
+            id: '102-02',
+            names: { eng: 'Numbers' },
+            conceptCount: 2,
+            children: [
+              { id: '102-02-01', names: { eng: 'Reals' }, conceptCount: 1 },
+            ],
+          },
+        ],
+      },
+      { id: '103', names: { eng: 'Functions' }, conceptCount: 1 },
+    ];
+
+    function makeHierarchicalAdapter(concepts: ConceptSummary[], sections: SectionNode[]) {
+      const dense = concepts.filter(Boolean);
+      return {
+        registerId: 'test',
+        index: dense,
+        manifest: null,
+        getConceptCount: () => dense.length,
+        getConcepts: () => dense,
+        isRangeLoaded: () => true,
+        ensureChunksForRange: async () => {},
+        ensureAllChunksLoaded: async () => {},
+        getAdjacentConcepts: () => ({ prev: null, next: null }),
+        getSectionTree: () => sections,
+      } as any;
+    }
+
+    function mountHierarchical(concepts: ConceptSummary[], sectionId: string) {
+      const store = useVocabularyStore();
+      store.manifests.set('test', makeManifest());
+      store.datasets.set('test', makeHierarchicalAdapter(concepts, HIERARCHICAL_TREE));
+      return mount(DatasetView, {
+        global: { plugins: [pinia, router] },
+        props: { registerId: 'test' },
+      });
+    }
+
+    it('matches concepts in a child section when filtering by parent (closure)', async () => {
+      const concepts: ConceptSummary[] = [
+        { id: 'a', designations: { eng: 'set A' }, eng: 'set A', status: 'valid', groups: ['102-01'] },
+        { id: 'b', designations: { eng: 'unrelated' }, eng: 'unrelated', status: 'valid', groups: ['999'] },
+      ];
+      const wrapper = mountHierarchical(concepts, 'section-102');
+      await router.push({ name: 'dataset', params: { registerId: 'test' }, query: { section: 'section-102' } });
+      await flushPromises();
+      expect(wrapper.text()).toContain('set A');
+      expect(wrapper.text()).not.toContain('unrelated');
+    });
+
+    it('matches concepts at arbitrary depth (grandparent closure)', async () => {
+      const concepts: ConceptSummary[] = [
+        { id: 'deep', designations: { eng: 'real number' }, eng: 'real number', status: 'valid', groups: ['102-02-01'] },
+        { id: 'other', designations: { eng: 'other concept' }, eng: 'other concept', status: 'valid', groups: ['103'] },
+      ];
+      const wrapper = mountHierarchical(concepts, 'section-102');
+      await router.push({ name: 'dataset', params: { registerId: 'test' }, query: { section: 'section-102' } });
+      await flushPromises();
+      expect(wrapper.text()).toContain('real number');
+      expect(wrapper.text()).not.toContain('other concept');
+    });
+
+    it('still matches by concept ID prefix when no groups are set', async () => {
+      const concepts: ConceptSummary[] = [
+        { id: '102.3.4', designations: { eng: 'numbered term' }, eng: 'numbered term', status: 'valid' },
+        { id: '999.1', designations: { eng: 'different section' }, eng: 'different section', status: 'valid' },
+      ];
+      const wrapper = mountHierarchical(concepts, 'section-102');
+      await router.push({ name: 'dataset', params: { registerId: 'test' }, query: { section: 'section-102' } });
+      await flushPromises();
+      expect(wrapper.text()).toContain('numbered term');
+      expect(wrapper.text()).not.toContain('different section');
+    });
+
+    it('renders the section display name when filter is active', async () => {
+      const concepts: ConceptSummary[] = [
+        { id: 'a', designations: { eng: 'set A' }, eng: 'set A', status: 'valid', groups: ['102-01'] },
+      ];
+      const wrapper = mountHierarchical(concepts, 'section-102');
+      await router.push({ name: 'dataset', params: { registerId: 'test' }, query: { section: 'section-102' } });
+      await flushPromises();
+      expect(wrapper.text()).toContain('102 — Mathematics');
+    });
   });
 });

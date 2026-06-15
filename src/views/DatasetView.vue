@@ -9,7 +9,9 @@ import { langName, langLabel, sortLanguages } from '../utils/lang';
 import ConceptCard from '../components/ConceptCard.vue';
 import { useI18n, locale } from '../i18n';
 import { useSiteConfig } from '../config/use-site-config';
-import type { SectionNode } from '../adapters/types';
+import type { SectionNode, ConceptSummary } from '../adapters/types';
+import { collectDescendantSectionIds, findSectionNode } from '../utils/section-tree';
+import { formatSectionLabel } from '../utils/section-display';
 
 const props = defineProps<{ registerId: string }>();
 
@@ -167,20 +169,34 @@ const filtered = computed(() => {
   const q = filter.value.trim().toLowerCase();
   const lang = selectedLang.value;
   const sec = sectionQuery.value;
+  const closure = sectionClosure.value;
   return loadedConcepts.value.filter(c => {
     if (lang && !(lang in (c.designations ?? {}))) return false;
-    if (sec && !conceptMatchesSection(c, sec)) return false;
+    if (sec && !conceptMatchesSection(c, sec.replace(/^section-/, ''), closure)) return false;
     if (!q) return true;
     return (c.eng || '').toLowerCase().includes(q) || c.id.toLowerCase().includes(q);
   });
 });
 
-function conceptMatchesSection(concept: import('../adapters/types').ConceptSummary, sectionPrefix: string): boolean {
-  const prefix = sectionPrefix.replace(/^section-/, '');
-  // Check explicit groups (e.g. G18 sections derived from domains)
-  if (concept.groups?.length && concept.groups.includes(prefix)) return true;
-  // Check concept ID prefix matching (e.g. VIML/VIM numbered sections)
-  return concept.id.startsWith(prefix + '.') || concept.id.startsWith(prefix + '-');
+const sectionClosure = computed<Set<string> | null>(() => {
+  const q = sectionQuery.value;
+  if (!q) return null;
+  const prefix = q.replace(/^section-/, '');
+  const tree = getSections();
+  const closure = collectDescendantSectionIds(tree, prefix);
+  return closure.size > 0 ? closure : null;
+});
+
+function conceptMatchesSection(concept: ConceptSummary, sectionId: string, closure: Set<string> | null): boolean {
+  if (closure) {
+    if (concept.groups?.some(g => closure.has(g))) return true;
+    if (closure.has(sectionId)) {
+      return concept.id.startsWith(sectionId + '.') || concept.id.startsWith(sectionId + '-');
+    }
+    return false;
+  }
+  if (concept.groups?.length && concept.groups.includes(sectionId)) return true;
+  return concept.id.startsWith(sectionId + '.') || concept.id.startsWith(sectionId + '-');
 }
 
 function getSections(): SectionNode[] {
@@ -188,19 +204,12 @@ function getSections(): SectionNode[] {
   return adapter.value.getSectionTree();
 }
 
-function sectionName(section: SectionNode): string {
-  return section.names[locale.value] || section.names.eng || section.id;
-}
-
 const sectionDisplayName = computed(() => {
   if (!sectionQuery.value) return '';
   const prefix = sectionQuery.value.replace(/^section-/, '');
-  const sections = getSections();
-  const found = sections.find(s => s.id === prefix);
+  const found = findSectionNode(getSections(), prefix);
   if (!found) return prefix;
-  const name = sectionName(found);
-  if (name && name !== found.id && name !== found.id.replace(/_/g, ' ')) return `${found.id} — ${name}`;
-  return name || found.id;
+  return formatSectionLabel(found, locale.value);
 });
 
 // Alphabetical grouping

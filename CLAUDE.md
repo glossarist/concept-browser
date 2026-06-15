@@ -49,7 +49,12 @@ The target architecture uses GCR (Glossarist Concept Repository) files — seale
 - **Views/Components** — Standard Vue 3 SFC structure. Views are in `src/views/`, reusable components in `src/components/`.
 
 ### Hierarchical Sections
-Registers can define hierarchical sections using the `children` field in `register.yaml`. The sidebar (`AppSidebar.vue`) renders parent sections with expand/collapse arrows and nested children. `generate-data.mjs` builds a child→parent section map (`buildSectionParentMap`) and adds parent group IDs to concept `groups` arrays, enabling filtering by parent section (e.g. clicking "Resources" shows all resource concepts).
+Registers can define hierarchical sections in `register.yaml` using the `children` field. The section tree is serialized verbatim into `manifest.sections` by `generate-data.mjs` — it is the single source of truth for hierarchy at runtime.
+
+- **Build (`scripts/lib/concept-groups.mjs`):** `getGroups(conceptYaml)` produces a concept's direct section memberships. No parent inflation.
+- **Runtime (`src/utils/section-tree.ts`):** pure helpers — `findSectionNode`, `collectDescendantSectionIds`, `toSectionNode`, `toSectionTree`.
+- **Filtering (`src/views/DatasetView.vue`):** `sectionClosure` computed builds the descendant closure once per filter change; `conceptMatchesSection` intersects each concept's `groups` with the closure. Arbitrary depth works.
+- **Display (`src/utils/section-display.ts`):** `formatSectionLabel` is the single source for the "id — name" disambiguation rule.
 
 ### URI Scheme and Resolution
 Concepts use URIs like `https://glossarist.org/{registerId}/concept/{conceptId}`. Resolution flows through `AdapterFactory.resolve()` → `ReferenceResolver.resolveUri()` → `UriRouter`. URNs (`urn:iso:std:iso:NNNN:id`) and prefixed refs (`IEV:xxx`) are resolved via `urnStandardMap` and `refPrefixMap` from manifest data. External references resolve to configurable URL templates. The `/resolve/{uri}` route provides universal concept deep-linking.
