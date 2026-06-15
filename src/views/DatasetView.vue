@@ -199,7 +199,8 @@ const sectionDisplayName = computed(() => {
   const found = sections.find(s => s.id === prefix);
   if (!found) return prefix;
   const name = sectionName(found);
-  return name !== found.id ? `${found.id} — ${name}` : name;
+  if (name && name !== found.id && name !== found.id.replace(/_/g, ' ')) return `${found.id} — ${name}`;
+  return name || found.id;
 });
 
 // Alphabetical grouping

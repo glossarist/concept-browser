@@ -192,7 +192,7 @@ function sectionLabel(section: SectionNode): string {
 
 function sectionDisplay(section: SectionNode): string {
   const name = sectionLabel(section);
-  if (name && name !== section.id) return `${section.id} — ${name}`;
+  if (name && name !== section.id && name !== section.id.replace(/_/g, ' ')) return `${section.id} — ${name}`;
   return name || section.id;
 }
 
