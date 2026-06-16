@@ -1,23 +1,26 @@
 #!/usr/bin/env node
 /**
- * fetch-datasets.mjs — Load datasets from .gcr files or clone source repos.
+ * fetch-datasets.mjs — Load datasets from .gcr files, local paths, or git repos.
  *
  * Reads site config (via load-site-config.mjs), for each dataset:
  *   1. If .gcr/{id}.gcr exists, extract to .datasets/{id}/
  *   2. Else download from gcrPackage URL and extract
- *   3. Else clone/update source repo into .datasets/{id}/
+ *   3. Else if localPath is set, use it in-place (NO copy, NO staging)
+ *   4. Else clone/update source repo into .datasets/{id}/
  *
  * After fetching, validates that all GCR dependencies are satisfiable
  * (either provided locally or routed externally).
  *
- * Supports localPath field in dataset config for local paths.
- * Supports GITHUB_TOKEN for private repos.
+ * No shell commands. All file ops use Node fs; ZIP uses JSZip; git uses
+ * execFileSync with array args (no shell interpolation).
  */
 import fs from 'fs';
 import path from 'path';
+import JSZip from 'jszip';
 import { loadGcr } from 'glossarist';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { loadSiteConfig } from './load-site-config.mjs';
+import { assertLocalPathSafe } from './lib/local-path-safety.mjs';
 
 const ROOT = process.cwd();
 const DATASETS_DIR = path.join(ROOT, '.datasets');
@@ -39,23 +42,29 @@ async function downloadGcr(url, destPath) {
   console.log(`  Saved to ${destPath} (${(buf.length / 1024).toFixed(0)} KB)`);
 }
 
-// --- GCR extraction ---
-function extractGcr(gcrPath, targetDir) {
-  if (fs.existsSync(targetDir)) {
-    fs.rmSync(targetDir, { recursive: true, force: true });
+// --- GCR extraction (pure JSZip; no shell, cross-platform) ---
+async function extractGcr(gcrPath, targetDir) {
+  const targetAbs = path.resolve(targetDir);
+  if (fs.existsSync(targetAbs)) {
+    fs.rmSync(targetAbs, { recursive: true, force: true });
   }
-  fs.mkdirSync(targetDir, { recursive: true });
+  fs.mkdirSync(targetAbs, { recursive: true });
 
-  try {
-    execSync(`unzip -o -q "${gcrPath}" -d "${targetDir}"`, { stdio: 'pipe' });
-  } catch {
-    try {
-      execSync(`python3 -c "import zipfile; zipfile.ZipFile('${gcrPath}').extractall('${targetDir}')"`, { stdio: 'pipe' });
-    } catch (e2) {
-      throw new Error(`Failed to extract ${gcrPath}`);
+  const buf = fs.readFileSync(gcrPath);
+  const zip = await JSZip.loadAsync(buf);
+  const entries = Object.values(zip.files);
+  for (const entry of entries) {
+    if (entry.dir) continue;
+    // zip-slip guard: refuse entries that escape targetDir
+    const dest = path.resolve(targetAbs, entry.name);
+    if (dest !== targetAbs && !dest.startsWith(targetAbs + path.sep)) {
+      throw new Error(`Refusing to extract entry outside target dir: ${entry.name}`);
     }
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    const content = await entry.async('nodebuffer');
+    fs.writeFileSync(dest, content);
   }
-  console.log(`  Extracted to ${targetDir}`);
+  console.log(`  Extracted to ${targetAbs}`);
 }
 
 // --- Read GCR metadata from ZIP without extraction ---
@@ -96,7 +105,7 @@ function validateDependencies(config, gcrMetadata) {
   return errors;
 }
 
-// --- Git operations ---
+// --- Git operations (execFileSync with array args — no shell) ---
 function cloneOrUpdate(sourceRepo, targetDir) {
   const env = { ...process.env };
   let repoUrl = sourceRepo;
@@ -104,23 +113,27 @@ function cloneOrUpdate(sourceRepo, targetDir) {
     repoUrl = sourceRepo.replace('https://', `https://x-access-token:${env.GITHUB_TOKEN}@`);
   }
 
-  if (fs.existsSync(path.join(targetDir, '.git'))) {
+  const targetAbs = path.resolve(targetDir);
+
+  if (fs.existsSync(path.join(targetAbs, '.git'))) {
     console.log(`  Updating existing clone...`);
     try {
-      execSync('git fetch origin', { cwd: targetDir, stdio: 'pipe', env });
-      execSync('git reset --hard origin/HEAD', { cwd: targetDir, stdio: 'pipe', env });
-      execSync('git clean -fd', { cwd: targetDir, stdio: 'pipe', env });
+      execFileSync('git', ['fetch', 'origin'], { cwd: targetAbs, stdio: 'pipe', env });
+      execFileSync('git', ['reset', '--hard', 'origin/HEAD'], { cwd: targetAbs, stdio: 'pipe', env });
+      execFileSync('git', ['clean', '-fd'], { cwd: targetAbs, stdio: 'pipe', env });
     } catch {
       console.warn(`  git update failed, re-cloning`);
-      fs.rmSync(targetDir, { recursive: true, force: true });
-      execSync(`git clone --depth 1 "${repoUrl}" "${targetDir}"`, { stdio: 'pipe', env });
+      fs.rmSync(targetAbs, { recursive: true, force: true });
+      execFileSync('git', ['clone', '--depth', '1', repoUrl, targetAbs], { stdio: 'pipe', env });
     }
   } else {
-    fs.mkdirSync(targetDir, { recursive: true });
+    fs.mkdirSync(targetAbs, { recursive: true });
     console.log(`  Cloning ${sourceRepo}...`);
-    execSync(`git clone --depth 1 "${repoUrl}" "${targetDir}"`, { stdio: 'pipe', env });
+    execFileSync('git', ['clone', '--depth', '1', repoUrl, targetAbs], { stdio: 'pipe', env });
   }
 }
+
+// --- localPath safety check: see scripts/lib/local-path-safety.mjs ---
 
 // --- Main ---
 console.log('Fetching glossarist datasets...\n');
@@ -137,7 +150,7 @@ for (const ds of config.datasets) {
   try {
     if (fs.existsSync(gcrPath)) {
       console.log(`  Using local .gcr/${ds.id}.gcr`);
-      extractGcr(gcrPath, targetDir);
+      await extractGcr(gcrPath, targetDir);
     } else if (ds.gcrPackage) {
       console.log(`  Using GCR package: ${ds.gcrPackage}`);
       try {
@@ -148,29 +161,18 @@ for (const ds of config.datasets) {
         console.log();
         continue;
       }
-      extractGcr(gcrPath, targetDir);
+      await extractGcr(gcrPath, targetDir);
+    } else if (ds.localPath) {
+      // localPath means "data is here, use in-place." No copy, no staging.
+      // generate-data.mjs reads from localPath directly via datasetDir(ds).
+      const localResolved = assertLocalPathSafe(ds.id, ds.localPath);
+      console.log(`  Using localPath in-place: ${localResolved}`);
+    } else if (ds.sourceRepo) {
+      cloneOrUpdate(ds.sourceRepo, targetDir);
     } else {
-      const envOverride = ds.localPath;
-      if (envOverride) {
-        console.log(`  Using local path: ${envOverride}`);
-        if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
-        const localConcepts = path.join(envOverride, 'concepts');
-        const targetConcepts = path.join(targetDir, 'concepts');
-        if (fs.existsSync(localConcepts)) {
-          if (fs.existsSync(targetConcepts)) fs.rmSync(targetConcepts, { recursive: true, force: true });
-          execSync(`cp -r "${localConcepts}" "${targetConcepts}"`, { stdio: 'pipe' });
-        }
-        const registerYaml = path.join(envOverride, 'register.yaml');
-        if (fs.existsSync(registerYaml)) {
-          fs.copyFileSync(registerYaml, path.join(targetDir, 'register.yaml'));
-        }
-      } else if (ds.sourceRepo) {
-        cloneOrUpdate(ds.sourceRepo, targetDir);
-      } else {
-        console.warn(`  No source configured, skipping`);
-        console.log();
-        continue;
-      }
+      console.warn(`  No source configured, skipping`);
+      console.log();
+      continue;
     }
 
     // Read metadata for dependency validation (from GCR ZIP, not extracted dir)

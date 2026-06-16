@@ -9,6 +9,18 @@ const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
 const DATA = path.join(PUBLIC, 'data');
 
+/**
+ * Resolve a dataset's source directory.
+ * - If `ds.localPath` is set, use it in-place (resolved against ROOT).
+ *   No staging, no copy. fetch-datasets.mjs verifies the path is safe.
+ * - Otherwise fall back to the standard .datasets/<id>/ staging dir.
+ */
+function datasetDir(ds) {
+  return ds.localPath
+    ? path.resolve(ROOT, ds.localPath)
+    : path.join(ROOT, '.datasets', ds.id);
+}
+
 const DS_PALETTE = [
   '#3366ff', '#0d9488', '#d97706', '#8b5cf6',
   '#ec4899', '#059669', '#dc2626', '#6366f1',
@@ -934,7 +946,8 @@ function processDataset(dir, register, opts) {
   }
 
   // Copy bulk format files from compiled/ directory (full GCR)
-  const compiledDir = path.join(ROOT, '.datasets', register, 'compiled');
+  const sourceRoot = path.dirname(dir);
+  const compiledDir = path.join(sourceRoot, 'compiled');
   const bulkFormats = [];
   if (fs.existsSync(compiledDir)) {
     for (const file of fs.readdirSync(compiledDir)) {
@@ -993,7 +1006,7 @@ function processDataset(dir, register, opts) {
   writeJson(path.join(DATA, register, 'manifest.json'), manifest);
 
   // Copy bibliography.yaml → bibliography.json
-  const bibPath = path.join(ROOT, '.datasets', register, 'bibliography.yaml');
+  const bibPath = path.join(sourceRoot, 'bibliography.yaml');
   if (fs.existsSync(bibPath)) {
     const bibData = readYaml(bibPath);
     writeJson(path.join(DATA, register, 'bibliography.json'), bibData);
@@ -1001,7 +1014,7 @@ function processDataset(dir, register, opts) {
   }
 
   // Copy images/
-  const imagesSrcDir = path.join(ROOT, '.datasets', register, 'images');
+  const imagesSrcDir = path.join(sourceRoot, 'images');
   if (fs.existsSync(imagesSrcDir) && fs.statSync(imagesSrcDir).isDirectory()) {
     const imagesDestDir = path.join(DATA, register, 'images');
     fs.mkdirSync(imagesDestDir, { recursive: true });
@@ -1030,8 +1043,8 @@ const registerCache = {};
 
 // Pre-load all register.yaml files (needed before buildRefMaps for URI pattern indexing)
 for (const ds of config.datasets) {
-  const registerDir = path.join(ROOT, '.datasets', ds.id);
-  const registerYamlPath = path.join(registerDir, 'register.yaml');
+  const dsDir = datasetDir(ds);
+  const registerYamlPath = path.join(dsDir, 'register.yaml');
   if (fs.existsSync(registerYamlPath)) {
     try {
       const raw = yaml.load(fs.readFileSync(registerYamlPath, 'utf8'));
@@ -1047,7 +1060,7 @@ const refMaps = buildRefMaps(config, registerCache);
 for (let i = 0; i < config.datasets.length; i++) {
   const ds = config.datasets[i];
 
-  const dir = path.join(ROOT, '.datasets', ds.id, 'concepts');
+  const dir = path.join(datasetDir(ds), 'concepts');
   if (!fs.existsSync(dir)) {
     console.warn(`Skipping ${ds.id}: source directory not found (${dir})`);
     console.warn(`  Run: npm run fetch-datasets`);
@@ -1089,8 +1102,8 @@ for (let i = 0; i < config.datasets.length; i++) {
     status: ds.editionStatus || reg?.status,
     ordering: reg?.ordering || null,
     sections: reg?.sections ? reg.sections.map(s => s.toJSON()) : [],
-    hasBibliography: fs.existsSync(path.join(ROOT, '.datasets', ds.id, 'bibliography.yaml')),
-    hasImages: fs.existsSync(path.join(ROOT, '.datasets', ds.id, 'images')),
+    hasBibliography: fs.existsSync(path.join(datasetDir(ds), 'bibliography.yaml')),
+    hasImages: fs.existsSync(path.join(datasetDir(ds), 'images')),
   });
   registry.push({
     id: ds.id,
