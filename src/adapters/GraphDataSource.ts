@@ -3,6 +3,7 @@ import type { Concept, RelatedConcept } from 'glossarist';
 import type { DatasetAdapter } from './DatasetAdapter';
 import { UriRouter } from './UriRouter';
 import { slugify } from '../utils/slugify';
+import { toSectionNode, toSectionTree } from '../utils/section-tree';
 
 interface DomainNodeJson {
   uri?: string;
@@ -12,12 +13,6 @@ interface DomainNodeJson {
   names?: Record<string, string>;
   conceptCount?: number;
   children?: DomainNodeJson[];
-}
-
-interface SectionJson {
-  id: string;
-  names?: Record<string, string>;
-  children?: SectionJson[];
 }
 
 function resolveRefTarget(rc: RelatedConcept, uriBase: string, registerId: string, urnMap?: ReadonlyMap<string, string>): string {
@@ -136,7 +131,7 @@ export class GraphDataSource {
   getSectionTree(): SectionNode[] {
     const nodes = this.adapter.manifest?.sections;
     if (!nodes || nodes.length === 0) return [];
-    return nodes.map(s => this.mapManifestSection(s));
+    return toSectionTree(nodes);
   }
 
   private mapDomainNode(dn: DomainNodeJson): GraphNode {
@@ -151,28 +146,17 @@ export class GraphDataSource {
       conceptCount: dn.conceptCount || 0,
     };
     if (dn.children && dn.children.length > 0) {
-      node.children = dn.children.map((c) => this.mapSectionNode(c));
+      node.children = dn.children.map(c => this.domainNodeToSection(c));
     }
     return node;
   }
 
-  private mapSectionNode(dn: DomainNodeJson): SectionNode {
-    const node: SectionNode = {
-      id: dn.id ?? '',
+  private domainNodeToSection(dn: DomainNodeJson): SectionNode {
+    return toSectionNode({
+      id: dn.id,
       names: dn.names || (dn.label ? { eng: dn.label } : {}),
-      conceptCount: dn.conceptCount || 0,
-    };
-    if (dn.children && dn.children.length > 0) {
-      node.children = dn.children.map((c) => this.mapSectionNode(c));
-    }
-    return node;
-  }
-
-  private mapManifestSection(s: SectionJson): SectionNode {
-    const node: SectionNode = { id: s.id, names: s.names || {}, conceptCount: 0 };
-    if (s.children && s.children.length > 0) {
-      node.children = s.children.map(c => this.mapManifestSection(c));
-    }
-    return node;
+      conceptCount: dn.conceptCount,
+      children: dn.children,
+    });
   }
 }

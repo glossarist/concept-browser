@@ -36,7 +36,7 @@ The target architecture uses GCR (Glossarist Concept Repository) files — seale
 
 ### Key Layers
 
-- **Adapters** (`src/adapters/`) — Data access layer. `DatasetAdapter` handles manifest loading, index parsing (with chunked index support for large datasets), concept fetching with caching, search, and edge extraction from pre-computed `gl:references`. `AdapterFactory` is a singleton that discovers and manages adapters. `UriRouter` maps concept URIs to register/concept-id pairs (also provides `parseUri()` static for URI parsing without registration). `ReferenceResolver` provides unified resolution for URIs, URNs, and prefixed refs through a single `Resolution` type (`internal | external | unresolved`).
+- **Adapters** (`src/adapters/`) — Data access layer. `DatasetAdapter` handles manifest loading, index parsing (with chunked index support for large datasets), concept fetching with caching, search, edge extraction from pre-computed `gl:references`, and designation-based concept lookup (`lookupByDesignation`). `AdapterFactory` is a singleton that discovers and manages adapters. `UriRouter` (SSOT for URI routing) maps concept URIs to register/concept-id pairs with wildcard pattern matching and URN prefix mapping. `ReferenceResolver` provides unified resolution for URIs, URNs, and prefixed refs through a single `Resolution` type (`internal | external | unresolved`), delegating URI pattern matching to `UriRouter`.
 
 - **Graph Engine** (`src/graph/GraphEngine.ts`) — Directed multigraph for concept relationships. Supports cross-register edges with correct register derivation from URIs, edge deduplication, stub node creation with auto-upgrade, BFS subgraph extraction, and forward/reverse adjacency. Used by the vocabulary store and rendered in `GraphPanel`/`GraphView` via D3.
 
@@ -48,6 +48,14 @@ The target architecture uses GCR (Glossarist Concept Repository) files — seale
 
 - **Views/Components** — Standard Vue 3 SFC structure. Views are in `src/views/`, reusable components in `src/components/`.
 
+### Hierarchical Sections
+Registers can define hierarchical sections in `register.yaml` using the `children` field. The section tree is serialized verbatim into `manifest.sections` by `generate-data.mjs` — it is the single source of truth for hierarchy at runtime.
+
+- **Build (`scripts/lib/concept-groups.mjs`):** `getGroups(conceptYaml)` produces a concept's direct section memberships. No parent inflation.
+- **Runtime (`src/utils/section-tree.ts`):** pure helpers — `findSectionNode`, `collectDescendantSectionIds`, `toSectionNode`, `toSectionTree`.
+- **Filtering (`src/views/DatasetView.vue`):** `sectionClosure` computed builds the descendant closure once per filter change; `conceptMatchesSection` intersects each concept's `groups` with the closure. Arbitrary depth works.
+- **Display (`src/utils/section-display.ts`):** `formatSectionLabel` is the single source for the "id — name" disambiguation rule.
+
 ### URI Scheme and Resolution
 Concepts use URIs like `https://glossarist.org/{registerId}/concept/{conceptId}`. Resolution flows through `AdapterFactory.resolve()` → `ReferenceResolver.resolveUri()` → `UriRouter`. URNs (`urn:iso:std:iso:NNNN:id`) and prefixed refs (`IEV:xxx`) are resolved via `urnStandardMap` and `refPrefixMap` from manifest data. External references resolve to configurable URL templates. The `/resolve/{uri}` route provides universal concept deep-linking.
 
@@ -55,7 +63,10 @@ Concepts use URIs like `https://glossarist.org/{registerId}/concept/{conceptId}`
 Each dataset gets a dynamic color from its `manifest.json` `color` field (set via `datasets.yml`). Colors are used via `useDsStyle()` composable with per-register caching. No hardcoded per-dataset CSS classes — all dataset colors are data-driven.
 
 ### Content Rendering
-`src/utils/content-renderer.ts` is the single source of truth for ALL inline content rendering. Pipeline stages (in order): math placeholders (`stem:`, `latexmath:`), AsciiDoc tables, lists, text formatting (bold/italic/subscript), bibliography cross-refs, figure refs, URN inline refs, and the mention dispatcher (cite-ref, numeric, two-arg concept refs via `parseMention` from glossarist). `renderContent()` is a pure function accepting `RenderOptions` — no module-level state. `cleanContent()` strips all notation to plain text. `math.ts` re-exports for backward compat only — new code imports from `content-renderer.ts`.
+`src/utils/content-renderer.ts` is the single source of truth for ALL inline content rendering. Pipeline stages (in order): math placeholders (`stem:`, `latexmath:`), AsciiDoc tables, lists, text formatting (bold/italic/subscript), bibliography cross-refs, figure refs, URN inline refs, and the mention dispatcher (cite-ref, urn-ref, numeric, designation, two-arg concept refs via `parseMention` from glossarist ≥ 0.3.7). Mention convention: **ID always first, render term last** — `{{concept_id, display_text}}`. `renderContent()` is a pure function accepting `RenderOptions` (includes `xrefResolver`, `bibResolver`, `figResolver`, `conceptRefResolver`, `citeResolver`, `urnRefResolver`) — no module-level state. `cleanContent()` strips all notation to plain text. `math.ts` re-exports for backward compat only — new code imports from `content-renderer.ts`.
+
+### Designation Lookup
+`DatasetAdapter` builds a `designationMap` (lowercase designation → concept ID) during `buildSummaryIndex()`. The `lookupByDesignation()` method enables the runtime `conceptRefResolver` to resolve `{{atomic data unit, atomic data units}}` mentions to the actual concept ID `express-language.atomic_data_unit` — without this, designation-based cross-references would not link.
 
 ## Tech Stack
 
@@ -67,5 +78,6 @@ Deployed to https://www.geolexica.org via GitHub Pages. CI/CD pipeline: `.github
 
 ## Release Rules
 
-- **ALWAYS bump PATCH version only** (e.g. 0.4.9 → 0.4.10). Never bump minor or major unless explicitly requested.
-- After any code change, bump patch, tag (`v0.4.X`), push tag to trigger npm release, then redeploy all site repos.
+- **ALWAYS bump PATCH version only** (e.g. 0.7.41 → 0.7.42). Never bump minor or major unless explicitly requested.
+- **Release (Patch) workflow** (`.github/workflows/release-patch.yml`): manually triggered via GitHub Actions UI. Bumps version, runs tests, commits, tags, pushes to main, then triggers `release.yml` via `workflow_dispatch`. The `release.yml` workflow performs the npm publish with provenance (OIDC trusted publishing — no `NPM_TOKEN` needed) and creates a GitHub Release.
+- After release, update the dependency in site repos (e.g. `@glossarist/concept-browser@^0.7.XX`) and redeploy.

@@ -3,7 +3,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { naturalSort, Register, parseMention } from 'glossarist';
 import { loadSiteConfig } from './load-site-config.mjs';
-
+import { getGroups } from './lib/concept-groups.mjs';
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
@@ -572,24 +572,6 @@ function getPrimaryDesignation(conceptYaml) {
     }
   }
   return descs;
-}
-
-function getGroups(conceptYaml) {
-  if (conceptYaml.eng && conceptYaml.eng.groups) return conceptYaml.eng.groups;
-  // Derive groups from domains (e.g. section-based grouping in G18)
-  if (conceptYaml._domains) {
-    const sectionIds = conceptYaml._domains
-      .filter(d => d.ref_type === 'section' && d.concept_id)
-      .map(d => d.concept_id.replace(/^section-/, ''));
-    if (sectionIds.length) return sectionIds;
-  }
-  const termid = String(conceptYaml.termid);
-  if (/^\d{3}-/.test(termid)) return [termid.substring(0, 3)];
-  if (/^\d+\.\d+\.\d+/.test(termid)) {
-    const parts = termid.split('.');
-    return [`${parts[0]}.${parts[1]}.${parts[2]}`];
-  }
-  return [];
 }
 
 function escapeTurtle(s) {
