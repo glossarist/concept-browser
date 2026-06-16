@@ -20,7 +20,7 @@
  */
 
 import { loadSiteConfig } from '../scripts/load-site-config.mjs';
-import { execSync } from 'child_process';
+import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -166,22 +166,21 @@ Environment:
       }
     }
 
-    // Run vite build using the package's vite.config.ts
+    // Run vite build using the package's vite.config.ts via programmatic API
     console.log(`\n=== BUILD SPA ===\n`);
     const viteConfig = resolve(pkgRoot, 'vite.config.ts');
-    const viteBin = [resolve(pkgRoot, 'node_modules', '.bin', 'vite'), 'vite'].find(p => {
-      try { execSync(`${p} --version`, { stdio: 'pipe' }); return true; } catch { return false; }
-    });
-    execSync(`${viteBin} build --config ${viteConfig}`, {
-      stdio: 'inherit',
-      env: { ...process.env },
+    const { build: viteBuild } = await import('vite');
+    await viteBuild({
+      configFile: viteConfig,
+      root: pkgRoot,
+      mode: 'production',
     });
 
-    // Run postbuild (404 page)
-    try {
-      const postbuild = resolve(pkgRoot, 'scripts', 'generate-404.js');
-      execSync(`node ${postbuild}`, { stdio: 'inherit' });
-    } catch {}
+    // Run postbuild (404 page) via dynamic import
+    const postbuild = resolve(pkgRoot, 'scripts', 'generate-404.js');
+    if (existsSync(postbuild)) {
+      await import(`file://${postbuild}`);
+    }
 
     return;
   }
