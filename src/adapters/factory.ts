@@ -3,16 +3,30 @@ import type { RoutingEntry as ConfigRoutingEntry } from '../config/types';
 import { DatasetAdapter } from './DatasetAdapter';
 import { ReferenceResolver } from './ReferenceResolver';
 import { UriRouter } from './UriRouter';
+import { NonVerbalEntityResolver } from './non-verbal-resolver';
+import { BibliographyAdapter } from './bibliography-adapter';
 
 export class AdapterFactory {
   private adapters = new Map<string, DatasetAdapter>();
+  private bibliographyAdapters = new Map<string, BibliographyAdapter>();
   private crossRefIndex: Record<string, string[]> | null = null;
   readonly uriRouter: UriRouter;
   readonly resolver: ReferenceResolver;
+  readonly nonVerbalResolver: NonVerbalEntityResolver;
 
   constructor() {
     this.uriRouter = new UriRouter();
     this.resolver = new ReferenceResolver(this.uriRouter);
+    this.nonVerbalResolver = new NonVerbalEntityResolver();
+  }
+
+  bibliography(datasetId: string): BibliographyAdapter {
+    let a = this.bibliographyAdapters.get(datasetId);
+    if (!a) {
+      a = new BibliographyAdapter(datasetId);
+      this.bibliographyAdapters.set(datasetId, a);
+    }
+    return a;
   }
 
   async discoverDatasets(datasetsUrl: string): Promise<DatasetAdapter[]> {
