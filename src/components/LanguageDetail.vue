@@ -63,9 +63,6 @@ const renderOpts: RenderOptions = {
   bibResolver: (refId, title) => {
     return `<span class="bib-ref">${escapeAttr(title)}</span>`;
   },
-  figResolver: (figId) => {
-    return `<span class="fig-ref">${escapeAttr(figId)}</span>`;
-  },
 };
 
 function handleContentClick(e: MouseEvent) {

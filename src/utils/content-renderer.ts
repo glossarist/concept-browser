@@ -5,28 +5,39 @@
  * math placeholders, tables, lists, and text formatting. This is the single
  * source of truth for content rendering in the browser.
  *
+ * Mention kinds routed here (all dispatched by glossarist's `parseMention`):
+ *   - {{fig:id}} / {{fig:id, display}}  → nonVerbalRefResolver (figure)
+ *   - {{table:id}} / {{table:id, display}}  → nonVerbalRefResolver (table)
+ *   - {{formula:id}} / {{formula:id, display}}  → nonVerbalRefResolver (formula)
+ *   - {{cite:key[, render term]}}  → citeResolver
+ *   - {{urn:...[, render term]}}  → urnRefResolver / xrefResolver
+ *   - {{concept_id[, render term]}}  → conceptRefResolver
+ *   - {{designation[, render term]}}  → conceptRefResolver
+ *
  * Math-specific helpers (replaceBracketed, mathPlaceholder) are internal.
- * The v-math directive upgrades the placeholders to KaTeX at runtime.
+ * The v-math directive upgrades the placeholders to Plurimath at runtime.
  */
 import { escapeHtml, escapeAttr } from './escape';
 import { parseMention } from 'glossarist';
+import type { NonVerbalKind } from '../adapters/non-verbal/types';
+import { entityKindFromMentionKind } from '../adapters/non-verbal/kind';
 
 // ── Resolver types ────────────────────────────────────────────────────────
 
 export type XrefResolver = (uri: string, term: string) => string;
 export type BibResolver = (refId: string, title: string) => string;
-export type FigResolver = (figId: string) => string;
 export type CiteResolver = (key: string, label: string | null) => string;
 export type ConceptRefResolver = (conceptId: string, term: string) => string;
 export type UrnRefResolver = (uri: string, term: string) => string;
+export type NonVerbalRefResolver = (kind: NonVerbalKind, entityId: string, display?: string) => string;
 
 export interface RenderOptions {
   xrefResolver?: XrefResolver;
   bibResolver?: BibResolver;
-  figResolver?: FigResolver;
   conceptRefResolver?: ConceptRefResolver;
   citeResolver?: CiteResolver;
   urnRefResolver?: UrnRefResolver;
+  nonVerbalRefResolver?: NonVerbalRefResolver;
 }
 
 // ── Math placeholders ────────────────────────────────────────────────────
@@ -144,19 +155,11 @@ function resolveBibRefs(text: string, opts: RenderOptions): string {
   });
 }
 
-function resolveFigRefs(text: string, opts: RenderOptions): string {
-  return text.replace(/<<(fig_[^>]+)>>/g, (_, figId) => {
-    if (opts.figResolver) {
-      return opts.figResolver(figId.trim());
-    }
-    return `<span class="fig-ref">${escapeHtml(figId.trim())}</span>`;
-  });
-}
-
 function resolveUrnRefs(text: string, opts: RenderOptions): string {
   // Double-brace URN refs: {{urn:...,term}} or {{urn:...,term,display}}
-  // Note: glossarist ≥ 0.3.7 parseMention handles these as 'urn-ref', but we
-  // keep this handler for when parseMention returns 'unresolved' (glossarist < 0.3.7)
+  // These bypass parseMention because the three-arg form has different
+  // semantics in the renderer (display shown, not term) vs. cleanContent
+  // (term shown for search indexing).
   let result = text.replace(/\{\{(urn:[^,}]+),([^,}]+)(?:,([^}]+))?\}\}/g, (_, uri, term, display) => {
     const t = (display || term).trim();
     if (opts.xrefResolver) {
@@ -178,60 +181,68 @@ function resolveUrnRefs(text: string, opts: RenderOptions): string {
 }
 
 function resolveMentions(text: string, opts: RenderOptions): string {
-  // Single-pass {{...}} mention dispatcher via parseMention (SSOT)
   return text.replace(/\{\{([^{}]+?)\}\}/g, (_orig, body) => {
     const parsed = parseMention(body);
+    const p = parsed as Record<string, unknown>;
 
-    // cite:key[,render term] — bibliography citation
-    if (parsed.kind === 'cite-ref') {
-      const key = parsed.key!;
-      const label = parsed.label ?? null;
-      if (opts.citeResolver) return opts.citeResolver(key, label);
-      return `<span class="bib-ref">${escapeHtml(label ?? key)}</span>`;
-    }
-
-    // urn:...[,render term] — URN cross-reference (glossarist ≥ 0.3.7)
-    const anyParsed = parsed as Record<string, unknown>;
-    if ((anyParsed.kind as string) === 'urn-ref') {
-      const uri = anyParsed.uri as string;
-      const label = (anyParsed.label as string) ?? uri;
-      if (opts.urnRefResolver) return opts.urnRefResolver(uri, label);
-      if (opts.xrefResolver) return opts.xrefResolver(uri, label);
-      return escapeHtml(label);
-    }
-
-    // numeric_id[,render term] — local concept ID
-    if (parsed.kind === 'numeric') {
-      const id = parsed.id!;
-      const label = parsed.label;
-      if (label && opts.conceptRefResolver) {
-        return opts.conceptRefResolver(id, label);
+    switch (p.kind) {
+      case 'fig-ref':
+      case 'table-ref':
+      case 'formula-ref': {
+        const nvKind = entityKindFromMentionKind(p.kind as string) as NonVerbalKind;
+        const entityId = p.key as string;
+        const display = (p.label as string) ?? undefined;
+        if (opts.nonVerbalRefResolver) {
+          return opts.nonVerbalRefResolver(nvKind, entityId, display);
+        }
+        const label = display ?? entityId;
+        return `<span class="nv-ref nv-ref--${nvKind}">${escapeHtml(label)}</span>`;
       }
-      return `<span class="gl-mention">${escapeHtml(id)}</span>`;
-    }
 
-    // designation[,render term] — designation matching (glossarist ≥ 0.3.7)
-    if ((anyParsed.kind as string) === 'designation') {
-      const designation = anyParsed.id as string;
-      const label = (anyParsed.label as string) ?? designation;
-      if (opts.conceptRefResolver) {
-        return opts.conceptRefResolver(designation, label);
+      case 'cite-ref': {
+        const key = p.key as string;
+        const label = (p.label as string) ?? null;
+        if (opts.citeResolver) return opts.citeResolver(key, label);
+        return `<span class="bib-ref">${escapeHtml(label ?? key)}</span>`;
       }
-      return escapeHtml(label);
-    }
 
-    // Fallback for unresolved: handle two-arg form or render as plain text
-    // This handles cases where parseMention doesn't recognize the kind
-    // (e.g. glossarist < 0.3.7 before urn-ref/designation kinds were added)
-    const commaIdx = body.indexOf(',');
-    if (commaIdx > 0) {
-      const id = body.slice(0, commaIdx).trim();
-      const display = body.slice(commaIdx + 1).trim();
-      if (opts.conceptRefResolver) return opts.conceptRefResolver(id, display);
-      return escapeHtml(display);
-    }
+      case 'urn-ref': {
+        const uri = p.uri as string;
+        const label = (p.label as string) ?? uri;
+        if (opts.urnRefResolver) return opts.urnRefResolver(uri, label);
+        if (opts.xrefResolver) return opts.xrefResolver(uri, label);
+        return escapeHtml(label);
+      }
 
-    return `<span class="gl-mention">${escapeHtml(body.trim())}</span>`;
+      case 'numeric': {
+        const id = p.id as string;
+        const label = p.label as string | null;
+        if (label && opts.conceptRefResolver) {
+          return opts.conceptRefResolver(id, label);
+        }
+        return `<span class="gl-mention">${escapeHtml(id)}</span>`;
+      }
+
+      case 'designation': {
+        const designation = p.id as string;
+        const label = (p.label as string) ?? designation;
+        if (opts.conceptRefResolver) {
+          return opts.conceptRefResolver(designation, label);
+        }
+        return escapeHtml(label);
+      }
+
+      default: {
+        const commaIdx = body.indexOf(',');
+        if (commaIdx > 0) {
+          const id = body.slice(0, commaIdx).trim();
+          const display = body.slice(commaIdx + 1).trim();
+          if (opts.conceptRefResolver) return opts.conceptRefResolver(id, display);
+          return escapeHtml(display);
+        }
+        return `<span class="gl-mention">${escapeHtml(body.trim())}</span>`;
+      }
+    }
   });
 }
 
@@ -246,9 +257,9 @@ function resolveMentions(text: string, opts: RenderOptions): string {
  * 3. Bullet and numbered lists
  * 4. Text formatting (bold, italic, subscript)
  * 5. Bibliography cross-references (<<ref,title>>)
- * 6. Figure references (<<fig_...>>)
- * 7. Single-brace URN inline references ({urn:...})
- * 8. Mention dispatcher via parseMention (cite-ref, urn-ref, numeric, designation)
+ * 6. Single-brace URN inline references ({urn:...})
+ * 7. Mention dispatcher — non-verbal (fig/table/formula), then parseMention
+ *    (cite-ref, urn-ref, numeric, designation)
  */
 export function renderContent(text: string, xrefResolverOrOpts?: XrefResolver | RenderOptions): string {
   if (!text) return '';
@@ -273,10 +284,9 @@ export function renderContent(text: string, xrefResolverOrOpts?: XrefResolver | 
 
   // Stage 4: Reference resolution
   result = resolveBibRefs(result, opts);
-  result = resolveFigRefs(result, opts);
   result = resolveUrnRefs(result, opts);
 
-  // Stage 5: Mention dispatcher (parseMention SSOT)
+  // Stage 5: Mention dispatcher (non-verbal first, then parseMention SSOT)
   result = resolveMentions(result, opts);
 
   return result;
@@ -295,7 +305,9 @@ export function cleanContent(text: string): string {
     .replace(/~([^~]+)~/g, '_$1')
     .replace(/\n[ \t]*\* /g, '; ')
     .replace(/<<([^,>]+),([^>]+)>>/g, '$2')
-    .replace(/<<(fig_[^>]+)>>/g, '$1')
+    // Non-verbal mentions: {{fig:id, display}} → display; {{fig:id}} → id
+    .replace(/\{\{(?:fig|figure|table|tbl|formula|eq):([^,}]+),\s*([^}]+)\}\}/g, '$2')
+    .replace(/\{\{(?:fig|figure|table|tbl|formula|eq):([^}]+)\}\}/g, '$1')
     // URN refs — show render term (second part for two-arg, third part for three-arg)
     .replace(/\{\{urn:[^,}]+,([^,}]+),([^}]+)\}\}/g, '$1')  // three-arg: {{urn:...,term,display}} → term
     .replace(/\{\{urn:[^,}]+(?:,([^}]+))?\}\}/g, (_, label) => label ? label.trim() : '')  // two-arg or bare
