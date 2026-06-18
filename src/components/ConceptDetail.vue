@@ -16,6 +16,8 @@ import { getFactory } from '../adapters/factory';
 import { useRenderOptions } from '../composables/use-render-options';
 import { useConceptEdges } from '../composables/use-concept-edges';
 import { useConceptContent } from '../composables/use-concept-content';
+import { useConceptEntities } from '../composables/use-concept-entities';
+import { useNonVerbalCrossRef } from '../composables/use-non-verbal-cross-ref';
 import { relationshipLabel, INVERSE_RELATIONSHIPS } from '../utils/relationship-categories';
 import { slugify } from '../utils/slugify';
 import { useSiteConfig } from '../config/use-site-config';
@@ -23,6 +25,7 @@ import ConceptTimeline from './ConceptTimeline.vue';
 import ConceptRdfView from './ConceptRdfView.vue';
 import FormatDownloads from './FormatDownloads.vue';
 import NonVerbalRepDisplay from './NonVerbalRepDisplay.vue';
+import NonVerbalList from './non-verbal/NonVerbalList.vue';
 import CitationDisplay from './CitationDisplay.vue';
 import DesignationList from './DesignationList.vue';
 import { useI18n } from '../i18n';
@@ -103,7 +106,7 @@ const conceptSources = computed(() => props.concept.sources);
 const conceptTags = computed(() => props.concept.tags ?? []);
 
 const factory = getFactory();
-const { ensureBibLoaded, bibResolver, figResolver } = useRenderOptions(() => props.registerId);
+const { ensureBibLoaded, bibResolver, nonVerbalRefResolver } = useRenderOptions(() => props.registerId);
 
 const renderOpts = computed<RenderOptions>(() => ({
   xrefResolver: (uri, term) => {
@@ -125,10 +128,17 @@ const renderOpts = computed<RenderOptions>(() => ({
     return `<a href="#" class="xref-link" data-register="${escapeAttr(props.registerId)}" data-concept="${escapeAttr(resolvedId)}">${escapeAttr(term)}</a>`;
   },
   bibResolver,
-  figResolver,
+  nonVerbalRefResolver,
 }));
 
 watch(() => props.registerId, () => { ensureBibLoaded(); }, { immediate: true });
+
+const structuralEntityRefs = useConceptEntities(
+  computed(() => props.concept),
+  computed(() => props.registerId),
+);
+
+useNonVerbalCrossRef();
 
 function handleContentClick(e: MouseEvent) {
   const target = (e.target as HTMLElement).closest('.xref-link') as HTMLElement | null;
@@ -416,7 +426,7 @@ const nonVerbalReps = computed(() => {
               </div>
 
               <!-- Non-verbal representations -->
-              <NonVerbalRepDisplay v-if="lc.lc.nonVerbalRep?.length" :reps="lc.lc.nonVerbalRep" />
+              <NonVerbalRepDisplay v-if="lc.lc.nonVerbalRep?.length" :reps="lc.lc.nonVerbalRep" :locale="lc.lang" :register-id="registerId" :dataset-locales="languages" />
 
               <!-- Sources -->
               <div v-if="lc.sources.length" class="space-y-2">
@@ -467,7 +477,10 @@ const nonVerbalReps = computed(() => {
           </div>
 
           <!-- Non-verbal reps (concept-level) -->
-          <NonVerbalRepDisplay v-if="nonVerbalReps.length" :reps="nonVerbalReps" />
+          <NonVerbalRepDisplay v-if="nonVerbalReps.length" :reps="nonVerbalReps" :locale="languages[0] ?? 'eng'" :register-id="registerId" :dataset-locales="languages" />
+
+          <!-- Structural entity refs (concept-level figures/tables/formulas) -->
+          <NonVerbalList v-if="structuralEntityRefs.length" :refs="structuralEntityRefs" />
         </div>
 
         <!-- Right sidebar -->
