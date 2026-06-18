@@ -4,6 +4,8 @@ import yaml from 'js-yaml';
 import { naturalSort, Register, parseMention } from 'glossarist';
 import { loadSiteConfig } from './load-site-config.mjs';
 import { getGroups } from './lib/concept-groups.mjs';
+import { consumeDatasetEntities } from './lib/build/non-verbal-consumer.mjs';
+import { copyImageAssets } from './lib/build/image-assets.mjs';
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
@@ -1010,23 +1012,30 @@ function processDataset(dir, register, opts) {
   if (fs.existsSync(bibPath)) {
     const bibData = readYaml(bibPath);
     writeJson(path.join(DATA, register, 'bibliography.json'), bibData);
-    console.log(`  Copied bibliography (${Object.keys(bibData).length} entries)`);
+    const bibCount = Array.isArray(bibData?.bibliography) ? bibData.bibliography.length : 0;
+    console.log(`  Copied bibliography (${bibCount} entries)`);
   }
 
-  // Copy images/
+  // Copy images/ with magic-byte validation + manifest emission.
   const imagesSrcDir = path.join(sourceRoot, 'images');
   if (fs.existsSync(imagesSrcDir) && fs.statSync(imagesSrcDir).isDirectory()) {
     const imagesDestDir = path.join(DATA, register, 'images');
-    fs.mkdirSync(imagesDestDir, { recursive: true });
-    let imgCount = 0;
-    for (const file of fs.readdirSync(imagesSrcDir)) {
-      const src = path.join(imagesSrcDir, file);
-      if (fs.statSync(src).isFile()) {
-        fs.copyFileSync(src, path.join(imagesDestDir, file));
-        imgCount++;
-      }
+    const result = await copyImageAssets(imagesSrcDir, imagesDestDir);
+    console.log(`  Copied ${result.count} images (skipped ${result.skipped.length})`);
+    for (const w of result.skipped) {
+      console.warn(`    Warning: skipped image ${w}`);
     }
-    console.log(`  Copied ${imgCount} images`);
+  }
+
+  // Consume non-verbal entities (figures/tables/formulas) — JSON-LD preferred,
+  // YAML fallback. Writes per-entity JSON + indexes.
+  const nvResult = await consumeDatasetEntities(sourceRoot, path.join(DATA, register));
+  const nvTotal = nvResult.figures + nvResult.tables + nvResult.formulas;
+  if (nvTotal > 0) {
+    console.log(`  Consumed ${nvResult.figures} figures, ${nvResult.tables} tables, ${nvResult.formulas} formulas`);
+    for (const w of nvResult.warnings) {
+      console.warn(`    Warning: ${w}`);
+    }
   }
 
   console.log(`  Generated ${concepts.length} concepts, manifest, ${chunks.length} index chunks`);
