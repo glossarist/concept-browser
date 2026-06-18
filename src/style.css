@@ -133,6 +133,23 @@
     @apply text-ink-600 hover:text-ink-800 underline-offset-2 hover:underline transition-colors;
   }
 
+  /* Non-verbal entity highlight — single source of truth for the
+     cross-ref "you landed here" affordance. Toggled by
+     utils/non-verbal-highlight.ts; applies to figure/table/formula
+     root elements uniformly. */
+  .nv-entity--highlighted {
+    outline: 2px solid var(--brand-primary, #2563eb);
+    outline-offset: 4px;
+    animation: nv-entity-pulse 1.6s ease-out;
+  }
+  @keyframes nv-entity-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+    20%      { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.25); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .nv-entity--highlighted { animation: none; }
+  }
+
   /* Concept definition lists */
   .concept-list {
     list-style: disc;
