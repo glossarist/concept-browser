@@ -783,7 +783,7 @@ ${bodyEntries}
 `;
 }
 
-function processDataset(dir, register, opts) {
+async function processDataset(dir, register, opts) {
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.yaml')).sort((a, b) => naturalSort(a.replace('.yaml', ''), b.replace('.yaml', '')));
 
   console.log(`Processing ${register}: ${files.length} files`);
@@ -1095,7 +1095,7 @@ for (let i = 0; i < config.datasets.length; i++) {
   // Resolve title: site-config override, then ref from register
   const resolvedTitle = ds.title || reg?.ref || ds.id;
 
-  counts[ds.id] = processDataset(dir, ds.id, {
+  counts[ds.id] = await processDataset(dir, ds.id, {
     title: resolvedTitle,
     description: resolvedDescription,
     owner: ds.owner || reg?.owner,
