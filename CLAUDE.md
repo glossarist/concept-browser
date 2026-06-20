@@ -11,8 +11,9 @@ Glossarist Concept Browser (`@glossarist/concept-browser`) — a Vue 3 SPA that 
 - `npm run dev` — Start Vite dev server
 - `npm run build` — Type-check with vue-tsc, then build for production (includes postbuild 404.html generation)
 - `npm run preview` — Preview production build locally
-- `npm test` or `npm run test` — Run tests once (vitest)
+- `npm test` or `npm run test` — Run tests once (vitest). Runs `pretest` first, which executes the script syntax gate.
 - `npm run test:watch` — Run tests in watch mode
+- `npm run check:scripts` — Syntax-gate every `.mjs`/`.js`/`.cjs` file under `scripts/` and `cli/` via `node --check`. Also runs automatically via the `pretest` and `prebuild` hooks, and as an explicit CI step before `npm test`. Prevents regressions like v0.7.45 where `await` was used inside a non-async function in `scripts/generate-data.mjs` (a file vitest never imports and vue-tsc never type-checks).
 - Run a single test: `npx vitest run src/__tests__/graph.test.ts`
 - `npm run fetch-datasets` — Clone/update source repos into `.datasets/`, harmonize concepts to canonical format. Supports `DATASET_SOURCE_{ID}` env var for local path override.
 - `npm run generate-data` — Convert harmonized YAML concepts to JSON-LD. Reads from `.datasets/` (populated by fetch-datasets) and `datasets.yml`.
