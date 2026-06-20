@@ -161,6 +161,7 @@ const {
   toggleLang,
   toggleAll,
   plainTruncate,
+  totalExampleCount,
   orderedDesignations,
 } = useConceptContent(conceptComputed, manifestComputed, renderOpts);
 
@@ -380,8 +381,8 @@ const nonVerbalReps = computed(() => {
                 <template v-if="lc.annotations.length">{{ lc.annotations.length }} annotation{{ lc.annotations.length > 1 ? 's' : '' }}</template>
                 <template v-if="lc.annotations.length && lc.notes.length"> &middot; </template>
                 <template v-if="lc.notes.length">{{ lc.notes.length }} note{{ lc.notes.length > 1 ? 's' : '' }}</template>
-                <template v-if="(lc.annotations.length || lc.notes.length) && lc.examples.length"> &middot; </template>
-                <template v-if="lc.examples.length">{{ lc.examples.length }} example{{ lc.examples.length > 1 ? 's' : '' }}</template>
+                <template v-if="(lc.annotations.length || lc.notes.length) && totalExampleCount(lc)"> &middot; </template>
+                <template v-if="totalExampleCount(lc)">{{ totalExampleCount(lc) }} example{{ totalExampleCount(lc) > 1 ? 's' : '' }}</template>
               </p>
             </div>
 
@@ -411,17 +412,23 @@ const nonVerbalReps = computed(() => {
 
               <!-- Notes -->
               <div v-if="lc.notes.length" class="space-y-2">
-                <div v-for="(_, i) in lc.notes" :key="i" class="text-ink-600 text-sm leading-relaxed">
+                <div v-for="(note, i) in lc.notes" :key="i" class="text-ink-600 text-sm leading-relaxed">
                   <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">{{ t('concept.note') }} {{ i + 1 }}</span>
-                  <div class="mt-1" v-html="lc.renderedNotes[i]"></div>
+                  <div class="mt-1" v-html="note.renderedContent"></div>
+                  <div v-if="note.examples.length" class="mt-2 ml-4 space-y-2 border-l-2 border-ink-200/70 pl-3">
+                    <div v-for="(ex, j) in note.examples" :key="j" class="text-ink-500 leading-relaxed">
+                      <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">{{ t('concept.example') }} {{ j + 1 }}</span>
+                      <div class="mt-1" v-html="ex.renderedContent"></div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <!-- Examples -->
               <div v-if="lc.examples.length" class="space-y-2">
-                <div v-for="(_, i) in lc.examples" :key="i" class="text-ink-600 text-sm leading-relaxed">
+                <div v-for="(ex, i) in lc.examples" :key="i" class="text-ink-600 text-sm leading-relaxed">
                   <span class="font-medium text-ink-400 text-xs uppercase tracking-wide">{{ t('concept.example') }} {{ i + 1 }}</span>
-                  <div class="mt-1" v-html="lc.renderedExamples[i]"></div>
+                  <div class="mt-1" v-html="ex.renderedContent"></div>
                 </div>
               </div>
 

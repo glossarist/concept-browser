@@ -181,6 +181,27 @@ describe('ConceptDetail interactions', () => {
     expect(wrapper.text()).toContain('an example');
   });
 
+  it('renders scoped examples nested inside a note', async () => {
+    const json = makeConceptJson() as Record<string, any>;
+    json['gl:localizedConcept'].eng['gl:notes'] = [
+      {
+        '@type': 'gl:DetailedDefinition',
+        'gl:content': 'resistance depends on dimensions and material',
+        'gl:examples': [
+          { '@type': 'gl:DetailedDefinition', 'gl:content': 'copper resistivity ≈ 1.68e-8 Ω·m at 20 °C' },
+          { '@type': 'gl:DetailedDefinition', 'gl:content': '1 m of 1 mm² copper wire ≈ 0.017 Ω' },
+        ],
+      },
+    ];
+    const wrapper = mountDetail(json);
+    await switchToDefinition(wrapper);
+    expect(wrapper.text()).toContain('resistance depends');
+    expect(wrapper.text()).toContain('Example 1');
+    expect(wrapper.text()).toContain('Example 2');
+    expect(wrapper.text()).toContain('copper resistivity');
+    expect(wrapper.text()).toContain('0.017 Ω');
+  });
+
   it('renders designation types as badges', async () => {
     const wrapper = mountDetail();
     await switchToDefinition(wrapper);
