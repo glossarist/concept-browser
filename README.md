@@ -4,7 +4,7 @@ A statically deployable single-page application for browsing terminology dataset
 
 **Live sites:**
 - [GeoLexica](https://www.geolexica.org) — IEC Electropedia + ISO/TC 211 + more
-- [VIML](https://metanorma.github.io/oiml-viml/) — OIML International Vocabulary of Legal Metrology
+- [VIML](https://www.oimlsmart.org/vocab/) — OIML International Vocabulary of Legal Metrology
 - [OIML Terms](https://metanorma.github.io/oiml-terms/) — OIML G 18 terminology
 
 ---
@@ -356,12 +356,14 @@ Sites currently powered by `@glossarist/concept-browser`. When cutting a release
 | [`geolexica/isotc204.geolexica.org`](https://github.com/geolexica/isotc204.geolexica.org) | https://isotc204.geolexica.org |
 | [`geolexica/isotc211.geolexica.org`](https://github.com/geolexica/isotc211.geolexica.org) | https://isotc211.geolexica.org |
 | [`geolexica/osgeo.geolexica.org`](https://github.com/geolexica/osgeo.geolexica.org) | https://osgeo.geolexica.org |
-| [`oimlsmart/vocab`](https://github.com/oimlsmart/vocab) | https://www.oimlsmart.org/vocab/ (VIML) |
+| [`oimlsmart/vocab`](https://github.com/oimlsmart/vocab) | https://www.oimlsmart.org/vocab/ (VIML)¹ |
 | [`metanorma/oiml-terms`](https://github.com/metanorma/oiml-terms) | https://metanorma.github.io/oiml-terms/ |
 | [`metanorma/iala-vocab`](https://github.com/metanorma/iala-vocab) | https://metanorma.github.io/iala-vocab/ |
 | [`metanorma/iso-10303-2-vocab`](https://github.com/metanorma/iso-10303-2-vocab) | https://metanorma.github.io/iso-10303-2-vocab/ |
 
 To add a new deployment here, open a PR against this README.
+
+¹ The VIML deployment moved from `metanorma/oiml-viml` to [`oimlsmart/vocab`](https://github.com/oimlsmart/vocab) (GitHub redirects the old name automatically), and its live URL moved from `metanorma.github.io/oiml-viml/` to `www.oimlsmart.org/vocab/`. The old `metanorma.github.io/oiml-viml/` URL returns 404 (Pages doesn't follow repo renames across orgs).
 
 ---
 
