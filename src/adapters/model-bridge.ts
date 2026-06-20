@@ -184,6 +184,13 @@ export function getAnnotations(lc: LocalizedConcept): DetailedDefinition[] {
   return extraAnnotations.get(lc) ?? [];
 }
 
+// Scoped examples: DetailedDefinition.examples (VIM 1993 nesting)
+const extraNoteExamples = new WeakMap<DetailedDefinition, DetailedDefinition[]>();
+
+export function getNoteExamples(note: DetailedDefinition): DetailedDefinition[] {
+  return extraNoteExamples.get(note) ?? [];
+}
+
 // Designation relationship targets: RelatedConcept.target (string)
 const designationTargets = new WeakMap<object, string>();
 
@@ -228,6 +235,25 @@ function attachBridges(concept: Concept, localizations: Record<string, unknown>)
       extraAnnotations.set(lc, annList.map((a: Record<string, unknown>) =>
         DetailedDefinition.fromJSON({ content: (a.content as string) ?? '' }) as DetailedDefinition,
       ));
+    }
+
+    // Scoped examples inside notes/definition/examples/annotations
+    for (const fieldName of ['notes', 'definition', 'examples', 'annotations'] as const) {
+      const rawList = rawObj[fieldName];
+      const modelList = lc[fieldName] as DetailedDefinition[];
+      if (!Array.isArray(rawList) || modelList.length === 0) continue;
+      for (let i = 0; i < Math.min(rawList.length, modelList.length); i++) {
+        const rawItem = rawList[i] as Record<string, unknown> | undefined;
+        const rawExamples = rawItem?.examples;
+        if (!Array.isArray(rawExamples) || rawExamples.length === 0) continue;
+        const nested = rawExamples.map((e: Record<string, unknown>) =>
+          DetailedDefinition.fromJSON({
+            content: (e.content as string) ?? '',
+            ...(Array.isArray(e.examples) ? { examples: e.examples } : {}),
+          }) as DetailedDefinition,
+        );
+        extraNoteExamples.set(modelList[i], nested);
+      }
     }
 
     // Designation-level relationship targets, ref text, sourceId, citation
@@ -399,6 +425,14 @@ function mapLocalityFromJsonLd(rawLoc: JsonLdLocality | undefined): Record<strin
     ? locObj : null;
 }
 
+function mapDetailedDefinitionFromJsonLd(d: any): Record<string, unknown> {
+  const result: Record<string, unknown> = { content: d['gl:content'] ?? '' };
+  if (d['gl:examples']?.length) {
+    result.examples = d['gl:examples'].map(mapDetailedDefinitionFromJsonLd);
+  }
+  return result;
+}
+
 function mapSourceFromJsonLd(s: JsonLdSource): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   if (s['gl:id']) result.id = s['gl:id'];
@@ -480,21 +514,19 @@ function mapLocalizedFromJsonLd(lc: JsonLdLocalizedConcept): Record<string, unkn
   }
 
   if (lc['gl:definition']?.length) {
-    data.definition = lc['gl:definition'].map(d => ({
-      content: d['gl:content'] ?? '',
-    }));
+    data.definition = lc['gl:definition'].map(mapDetailedDefinitionFromJsonLd);
   }
 
   if (lc['gl:notes']?.length) {
-    data.notes = lc['gl:notes'].map(n => ({ content: n['gl:content'] ?? '' }));
+    data.notes = lc['gl:notes'].map(mapDetailedDefinitionFromJsonLd);
   }
 
   if (lc['gl:annotations']?.length) {
-    data.annotations = lc['gl:annotations'].map(a => ({ content: a['gl:content'] ?? '' }));
+    data.annotations = lc['gl:annotations'].map(mapDetailedDefinitionFromJsonLd);
   }
 
   if (lc['gl:examples']?.length) {
-    data.examples = lc['gl:examples'].map(e => ({ content: e['gl:content'] ?? '' }));
+    data.examples = lc['gl:examples'].map(mapDetailedDefinitionFromJsonLd);
   }
 
   if (lc['gl:source']?.length) {

@@ -1,13 +1,24 @@
-import { computed, ref, watch, type ComputedRef } from 'vue';
-import type { Concept, LocalizedConcept, ConceptSource, Designation } from 'glossarist';
+import { computed, ref, watch, toRaw, type ComputedRef } from 'vue';
+import type { Concept, LocalizedConcept, ConceptSource, Designation, DetailedDefinition } from 'glossarist';
 import type { Manifest } from '../adapters/types';
 import type { RenderOptions } from '../utils/content-renderer';
 import { renderContent, cleanContent } from '../utils/content-renderer';
-import { getAnnotations } from '../adapters/model-bridge';
+import { getAnnotations, getNoteExamples } from '../adapters/model-bridge';
 import { getPreferredTerm, entryStatusColor, entryStatusLabel, entryStatusDefinition } from '../utils/concept-helpers';
 import { sortLanguages } from '../utils/lang';
 import { useSiteConfig } from '../config/use-site-config';
 import { useI18n } from '../i18n';
+
+export interface ExampleEntry {
+  content: string;
+  renderedContent: string;
+}
+
+export interface NoteEntry {
+  content: string;
+  renderedContent: string;
+  examples: ExampleEntry[];
+}
 
 export interface LangContent {
   lang: string;
@@ -17,10 +28,8 @@ export interface LangContent {
   renderedDefinition: string;
   annotations: string[];
   renderedAnnotations: string[];
-  notes: string[];
-  renderedNotes: string[];
-  examples: string[];
-  renderedExamples: string[];
+  notes: NoteEntry[];
+  examples: ExampleEntry[];
   sources: ConceptSource[];
   designations: Designation[];
   renderedDesignations: Map<string, string>;
@@ -61,9 +70,26 @@ export function useConceptContent(
       const definition = lc.definitions
         .map(d => d.content).filter(Boolean).join('\n\n');
       const annotations = getAnnotations(lc).map(a => a.content).filter(Boolean);
-      const notes = lc.notes.map(n => n.content).filter(Boolean);
-      const examples = lc.examples.map(e => e.content).filter(Boolean);
       const opts = renderOpts.value;
+
+      const buildExample = (e: { content?: string } | undefined): ExampleEntry | null => {
+        const content = e?.content ?? '';
+        return content ? { content, renderedContent: renderContent(content, opts) } : null;
+      };
+      const notes: NoteEntry[] = lc.notes
+        .map(n => {
+          const content = n.content ?? '';
+          if (!content) return null;
+          const nested = getNoteExamples(toRaw(n) as DetailedDefinition);
+          const examples = nested
+            .map(buildExample)
+            .filter((e): e is ExampleEntry => e !== null);
+          return { content, renderedContent: renderContent(content, opts), examples };
+        })
+        .filter((n): n is NoteEntry => n !== null);
+      const examples: ExampleEntry[] = lc.examples
+        .map(buildExample)
+        .filter((e): e is ExampleEntry => e !== null);
 
       result.push({
         lang,
@@ -74,9 +100,7 @@ export function useConceptContent(
         annotations,
         renderedAnnotations: annotations.map((a: string) => renderContent(a, opts)),
         notes,
-        renderedNotes: notes.map(n => renderContent(n, opts)),
         examples,
-        renderedExamples: examples.map(e => renderContent(e, opts)),
         sources: lc.sources,
         designations: lc.terms,
         renderedDesignations: new Map(lc.terms.map(d => [d.designation, renderContent(d.designation)])),
@@ -137,6 +161,11 @@ export function useConceptContent(
     return text.length <= max ? text : text.slice(0, max).trimEnd() + '…';
   }
 
+  function totalExampleCount(lc: LangContent): number {
+    const nested = lc.notes.reduce((sum, n) => sum + n.examples.length, 0);
+    return lc.examples.length + nested;
+  }
+
   function orderedDesignations(lang: string): Designation[] {
     const desigs = langContentMap.value.get(lang)?.designations ?? [];
     const preferred = desigs.filter(d => d.normativeStatus === 'preferred');
@@ -155,6 +184,7 @@ export function useConceptContent(
     toggleLang,
     toggleAll,
     plainTruncate,
+    totalExampleCount,
     orderedDesignations,
   };
 }
