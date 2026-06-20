@@ -81,4 +81,4 @@ Deployed to https://www.geolexica.org via GitHub Pages. CI/CD pipeline: `.github
 
 - **ALWAYS bump PATCH version only** (e.g. 0.7.41 → 0.7.42). Never bump minor or major unless explicitly requested.
 - **Release (Patch) workflow** (`.github/workflows/release-patch.yml`): manually triggered via GitHub Actions UI. Bumps version, runs tests, commits, tags, pushes to main, then triggers `release.yml` via `workflow_dispatch`. The `release.yml` workflow performs the npm publish with provenance (OIDC trusted publishing — no `NPM_TOKEN` needed) and creates a GitHub Release.
-- After release, update the dependency in site repos (e.g. `@glossarist/concept-browser@^0.7.XX`) and redeploy.
+- After release, bump `@glossarist/concept-browser` in every consumer repo listed in **README § Known deployments** and merge through their normal PR flow. The current consumers are `geolexica/geolexica.github.io`, `geolexica/isotc204.geolexica.org`, `geolexica/isotc211.geolexica.org`, `geolexica/osgeo.geolexica.org`, `oimlsmart/vocab`, `metanorma/oiml-terms`, `metanorma/iala-vocab`, `metanorma/iso-10303-2-vocab`. Keep the two lists in sync — README is the source of truth.
