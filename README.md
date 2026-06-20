@@ -346,6 +346,23 @@ The build produces static files in `dist/` with an SPA `404.html` fallback:
 - **Vercel:** Framework Vite, build command `npx concept-browser build`, output directory `dist`
 - **AWS S3 + CloudFront:** Upload `dist/`, error document `index.html`, configure CloudFront for SPA routing
 
+### Known deployments
+
+Sites currently powered by `@glossarist/concept-browser`. When cutting a release with breaking changes, bump `@glossarist/concept-browser` in each consumer repo and redeploy.
+
+| Repo | Site |
+|---|---|
+| [`geolexica/geolexica.github.io`](https://github.com/geolexica/geolexica.github.io) | https://www.geolexica.org |
+| [`geolexica/isotc204.geolexica.org`](https://github.com/geolexica/isotc204.geolexica.org) | https://isotc204.geolexica.org |
+| [`geolexica/isotc211.geolexica.org`](https://github.com/geolexica/isotc211.geolexica.org) | https://isotc211.geolexica.org |
+| [`geolexica/osgeo.geolexica.org`](https://github.com/geolexica/osgeo.geolexica.org) | https://osgeo.geolexica.org |
+| [`oimlsmart/vocab`](https://github.com/oimlsmart/vocab) | https://www.oimlsmart.org/vocab/ (VIML) |
+| [`metanorma/oiml-terms`](https://github.com/metanorma/oiml-terms) | https://metanorma.github.io/oiml-terms/ |
+| [`metanorma/iala-vocab`](https://github.com/metanorma/iala-vocab) | https://metanorma.github.io/iala-vocab/ |
+| [`metanorma/iso-10303-2-vocab`](https://github.com/metanorma/iso-10303-2-vocab) | https://metanorma.github.io/iso-10303-2-vocab/ |
+
+To add a new deployment here, open a PR against this README.
+
 ---
 
 ## Architecture
