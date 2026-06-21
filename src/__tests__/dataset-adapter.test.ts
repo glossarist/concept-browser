@@ -85,6 +85,50 @@ describe('DatasetAdapter', () => {
       expect(adapter.getIndexEntry('103-01-02')?.eng).toBe('functional');
       expect(adapter.getConceptCount()).toBe(3);
     });
+
+    it('preserves the full multilingual designations map (regression for #25)', async () => {
+      const index = {
+        registerId: 'test',
+        schemaVersion: '1.0.0',
+        conceptCount: 2,
+        chunkSize: 500,
+        chunks: [],
+        concepts: [
+          {
+            id: '102-01-01',
+            designations: { eng: 'equality', fra: 'égalité', deu: 'Gleichheit' },
+            eng: 'equality',
+            status: 'Standard',
+          },
+          {
+            id: '102-01-02',
+            designations: { eng: 'inequality', fra: 'inégalité' },
+            eng: 'inequality',
+            status: 'Standard',
+          },
+        ],
+      };
+      mockFetch.mockReturnValue(mockJsonResponse(index));
+
+      await adapter.loadIndex();
+
+      const equality = adapter.getIndexEntry('102-01-01');
+      expect(equality?.designations).toEqual({
+        eng: 'equality',
+        fra: 'égalité',
+        deu: 'Gleichheit',
+      });
+
+      const inequality = adapter.getIndexEntry('102-01-02');
+      expect(inequality?.designations).toEqual({
+        eng: 'inequality',
+        fra: 'inégalité',
+      });
+
+      expect(adapter.lookupByDesignation('égalité')).toBe('102-01-01');
+      expect(adapter.lookupByDesignation('Gleichheit')).toBe('102-01-01');
+      expect(adapter.lookupByDesignation('inégalité')).toBe('102-01-02');
+    });
   });
 
   describe('fetchConcept', () => {
