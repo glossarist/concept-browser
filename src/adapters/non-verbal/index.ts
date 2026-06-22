@@ -28,8 +28,6 @@ export type {
   NonVerbalReference,
 } from './types';
 
-export { isFigure, isTable, isFormula } from './types';
-
 export { figureFromJsonLd } from './figure-bridge';
 export { tableFromJsonLd } from './table-bridge';
 export { formulaFromJsonLd } from './formula-bridge';
