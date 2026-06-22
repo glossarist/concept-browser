@@ -104,10 +104,10 @@ export type NonVerbalEntity = Figure | Table | Formula;
  *
  * glossarist-js's runtime `NonVerbRep` (post-V3 reshape) holds the same
  * localized fields as `NonVerbalEntityBase` plus a `type` discriminator
- * and an `images[]` array. The published `.d.ts` still describes the
- * pre-V3 `ref`/`text` shape; this local interface lets consumer code
- * type-check against reality. Remove when upstream ships a corrected
- * `.d.ts` (TODO.figures/19).
+ * and an `images[]` array. The published `.d.ts` (still stale at v0.4.2)
+ * describes the pre-V3 `ref`/`text` shape; this local interface lets
+ * consumer code type-check against reality. Drop when upstream ships a
+ * corrected `.d.ts`.
  */
 export interface NonVerbRepV3 extends NonVerbalEntityBase {
   type: string | null;
@@ -118,16 +118,4 @@ export interface NonVerbalReference {
   kind: NonVerbalKind;
   entityId: string;
   display?: string;
-}
-
-export function isFigure(entity: NonVerbalEntity): entity is Figure {
-  return entity.kind === 'figure';
-}
-
-export function isTable(entity: NonVerbalEntity): entity is Table {
-  return entity.kind === 'table';
-}
-
-export function isFormula(entity: NonVerbalEntity): entity is Formula {
-  return entity.kind === 'formula';
 }
