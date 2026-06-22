@@ -184,13 +184,6 @@ export function getAnnotations(lc: LocalizedConcept): DetailedDefinition[] {
   return extraAnnotations.get(lc) ?? [];
 }
 
-// Scoped examples: DetailedDefinition.examples (VIM 1993 nesting)
-const extraNoteExamples = new WeakMap<DetailedDefinition, DetailedDefinition[]>();
-
-export function getNoteExamples(note: DetailedDefinition): DetailedDefinition[] {
-  return extraNoteExamples.get(note) ?? [];
-}
-
 // Designation relationship targets: RelatedConcept.target (string)
 const designationTargets = new WeakMap<object, string>();
 
@@ -235,25 +228,6 @@ function attachBridges(concept: Concept, localizations: Record<string, unknown>)
       extraAnnotations.set(lc, annList.map((a: Record<string, unknown>) =>
         DetailedDefinition.fromJSON({ content: (a.content as string) ?? '' }) as DetailedDefinition,
       ));
-    }
-
-    // Scoped examples inside notes/definition/examples/annotations
-    for (const fieldName of ['notes', 'definition', 'examples', 'annotations'] as const) {
-      const rawList = rawObj[fieldName];
-      const modelList = lc[fieldName] as DetailedDefinition[];
-      if (!Array.isArray(rawList) || modelList.length === 0) continue;
-      for (let i = 0; i < Math.min(rawList.length, modelList.length); i++) {
-        const rawItem = rawList[i] as Record<string, unknown> | undefined;
-        const rawExamples = rawItem?.examples;
-        if (!Array.isArray(rawExamples) || rawExamples.length === 0) continue;
-        const nested = rawExamples.map((e: Record<string, unknown>) =>
-          DetailedDefinition.fromJSON({
-            content: (e.content as string) ?? '',
-            ...(Array.isArray(e.examples) ? { examples: e.examples } : {}),
-          }) as DetailedDefinition,
-        );
-        extraNoteExamples.set(modelList[i], nested);
-      }
     }
 
     // Designation-level relationship targets, ref text, sourceId, citation

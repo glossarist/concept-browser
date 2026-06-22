@@ -1,9 +1,9 @@
-import { computed, ref, watch, toRaw, type ComputedRef } from 'vue';
+import { computed, ref, watch, type ComputedRef } from 'vue';
 import type { Concept, LocalizedConcept, ConceptSource, Designation, DetailedDefinition } from 'glossarist';
 import type { Manifest } from '../adapters/types';
 import type { RenderOptions } from '../utils/content-renderer';
 import { renderContent, cleanContent } from '../utils/content-renderer';
-import { getAnnotations, getNoteExamples } from '../adapters/model-bridge';
+import { getAnnotations } from '../adapters/model-bridge';
 import { getPreferredTerm, entryStatusColor, entryStatusLabel, entryStatusDefinition } from '../utils/concept-helpers';
 import { sortLanguages } from '../utils/lang';
 import { useSiteConfig } from '../config/use-site-config';
@@ -80,7 +80,7 @@ export function useConceptContent(
         .map(n => {
           const content = n.content ?? '';
           if (!content) return null;
-          const nested = getNoteExamples(toRaw(n) as DetailedDefinition);
+          const nested = n.examples ?? [];
           const examples = nested
             .map(buildExample)
             .filter((e): e is ExampleEntry => e !== null);
