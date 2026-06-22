@@ -15,7 +15,7 @@
  *   }
  */
 
-import type { Formula, FormulaNotation } from './types';
+import { Formula } from 'glossarist';
 import { isType, pickField, localized } from './prefix';
 import { sourcesFromJsonLd } from './source-bridge';
 
@@ -31,18 +31,20 @@ export function formulaFromJsonLd(doc: Record<string, unknown>): Formula | null 
   if (!expression) return null;
 
   const notationRaw = (pickField<string>(doc, 'notation') ?? '').toLowerCase();
-  const notation = NOTATION_SET.has(notationRaw) ? (notationRaw as FormulaNotation) : 'latex';
+  const notation = NOTATION_SET.has(notationRaw) ? notationRaw : 'latex';
 
   const identifier = pickField<string>(doc, 'identifier');
   const caption = localized(doc, 'caption');
   const description = localized(doc, 'description');
   const sources = sourcesFromJsonLd(pickField(doc, 'source'));
 
-  const f: Formula = { kind: 'formula', id, expression, notation };
-  if (identifier) f.identifier = identifier;
-  if (caption) f.caption = caption;
-  if (description) f.description = description;
-  if (sources.length) f.sources = sources;
-
-  return f;
+  return new Formula({
+    id,
+    expression,
+    notation,
+    ...(identifier && { identifier }),
+    ...(caption && { caption }),
+    ...(description && { description }),
+    ...(sources.length && { sources }),
+  });
 }

@@ -10,7 +10,7 @@
  * so `{{fig:id}}` mentions can scroll to it via the cross-ref composable.
  */
 import { computed, ref } from 'vue';
-import type { Figure } from '../../adapters/non-verbal/types';
+import type { Figure } from 'glossarist';
 import { useNonVerbalEntity } from '../../composables/use-non-verbal-entity';
 import { resolveFallbackChain } from '../../utils/locale';
 import { anchorId } from '../../utils/non-verbal-anchor';
@@ -34,39 +34,40 @@ const id = () => props.entityId;
 const { entity, state, error } = useNonVerbalEntity(k, ds, id);
 
 const fallbackChain = computed(() => resolveFallbackChain(props.datasetLocales));
-const layout = computed(() => entity.value ? deriveLayout(entity.value as Figure) : 'single');
+const fig = computed(() => entity.value as Figure | null);
+const layout = computed(() => fig.value ? deriveLayout(fig.value) : 'single');
 const anchor = computed(() => anchorId('figure', props.datasetId, props.entityId));
 const descriptionId = computed(() => `${anchor.value}-desc`);
 
-const topLevelImages = computed(() => (entity.value as Figure | null)?.images ?? []);
+const topLevelImages = computed(() => fig.value?.images ?? []);
 </script>
 
 <template>
   <figure
-    v-if="entity && state === 'loaded'"
+    v-if="fig && state === 'loaded'"
     :id="anchor"
     :class="`figure figure--${layout}`"
   >
     <div v-if="topLevelImages.length" :class="`figure__media figure__media--${layout}`">
       <FigureImages
         :images="topLevelImages"
-        :alt="(entity as Figure).alt"
+        :alt="fig.alt"
         :dataset-id="datasetId"
         :locale="locale"
         :fallback-chain="fallbackChain"
-        :hasDescription="!!(entity as Figure).description && Object.keys((entity as Figure).description ?? {}).length > 0"
+        :hasDescription="!!fig.description && Object.keys(fig.description ?? {}).length > 0"
         :description-id="descriptionId"
         entity-label="Figure"
       />
     </div>
 
-    <template v-if="(entity as Figure).subfigures?.length">
+    <template v-if="fig.subfigures?.length">
       <div :class="`figure__subfigures figure__subfigures--${layout}`">
         <FigureDisplay
-          v-for="sub in (entity as Figure).subfigures"
-          :key="sub.id"
+          v-for="sub in fig.subfigures"
+          :key="sub.id ?? ''"
           :dataset-id="datasetId"
-          :entity-id="sub.id"
+          :entity-id="sub.id ?? ''"
           :locale="locale"
           :dataset-locales="datasetLocales"
         />
@@ -74,17 +75,17 @@ const topLevelImages = computed(() => (entity.value as Figure | null)?.images ??
     </template>
 
     <NonVerbalCaption
-      :identifier="(entity as Figure).identifier"
-      :caption="(entity as Figure).caption"
-      :description="(entity as Figure).description"
+      :identifier="fig.identifier"
+      :caption="fig.caption"
+      :description="fig.description"
       :locale="locale"
       :fallback-chain="fallbackChain"
       :description-id="descriptionId"
     />
 
     <NonVerbalSources
-      v-if="(entity as Figure).sources?.length"
-      :sources="(entity as Figure).sources!"
+      v-if="fig.sources?.length"
+      :sources="fig.sources"
     />
   </figure>
 

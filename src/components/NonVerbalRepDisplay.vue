@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { NonVerbRep, Citation } from 'glossarist';
-import type { FigureImage, LocalizedString, NonVerbRepV3, NonVerbalSource } from '../adapters/non-verbal/types';
+import type { LocalizedString, NonVerbRepV3, NonVerbRepImage, NonVerbalSource } from '../adapters/non-verbal/types';
 import { resolveFallbackChain } from '../utils/locale';
 import FigureImages from './figure/FigureImages.vue';
 import NonVerbalCaption from './non-verbal/NonVerbalCaption.vue';
@@ -21,7 +21,7 @@ const fallbackChain = computed(() => resolveFallbackChain(props.datasetLocales))
 // (images/alt/caption/description/sources). See TODO.figures/19.
 const v3Reps = computed<NonVerbRepV3[]>(() => props.reps as unknown as NonVerbRepV3[]);
 
-function imagesOf(rep: NonVerbRepV3): FigureImage[] {
+function imagesOf(rep: NonVerbRepV3): NonVerbRepImage[] {
   return rep.images ?? [];
 }
 

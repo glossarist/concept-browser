@@ -23,8 +23,8 @@
  * ambiguity with the HTML `<img alt>` attribute.
  */
 
-import type { Figure, FigureImage, FigureImageFormat, FigureImageRole } from './types';
-import { isType, pickField, pickFieldArray, pickFieldRecord, localized } from './prefix';
+import { Figure, FigureImage } from 'glossarist';
+import { isType, pickField, pickFieldArray, localized } from './prefix';
 import { sourcesFromJsonLd } from './source-bridge';
 
 const FORMAT_SET: ReadonlySet<string> = new Set(['svg', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif']);
@@ -35,18 +35,20 @@ function imageFromJsonLd(raw: Record<string, unknown>): FigureImage | null {
   const src = pickField<string>(raw, 'src');
   if (!src) return null;
   const formatRaw = (pickField<string>(raw, 'format') ?? '').toLowerCase();
-  const format = (FORMAT_SET.has(formatRaw) ? formatRaw : 'svg') as FigureImageFormat;
+  const format = FORMAT_SET.has(formatRaw) ? formatRaw : 'svg';
   const roleRaw = pickField<string>(raw, 'role');
-  const role = roleRaw && ROLE_SET.has(roleRaw) ? (roleRaw as FigureImageRole) : undefined;
+  const role = roleRaw && ROLE_SET.has(roleRaw) ? roleRaw : undefined;
   const width = pickField<number>(raw, 'width');
   const height = pickField<number>(raw, 'height');
   const scale = pickField<number>(raw, 'scale');
-  const img: FigureImage = { src, format };
-  if (role) img.role = role;
-  if (typeof width === 'number') img.width = width;
-  if (typeof height === 'number') img.height = height;
-  if (typeof scale === 'number') img.scale = scale;
-  return img;
+  return new FigureImage({
+    src,
+    format,
+    ...(role !== undefined && { role }),
+    ...(typeof width === 'number' && { width }),
+    ...(typeof height === 'number' && { height }),
+    ...(typeof scale === 'number' && { scale }),
+  });
 }
 
 function imagesFromJsonLd(raw: unknown): FigureImage[] {
@@ -85,17 +87,14 @@ export function figureFromJsonLd(doc: Record<string, unknown>): Figure | null {
   const subfigures = subfiguresFromJsonLd(pickField(doc, 'subfigure'));
   const sources = sourcesFromJsonLd(pickField(doc, 'source'));
 
-  const fig: Figure = { kind: 'figure', id, images };
-  if (identifier) fig.identifier = identifier;
-  if (caption) fig.caption = caption;
-  if (alt) fig.alt = alt;
-  if (description) fig.description = description;
-  if (subfigures) fig.subfigures = subfigures;
-  if (sources.length) fig.sources = sources;
-
-  // pickFieldRecord is unused for figures; keep the import meaningful by
-  // ensuring no stray image fields leak through (silent no-op).
-  void pickFieldRecord;
-
-  return fig;
+  return new Figure({
+    id,
+    images,
+    ...(identifier && { identifier }),
+    ...(caption && { caption }),
+    ...(alt && { alt }),
+    ...(description && { description }),
+    ...(subfigures && { subfigures }),
+    ...(sources.length && { sources }),
+  });
 }

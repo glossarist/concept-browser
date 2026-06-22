@@ -6,20 +6,12 @@
  * so the rendering matches the rest of the app. Each source may carry a
  * modification note (e.g. "Adapted.") which is rendered alongside.
  */
-import type { Citation } from 'glossarist';
-import type { NonVerbalSource } from '../../adapters/non-verbal/types';
+import type { ConceptSource } from 'glossarist';
 import CitationDisplay from '../CitationDisplay.vue';
 
 defineProps<{
-  sources: NonVerbalSource[];
+  sources: ConceptSource[];
 }>();
-
-// CitationDisplay expects glossarist's Citation class. NonVerbalSource.origin
-// is wire-compatible at runtime but typed differently on the consumer side;
-// cast once at this boundary.
-function asCitation(origin: NonVerbalSource['origin']): Citation | null {
-  return (origin as unknown as Citation) ?? null;
-}
 </script>
 
 <template>
@@ -27,7 +19,7 @@ function asCitation(origin: NonVerbalSource['origin']): Citation | null {
     <div class="nv-sources__label">Sources</div>
     <ol class="nv-sources__list">
       <li v-for="(src, i) in sources" :key="i" class="nv-source">
-        <CitationDisplay v-if="asCitation(src.origin)" :citation="asCitation(src.origin)!" />
+        <CitationDisplay v-if="src.origin" :citation="src.origin" />
         <span v-if="src.modification" class="nv-source__modification">
           — {{ src.modification }}
         </span>
