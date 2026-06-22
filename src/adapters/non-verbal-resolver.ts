@@ -15,11 +15,13 @@
  * exactly one instance per app.
  */
 
-import type { NonVerbalEntity, NonVerbalKind } from './non-verbal/types';
+import type { NonVerbalKind } from './non-verbal/types';
+import type { NonVerbalEntity } from 'glossarist';
 import { KIND_TO_DIR, KIND_TO_BRIDGE } from './non-verbal/kind';
 import { anchorId } from '../utils/non-verbal-anchor';
 
-export type { NonVerbalEntity, NonVerbalKind } from './non-verbal/types';
+export type { NonVerbalKind } from './non-verbal/types';
+export type { NonVerbalEntity } from 'glossarist';
 
 export interface NonVerbalEntityResolverOptions {
   basePath?: string;

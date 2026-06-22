@@ -1,32 +1,35 @@
 /**
  * Public API for the non-verbal entity model layer.
  *
- * Re-exports the types, bridges, and dispatch table. Components and
- * composables import from here — never from individual files — so the
- * internal layout can evolve without breaking the public surface.
+ * Model classes (Figure, Table, Formula, FigureImage, NonVerbalEntity) are
+ * re-exported from `glossarist` — upstream is the SSOT for the model.
+ * Consumer-owned types live in `./types`.
  */
 
 export type {
   LocalizedString,
   NonVerbalKind,
-  FigureImage,
   FigureImageFormat,
   FigureImageRole,
   NonVerbalSource,
   NonVerbalSourceOrigin,
   NonVerbalSourceRef,
   NonVerbalSourceLocality,
-  NonVerbalEntityBase,
-  Figure,
-  Table,
   TableContent,
   TableFormat,
-  Formula,
   FormulaNotation,
-  NonVerbalEntity,
   NonVerbRepV3,
   NonVerbalReference,
 } from './types';
+
+export type {
+  Figure,
+  FigureImage,
+  Table,
+  Formula,
+  NonVerbalEntity,
+  SharedNonVerbalEntity,
+} from 'glossarist';
 
 export { figureFromJsonLd } from './figure-bridge';
 export { tableFromJsonLd } from './table-bridge';

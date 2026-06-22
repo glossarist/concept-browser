@@ -22,20 +22,20 @@ import type { LocalizedString } from '../../adapters/non-verbal/types';
 import { pickLocaleMap, localeToBcp47 } from '../../utils/locale';
 
 const props = defineProps<{
-  identifier?: string;
-  caption?: LocalizedString;
-  description?: LocalizedString;
+  identifier?: string | null;
+  caption?: LocalizedString | null;
+  description?: LocalizedString | null;
   locale: string;
   fallbackChain?: readonly string[];
   descriptionId?: string;
 }>();
 
 const captionResolved = computed(() =>
-  pickLocaleMap(props.caption, props.locale, props.fallbackChain),
+  pickLocaleMap(props.caption ?? undefined, props.locale, props.fallbackChain),
 );
 
 const descriptionResolved = computed(() =>
-  pickLocaleMap(props.description, props.locale, props.fallbackChain),
+  pickLocaleMap(props.description ?? undefined, props.locale, props.fallbackChain),
 );
 
 const captionLang = computed(() =>

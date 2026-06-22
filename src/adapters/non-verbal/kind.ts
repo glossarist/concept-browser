@@ -1,4 +1,5 @@
-import type { NonVerbalEntity, NonVerbalKind } from './types';
+import type { NonVerbalKind } from './types';
+import type { NonVerbalEntity } from 'glossarist';
 import {
   ENTITY_DIRECTORIES,
   ENTITY_TYPES,

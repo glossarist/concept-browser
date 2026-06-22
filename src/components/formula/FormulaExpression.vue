@@ -16,13 +16,13 @@ import { pickLocaleMap, localeToBcp47 } from '../../utils/locale';
 import { loadPlurimath } from '../../utils/plurimath';
 
 const props = defineProps<{
-  expression: LocalizedString;
-  notation: FormulaNotation;
+  expression: LocalizedString | null;
+  notation: FormulaNotation | null;
   locale: string;
   fallbackChain?: readonly string[];
 }>();
 
-const resolved = computed(() => pickLocaleMap(props.expression, props.locale, props.fallbackChain));
+const resolved = computed(() => pickLocaleMap(props.expression ?? undefined, props.locale, props.fallbackChain));
 const html = ref<string>('');
 const lang = computed(() => resolved.value ? localeToBcp47(resolved.value.locale) : undefined);
 
@@ -34,7 +34,7 @@ const PLURIMATH_FORMAT: Record<FormulaNotation, string> = {
 
 async function render() {
   const r = resolved.value;
-  if (!r) { html.value = ''; return; }
+  if (!r || !props.notation) { html.value = ''; return; }
   try {
     const Plurimath = await loadPlurimath();
     const p = new Plurimath(r.text, PLURIMATH_FORMAT[props.notation]);

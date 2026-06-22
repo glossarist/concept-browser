@@ -18,7 +18,7 @@ import { renderAsciiDocLite } from '../../utils/asciidoc-lite';
 
 const props = defineProps<{
   content: LocalizedString;
-  format?: TableFormat;
+  format?: TableFormat | null;
   locale: string;
   fallbackChain?: readonly string[];
 }>();

@@ -8,7 +8,8 @@
  */
 import { ref, watch, shallowRef } from 'vue';
 import { getFactory } from '../adapters/factory';
-import type { NonVerbalEntity, NonVerbalKind } from '../adapters/non-verbal/types';
+import type { NonVerbalKind } from '../adapters/non-verbal/types';
+import type { NonVerbalEntity } from 'glossarist';
 
 export type LoadState = 'loading' | 'loaded' | 'not-found' | 'error';
 

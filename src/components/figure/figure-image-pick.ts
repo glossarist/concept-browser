@@ -11,7 +11,7 @@
  * The `print` role is reserved for print stylesheets (selected via CSS
  * @media print in FigureImages.vue), not picked here.
  */
-import type { FigureImage } from '../../adapters/non-verbal/types';
+import type { FigureImage } from 'glossarist';
 
 export interface PickOptions {
   prefersDark?: boolean;

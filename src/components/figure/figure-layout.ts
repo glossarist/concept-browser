@@ -12,7 +12,7 @@
  * Authors who want different behavior can split a composite figure into
  * multiple top-level figures. V1 does not expose a `layout` field.
  */
-import type { Figure } from '../../adapters/non-verbal/types';
+import type { Figure } from 'glossarist';
 
 export type FigureLayout = 'single' | 'row' | 'column' | 'grid';
 

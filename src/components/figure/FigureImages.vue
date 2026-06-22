@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { FigureImage, LocalizedString } from '../../adapters/non-verbal/types';
+import type { FigureImage } from 'glossarist';
+import type { LocalizedString, NonVerbRepImage } from '../../adapters/non-verbal/types';
 import { pickLocaleText, hasLocale } from '../../utils/locale';
 import { getFactory } from '../../adapters/factory';
 
+type ImageLike = FigureImage | NonVerbRepImage;
+
 const props = withDefaults(defineProps<{
-  images: FigureImage[];
-  alt?: LocalizedString;
+  images: ImageLike[];
+  alt?: LocalizedString | null;
   datasetId: string;
   locale: string;
   fallbackChain?: readonly string[];
@@ -19,7 +22,19 @@ const props = withDefaults(defineProps<{
 
 const resolver = getFactory().nonVerbalResolver;
 
-const altText = computed(() => pickLocaleText(props.alt, props.locale, props.fallbackChain));
+function imgSrc(img: ImageLike): string {
+  return typeof img.src === 'string' ? img.src : '';
+}
+function imgFormat(img: ImageLike): string {
+  const f = img.format;
+  return typeof f === 'string' ? f : 'svg';
+}
+function imgRole(img: ImageLike): string | null {
+  const r = img.role;
+  return typeof r === 'string' ? r : null;
+}
+
+const altText = computed(() => pickLocaleText(props.alt ?? undefined, props.locale, props.fallbackChain));
 const altMissing = computed(() => !props.alt || Object.keys(props.alt).length === 0);
 const altEmpty = computed(() =>
   !!props.alt && hasLocale(props.alt, props.locale) && props.alt[props.locale] === '',
@@ -30,26 +45,33 @@ interface SourceVariant { src: string; type: string; media?: string; }
 const sourceVariants = computed<SourceVariant[]>(() => {
   const out: SourceVariant[] = [];
   for (const img of props.images) {
-    if (!img.role || img.role === 'vector' || img.role === 'raster') continue;
-    const src = resolver.resolveImageUrl(props.datasetId, img.src);
-    const type = img.format === 'svg' ? 'image/svg+xml' : `image/${img.format === 'jpg' ? 'jpeg' : img.format}`;
+    const role = imgRole(img);
+    if (!role || role === 'vector' || role === 'raster') continue;
+    const src = imgSrc(img);
+    const format = imgFormat(img);
+    if (!src) continue;
+    const type = format === 'svg' ? 'image/svg+xml' : `image/${format === 'jpg' ? 'jpeg' : format}`;
     let media: string | undefined;
-    if (img.role === 'dark') media = '(prefers-color-scheme: dark)';
-    else if (img.role === 'light') media = '(prefers-color-scheme: light)';
-    else if (img.role === 'print') media = 'print';
-    out.push({ src, type, media });
+    if (role === 'dark') media = '(prefers-color-scheme: dark)';
+    else if (role === 'light') media = '(prefers-color-scheme: light)';
+    else if (role === 'print') media = 'print';
+    out.push({ src: resolver.resolveImageUrl(props.datasetId, src), type, media });
   }
   return out;
 });
 
 const defaultImg = computed(() => {
-  const nonRole = props.images.find(i => !i.role || i.role === 'vector' || i.role === 'raster');
+  const nonRole = props.images.find(i => {
+    const r = imgRole(i);
+    return !r || r === 'vector' || r === 'raster';
+  });
   const chosen = nonRole ?? props.images[0];
-  if (!chosen) return null;
+  const src = chosen ? imgSrc(chosen) : '';
+  if (!src) return null;
   return {
-    src: resolver.resolveImageUrl(props.datasetId, chosen.src),
-    width: chosen.width,
-    height: chosen.height,
+    src: resolver.resolveImageUrl(props.datasetId, src),
+    width: chosen?.width ?? undefined,
+    height: chosen?.height ?? undefined,
   };
 });
 </script>

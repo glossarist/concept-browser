@@ -6,7 +6,8 @@
  * TableMarkup (HTML / Markdown / AsciiDoc) based on `content.kind`.
  */
 import { computed } from 'vue';
-import type { Table } from '../../adapters/non-verbal/types';
+import type { Table } from 'glossarist';
+import type { TableContent, TableFormat } from '../../adapters/non-verbal/types';
 import { useNonVerbalEntity } from '../../composables/use-non-verbal-entity';
 import { resolveFallbackChain } from '../../utils/locale';
 import { anchorId } from '../../utils/non-verbal-anchor';
@@ -31,12 +32,13 @@ const anchor = computed(() => anchorId('table', props.datasetId, props.entityId)
 const descriptionId = computed(() => `${anchor.value}-desc`);
 
 const table = computed<Table | null>(() => entity.value as Table | null);
+const content = computed<TableContent | null>(() => (table.value?.content ?? null) as TableContent | null);
 const structuredContent = computed(() => {
-  const c = table.value?.content;
+  const c = content.value;
   return c && c.kind === 'structured' ? c : null;
 });
 const markup = computed(() => {
-  const c = table.value?.content;
+  const c = content.value;
   return c && c.kind === 'markup' ? c.markup : null;
 });
 </script>
@@ -56,7 +58,7 @@ const markup = computed(() => {
     <TableMarkup
       v-else-if="markup"
       :content="markup"
-      :format="table.format"
+      :format="(table.format as TableFormat | null)"
       :locale="locale"
       :fallback-chain="fallbackChain"
     />

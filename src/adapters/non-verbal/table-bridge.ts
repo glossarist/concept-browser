@@ -20,7 +20,8 @@
  *   }
  */
 
-import type { Table, TableContent, TableFormat } from './types';
+import { Table } from 'glossarist';
+import type { TableContent } from './types';
 import { isType, pickField, localized } from './prefix';
 import { sourcesFromJsonLd } from './source-bridge';
 
@@ -83,16 +84,17 @@ export function tableFromJsonLd(doc: Record<string, unknown>): Table | null {
   if (!content) return null;
 
   const formatRaw = (pickField<string>(doc, 'format') ?? '').toLowerCase();
-  const format = FORMAT_SET.has(formatRaw) ? (formatRaw as TableFormat) : undefined;
+  const format = FORMAT_SET.has(formatRaw) ? formatRaw : undefined;
 
   const sources = sourcesFromJsonLd(pickField(doc, 'source'));
 
-  const t: Table = { kind: 'table', id, content };
-  if (identifier) t.identifier = identifier;
-  if (caption) t.caption = caption;
-  if (description) t.description = description;
-  if (format) t.format = format;
-  if (sources.length) t.sources = sources;
-
-  return t;
+  return new Table({
+    id,
+    content: content as Record<string, unknown>,
+    ...(identifier && { identifier }),
+    ...(caption && { caption }),
+    ...(description && { description }),
+    ...(format && { format }),
+    ...(sources.length && { sources }),
+  });
 }

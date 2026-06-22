@@ -7,7 +7,8 @@
  * `<figure>` receives the anchor ID for `{{formula:id}}` mentions.
  */
 import { computed } from 'vue';
-import type { Formula } from '../../adapters/non-verbal/types';
+import type { Formula } from 'glossarist';
+import type { FormulaNotation } from '../../adapters/non-verbal/types';
 import { useNonVerbalEntity } from '../../composables/use-non-verbal-entity';
 import { resolveFallbackChain } from '../../utils/locale';
 import { anchorId } from '../../utils/non-verbal-anchor';
@@ -27,37 +28,38 @@ const k = () => 'formula' as const;
 const { entity, state, error } = useNonVerbalEntity(k, () => props.datasetId, () => props.entityId);
 
 const fallbackChain = computed(() => resolveFallbackChain(props.datasetLocales));
+const form = computed(() => entity.value as Formula | null);
 const anchor = computed(() => anchorId('formula', props.datasetId, props.entityId));
 const descriptionId = computed(() => `${anchor.value}-desc`);
 </script>
 
 <template>
   <figure
-    v-if="entity && state === 'loaded'"
+    v-if="form && state === 'loaded'"
     :id="anchor"
     class="formula-entity"
   >
     <div class="formula__expr-line">
       <FormulaExpression
-        :expression="(entity as Formula).expression"
-        :notation="(entity as Formula).notation"
+        :expression="form.expression"
+        :notation="(form.notation as FormulaNotation | null)"
         :locale="locale"
         :fallback-chain="fallbackChain"
       />
     </div>
 
     <NonVerbalCaption
-      :identifier="(entity as Formula).identifier"
-      :caption="(entity as Formula).caption"
-      :description="(entity as Formula).description"
+      :identifier="form.identifier"
+      :caption="form.caption"
+      :description="form.description"
       :locale="locale"
       :fallback-chain="fallbackChain"
       :description-id="descriptionId"
     />
 
     <NonVerbalSources
-      v-if="(entity as Formula).sources?.length"
-      :sources="(entity as Formula).sources!"
+      v-if="form.sources?.length"
+      :sources="form.sources"
     />
   </figure>
 
