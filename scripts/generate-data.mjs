@@ -6,6 +6,7 @@ import { loadSiteConfig } from './load-site-config.mjs';
 import { getGroups } from './lib/concept-groups.mjs';
 import { consumeDatasetEntities } from './lib/build/non-verbal-consumer.mjs';
 import { copyImageAssets } from './lib/build/image-assets.mjs';
+import { normalizeBibliography } from './lib/bibliography.mjs';
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
@@ -1007,12 +1008,14 @@ async function processDataset(dir, register, opts) {
   if (opts.sections && opts.sections.length > 0) manifest.sections = opts.sections;
   writeJson(path.join(DATA, register, 'manifest.json'), manifest);
 
-  // Copy bibliography.yaml → bibliography.json
+  // Copy bibliography.yaml → bibliography.json.
+  // The YAML source is a top-level array of entries; BibliographyData.fromJSON
+  // expects { bibliography: [...] }, so normalize on the way out.
   const bibPath = path.join(sourceRoot, 'bibliography.yaml');
   if (fs.existsSync(bibPath)) {
-    const bibData = readYaml(bibPath);
+    const bibData = normalizeBibliography(readYaml(bibPath));
     writeJson(path.join(DATA, register, 'bibliography.json'), bibData);
-    const bibCount = Array.isArray(bibData?.bibliography) ? bibData.bibliography.length : 0;
+    const bibCount = bibData.bibliography.length;
     console.log(`  Copied bibliography (${bibCount} entries)`);
   }
 
