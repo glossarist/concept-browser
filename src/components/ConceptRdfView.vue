@@ -123,7 +123,7 @@ function designationInstance(d: Designation): ClassInstance {
     if (filtered.length) pv.push({ predicate: pred, values: filtered });
   };
 
-  add('xl:literalForm', `${d.designation}${d.language ? '@' + d.language : ''}`);
+  add('skosxl:literalForm', `${d.designation}${d.language ? '@' + d.language : ''}`);
   if (d.normativeStatus) add('gloss:normativeStatus', `gloss:norm/${d.normativeStatus}`);
   if (d.geographicalArea) add('gloss:geographicalArea', d.geographicalArea);
   if (d.international) add('gloss:isInternational', 'true');
@@ -202,7 +202,7 @@ const turtleSource = computed(() => {
 
   lines.push('@prefix gloss: <https://www.glossarist.org/ontologies/> .');
   lines.push('@prefix skos: <http://www.w3.org/2004/02/skos/core#> .');
-  lines.push('@prefix xl: <http://www.w3.org/2008/05/skos-xl#> .');
+  lines.push('@prefix skosxl: <http://www.w3.org/2008/05/skos-xl#> .');
   lines.push('@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .');
   lines.push('@prefix dcterms: <http://purl.org/dc/terms/> .');
   lines.push('');
@@ -233,11 +233,17 @@ const turtleSource = computed(() => {
     if (lc.entryStatus) lines.push(`${ind}gloss:hasEntryStatus gloss:entstatus/${lc.entryStatus} ;`);
     for (let di = 0; di < lc.terms.length; di++) {
       const d = lc.terms[di];
-      const normPrefix = d.normativeStatus === 'preferred' ? 'skosxl:prefLabel' : 'skosxl:altLabel';
-      lines.push(`${ind}${normPrefix} <${uri}/${lang}/desig/${desigSlug(d.designation, di)}> ;`);
+      const isPreferred = d.normativeStatus === 'preferred';
+      const xlPrefix = isPreferred ? 'skosxl:prefLabel' : 'skosxl:altLabel';
+      const skosPrefix = isPreferred ? 'skos:prefLabel' : 'skos:altLabel';
+      lines.push(`${ind}${xlPrefix} <${uri}/${lang}/desig/${desigSlug(d.designation, di)}> ;`);
+      lines.push(`${ind}${skosPrefix} "${d.designation}"@${lang} ;`);
     }
     for (const def of lc.definitions) {
-      if (def.content) lines.push(`${ind}gloss:hasDefinition [ rdf:value "${def.content}" ] ;`);
+      if (def.content) {
+        lines.push(`${ind}skos:definition "${def.content}"@${lang} ;`);
+        lines.push(`${ind}gloss:hasDefinition [ rdf:value "${def.content}"@${lang} ] ;`);
+      }
     }
     lines[lines.length - 1] = lines[lines.length - 1].replace(/ ;$/, ' .');
 
@@ -246,8 +252,8 @@ const turtleSource = computed(() => {
       const desigUri = `${uri}/${lang}/desig/${desigSlug(d.designation, di)}`;
       const dc = designationClassLabel(d.type);
       lines.push('');
-      lines.push(`<${desigUri}> a ${dc}, xl:Label ;`);
-      lines.push(`${ind}xl:literalForm "${d.designation}"@${lang} ;`);
+      lines.push(`<${desigUri}> a ${dc}, skosxl:Label ;`);
+      lines.push(`${ind}skosxl:literalForm "${d.designation}"@${lang} ;`);
       if (d.normativeStatus) lines.push(`${ind}gloss:normativeStatus gloss:norm/${d.normativeStatus} ;`);
       lines[lines.length - 1] = lines[lines.length - 1].replace(/ ;$/, ' .');
     }
@@ -266,7 +272,7 @@ const jsonldSource = computed(() => {
     '@context': {
       gloss: 'https://www.glossarist.org/ontologies/',
       skos: 'http://www.w3.org/2004/02/skos/core#',
-      xl: 'http://www.w3.org/2008/05/skos-xl#',
+      skosxl: 'http://www.w3.org/2008/05/skos-xl#',
       dcterms: 'http://purl.org/dc/terms/',
     },
     '@graph': [],
@@ -304,8 +310,8 @@ const jsonldSource = computed(() => {
       const desigUri = `${uri}/${lang}/desig/${desigSlug(d.designation, di)}`;
       const desigNode: any = {
         '@id': desigUri,
-        '@type': [designationClassLabel(d.type), 'xl:Label'],
-        'xl:literalForm': { '@value': d.designation, '@language': lang },
+        '@type': [designationClassLabel(d.type), 'skosxl:Label'],
+        'skosxl:literalForm': { '@value': d.designation, '@language': lang },
       };
       if (d.normativeStatus) desigNode['gloss:normativeStatus'] = { '@id': `gloss:norm/${d.normativeStatus}` };
       doc['@graph'].push(desigNode);
