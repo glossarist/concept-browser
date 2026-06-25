@@ -20,7 +20,8 @@
     "build:full": "npm run generate-ontology && npm run fetch-datasets && npm run generate-data && node scripts/build-edges.js && npm run build",
     "build:site": "concept-browser --site build",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "validate:shacl": "node scripts/validate-shacl.mjs"
   },
   "dependencies": {
     "@plurimath/plurimath": "^0.2.2",
@@ -40,9 +41,12 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
+    "@rdfjs/dataset": "^2.0.2",
     "@types/d3": "^7.4.3",
     "@vue/test-utils": "^2.4.8",
     "happy-dom": "^20.9.0",
+    "n3": "^1.26.0",
+    "rdf-validate-shacl": "^0.4.5",
     "typescript": "~5.7.3",
     "vitest": "^4.1.5",
     "vue-tsc": "^2.2.8"
