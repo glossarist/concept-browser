@@ -1,0 +1,8 @@
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+<https://glossarist.org/test/concept/good>
+    a skos:Concept ;
+    skos:prefLabel "atomic data unit"@eng ;
+    skos:definition "A data unit that cannot be subdivided."@eng ;
+    dcterms:language "eng" .
