@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { FORMAT_REGISTRY } from '../utils/concept-formats';
+import { getFormat } from '../composables/use-format-registry';
 import { useI18n } from '../i18n';
 
 const { t } = useI18n();
@@ -12,20 +12,24 @@ const props = defineProps<{
 }>();
 
 interface FormatLink {
-  key: string;
+  id: string;
   label: string;
   url: string;
+  download: string;
 }
 
-const links = computed<FormatLink[]>(() =>
-  props.formats
-    .filter(f => FORMAT_REGISTRY[f])
-    .map(f => ({
-      key: f,
-      label: FORMAT_REGISTRY[f].label,
-      url: `/data/${props.registerId}/concepts/${props.conceptId}.${FORMAT_REGISTRY[f].extension}`,
-    })),
-);
+const links = computed<FormatLink[]>(() => {
+  const base = import.meta.env.BASE_URL.replace(/\/+$/, '');
+  return props.formats
+    .map(id => ({ id, desc: getFormat(id) }))
+    .filter(({ desc }) => desc && (desc.available === 'per-concept' || desc.available === 'both'))
+    .map(({ id, desc }) => ({
+      id,
+      label: desc!.label,
+      url: `${base}/data/${props.registerId}/concepts/${props.conceptId}.${desc!.extension}`,
+      download: `${props.conceptId}.${desc!.extension}`,
+    }));
+});
 </script>
 
 <template>
@@ -34,9 +38,9 @@ const links = computed<FormatLink[]>(() =>
     <div class="flex flex-wrap gap-2">
       <a
         v-for="link in links"
-        :key="link.key"
+        :key="link.id"
         :href="link.url"
-        :download="`${conceptId}.${FORMAT_REGISTRY[link.key].extension}`"
+        :download="link.download"
         class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-ink-50 text-ink-600 hover:bg-ink-100 hover:text-ink-800 transition-colors border border-ink-100"
       >
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
