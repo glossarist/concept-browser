@@ -107,6 +107,13 @@ export class InvalidConceptUriError extends SerializationError {
   }
 }
 
+export class InvalidLangTagError extends SerializationError {
+  hint(): string {
+    return 'Use BCP-47 form: primary[-script][-region][-variant]*[-x-private]. ' +
+      'ISO 639-3 codes (eng, fra) are normalized to ISO 639-1 (en, fr).';
+  }
+}
+
 export function isGlossaristError(err: unknown): err is GlossaristError {
   return err instanceof GlossaristError;
 }
