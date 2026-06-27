@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import type { Concept, LocalizedConcept, Designation, Expression as ExpressionType, Abbreviation as AbbreviationType, GraphicalSymbol as GraphicalSymbolType } from 'glossarist';
 import { getClass } from '../../adapters/ontology-schema';
 import { ConceptIdentity } from '../../adapters/concept-identity';
+import { GLOSS, SKOS, SKOSXL, DCTERMS, RDF } from './predicates';
 
 export interface PropValue {
   predicate: string;
@@ -25,15 +26,15 @@ export interface RdfDocument {
 }
 
 const DESIGNATION_CLASS: Record<string, string> = {
-  expression: 'gloss:Expression',
-  abbreviation: 'gloss:Abbreviation',
-  symbol: 'gloss:Symbol',
-  letter_symbol: 'gloss:LetterSymbol',
-  graphical_symbol: 'gloss:GraphicalSymbol',
+  expression: GLOSS.Expression,
+  abbreviation: GLOSS.Abbreviation,
+  symbol: GLOSS.Symbol,
+  letter_symbol: GLOSS.LetterSymbol,
+  graphical_symbol: GLOSS.GraphicalSymbol,
 };
 
 function designationClassId(type: string): string {
-  return DESIGNATION_CLASS[type] ?? 'gloss:Designation';
+  return DESIGNATION_CLASS[type] ?? GLOSS.Designation;
 }
 
 function desigSlug(designation: string, index: number): string {
@@ -82,36 +83,36 @@ class PropBag {
 
 function conceptInstance(concept: Concept, conceptUri: string): ClassInstance {
   const bag = new PropBag();
-  bag.add('gloss:identifier', concept.id);
-  if (concept.status) bag.add('gloss:hasStatus', `gloss:status/${concept.status}`);
-  for (const d of concept.domains) bag.addNested('gloss:hasDomain', d.conceptId || d.urn || '');
-  for (const s of concept.sources) bag.addNested('gloss:hasSource', formatCitation(s.origin));
-  for (const d of concept.dates) bag.addNested('gloss:hasDate', `${d.type}: ${d.date}`);
+  bag.add(GLOSS.identifier, concept.id);
+  if (concept.status) bag.add(GLOSS.hasStatus, `gloss:status/${concept.status}`);
+  for (const d of concept.domains) bag.addNested(GLOSS.hasDomain, d.conceptId || d.urn || '');
+  for (const s of concept.sources) bag.addNested(GLOSS.hasSource, formatCitation(s.origin));
+  for (const d of concept.dates) bag.addNested(GLOSS.hasDate, `${d.type}: ${d.date}`);
   for (const r of concept.relatedConcepts) {
     const refLabel = r.content || (r.ref ? `${r.ref.source || ''} ${r.ref.id || ''}`.trim() : '');
-    bag.addNested('gloss:hasRelatedConcept', `${r.type}: ${refLabel}`);
+    bag.addNested(GLOSS.hasRelatedConcept, `${r.type}: ${refLabel}`);
   }
   for (const lang of concept.languages) {
-    bag.addNested('gloss:hasLocalization', `${lang}: ${concept.localization(lang)?.primaryDesignation ?? ''}`);
+    bag.addNested(GLOSS.hasLocalization, `${lang}: ${concept.localization(lang)?.primaryDesignation ?? ''}`);
   }
-  return { classId: 'gloss:Concept', classLabel: 'Concept', label: concept.id, props: bag.list };
+  return { classId: GLOSS.Concept, classLabel: 'Concept', label: concept.id, props: bag.list };
 }
 
 function localizedInstance(lc: LocalizedConcept, conceptUri: string): ClassInstance {
   const bag = new PropBag();
-  bag.add('dcterms:language', lc.languageCode ?? '');
-  if (lc.entryStatus) bag.add('gloss:hasEntryStatus', `gloss:entstatus/${lc.entryStatus}`);
-  bag.addNested('gloss:isLocalizationOf', conceptUri);
+  bag.add(DCTERMS.language, lc.languageCode ?? '');
+  if (lc.entryStatus) bag.add(GLOSS.hasEntryStatus, `gloss:entstatus/${lc.entryStatus}`);
+  bag.addNested(GLOSS.isLocalizationOf, conceptUri);
   for (const d of lc.terms) {
-    bag.addNested(d.normativeStatus === 'preferred' ? 'skosxl:prefLabel' : 'skosxl:altLabel', d.designation);
+    bag.addNested(d.normativeStatus === 'preferred' ? SKOSXL.prefLabel : SKOSXL.altLabel, d.designation);
   }
-  for (const d of lc.definitions) if (d.content) bag.addNested('gloss:hasDefinition', d.content);
-  for (const n of lc.notes) if (n.content) bag.addNested('gloss:hasNote', n.content);
-  for (const e of lc.examples) if (e.content) bag.addNested('gloss:hasExample', e.content);
-  for (const s of lc.sources) bag.addNested('gloss:hasSource', formatCitation(s.origin));
-  if (lc.domain) bag.add('gloss:domain', lc.domain);
+  for (const d of lc.definitions) if (d.content) bag.addNested(GLOSS.hasDefinition, d.content);
+  for (const n of lc.notes) if (n.content) bag.addNested(GLOSS.hasNote, n.content);
+  for (const e of lc.examples) if (e.content) bag.addNested(GLOSS.hasExample, e.content);
+  for (const s of lc.sources) bag.addNested(GLOSS.hasSource, formatCitation(s.origin));
+  if (lc.domain) bag.add(GLOSS.domain, lc.domain);
   return {
-    classId: 'gloss:LocalizedConcept',
+    classId: GLOSS.LocalizedConcept,
     classLabel: 'LocalizedConcept',
     label: `${lc.languageCode}: ${lc.primaryDesignation ?? ''}`,
     props: bag.list,
@@ -120,39 +121,39 @@ function localizedInstance(lc: LocalizedConcept, conceptUri: string): ClassInsta
 
 function designationInstance(d: Designation): ClassInstance {
   const bag = new PropBag();
-  bag.add('skosxl:literalForm', `${d.designation}${d.language ? '@' + d.language : ''}`);
-  if (d.normativeStatus) bag.add('gloss:normativeStatus', `gloss:norm/${d.normativeStatus}`);
-  if (d.geographicalArea) bag.add('gloss:geographicalArea', d.geographicalArea);
-  if (d.international) bag.add('gloss:isInternational', 'true');
-  if (d.absent) bag.add('gloss:isAbsent', 'true');
-  if (d.termType) bag.add('gloss:hasTermType', d.termType);
-  for (const p of d.pronunciations ?? []) bag.add('gloss:hasPronunciation', p.content || '');
+  bag.add(SKOSXL.literalForm, `${d.designation}${d.language ? '@' + d.language : ''}`);
+  if (d.normativeStatus) bag.add(GLOSS.normativeStatus, `gloss:norm/${d.normativeStatus}`);
+  if (d.geographicalArea) bag.add(GLOSS.geographicalArea, d.geographicalArea);
+  if (d.international) bag.add(GLOSS.isInternational, 'true');
+  if (d.absent) bag.add(GLOSS.isAbsent, 'true');
+  if (d.termType) bag.add(GLOSS.hasTermType, d.termType);
+  for (const p of d.pronunciations ?? []) bag.add(GLOSS.hasPronunciation, p.content || '');
 
   if (d.type === 'expression' || d.type === 'abbreviation') {
     const expr = d as ExpressionType;
-    if (expr.prefix) bag.add('gloss:prefix', expr.prefix);
-    if (expr.usageInfo) bag.add('gloss:usageInfo', expr.usageInfo);
-    if (expr.fieldOfApplication) bag.add('gloss:fieldOfApplication', expr.fieldOfApplication);
+    if (expr.prefix) bag.add(GLOSS.prefix, expr.prefix);
+    if (expr.usageInfo) bag.add(GLOSS.usageInfo, expr.usageInfo);
+    if (expr.fieldOfApplication) bag.add(GLOSS.fieldOfApplication, expr.fieldOfApplication);
     for (const gi of expr.grammarInfo ?? []) {
       const parts: string[] = [];
       if (gi.gender) parts.push(`gender:${gi.gender}`);
       if (gi.number) parts.push(`number:${gi.number}`);
       if (gi.partOfSpeech) parts.push(`pos:${gi.partOfSpeech}`);
-      if (parts.length) bag.add('gloss:hasGrammarInfo', parts.join(', '));
+      if (parts.length) bag.add(GLOSS.hasGrammarInfo, parts.join(', '));
     }
   }
 
   if (d.type === 'abbreviation') {
     const abbr = d as AbbreviationType;
-    if (abbr.acronym) bag.add('gloss:isAcronym', 'true');
-    if (abbr.initialism) bag.add('gloss:isInitialism', 'true');
-    if (abbr.truncation) bag.add('gloss:isTruncation', 'true');
+    if (abbr.acronym) bag.add(GLOSS.isAcronym, 'true');
+    if (abbr.initialism) bag.add(GLOSS.isInitialism, 'true');
+    if (abbr.truncation) bag.add(GLOSS.isTruncation, 'true');
   }
 
   if (d.type === 'graphical_symbol') {
     const gs = d as GraphicalSymbolType;
-    if (gs.text) bag.add('gloss:text', gs.text);
-    if (gs.image) bag.add('gloss:image', gs.image);
+    if (gs.text) bag.add(GLOSS.text, gs.text);
+    if (gs.image) bag.add(GLOSS.image, gs.image);
   }
 
   const classId = designationClassId(d.type);
@@ -180,7 +181,7 @@ function buildEmissionModel(concept: Concept, conceptUri: string, identity: Conc
 function writeToTurtle(model: ConceptEmissionModel): string {
   const lines: string[] = [];
   const ind = '  ';
-  const { concept: c, conceptUri: uri, identity } = model;
+  const { concept: c, conceptUri: uri } = model;
 
   lines.push('@prefix gloss: <https://www.glossarist.org/ontologies/> .');
   lines.push('@prefix skos: <http://www.w3.org/2004/02/skos/core#> .');
@@ -189,17 +190,17 @@ function writeToTurtle(model: ConceptEmissionModel): string {
   lines.push('@prefix dcterms: <http://purl.org/dc/terms/> .');
   lines.push('');
 
-  lines.push(`<${uri}> a gloss:Concept, skos:Concept ;`);
-  lines.push(`${ind}gloss:identifier "${c.id}" ;`);
-  if (c.status) lines.push(`${ind}gloss:hasStatus gloss:status/${c.status} ;`);
-  for (const lang of c.languages) lines.push(`${ind}gloss:hasLocalization <${uri}/${lang}> ;`);
+  lines.push(`<${uri}> a ${GLOSS.Concept}, ${SKOS.Concept} ;`);
+  lines.push(`${ind}${GLOSS.identifier} "${c.id}" ;`);
+  if (c.status) lines.push(`${ind}${GLOSS.hasStatus} gloss:status/${c.status} ;`);
+  for (const lang of c.languages) lines.push(`${ind}${GLOSS.hasLocalization} <${uri}/${lang}> ;`);
   for (const r of c.relatedConcepts) {
-    lines.push(`${ind}gloss:hasRelatedConcept [`);
-    lines.push(`${ind}${ind}gloss:relationshipType gloss:rel/${r.type} ;`);
-    if (r.content) lines.push(`${ind}${ind}gloss:relationshipContent "${r.content}" ;`);
+    lines.push(`${ind}${GLOSS.hasRelatedConcept} [`);
+    lines.push(`${ind}${ind}${GLOSS.relationshipType} gloss:rel/${r.type} ;`);
+    if (r.content) lines.push(`${ind}${ind}${GLOSS.relationshipContent} "${r.content}" ;`);
     if (r.ref) {
-      if (r.ref.source) lines.push(`${ind}${ind}gloss:conceptSource "${r.ref.source}" ;`);
-      if (r.ref.id) lines.push(`${ind}${ind}gloss:conceptId "${r.ref.id}" ;`);
+      if (r.ref.source) lines.push(`${ind}${ind}${GLOSS.conceptSource} "${r.ref.source}" ;`);
+      if (r.ref.id) lines.push(`${ind}${ind}${GLOSS.conceptId} "${r.ref.id}" ;`);
     }
     lines.push(`${ind}] ;`);
   }
@@ -209,22 +210,22 @@ function writeToTurtle(model: ConceptEmissionModel): string {
     const lc = c.localization(lang);
     if (!lc) continue;
     lines.push('');
-    lines.push(`<${uri}/${lang}> a gloss:LocalizedConcept, skos:Concept ;`);
-    lines.push(`${ind}dcterms:language "${lang}" ;`);
-    lines.push(`${ind}gloss:isLocalizationOf <${uri}> ;`);
-    if (lc.entryStatus) lines.push(`${ind}gloss:hasEntryStatus gloss:entstatus/${lc.entryStatus} ;`);
+    lines.push(`<${uri}/${lang}> a ${GLOSS.LocalizedConcept}, ${SKOS.Concept} ;`);
+    lines.push(`${ind}${DCTERMS.language} "${lang}" ;`);
+    lines.push(`${ind}${GLOSS.isLocalizationOf} <${uri}> ;`);
+    if (lc.entryStatus) lines.push(`${ind}${GLOSS.hasEntryStatus} gloss:entstatus/${lc.entryStatus} ;`);
     for (let di = 0; di < lc.terms.length; di++) {
       const d = lc.terms[di];
       const isPreferred = d.normativeStatus === 'preferred';
-      const xlPrefix = isPreferred ? 'skosxl:prefLabel' : 'skosxl:altLabel';
-      const skosPrefix = isPreferred ? 'skos:prefLabel' : 'skos:altLabel';
+      const xlPrefix = isPreferred ? SKOSXL.prefLabel : SKOSXL.altLabel;
+      const skosPrefix = isPreferred ? SKOS.prefLabel : SKOS.altLabel;
       lines.push(`${ind}${xlPrefix} <${uri}/${lang}/desig/${desigSlug(d.designation, di)}> ;`);
       lines.push(`${ind}${skosPrefix} "${d.designation}"@${lang} ;`);
     }
     for (const def of lc.definitions) {
       if (def.content) {
-        lines.push(`${ind}skos:definition "${def.content}"@${lang} ;`);
-        lines.push(`${ind}gloss:hasDefinition [ rdf:value "${def.content}"@${lang} ] ;`);
+        lines.push(`${ind}${SKOS.definition} "${def.content}"@${lang} ;`);
+        lines.push(`${ind}${GLOSS.hasDefinition} [ ${RDF.value} "${def.content}"@${lang} ] ;`);
       }
     }
     lines[lines.length - 1] = lines[lines.length - 1].replace(/ ;$/, ' .');
@@ -234,9 +235,9 @@ function writeToTurtle(model: ConceptEmissionModel): string {
       const desigUri = `${uri}/${lang}/desig/${desigSlug(d.designation, di)}`;
       const dc = designationClassId(d.type);
       lines.push('');
-      lines.push(`<${desigUri}> a ${dc}, skosxl:Label ;`);
-      lines.push(`${ind}skosxl:literalForm "${d.designation}"@${lang} ;`);
-      if (d.normativeStatus) lines.push(`${ind}gloss:normativeStatus gloss:norm/${d.normativeStatus} ;`);
+      lines.push(`<${desigUri}> a ${dc}, ${SKOSXL.Label} ;`);
+      lines.push(`${ind}${SKOSXL.literalForm} "${d.designation}"@${lang} ;`);
+      if (d.normativeStatus) lines.push(`${ind}${GLOSS.normativeStatus} gloss:norm/${d.normativeStatus} ;`);
       lines[lines.length - 1] = lines[lines.length - 1].replace(/ ;$/, ' .');
     }
   }
@@ -258,11 +259,11 @@ function writeToJsonld(model: ConceptEmissionModel): string {
 
   const conceptNode: any = {
     '@id': uri,
-    '@type': ['gloss:Concept', 'skos:Concept'],
-    'gloss:identifier': c.id,
+    '@type': [GLOSS.Concept, SKOS.Concept],
+    [GLOSS.identifier]: c.id,
   };
-  if (c.status) conceptNode['gloss:hasStatus'] = { '@id': `gloss:status/${c.status}` };
-  conceptNode['gloss:hasLocalization'] = c.languages.map(l => ({ '@id': `${uri}/${l}` }));
+  if (c.status) conceptNode[GLOSS.hasStatus] = { '@id': `gloss:status/${c.status}` };
+  conceptNode[GLOSS.hasLocalization] = c.languages.map(l => ({ '@id': `${uri}/${l}` }));
   doc['@graph'].push(conceptNode);
 
   for (const lang of c.languages) {
@@ -270,14 +271,14 @@ function writeToJsonld(model: ConceptEmissionModel): string {
     if (!lc) continue;
     const lcNode: any = {
       '@id': `${uri}/${lang}`,
-      '@type': ['gloss:LocalizedConcept', 'skos:Concept'],
-      'dcterms:language': lang,
-      'gloss:isLocalizationOf': { '@id': uri },
+      '@type': [GLOSS.LocalizedConcept, SKOS.Concept],
+      [DCTERMS.language]: lang,
+      [GLOSS.isLocalizationOf]: { '@id': uri },
     };
-    if (lc.entryStatus) lcNode['gloss:hasEntryStatus'] = { '@id': `gloss:entstatus/${lc.entryStatus}` };
+    if (lc.entryStatus) lcNode[GLOSS.hasEntryStatus] = { '@id': `gloss:entstatus/${lc.entryStatus}` };
     for (let di = 0; di < lc.terms.length; di++) {
       const d = lc.terms[di];
-      const key = d.normativeStatus === 'preferred' ? 'skosxl:prefLabel' : 'skosxl:altLabel';
+      const key = d.normativeStatus === 'preferred' ? SKOSXL.prefLabel : SKOSXL.altLabel;
       lcNode[key] = lcNode[key] || [];
       lcNode[key].push({ '@id': `${uri}/${lang}/desig/${desigSlug(d.designation, di)}` });
     }
@@ -288,10 +289,10 @@ function writeToJsonld(model: ConceptEmissionModel): string {
       const desigUri = `${uri}/${lang}/desig/${desigSlug(d.designation, di)}`;
       const desigNode: any = {
         '@id': desigUri,
-        '@type': [designationClassId(d.type), 'skosxl:Label'],
-        'skosxl:literalForm': { '@value': d.designation, '@language': lang },
+        '@type': [designationClassId(d.type), SKOSXL.Label],
+        [SKOSXL.literalForm]: { '@value': d.designation, '@language': lang },
       };
-      if (d.normativeStatus) desigNode['gloss:normativeStatus'] = { '@id': `gloss:norm/${d.normativeStatus}` };
+      if (d.normativeStatus) desigNode[GLOSS.normativeStatus] = { '@id': `gloss:norm/${d.normativeStatus}` };
       doc['@graph'].push(desigNode);
     }
   }
