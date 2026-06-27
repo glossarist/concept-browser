@@ -123,6 +123,15 @@ function localizedInstance(lc: LocalizedConcept, conceptUri: string): ClassInsta
   }
   for (const s of lc.sources) bag.addNested(GLOSS.hasSource, formatCitation(s.origin));
   if (lc.domain) bag.add(GLOSS.domain, lc.domain);
+  if (lc.classification) bag.add(GLOSS.classification, lc.classification);
+  if (lc.release) bag.add(GLOSS.release, lc.release);
+  if (lc.lineageSourceSimilarity != null) bag.add(GLOSS.lineageSourceSimilarity, String(lc.lineageSourceSimilarity));
+  if (lc.reviewDate) bag.add(GLOSS.reviewDate, lc.reviewDate);
+  if (lc.reviewDecisionDate) bag.add(GLOSS.reviewDecisionDate, lc.reviewDecisionDate);
+  if (lc.reviewStatus) bag.add(GLOSS.reviewStatus, lc.reviewStatus);
+  if (lc.reviewDecision) bag.add(GLOSS.reviewDecision, lc.reviewDecision);
+  if (lc.reviewDecisionEvent) bag.addNested(GLOSS.reviewDecisionEvent, lc.reviewDecisionEvent);
+  if (lc.reviewDecisionNotes) bag.addNested(GLOSS.reviewDecisionNotes, lc.reviewDecisionNotes);
   return {
     classId: GLOSS.LocalizedConcept,
     classLabel: 'LocalizedConcept',
@@ -226,6 +235,15 @@ function writeToTurtle(model: ConceptEmissionModel): string {
     lines.push(`${ind}${DCTERMS.language} "${lang}" ;`);
     lines.push(`${ind}${GLOSS.isLocalizationOf} <${uri}> ;`);
     if (lc.entryStatus) lines.push(`${ind}${GLOSS.hasEntryStatus} gloss:entstatus/${lc.entryStatus} ;`);
+    if (lc.classification) lines.push(`${ind}${GLOSS.classification} "${lc.classification}" ;`);
+    if (lc.release) lines.push(`${ind}${GLOSS.release} "${lc.release}" ;`);
+    if (lc.lineageSourceSimilarity != null) lines.push(`${ind}${GLOSS.lineageSourceSimilarity} "${lc.lineageSourceSimilarity}" ;`);
+    if (lc.reviewDate) lines.push(`${ind}${GLOSS.reviewDate} "${lc.reviewDate}" ;`);
+    if (lc.reviewDecisionDate) lines.push(`${ind}${GLOSS.reviewDecisionDate} "${lc.reviewDecisionDate}" ;`);
+    if (lc.reviewStatus) lines.push(`${ind}${GLOSS.reviewStatus} "${lc.reviewStatus}" ;`);
+    if (lc.reviewDecision) lines.push(`${ind}${GLOSS.reviewDecision} "${lc.reviewDecision}" ;`);
+    if (lc.reviewDecisionEvent) lines.push(`${ind}${GLOSS.reviewDecisionEvent} "${lc.reviewDecisionEvent}" ;`);
+    if (lc.reviewDecisionNotes) lines.push(`${ind}${GLOSS.reviewDecisionNotes} "${lc.reviewDecisionNotes}" ;`);
     for (let di = 0; di < lc.terms.length; di++) {
       const d = lc.terms[di];
       const isPreferred = d.normativeStatus === 'preferred';
@@ -303,6 +321,15 @@ function writeToJsonld(model: ConceptEmissionModel): string {
       [GLOSS.isLocalizationOf]: { '@id': uri },
     };
     if (lc.entryStatus) lcNode[GLOSS.hasEntryStatus] = { '@id': `gloss:entstatus/${lc.entryStatus}` };
+    if (lc.classification) lcNode[GLOSS.classification] = lc.classification;
+    if (lc.release) lcNode[GLOSS.release] = lc.release;
+    if (lc.lineageSourceSimilarity != null) lcNode[GLOSS.lineageSourceSimilarity] = lc.lineageSourceSimilarity;
+    if (lc.reviewDate) lcNode[GLOSS.reviewDate] = lc.reviewDate;
+    if (lc.reviewDecisionDate) lcNode[GLOSS.reviewDecisionDate] = lc.reviewDecisionDate;
+    if (lc.reviewStatus) lcNode[GLOSS.reviewStatus] = lc.reviewStatus;
+    if (lc.reviewDecision) lcNode[GLOSS.reviewDecision] = lc.reviewDecision;
+    if (lc.reviewDecisionEvent) lcNode[GLOSS.reviewDecisionEvent] = lc.reviewDecisionEvent;
+    if (lc.reviewDecisionNotes) lcNode[GLOSS.reviewDecisionNotes] = lc.reviewDecisionNotes;
     for (let di = 0; di < lc.terms.length; di++) {
       const d = lc.terms[di];
       const key = d.normativeStatus === 'preferred' ? SKOSXL.prefLabel : SKOSXL.altLabel;
