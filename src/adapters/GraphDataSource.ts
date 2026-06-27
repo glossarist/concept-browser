@@ -4,6 +4,7 @@ import type { DatasetAdapter } from './DatasetAdapter';
 import { UriRouter } from './UriRouter';
 import { slugify } from '../utils/slugify';
 import { toSectionNode, toSectionTree } from '../utils/section-tree';
+import { ConceptIdentity } from './concept-identity';
 
 interface DomainNodeJson {
   uri?: string;
@@ -23,7 +24,7 @@ function resolveRefTarget(rc: RelatedConcept, uriBase: string, registerId: strin
     if (ref.source && !ref.source.startsWith('http')) {
       reg = urnMap?.get(ref.source) ?? ref.source;
     }
-    return `${uriBase}/${reg}/concept/${ref.id}`;
+    return new ConceptIdentity(ref.id, reg, uriBase).uri;
   }
   if (ref.source && ref.source.startsWith('http')) return ref.source;
   return ref.source || '';
