@@ -5,26 +5,18 @@
  * Both the non-verbal entity resolver and any other localized content
  * resolution should call `pickLocaleText` / `pickLocaleMap` rather than
  * implement their own fallback chain.
+ *
+ * Language-code mapping (ISO 639-3 ↔ ISO 639-1) and BCP-47 parsing live in
+ * `./bcp47`; this module re-exports the mapping for backwards
+ * compatibility.
  */
 
 import { fetchLocalizedString } from 'glossarist';
+import { mapIso6393To6391 } from './bcp47';
 
 const DEFAULT_FALLBACK_CHAIN: readonly string[] = ['eng'] as const;
 
 const RTL_LOCALES: ReadonlySet<string> = new Set(['ara', 'heb', 'fas', 'urd', 'arb']);
-
-const ISO_639_2_TO_BCP47: Record<string, string> = {
-  eng: 'en', fra: 'fr', deu: 'de', zho: 'zh', ara: 'ar', jpn: 'ja', rus: 'ru',
-  kor: 'ko', spa: 'es', ita: 'it', por: 'pt', nld: 'nl', swe: 'sv', fin: 'fi',
-  dan: 'da', nob: 'nb', nno: 'nn', nor: 'no', pol: 'pl', tur: 'tr', ces: 'cs', ell: 'el',
-  heb: 'he', hin: 'hi', ind: 'id', fas: 'fa', ukr: 'uk', hun: 'hu', ron: 'ro',
-  slk: 'sk', slv: 'sl', hrv: 'hr', srp: 'sr', bul: 'bg', msa: 'ms', tha: 'th',
-  vie: 'vi', urd: 'ur', ben: 'bn', tam: 'ta', tel: 'te', mar: 'mr', guj: 'gu',
-  pan: 'pa', mal: 'ml', kan: 'kn', ori: 'or', asm: 'as', sin: 'si', nep: 'ne',
-  lit: 'lt', lav: 'lv', est: 'et', gle: 'ga', cym: 'cy', eus: 'eu', cat: 'ca',
-  glg: 'gl', afr: 'af', sqi: 'sq', mkd: 'mk', bel: 'be', kaz: 'kk', uzb: 'uz',
-  aze: 'az', hye: 'hy', kat: 'ka', mon: 'mn', tuk: 'tk', uig: 'ug', tgl: 'tl',
-};
 
 export type LocalizedText = Record<string, string>;
 
@@ -77,7 +69,7 @@ export function isRtl(locale: string): boolean {
 }
 
 export function localeToBcp47(locale: string): string {
-  return ISO_639_2_TO_BCP47[locale] ?? locale;
+  return mapIso6393To6391(locale) ?? locale;
 }
 
 export function resolveFallbackChain(datasetLocales?: readonly string[]): readonly string[] {
