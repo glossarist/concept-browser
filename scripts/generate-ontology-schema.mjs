@@ -3,7 +3,7 @@
  * Parse the glossarist OWL ontology (TTL) into a structured JSON schema
  * for the Ontospy-style browser view.
  *
- * Reads:  ../concept-model/ontologies/glossarist.ttl
+ * Reads:  data/concept-model/glossarist.ttl  (vendored from glossarist/concept-model)
  * Writes: src/data/ontology-schema.json
  */
 
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
-const CONCEPT_MODEL = resolve(ROOT, '..', 'concept-model', 'ontologies');
+const CONCEPT_MODEL = resolve(ROOT, 'data', 'concept-model');
 const ONTOLOGY_TTL = resolve(CONCEPT_MODEL, 'glossarist.ttl');
 const SHACL_TTL = resolve(CONCEPT_MODEL, 'shapes', 'glossarist.shacl.ttl');
 const OUTPUT = resolve(ROOT, 'src', 'data', 'ontology-schema.json');
@@ -537,7 +537,7 @@ function parseAnnotationProperties(ttlText) {
 function main() {
   if (!existsSync(ONTOLOGY_TTL)) {
     console.error(`Ontology file not found: ${ONTOLOGY_TTL}`);
-    console.error('Ensure concept-model is available at ../concept-model/');
+    console.error('Run `npm run sync:model` to vendor from glossarist/concept-model.');
     process.exit(1);
   }
 

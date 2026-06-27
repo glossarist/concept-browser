@@ -17,6 +17,7 @@
     "fetch-datasets": "node scripts/fetch-datasets.mjs",
     "generate-data": "node scripts/generate-data.mjs",
     "generate-ontology": "node scripts/generate-ontology-data.mjs && node scripts/generate-ontology-schema.mjs",
+    "sync:model": "node scripts/sync-concept-model.mjs",
     "build:full": "npm run generate-ontology && npm run fetch-datasets && npm run generate-data && node scripts/build-edges.js && npm run build",
     "build:site": "concept-browser --site build",
     "test": "vitest run",

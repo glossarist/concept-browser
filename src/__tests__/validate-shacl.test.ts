@@ -88,17 +88,13 @@ describe('validate-shacl.mjs', () => {
     expect(result.stdout).toContain('SHACL validation passed');
   });
 
-  it('errors with installation hint when shapes cannot be resolved and no override is given', () => {
+  it('uses the vendored shapes by default when no override is given', () => {
     const result = runValidateRaw([join(FIXTURES, 'good')], {
       env: { SHAPES_PATH: '' },
     });
-    // When SHAPES_PATH is unset and import.meta.resolve fails, the script
-    // should report the failure with the install hint.
-    // (We don't assert exit code because @glossarist/concept-model may be
-    // installed in some test environments, which is fine.)
-    const combined = `${result.stdout}\n${result.stderr}`;
-    if (combined.includes('Could not resolve')) {
-      expect(combined).toContain('@glossarist/concept-model');
-    }
+    // The vendored shapes live at data/concept-model/shapes/glossarist.shacl.ttl
+    // and ship with the repo. The good fixture conforms to them.
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('SHACL validation passed');
   });
 });

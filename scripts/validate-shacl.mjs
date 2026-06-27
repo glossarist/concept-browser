@@ -2,8 +2,8 @@
 // SHACL validation gate for concept-browser's data pipeline.
 //
 // Walks `public/data/` (or any directory passed as argv[2]), parses every
-// `.ttl` file, and validates it against the canonical SHACL shapes from
-// `@glossarist/concept-model`. Fails the build on any violation.
+// `.ttl` file, and validates it against the vendored SHACL shapes. Fails
+// the build on any violation.
 //
 // Usage:
 //   node scripts/validate-shacl.mjs                  # validates public/data
@@ -11,17 +11,20 @@
 //   SHAPES_PATH=/path/to/shapes.ttl node scripts/validate-shacl.mjs
 //                                                     # uses a custom shapes file
 //
-// The shapes path defaults to the file inside the installed
-// `@glossarist/concept-model` package. If the package isn't installed
-// (e.g. during early development before concept-model is published), set
-// SHAPES_PATH explicitly or pass --shapes <path>.
+// The shapes path defaults to the vendored file at
+// `data/concept-model/shapes/glossarist.shacl.ttl` (synced from
+// glossarist/concept-model via `npm run sync:model`). Pass --shapes <path>
+// or set SHAPES_PATH to override.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, extname, dirname } from 'node:path';
+import { join, extname, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Parser as N3Parser, DataFactory } from 'n3';
 import rdfDataset from '@rdfjs/dataset';
 import ShaclValidator from 'rdf-validate-shacl';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const VENDORED_SHAPES = resolve(__dirname, '..', 'data', 'concept-model', 'shapes', 'glossarist.shacl.ttl');
 
 const COMBINED_FACTORY = {
   namedNode: DataFactory.namedNode,
@@ -60,7 +63,7 @@ const USAGE = `Usage: validate-shacl.mjs [options] [data-root]
 
 Options:
   --shapes <path>   Path to a SHACL shapes .ttl file (overrides the default
-                    shapes from @glossarist/concept-model).
+                    vendored shapes under data/concept-model/shapes/).
   --help, -h        Show this help.
 
 Environment:
@@ -69,18 +72,16 @@ Environment:
 Default data-root is public/data.
 `;
 
-async function resolveShapesPath(cliPath) {
+function resolveShapesPath(cliPath) {
   if (cliPath) return cliPath;
-  try {
-    const metaUrl = await import.meta.resolve('@glossarist/concept-model/ontologies/shapes/glossarist.shacl.ttl');
-    return fileURLToPath(metaUrl);
-  } catch (e) {
+  if (!statSync(VENDORED_SHAPES, { throwIfNoEntry: false })) {
     throw new Error(
-      `Could not resolve the SHACL shapes from @glossarist/concept-model.\n` +
-      `Install the package, or pass --shapes <path>, or set SHAPES_PATH=<path>.\n` +
-      `Underlying error: ${e.message}`,
+      `Vendored SHACL shapes not found at ${VENDORED_SHAPES}.\n` +
+      `Run \`npm run sync:model\` to fetch them from glossarist/concept-model, ` +
+      `or pass --shapes <path>, or set SHAPES_PATH=<path>.`,
     );
   }
+  return VENDORED_SHAPES;
 }
 
 function parseTurtle(text, baseIri) {
@@ -116,7 +117,7 @@ function formatViolation(v) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const shapesPath = await resolveShapesPath(args.shapesPath);
+  const shapesPath = resolveShapesPath(args.shapesPath);
 
   let shapesDataset;
   try {
