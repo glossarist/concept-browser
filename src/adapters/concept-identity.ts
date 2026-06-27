@@ -1,3 +1,5 @@
+import { InvalidConceptIdentityError, InvalidConceptUriError } from '../errors';
+
 export interface ConceptIdentityParts {
   readonly localId: string;
   readonly registerId: string;
@@ -16,9 +18,12 @@ export class ConceptIdentity implements ConceptIdentityParts {
     public readonly registerId: string,
     public readonly uriBase: string,
   ) {
-    if (!localId) throw new Error('ConceptIdentity: localId is required');
-    if (!registerId) throw new Error('ConceptIdentity: registerId is required');
-    if (!uriBase) throw new Error('ConceptIdentity: uriBase is required');
+    if (!localId || !registerId || !uriBase) {
+      throw new InvalidConceptIdentityError(
+        'ConceptIdentity requires non-empty localId, registerId, and uriBase',
+        { localId, registerId, uriBase },
+      );
+    }
     this._uri = `${uriBase}/${registerId}/concept/${localId}`;
     this._slug = localId;
     this._path = `${registerId}/concepts/${localId}`;
@@ -53,7 +58,7 @@ export class ConceptIdentity implements ConceptIdentityParts {
   static fromUri(uri: string): ConceptIdentity {
     const m = uri.match(CONCEPT_URI_RE);
     if (!m) {
-      throw new Error(`ConceptIdentity.fromUri: not a concept URI: ${uri}`);
+      throw InvalidConceptUriError.make(uri);
     }
     return new ConceptIdentity(m[3], m[2], m[1]);
   }

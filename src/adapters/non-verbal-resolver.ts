@@ -19,6 +19,7 @@ import type { NonVerbalKind } from './non-verbal/types';
 import type { NonVerbalEntity } from 'glossarist';
 import { KIND_TO_DIR, KIND_TO_BRIDGE } from './non-verbal/kind';
 import { anchorId } from '../utils/non-verbal-anchor';
+import { NonVerbalEntityNotFoundError } from '../errors';
 
 export type { NonVerbalKind } from './non-verbal/types';
 export type { NonVerbalEntity } from 'glossarist';
@@ -54,7 +55,7 @@ export class NonVerbalEntityResolver {
       const resp = await this.fetcher(url);
       if (resp.status === 404) return null;
       if (!resp.ok) {
-        throw new Error(`Failed to load ${kind} ${entityId} from ${datasetId}: ${resp.status}`);
+        throw NonVerbalEntityNotFoundError.make(datasetId, kind, entityId, resp.status);
       }
       const doc = (await resp.json()) as Record<string, unknown>;
       const entity = KIND_TO_BRIDGE[kind](doc);

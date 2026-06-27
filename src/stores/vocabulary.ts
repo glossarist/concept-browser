@@ -8,6 +8,7 @@ import { conceptUri } from '../adapters/model-bridge';
 import { GraphEngine } from '../graph';
 import { UriRouter } from '../adapters/UriRouter';
 import { deduplicateSearchHits } from '../utils/search';
+import { UnknownDatasetError } from '../errors';
 
 export const useVocabularyStore = defineStore('vocabulary', () => {
   // State
@@ -193,7 +194,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
 
     try {
       const adapter = datasets.value.get(registerId);
-      if (!adapter) throw new Error(`Dataset ${registerId} not loaded`);
+      if (!adapter) throw UnknownDatasetError.make(registerId);
 
       // Fetch concept and cross-dataset edges in parallel
       const [concept] = await Promise.all([
