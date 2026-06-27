@@ -5,6 +5,7 @@ import { ReferenceResolver } from './ReferenceResolver';
 import { UriRouter } from './UriRouter';
 import { NonVerbalEntityResolver } from './non-verbal-resolver';
 import { BibliographyAdapter } from './bibliography-adapter';
+import { DatasetRegistryLoadError, UnknownDatasetError } from '../errors';
 
 export class AdapterFactory {
   private adapters = new Map<string, DatasetAdapter>();
@@ -36,7 +37,7 @@ export class AdapterFactory {
       registry = JSON.parse(inline.textContent) as DatasetRegistry[];
     } else {
       const resp = await fetch(datasetsUrl);
-      if (!resp.ok) throw new Error(`Failed to load dataset registry: ${resp.status}`);
+      if (!resp.ok) throw DatasetRegistryLoadError.make(resp.status, datasetsUrl);
       registry = await resp.json() as DatasetRegistry[];
     }
 
@@ -132,7 +133,7 @@ export class AdapterFactory {
 
   async loadDataset(registerId: string): Promise<DatasetAdapter> {
     const adapter = this.adapters.get(registerId);
-    if (!adapter) throw new Error(`Unknown dataset: ${registerId}`);
+    if (!adapter) throw UnknownDatasetError.make(registerId);
 
     const manifest = await adapter.loadManifest();
     await adapter.loadIndex();

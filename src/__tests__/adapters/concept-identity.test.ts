@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ConceptIdentity } from '../../adapters/concept-identity';
+import { InvalidConceptIdentityError, InvalidConceptUriError } from '../../errors';
 
 describe('ConceptIdentity', () => {
   it('derives uri, slug, and path from parts', () => {
@@ -9,10 +10,10 @@ describe('ConceptIdentity', () => {
     expect(id.path).toBe('iso-10303-2/concepts/3.1.1');
   });
 
-  it('rejects empty parts', () => {
-    expect(() => new ConceptIdentity('', 'r', 'b')).toThrow(/localId/);
-    expect(() => new ConceptIdentity('x', '', 'b')).toThrow(/registerId/);
-    expect(() => new ConceptIdentity('x', 'r', '')).toThrow(/uriBase/);
+  it('rejects empty parts with a typed SerializationError', () => {
+    expect(() => new ConceptIdentity('', 'r', 'b')).toThrow(InvalidConceptIdentityError);
+    expect(() => new ConceptIdentity('x', '', 'b')).toThrow(InvalidConceptIdentityError);
+    expect(() => new ConceptIdentity('x', 'r', '')).toThrow(InvalidConceptIdentityError);
   });
 
   it('equals another identity with the same URI', () => {
@@ -33,8 +34,8 @@ describe('ConceptIdentity', () => {
     expect(roundTrip.equals(original)).toBe(true);
   });
 
-  it('fromUri rejects non-concept URIs', () => {
-    expect(() => ConceptIdentity.fromUri('https://example.org/foo/bar')).toThrow(/not a concept URI/);
+  it('fromUri rejects non-concept URIs with a typed error', () => {
+    expect(() => ConceptIdentity.fromUri('https://example.org/foo/bar')).toThrow(InvalidConceptUriError);
   });
 
   it('isConceptUri recognizes canonical URIs', () => {

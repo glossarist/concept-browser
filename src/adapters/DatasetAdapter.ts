@@ -12,6 +12,12 @@ import type {
 import type { Concept } from 'glossarist';
 import { conceptFromJson } from './model-bridge';
 import { GraphDataSource } from './GraphDataSource';
+import {
+  ChunkLoadError,
+  ConceptNotFoundError,
+  IndexLoadError,
+  ManifestLoadError,
+} from '../errors';
 
 // ── Wire-format types for JSON responses ────────────────────────────────────
 
@@ -82,7 +88,7 @@ export class DatasetAdapter {
   async loadManifest(): Promise<Manifest> {
     if (this.manifestComplete && this.manifest) return this.manifest;
     const resp = await fetch(`${this.baseUrl}/manifest.json`);
-    if (!resp.ok) throw new Error(`Failed to load manifest for ${this.registerId}: ${resp.status}`);
+    if (!resp.ok) throw ManifestLoadError.make(this.registerId, resp.status);
     this.manifest = (await resp.json()) as Manifest;
     this.manifestComplete = true;
     return this.manifest;
@@ -97,7 +103,7 @@ export class DatasetAdapter {
     }
 
     const resp = await fetch(`${this.baseUrl}/index.json`);
-    if (!resp.ok) throw new Error(`Failed to load index for ${this.registerId}: ${resp.status}`);
+    if (!resp.ok) throw IndexLoadError.make(this.registerId, resp.status);
     const data = await resp.json();
 
     // Handle both old format (with eng/status fields) and new format (with designations map)
@@ -150,7 +156,7 @@ export class DatasetAdapter {
       meta = await metaResp.json();
     } else {
       const resp = await fetch(`${this.baseUrl}/index.json`);
-      if (!resp.ok) throw new Error(`Failed to load index for ${this.registerId}`);
+      if (!resp.ok) throw IndexLoadError.make(this.registerId, resp.status);
       const data = await resp.json();
       this.index = this.normalizeIndex(data as IndexJson);
       this.buildSummaryIndex();
@@ -180,7 +186,7 @@ export class DatasetAdapter {
     if (this.loadedChunks.has(chunkIndex)) return [];
     const chunkFile = `index-${String(chunkIndex).padStart(4, '0')}.json`;
     const resp = await fetch(`${this.baseUrl}/chunks/${chunkFile}`);
-    if (!resp.ok) throw new Error(`Failed to load chunk ${chunkIndex} for ${this.registerId}`);
+    if (!resp.ok) throw ChunkLoadError.make(this.registerId, chunkIndex, resp.status);
     const data = await resp.json();
     this.loadedChunks.add(chunkIndex);
     return data.concepts as ConceptEntry[];
@@ -255,7 +261,7 @@ export class DatasetAdapter {
     }
 
     const resp = await fetch(`${this.baseUrl}/concepts/${conceptId}.json`);
-    if (!resp.ok) throw new Error(`Concept ${conceptId} not found in ${this.registerId}`);
+    if (!resp.ok) throw ConceptNotFoundError.make(this.registerId, conceptId);
     const json = await resp.json();
     const concept = conceptFromJson(json);
     this.conceptCache.set(conceptId, concept);
