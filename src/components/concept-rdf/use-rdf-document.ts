@@ -109,7 +109,10 @@ function conceptInstance(concept: Concept, conceptUri: string): ClassInstance {
 function localizedInstance(lc: LocalizedConcept, conceptUri: string): ClassInstance {
   const bag = new PropBag();
   bag.add(DCTERMS.language, lc.languageCode ?? '');
+  if (lc.script) bag.add(GLOSS.script, lc.script);
+  if (lc.system) bag.add(GLOSS.system, lc.system);
   if (lc.entryStatus) bag.add(GLOSS.hasEntryStatus, `gloss:entstatus/${lc.entryStatus}`);
+  if (lc.reviewType) bag.add(GLOSS.reviewType, lc.reviewType);
   bag.addNested(GLOSS.isLocalizationOf, conceptUri);
   for (const d of lc.terms) {
     bag.addNested(d.normativeStatus === 'preferred' ? SKOSXL.prefLabel : SKOSXL.altLabel, d.designation);
@@ -117,6 +120,7 @@ function localizedInstance(lc: LocalizedConcept, conceptUri: string): ClassInsta
   for (const d of lc.definitions) if (d.content) bag.addNested(GLOSS.hasDefinition, d.content);
   for (const n of lc.notes) if (n.content) bag.addNested(GLOSS.hasNote, n.content);
   for (const e of lc.examples) if (e.content) bag.addNested(GLOSS.hasExample, e.content);
+  for (const a of lc.annotations ?? []) if (a.content) bag.addNested(GLOSS.hasAnnotation, a.content);
   for (const nvr of lc.nonVerbalRep ?? []) {
     const label = formatNonVerbalRep(nvr);
     if (label) bag.addNested(GLOSS.hasNonVerbalRep, label);
@@ -233,8 +237,11 @@ function writeToTurtle(model: ConceptEmissionModel): string {
     lines.push('');
     lines.push(`<${uri}/${lang}> a ${GLOSS.LocalizedConcept}, ${SKOS.Concept} ;`);
     lines.push(`${ind}${DCTERMS.language} "${lang}" ;`);
+    if (lc.script) lines.push(`${ind}${GLOSS.script} "${lc.script}" ;`);
+    if (lc.system) lines.push(`${ind}${GLOSS.system} "${lc.system}" ;`);
     lines.push(`${ind}${GLOSS.isLocalizationOf} <${uri}> ;`);
     if (lc.entryStatus) lines.push(`${ind}${GLOSS.hasEntryStatus} gloss:entstatus/${lc.entryStatus} ;`);
+    if (lc.reviewType) lines.push(`${ind}${GLOSS.reviewType} "${lc.reviewType}" ;`);
     if (lc.classification) lines.push(`${ind}${GLOSS.classification} "${lc.classification}" ;`);
     if (lc.release) lines.push(`${ind}${GLOSS.release} "${lc.release}" ;`);
     if (lc.lineageSourceSimilarity != null) lines.push(`${ind}${GLOSS.lineageSourceSimilarity} "${lc.lineageSourceSimilarity}" ;`);
@@ -272,6 +279,9 @@ function writeToTurtle(model: ConceptEmissionModel): string {
         for (const p of parts) lines.push(p);
         lines.push(`${ind}] ;`);
       }
+    }
+    for (const ann of lc.annotations ?? []) {
+      if (ann.content) lines.push(`${ind}${GLOSS.hasAnnotation} "${ann.content}"@${lang} ;`);
     }
     lines[lines.length - 1] = lines[lines.length - 1].replace(/ ;$/, ' .');
 
@@ -320,7 +330,10 @@ function writeToJsonld(model: ConceptEmissionModel): string {
       [DCTERMS.language]: lang,
       [GLOSS.isLocalizationOf]: { '@id': uri },
     };
+    if (lc.script) lcNode[GLOSS.script] = lc.script;
+    if (lc.system) lcNode[GLOSS.system] = lc.system;
     if (lc.entryStatus) lcNode[GLOSS.hasEntryStatus] = { '@id': `gloss:entstatus/${lc.entryStatus}` };
+    if (lc.reviewType) lcNode[GLOSS.reviewType] = lc.reviewType;
     if (lc.classification) lcNode[GLOSS.classification] = lc.classification;
     if (lc.release) lcNode[GLOSS.release] = lc.release;
     if (lc.lineageSourceSimilarity != null) lcNode[GLOSS.lineageSourceSimilarity] = lc.lineageSourceSimilarity;
@@ -348,6 +361,10 @@ function writeToJsonld(model: ConceptEmissionModel): string {
       if (Object.keys(node).length) nvrNodes.push(node);
     }
     if (nvrNodes.length) lcNode[GLOSS.hasNonVerbalRep] = nvrNodes;
+    const annotations = (lc.annotations ?? []).filter(a => a.content);
+    if (annotations.length) {
+      lcNode[GLOSS.hasAnnotation] = annotations.map(a => ({ '@value': a.content, '@language': lang }));
+    }
     doc['@graph'].push(lcNode);
 
     for (let di = 0; di < lc.terms.length; di++) {
