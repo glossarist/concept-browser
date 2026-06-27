@@ -3,7 +3,7 @@
  * Extract SKOS taxonomy data from concept-model TTL files into JSON
  * for browser consumption via the OntologyRegistry.
  *
- * Reads from:  ../concept-model/ontologies/taxonomies/*.ttl
+ * Reads from:  data/concept-model/taxonomies/*.ttl  (vendored from glossarist/concept-model)
  * Writes to:   src/data/taxonomies.json
  */
 
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
-const TAXONOMY_DIR = resolve(ROOT, '..', 'concept-model', 'ontologies', 'taxonomies');
+const TAXONOMY_DIR = resolve(ROOT, 'data', 'concept-model', 'taxonomies');
 const OUTPUT = resolve(ROOT, 'src', 'data', 'taxonomies.json');
 
 /**
@@ -151,7 +151,7 @@ const TAXONOMY_MAP = {
 function main() {
   if (!existsSync(TAXONOMY_DIR)) {
     console.error(`Taxonomy directory not found: ${TAXONOMY_DIR}`);
-    console.error('Ensure concept-model is available at ../concept-model/');
+    console.error('Run `npm run sync:model` to vendor concept-model data.');
     process.exit(1);
   }
 
