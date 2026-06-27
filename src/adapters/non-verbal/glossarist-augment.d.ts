@@ -91,6 +91,13 @@ declare module 'glossarist' {
     static register(type: string, cls: typeof NonVerbalReference): void;
   }
 
+  interface NonVerbRep {
+    readonly caption: string | null;
+    readonly description: string | null;
+    readonly alt: string | null;
+    readonly images: FigureImage[];
+  }
+
   class FigureReference extends NonVerbalReference {
     static fromJSON(data: Record<string, unknown> | string): FigureReference;
   }

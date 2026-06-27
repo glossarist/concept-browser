@@ -1,6 +1,6 @@
 import type { ComputedRef } from 'vue';
 import { computed } from 'vue';
-import type { Concept, LocalizedConcept, Designation, Expression as ExpressionType, Abbreviation as AbbreviationType, GraphicalSymbol as GraphicalSymbolType } from 'glossarist';
+import type { Concept, LocalizedConcept, Designation, NonVerbRep, Expression as ExpressionType, Abbreviation as AbbreviationType, GraphicalSymbol as GraphicalSymbolType } from 'glossarist';
 import { getClass } from '../../adapters/ontology-schema';
 import { ConceptIdentity } from '../../adapters/concept-identity';
 import { GLOSS, SKOS, SKOSXL, DCTERMS, RDF } from './predicates';
@@ -51,6 +51,14 @@ function formatCitation(c: any): string {
     return r.id ? `${r.source} ${r.id}` : r.source;
   }
   return '';
+}
+
+function formatNonVerbalRep(nvr: NonVerbRep): string {
+  const parts: string[] = [];
+  if (nvr.type) parts.push(nvr.type);
+  if (nvr.caption) parts.push(nvr.caption);
+  if (nvr.description) parts.push(nvr.description);
+  return parts.filter(Boolean).join(': ');
 }
 
 class PropBag {
@@ -109,6 +117,10 @@ function localizedInstance(lc: LocalizedConcept, conceptUri: string): ClassInsta
   for (const d of lc.definitions) if (d.content) bag.addNested(GLOSS.hasDefinition, d.content);
   for (const n of lc.notes) if (n.content) bag.addNested(GLOSS.hasNote, n.content);
   for (const e of lc.examples) if (e.content) bag.addNested(GLOSS.hasExample, e.content);
+  for (const nvr of lc.nonVerbalRep ?? []) {
+    const label = formatNonVerbalRep(nvr);
+    if (label) bag.addNested(GLOSS.hasNonVerbalRep, label);
+  }
   for (const s of lc.sources) bag.addNested(GLOSS.hasSource, formatCitation(s.origin));
   if (lc.domain) bag.add(GLOSS.domain, lc.domain);
   return {
@@ -228,6 +240,21 @@ function writeToTurtle(model: ConceptEmissionModel): string {
         lines.push(`${ind}${GLOSS.hasDefinition} [ ${RDF.value} "${def.content}"@${lang} ] ;`);
       }
     }
+    for (const nvr of lc.nonVerbalRep ?? []) {
+      const parts: string[] = [];
+      if (nvr.type) parts.push(`${ind}${ind}${GLOSS.nonVerbalType} "${nvr.type}" ;`);
+      if (nvr.caption) parts.push(`${ind}${ind}${GLOSS.caption} "${nvr.caption}"@${lang} ;`);
+      if (nvr.description) parts.push(`${ind}${ind}${DCTERMS.description} "${nvr.description}"@${lang} ;`);
+      if (nvr.alt) parts.push(`${ind}${ind}${GLOSS.altText} "${nvr.alt}"@${lang} ;`);
+      for (const img of nvr.images ?? []) {
+        if (img.src) parts.push(`${ind}${ind}${GLOSS.image} <${img.src}> ;`);
+      }
+      if (parts.length) {
+        lines.push(`${ind}${GLOSS.hasNonVerbalRep} [`);
+        for (const p of parts) lines.push(p);
+        lines.push(`${ind}] ;`);
+      }
+    }
     lines[lines.length - 1] = lines[lines.length - 1].replace(/ ;$/, ' .');
 
     for (let di = 0; di < lc.terms.length; di++) {
@@ -282,6 +309,18 @@ function writeToJsonld(model: ConceptEmissionModel): string {
       lcNode[key] = lcNode[key] || [];
       lcNode[key].push({ '@id': `${uri}/${lang}/desig/${desigSlug(d.designation, di)}` });
     }
+    const nvrNodes: any[] = [];
+    for (const nvr of lc.nonVerbalRep ?? []) {
+      const node: any = {};
+      if (nvr.type) node[GLOSS.nonVerbalType] = nvr.type;
+      if (nvr.caption) node[GLOSS.caption] = { '@value': nvr.caption, '@language': lang };
+      if (nvr.description) node[DCTERMS.description] = { '@value': nvr.description, '@language': lang };
+      if (nvr.alt) node[GLOSS.altText] = { '@value': nvr.alt, '@language': lang };
+      const images = (nvr.images ?? []).map((img: any) => img.src).filter(Boolean);
+      if (images.length) node[GLOSS.image] = images.map((u: string) => ({ '@id': u }));
+      if (Object.keys(node).length) nvrNodes.push(node);
+    }
+    if (nvrNodes.length) lcNode[GLOSS.hasNonVerbalRep] = nvrNodes;
     doc['@graph'].push(lcNode);
 
     for (let di = 0; di < lc.terms.length; di++) {

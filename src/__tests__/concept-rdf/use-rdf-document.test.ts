@@ -24,6 +24,26 @@ function makeConcept(): Concept {
   });
 }
 
+function makeConceptWithNonVerbal(): Concept {
+  return Concept.fromJSON({
+    id: '3.1.2',
+    uri: 'https://glossarist.org/test/concept/3.1.2',
+    status: 'valid',
+    localizations: {
+      eng: {
+        language_code: 'eng',
+        entry_status: 'valid',
+        terms: [{ type: 'expression', designation: 'angle of repose', normative_status: 'preferred' }],
+        definition: [{ content: 'Angle formed by a material at rest.' }],
+        non_verbal_rep: [
+          { type: 'figure', caption: 'Angle of repose diagram', description: 'Schematic diagram showing the angle', images: [{ src: 'fig_A.23.svg' }] },
+          { type: 'formula', caption: 'tan(θ) = μ' },
+        ],
+      },
+    },
+  });
+}
+
 describe('useRdfDocument — Turtle emission contract', () => {
   it('declares skosxl: prefix and never xl:', () => {
     const c = ref(makeConcept());
@@ -80,6 +100,53 @@ describe('useRdfDocument — JSON-LD emission contract', () => {
     const types = doc['@graph'].map((n: any) => n['@type']);
     expect(types.some((t: any) => Array.isArray(t) && t.includes('gloss:Concept'))).toBe(true);
     expect(types.some((t: any) => Array.isArray(t) && t.includes('gloss:LocalizedConcept'))).toBe(true);
+  });
+});
+
+describe('useRdfDocument — non-verbal representation emission (WS K)', () => {
+  it('emits gloss:hasNonVerbalRep with type, caption, and description in Turtle', () => {
+    const c = ref(makeConceptWithNonVerbal());
+    const { turtle } = useRdfDocument(() => c.value, () => c.value.uri ?? '');
+    expect(turtle.value).toMatch(/gloss:hasNonVerbalRep \[/);
+    expect(turtle.value).toMatch(/gloss:nonVerbalType "figure"/);
+    expect(turtle.value).toMatch(/gloss:caption "Angle of repose diagram"@eng/);
+    expect(turtle.value).toMatch(/dcterms:description "Schematic diagram showing the angle"@eng/);
+    expect(turtle.value).toMatch(/gloss:image <fig_A\.23\.svg>/);
+    expect(turtle.value).toMatch(/gloss:nonVerbalType "formula"/);
+  });
+
+  it('emits gloss:hasNonVerbalRep array in JSON-LD', () => {
+    const c = ref(makeConceptWithNonVerbal());
+    const { jsonld } = useRdfDocument(() => c.value, () => c.value.uri ?? '');
+    const doc = JSON.parse(jsonld.value);
+    const lcNode = doc['@graph'].find((n: any) => Array.isArray(n['@type']) && n['@type'].includes('gloss:LocalizedConcept'));
+    expect(lcNode).toBeDefined();
+    expect(Array.isArray(lcNode['gloss:hasNonVerbalRep'])).toBe(true);
+    expect(lcNode['gloss:hasNonVerbalRep']).toHaveLength(2);
+    const figure = lcNode['gloss:hasNonVerbalRep'].find((n: any) => n['gloss:nonVerbalType'] === 'figure');
+    expect(figure['gloss:caption']['@value']).toBe('Angle of repose diagram');
+    expect(figure['dcterms:description']['@value']).toBe('Schematic diagram showing the angle');
+    expect(figure['gloss:image'][0]['@id']).toBe('fig_A.23.svg');
+  });
+
+  it('includes non-verbal reps in the sections view', () => {
+    const c = ref(makeConceptWithNonVerbal());
+    const { sections } = useRdfDocument(() => c.value, () => c.value.uri ?? '');
+    const lcSection = sections.value.find(s => s.classId === 'gloss:LocalizedConcept');
+    expect(lcSection).toBeDefined();
+    const nvrProps = lcSection!.props.filter(p => p.predicate === 'gloss:hasNonVerbalRep');
+    expect(nvrProps).toHaveLength(2);
+    expect(nvrProps.some(p => p.values.some(v => v.includes('figure')))).toBe(true);
+    expect(nvrProps.some(p => p.values.some(v => v.includes('formula')))).toBe(true);
+  });
+
+  it('omits gloss:hasNonVerbalRep when the concept has no non-verbal reps', () => {
+    const c = ref(makeConcept());
+    const { turtle, jsonld } = useRdfDocument(() => c.value, () => c.value.uri ?? '');
+    expect(turtle.value).not.toMatch(/gloss:hasNonVerbalRep/);
+    const doc = JSON.parse(jsonld.value);
+    const lcNode = doc['@graph'].find((n: any) => Array.isArray(n['@type']) && n['@type'].includes('gloss:LocalizedConcept'));
+    expect(lcNode['gloss:hasNonVerbalRep']).toBeUndefined();
   });
 });
 
