@@ -4,6 +4,7 @@
  */
 
 import { escapeHtml, escapeAttr } from './escape';
+import { sanitizeUrl } from './url-safety';
 
 export function renderAsciiDocLite(text: string): string {
   if (!text) return '';
@@ -102,14 +103,18 @@ export function renderAsciiDocLite(text: string): string {
 
 function inlineFormat(text: string): string {
   // AsciiDoc link: https://example.com[text]
-  text = text.replace(/(https?:\/\/[^\s\[]+)\[([^\]]*)\]/g, (_, url, label) =>
-    `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label || url)}</a>`
-  );
+  text = text.replace(/(https?:\/\/[^\s\[]+)\[([^\]]*)\]/g, (_, url, label) => {
+    const href = sanitizeUrl(url);
+    if (!href) return escapeHtml(label || url);
+    return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(label || url)}</a>`;
+  });
 
   // Bare URLs
-  text = text.replace(/(?<!href="|">)(https?:\/\/[^\s<]+)/g, url =>
-    `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`
-  );
+  text = text.replace(/(?<!href="|">)(https?:\/\/[^\s<]+)/g, url => {
+    const href = sanitizeUrl(url);
+    if (!href) return escapeHtml(url);
+    return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`;
+  });
 
   // Monospace: `text`
   text = text.replace(/`([^`]+)`/g, '<code>$1</code>');

@@ -1,10 +1,15 @@
 import { escapeHtml } from './escape';
+import { sanitizeUrl } from './url-safety';
 
 const INLINE_PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/\*\*(.+?)\*\*/g, m => `<strong>${m[1]}</strong>`],
   [/(?<!\*)\*([^*]+?)\*(?!\*)/g, m => `<em>${m[1]}</em>`],
   [/`([^`]+?)`/g, m => `<code>${m[1]}</code>`],
-  [/\[([^\]]+)\]\(([^)]+)\)/g, m => `<a href="${m[2]}" target="_blank">${m[1]}</a>`],
+  [/\[([^\]]+)\]\(([^)]+)\)/g, m => {
+    const href = sanitizeUrl(m[2]);
+    if (!href) return escapeHtml(m[1]);
+    return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener">${m[1]}</a>`;
+  }],
 ];
 
 function renderInline(text: string): string {
