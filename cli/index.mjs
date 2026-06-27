@@ -9,6 +9,7 @@
  *   edges      Build cross-reference edges from generated concept data
  *   build      Full pipeline: fetch + generate + edges + vite build
  *   site       Same as build (alias)
+ *   normalize  NFC-normalize YAML files in .datasets/ (use --check for CI gate)
  *
  * Options:
  *   --site <id>  Site config to use (looks for site-config.yml in CWD)
@@ -61,9 +62,11 @@ Commands:
   edges      Build cross-reference edges from generated concepts
   build      Full pipeline (fetch + generate + edges + vite build)
   site       Same as build
+  normalize  NFC-normalize YAML files in .datasets/
 
 Options:
   --site <id>  Site config ID (looks for site-config.yml in CWD)
+  --check      (normalize only) Non-mutating; exit 1 if any file is not NFC
 
 Environment:
   SITE_CONFIG          Site config file path (highest priority)
@@ -187,6 +190,28 @@ Environment:
 
   const runner = commands[cmd];
   if (!runner) {
+    if (cmd === 'normalize') {
+      const { normalizeYaml } = await import('../scripts/normalize-yaml.mjs');
+      const check = process.argv.includes('--check');
+      const paths = process.argv.slice(2).filter(a => !a.startsWith('-') && a !== 'normalize');
+      const { checked, nonNfc, fixed } = normalizeYaml({ check, paths });
+      if (check) {
+        if (nonNfc === 0) {
+          console.log(`NFC OK: ${checked} file(s) checked, all normalized`);
+          return;
+        }
+        console.error(`NFC check failed: ${nonNfc} of ${checked} file(s) are not NFC-normalized\n`);
+        for (const f of fixed) console.error(`  ${f}`);
+        process.exit(1);
+      }
+      if (nonNfc === 0) {
+        console.log(`NFC OK: ${checked} file(s) checked, all already normalized`);
+      } else {
+        console.log(`Normalized ${nonNfc} of ${checked} file(s)`);
+        for (const f of fixed) console.log(`  ${f}`);
+      }
+      return;
+    }
     console.error(`Unknown command: ${cmd}`);
     console.error('Run `concept-browser help` for usage.');
     process.exit(1);
