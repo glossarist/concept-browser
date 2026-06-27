@@ -40,6 +40,25 @@ describe('renderMarkdown', () => {
     expect(result).toContain('>label</a>');
   });
 
+  it('strips dangerous schemes from markdown links (XSS defense)', () => {
+    const out1 = renderMarkdown('[click](javascript:alert(1))');
+    expect(out1).not.toContain('javascript:');
+    expect(out1).not.toContain('<a ');
+
+    const out2 = renderMarkdown('[x](data:text/html,<script>alert(1)</script>)');
+    expect(out2).not.toContain('data:');
+    expect(out2).not.toContain('<script');
+
+    const out3 = renderMarkdown('[x](vbscript:msgbox(1))');
+    expect(out3).not.toContain('vbscript:');
+  });
+
+  it('still emits rel="noopener" on safe external links', () => {
+    const out = renderMarkdown('[link](https://example.com)');
+    expect(out).toContain('rel="noopener"');
+    expect(out).toContain('target="_blank"');
+  });
+
   it('renders unordered lists', () => {
     const result = renderMarkdown('- one\n- two');
     expect(result).toContain('<ul>');
