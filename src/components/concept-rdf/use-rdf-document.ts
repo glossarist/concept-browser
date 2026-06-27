@@ -2,6 +2,7 @@ import type { ComputedRef } from 'vue';
 import { computed } from 'vue';
 import type { Concept, LocalizedConcept, Designation, Expression as ExpressionType, Abbreviation as AbbreviationType, GraphicalSymbol as GraphicalSymbolType } from 'glossarist';
 import { getClass } from '../../adapters/ontology-schema';
+import { ConceptIdentity } from '../../adapters/concept-identity';
 
 export interface PropValue {
   predicate: string;
@@ -161,10 +162,11 @@ function designationInstance(d: Designation): ClassInstance {
 interface ConceptEmissionModel {
   concept: Concept;
   conceptUri: string;
+  identity: ConceptIdentity;
   sections: ClassInstance[];
 }
 
-function buildEmissionModel(concept: Concept, conceptUri: string): ConceptEmissionModel {
+function buildEmissionModel(concept: Concept, conceptUri: string, identity: ConceptIdentity): ConceptEmissionModel {
   const sections: ClassInstance[] = [conceptInstance(concept, conceptUri)];
   for (const lang of concept.languages) {
     const lc = concept.localization(lang);
@@ -172,13 +174,13 @@ function buildEmissionModel(concept: Concept, conceptUri: string): ConceptEmissi
     sections.push(localizedInstance(lc, conceptUri));
     for (const d of lc.terms) sections.push(designationInstance(d));
   }
-  return { concept, conceptUri, sections };
+  return { concept, conceptUri, identity, sections };
 }
 
 function writeToTurtle(model: ConceptEmissionModel): string {
   const lines: string[] = [];
   const ind = '  ';
-  const { concept: c, conceptUri: uri } = model;
+  const { concept: c, conceptUri: uri, identity } = model;
 
   lines.push('@prefix gloss: <https://www.glossarist.org/ontologies/> .');
   lines.push('@prefix skos: <http://www.w3.org/2004/02/skos/core#> .');
@@ -306,7 +308,20 @@ export function useRdfDocument(
   getConceptUri: () => string,
   _options: UseRdfDocumentOptions = {},
 ): RdfDocument {
-  const emission = computed(() => buildEmissionModel(getConcept(), getConceptUri()));
+  const identity = computed(() => {
+    const concept = getConcept();
+    const uri = getConceptUri();
+    if (ConceptIdentity.isConceptUri(uri)) {
+      const parsed = ConceptIdentity.fromUri(uri);
+      if (parsed.localId === concept.id) return parsed;
+    }
+    return new ConceptIdentity(concept.id, '', '');
+  });
+  const safeUri = computed(() => {
+    const uri = getConceptUri();
+    return uri || identity.value.uri;
+  });
+  const emission = computed(() => buildEmissionModel(getConcept(), safeUri.value, identity.value));
   const sections = computed(() => emission.value.sections);
   const turtle = computed(() => writeToTurtle(emission.value));
   const jsonld = computed(() => writeToJsonld(emission.value));

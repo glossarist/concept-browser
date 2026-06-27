@@ -36,6 +36,7 @@ import {
   GRAMMAR_PARTS_OF_SPEECH,
 } from 'glossarist/models';
 import type { ConceptSummary } from './types';
+import { ConceptIdentity } from './concept-identity';
 
 // ── JSON-LD wire-format types ─────────────────────────────────────────────
 
@@ -634,5 +635,5 @@ export function conceptToSummary(concept: Concept): ConceptSummary {
 
 export function conceptUri(concept: Concept, registerId: string, uriBase: string): string {
   if (concept.uri) return concept.uri;
-  return `${uriBase}/${registerId}/concept/${concept.id}`;
+  return new ConceptIdentity(concept.id, registerId, uriBase).uri;
 }

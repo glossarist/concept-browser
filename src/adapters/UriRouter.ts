@@ -1,4 +1,5 @@
 import type { Manifest } from './types';
+import { ConceptIdentity } from './concept-identity';
 
 // ── URI pattern matching ────────────────────────────────────────────────────
 
@@ -104,7 +105,7 @@ export class UriRouter {
   buildUri(registerId: string, conceptId: string): string {
     const info = this.registerMap.get(registerId);
     const uriBase = info?.uriBase ?? '';
-    return `${uriBase}/${registerId}/concept/${conceptId}`;
+    return new ConceptIdentity(conceptId, registerId, uriBase).uri;
   }
 
   getRegisteredIds(): string[] {
