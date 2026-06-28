@@ -10,6 +10,7 @@
  *   build      Full pipeline: fetch + generate + edges + vite build
  *   site       Same as build (alias)
  *   normalize  NFC-normalize YAML files in .datasets/ (use --check for CI gate)
+ *   doctor     Diagnose the local environment (deps, datasets, shapes, context)
  *
  * Options:
  *   --site <id>  Site config to use (looks for site-config.yml in CWD)
@@ -63,6 +64,7 @@ Commands:
   build      Full pipeline (fetch + generate + edges + vite build)
   site       Same as build
   normalize  NFC-normalize YAML files in .datasets/
+  doctor     Diagnose the local environment (deps, datasets, shapes, context)
 
 Options:
   --site <id>  Site config ID (looks for site-config.yml in CWD)
@@ -210,6 +212,11 @@ Environment:
         console.log(`Normalized ${nonNfc} of ${checked} file(s)`);
         for (const f of fixed) console.log(`  ${f}`);
       }
+      return;
+    }
+    if (cmd === 'doctor') {
+      const { main: doctorMain } = await import('../scripts/doctor.mjs');
+      await doctorMain();
       return;
     }
     console.error(`Unknown command: ${cmd}`);
