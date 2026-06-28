@@ -10,6 +10,10 @@ const cwd = process.cwd()
 
 const isTest = process.env.VITEST !== undefined
 
+const pkgVersion = JSON.parse(
+  readFileSync(resolve(__dirname, 'package.json'), 'utf8'),
+).version
+
 function yamlPlugin() {
   return {
     name: 'yaml-transform',
@@ -169,6 +173,9 @@ export default defineConfig({
         path: resolve(__dirname, 'src/shims/node-path.ts'),
       } : {}),
     },
+  },
+  define: {
+    __CONCEPT_BROWSER_VERSION__: JSON.stringify(pkgVersion),
   },
   test: {
     environment: 'happy-dom',
