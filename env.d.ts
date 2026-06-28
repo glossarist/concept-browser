@@ -12,3 +12,16 @@ declare module '*.vue' {
   const component: DefineComponent<{}, {}, any>
   export default component
 }
+
+declare module '@rdfjs/dataset' {
+  export function dataset(): any;
+  const _default: { dataset: typeof dataset };
+  export default _default;
+}
+
+declare module 'rdf-validate-shacl' {
+  export default class Validator {
+    constructor(shapes: any, options?: { factory?: any });
+    validate(data: any): { conforms: boolean; results: any[] };
+  }
+}
