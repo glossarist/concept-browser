@@ -59,6 +59,20 @@ export const GLOSS = {
   relationshipContent: 'gloss:relationshipContent',
   conceptSource: 'gloss:conceptSource',
   conceptId: 'gloss:conceptId',
+
+  Citation: 'gloss:Citation',
+  CitationRef: 'gloss:CitationRef',
+  Locality: 'gloss:Locality',
+  source: 'gloss:source',
+  refn: 'gloss:refn',
+  sourceStatus: 'gloss:sourceStatus',
+  sourceType: 'gloss:sourceType',
+  modificationNote: 'gloss:modificationNote',
+  localityType: 'gloss:localityType',
+  referenceFrom: 'gloss:referenceFrom',
+  referenceTo: 'gloss:referenceTo',
+  original: 'gloss:original',
+  citationLocality: 'gloss:citationLocality',
 } as const;
 
 export const SKOS = {
@@ -84,12 +98,44 @@ export const DCTERMS = {
   title: 'dcterms:title',
   description: 'dcterms:description',
   created: 'dcterms:created',
+  modified: 'dcterms:modified',
+  identifier: 'dcterms:identifier',
+  date: 'dcterms:date',
+  type: 'dcterms:type',
+  isVersionOf: 'dcterms:isVersionOf',
+  bibliographicCitation: 'dcterms:bibliographicCitation',
+  format: 'dcterms:format',
 } as const;
 
 export const RDF = {
+  type: 'rdf:type',
   value: 'rdf:value',
 } as const;
 
 export const OWL = {
   Thing: 'owl:Thing',
+  sameAs: 'owl:sameAs',
+  deprecated: 'owl:deprecated',
+} as const;
+
+export const RDFS = {
+  seeAlso: 'rdfs:seeAlso',
+  label: 'rdfs:label',
+} as const;
+
+export const PROV = {
+  wasGeneratedBy: 'prov:wasGeneratedBy',
+  generatedAtTime: 'prov:generatedAtTime',
+  wasDerivedFrom: 'prov:wasDerivedFrom',
+  wasAttributedTo: 'prov:wasAttributedTo',
+  invalidatedAtTime: 'prov:invalidatedAtTime',
+  Activity: 'prov:Activity',
+  Entity: 'prov:Entity',
+} as const;
+
+export const XSD = {
+  dateTime: 'xsd:dateTime',
+  boolean: 'xsd:boolean',
+  integer: 'xsd:integer',
+  string: 'xsd:string',
 } as const;

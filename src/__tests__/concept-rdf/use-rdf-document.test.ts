@@ -78,8 +78,16 @@ describe('useRdfDocument — Turtle emission contract', () => {
     const c = ref(makeConcept());
     const { turtle } = useRdfDocument(() => c.value, () => c.value.uri ?? '');
     const block = turtle.value.split('\n\n')[1] ?? '';
-    expect(block).toMatch(/<[^>]+> a gloss:Concept, skos:Concept ;[\s\S]+gloss:hasLocalization <[^>]+> \./);
-    expect(block).not.toMatch(/[^.]$/);
+    expect(block).toMatch(/<[^>]+> a gloss:Concept, skos:Concept ;[\s\S]+gloss:hasLocalization <[^>]+>/);
+    expect(block).toMatch(/\.$/);
+    expect(block).not.toMatch(/;\s*$/);
+  });
+
+  it('attaches provenance triples to the concept resource', () => {
+    const c = ref(makeConcept());
+    const { turtle } = useRdfDocument(() => c.value, () => c.value.uri ?? '');
+    expect(turtle.value).toMatch(/prov:wasGeneratedBy <activity\/serializers\/concept-browser\//);
+    expect(turtle.value).toMatch(/prov:generatedAtTime "[^"]+"\^\^xsd:dateTime/);
   });
 });
 
@@ -126,7 +134,9 @@ describe('useRdfDocument — non-verbal representation emission (WS K)', () => {
     const figure = lcNode['gloss:hasNonVerbalRep'].find((n: any) => n['gloss:nonVerbalType'] === 'figure');
     expect(figure['gloss:caption']['@value']).toBe('Angle of repose diagram');
     expect(figure['dcterms:description']['@value']).toBe('Schematic diagram showing the angle');
-    expect(figure['gloss:image'][0]['@id']).toBe('fig_A.23.svg');
+    const rawImage = figure['gloss:image'];
+    const imageArr = Array.isArray(rawImage) ? rawImage : [rawImage];
+    expect(imageArr[0]['@id']).toBe('fig_A.23.svg');
   });
 
   it('includes non-verbal reps in the sections view', () => {
