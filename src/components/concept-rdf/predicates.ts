@@ -1,4 +1,5 @@
 export const GLOSS = {
+  // Classes
   Concept: 'gloss:Concept',
   LocalizedConcept: 'gloss:LocalizedConcept',
   Designation: 'gloss:Designation',
@@ -8,7 +9,21 @@ export const GLOSS = {
   LetterSymbol: 'gloss:LetterSymbol',
   GraphicalSymbol: 'gloss:GraphicalSymbol',
 
+  DetailedDefinition: 'gloss:DetailedDefinition',
+  ConceptDate: 'gloss:ConceptDate',
+  ConceptSource: 'gloss:ConceptSource',
+  ConceptRef: 'gloss:ConceptRef',
+  RelatedConcept: 'gloss:RelatedConcept',
+  Citation: 'gloss:Citation',
+  CitationRef: 'gloss:CitationRef',
+  Locality: 'gloss:Locality',
+  CustomLocality: 'gloss:CustomLocality',
+  Reference: 'gloss:Reference',
+  ConceptCollection: 'gloss:ConceptCollection',
+
+  // Concept predicates
   identifier: 'gloss:identifier',
+  uri: 'gloss:uri',
   hasStatus: 'gloss:hasStatus',
   hasEntryStatus: 'gloss:hasEntryStatus',
   hasLocalization: 'gloss:hasLocalization',
@@ -18,30 +33,44 @@ export const GLOSS = {
   hasSource: 'gloss:hasSource',
   hasDate: 'gloss:hasDate',
   hasRelatedConcept: 'gloss:hasRelatedConcept',
+  hasDesignation: 'gloss:hasDesignation',
+  hasDefinition: 'gloss:hasDefinition',
+  hasNote: 'gloss:hasNote',
+  hasExample: 'gloss:hasExample',
+  hasAnnotation: 'gloss:hasAnnotation',
+  hasNonVerbalRep: 'gloss:hasNonVerbalRep',
+  hasReference: 'gloss:hasReference',
+  hasPronunciation: 'gloss:hasPronunciation',
+  hasGrammarInfo: 'gloss:hasGrammarInfo',
+  hasTermType: 'gloss:hasTermType',
+  tag: 'gloss:tag',
+  register: 'gloss:register',
+
+  // Lifecycle / review
   reviewDate: 'gloss:reviewDate',
   reviewDecisionDate: 'gloss:reviewDecisionDate',
   reviewDecisionEvent: 'gloss:reviewDecisionEvent',
   reviewStatus: 'gloss:reviewStatus',
   reviewDecision: 'gloss:reviewDecision',
   reviewDecisionNotes: 'gloss:reviewDecisionNotes',
-  lineageSourceSimilarity: 'gloss:lineageSourceSimilarity',
+  reviewType: 'gloss:reviewType',
+  lineageSourceSimilarity: 'gloss:lineageSimilarity',
+  lineageSimilarity: 'gloss:lineageSimilarity',
   release: 'gloss:release',
   classification: 'gloss:classification',
-  hasDefinition: 'gloss:hasDefinition',
-  hasNote: 'gloss:hasNote',
-  hasExample: 'gloss:hasExample',
-  hasAnnotation: 'gloss:hasAnnotation',
-  hasNonVerbalRep: 'gloss:hasNonVerbalRep',
-  nonVerbalType: 'gloss:nonVerbalType',
+  script: 'gloss:script',
+  system: 'gloss:conversionSystem',
+  conversionSystem: 'gloss:conversionSystem',
+  language: 'gloss:language',
+
+  // Non-verbal
+  nonVerbalType: 'gloss:representationType',
+  representationType: 'gloss:representationType',
+  representationRef: 'gloss:representationRef',
   caption: 'gloss:caption',
   altText: 'gloss:altText',
-  script: 'gloss:script',
-  system: 'gloss:system',
-  reviewType: 'gloss:reviewType',
-  hasDesignation: 'gloss:hasDesignation',
-  hasPronunciation: 'gloss:hasPronunciation',
-  hasGrammarInfo: 'gloss:hasGrammarInfo',
-  hasTermType: 'gloss:hasTermType',
+
+  // Designation
   normativeStatus: 'gloss:normativeStatus',
   geographicalArea: 'gloss:geographicalArea',
   fieldOfApplication: 'gloss:fieldOfApplication',
@@ -55,34 +84,67 @@ export const GLOSS = {
   isInitialism: 'gloss:isInitialism',
   isTruncation: 'gloss:isTruncation',
 
+  // Related concept / ConceptRef
   relationshipType: 'gloss:relationshipType',
   relationshipContent: 'gloss:relationshipContent',
-  conceptSource: 'gloss:conceptSource',
-  conceptId: 'gloss:conceptId',
+  relationshipRef: 'gloss:relationshipRef',
+  conceptRefSource: 'gloss:conceptRefSource',
+  conceptRefId: 'gloss:conceptRefId',
 
-  Citation: 'gloss:Citation',
-  CitationRef: 'gloss:CitationRef',
-  Locality: 'gloss:Locality',
-  source: 'gloss:source',
-  refn: 'gloss:refn',
+  // ConceptDate
+  dateType: 'gloss:dateType',
+  dateValue: 'gloss:dateValue',
+  eventDescription: 'gloss:eventDescription',
+
+  // ConceptSource
   sourceStatus: 'gloss:sourceStatus',
   sourceType: 'gloss:sourceType',
-  modificationNote: 'gloss:modificationNote',
+  sourceOrigin: 'gloss:sourceOrigin',
+  modification: 'gloss:modification',
+
+  // Citation
+  hasCitationRef: 'gloss:hasCitationRef',
+  hasCitationLocality: 'gloss:hasCitationLocality',
+  citationLink: 'gloss:citationLink',
+  citationOriginal: 'gloss:citationOriginal',
+  hasCustomLocality: 'gloss:hasCustomLocality',
+  bibliographicCitation: 'gloss:bibliographicCitation',
+
+  // CitationRef
+  citationRefSource: 'gloss:citationRefSource',
+  citationRefId: 'gloss:citationRefId',
+  citationRefVersion: 'gloss:citationRefVersion',
+
+  // Reference
+  refSource: 'gloss:source',
+  refId: 'gloss:refId',
+  refVersion: 'gloss:refVersion',
+  refLink: 'gloss:refLink',
+  refType: 'gloss:refType',
+  urn: 'gloss:urn',
+  term: 'gloss:term',
+  hasLocality: 'gloss:hasLocality',
+
+  // Locality
   localityType: 'gloss:localityType',
   referenceFrom: 'gloss:referenceFrom',
   referenceTo: 'gloss:referenceTo',
-  original: 'gloss:original',
-  citationLocality: 'gloss:citationLocality',
+  customLocalityName: 'gloss:customLocalityName',
+  customLocalityValue: 'gloss:customLocalityValue',
 } as const;
 
 export const SKOS = {
   Concept: 'skos:Concept',
   Collection: 'skos:Collection',
+  ConceptScheme: 'skos:ConceptScheme',
   prefLabel: 'skos:prefLabel',
   altLabel: 'skos:altLabel',
   definition: 'skos:definition',
   scopeNote: 'skos:scopeNote',
   notation: 'skos:notation',
+  member: 'skos:member',
+  hasTopConcept: 'skos:hasTopConcept',
+  inScheme: 'skos:inScheme',
 } as const;
 
 export const SKOSXL = {
@@ -103,8 +165,12 @@ export const DCTERMS = {
   date: 'dcterms:date',
   type: 'dcterms:type',
   isVersionOf: 'dcterms:isVersionOf',
+  replaces: 'dcterms:replaces',
+  isReplacedBy: 'dcterms:isReplacedBy',
   bibliographicCitation: 'dcterms:bibliographicCitation',
   format: 'dcterms:format',
+  publisher: 'dcterms:publisher',
+  contactPoint: 'dcterms:contactPoint',
 } as const;
 
 export const RDF = {
@@ -121,6 +187,7 @@ export const OWL = {
 export const RDFS = {
   seeAlso: 'rdfs:seeAlso',
   label: 'rdfs:label',
+  comment: 'rdfs:comment',
 } as const;
 
 export const PROV = {
@@ -129,13 +196,39 @@ export const PROV = {
   wasDerivedFrom: 'prov:wasDerivedFrom',
   wasAttributedTo: 'prov:wasAttributedTo',
   invalidatedAtTime: 'prov:invalidatedAtTime',
+  wasInvalidatedBy: 'prov:wasInvalidatedBy',
+  wasAssociatedWith: 'prov:wasAssociatedWith',
+  wasRevisionOf: 'prov:wasRevisionOf',
+  used: 'prov:used',
   Activity: 'prov:Activity',
   Entity: 'prov:Entity',
+  Agent: 'prov:Agent',
+  Organization: 'prov:Organization',
+  Person: 'prov:Person',
+} as const;
+
+export const DCAT = {
+  Dataset: 'dcat:Dataset',
+  Distribution: 'dcat:Distribution',
+  distribution: 'dcat:distribution',
+  downloadURL: 'dcat:downloadURL',
+  mediaType: 'dcat:mediaType',
+  byteSize: 'dcat:byteSize',
+  contactPoint: 'dcat:contactPoint',
+} as const;
+
+export const FOAF = {
+  Person: 'foaf:Person',
+  Organization: 'foaf:Organization',
+  name: 'foaf:name',
+  mbox: 'foaf:mbox',
 } as const;
 
 export const XSD = {
   dateTime: 'xsd:dateTime',
+  date: 'xsd:date',
   boolean: 'xsd:boolean',
   integer: 'xsd:integer',
   string: 'xsd:string',
+  anyURI: 'xsd:anyURI',
 } as const;

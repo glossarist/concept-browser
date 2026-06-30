@@ -7,6 +7,7 @@ import rdfDataset from '@rdfjs/dataset';
 import ShaclValidator from 'rdf-validate-shacl';
 import { writeTurtle } from '../../components/concept-rdf/turtle-writer';
 import { emitConceptGraph } from '../../components/concept-rdf/concept-emitter';
+import { emitVocabularyGraph } from '../../components/concept-rdf/vocabulary-emitter';
 import { CONCEPT_FIXTURES } from '../__fixtures__/concepts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -38,11 +39,15 @@ async function parseTurtle(text: string, baseIri: string) {
 }
 
 let validator: InstanceType<typeof ShaclValidatorCtor>;
+let vocabDataset: any;
 
 beforeAll(async () => {
   const shapesText = readFileSync(SHAPES_PATH, 'utf8');
   const shapes = await parseTurtle(shapesText, `file://${SHAPES_PATH}`);
   validator = new ShaclValidatorCtor(shapes, { factory: FACTORY });
+
+  const vocabTtl = writeTurtle(emitVocabularyGraph());
+  vocabDataset = await parseTurtle(vocabTtl, 'https://glossarist.org/vocab');
 });
 
 interface Violation {
@@ -66,38 +71,40 @@ function uniquePaths(violations: readonly Violation[]): readonly string[] {
   return [...new Set(violations.map(v => v.path))].sort();
 }
 
-describe('Layer 4 — SHACL conformance probe (records current state)', () => {
-  const summary: Record<string, readonly string[]> = {};
-
+describe('Layer 4 — SHACL conformance for every emitted fixture', () => {
   for (const fixture of CONCEPT_FIXTURES) {
-    it(`${fixture.name}: validates against glossarist.shacl.ttl and records violations`, async () => {
+    it(`${fixture.name}: emitted Turtle + vocab conforms to glossarist SHACL shapes`, async () => {
       const { graph } = emitConceptGraph(fixture.concept, fixture.uri);
       const ttl = writeTurtle(graph);
       const data = await parseTurtle(ttl, fixture.uri);
-      const report = validator.validate(data);
-      const violations = violationsFor(report);
-      summary[fixture.name] = uniquePaths(violations);
 
-      // The probe's invariant: validation runs cleanly and produces a structured result.
-      // Whether each fixture conforms is recorded in `summary` for the doc below.
-      expect(typeof report.conforms).toBe('boolean');
+      const combined = FACTORY.dataset();
+      for (const q of (vocabDataset as any)) combined.add(q);
+      for (const q of (data as any)) combined.add(q);
+
+      const report = validator.validate(combined);
+      const violations = violationsFor(report);
+
+      if (!report.conforms) {
+        const detail = violations.map(v => `  path=${v.path}\n  focus=${v.focus}`).join('\n');
+        expect.fail(`SHACL violations for ${fixture.name}:\n${detail}`);
+      }
+      expect(report.conforms).toBe(true);
     });
   }
 
-  it('emits a human-readable divergence report at suite end', () => {
-    const lines: string[] = [];
-    lines.push('SHACL conformance summary (Layer 4 probe):');
-    for (const [name, paths] of Object.entries(summary)) {
-      if (paths.length === 0) {
-        lines.push(`  ${name}: conforms`);
-      } else {
-        lines.push(`  ${name}: ${paths.length} violating path(s)`);
-        for (const p of paths) lines.push(`    - ${p}`);
-      }
-    }
-    // Print to stdout for visibility, not as an assertion failure.
-    // eslint-disable-next-line no-console
-    console.log(lines.join('\n'));
-    expect(Object.keys(summary).length).toBe(CONCEPT_FIXTURES.length);
+  it('vocabulary graph is a valid skos:ConceptScheme set', async () => {
+    const vocabTtl = writeTurtle(emitVocabularyGraph());
+    const ds = await parseTurtle(vocabTtl, 'https://glossarist.org/vocab');
+    const SKOS = 'http://www.w3.org/2004/02/skos/core#';
+    const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
+    const concepts = [...(ds as any)].filter((q: any) =>
+      q.predicate.value === RDF_TYPE && q.object.value === `${SKOS}Concept`,
+    );
+    const schemes = [...(ds as any)].filter((q: any) =>
+      q.predicate.value === RDF_TYPE && q.object.value === `${SKOS}ConceptScheme`,
+    );
+    expect(schemes.length).toBeGreaterThan(0);
+    expect(concepts.length).toBeGreaterThan(0);
   });
 });

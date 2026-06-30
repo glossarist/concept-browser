@@ -150,20 +150,21 @@ describe('emitConceptGraph — structured source/citation (WS K6)', () => {
     return t?.object?.kind === 'blank' ? (t.object as RdfBlankNode) : undefined;
   }
 
-  it('types every source blank node as gloss:Citation', () => {
+  it('types every source blank node as gloss:ConceptSource', () => {
     const uri = 'https://glossarist.org/test/concept/3.1.2';
     const { graph } = emitConceptGraph(makeConceptWithSource(), uri);
     const src = firstSourceBlank(graph, uri)!;
     expect(src).toBeDefined();
     const typeTriple = src.triples.find(t => t.predicate === RDF.type);
-    expect((typeTriple!.object as RdfIri).value).toBe(GLOSS.Citation);
+    expect((typeTriple!.object as RdfIri).value).toBe(GLOSS.ConceptSource);
   });
 
-  it('emits the formatted bibliographic string as dcterms:bibliographicCitation', () => {
+  it('emits the formatted bibliographic string on the nested gloss:Citation', () => {
     const uri = 'https://glossarist.org/test/concept/3.1.2';
     const { graph } = emitConceptGraph(makeConceptWithSource(), uri);
     const src = firstSourceBlank(graph, uri)!;
-    const cite = src.triples.find(t => t.predicate === DCTERMS.bibliographicCitation);
+    const originSlot = src.triples.find(t => t.predicate === GLOSS.sourceOrigin);
+    const cite = (originSlot!.object as RdfBlankNode).triples.find(t => t.predicate === DCTERMS.bibliographicCitation);
     expect(cite).toBeDefined();
     expect((cite!.object as RdfLiteral).value).toBe('ISO 704 3.1');
   });
@@ -178,46 +179,51 @@ describe('emitConceptGraph — structured source/citation (WS K6)', () => {
     expect((type!.object as RdfIri).value).toBe('gloss:srctype/authoritative');
   });
 
-  it('emits gloss:modificationNote as a literal when modification is present', () => {
+  it('emits gloss:modification as a literal on the ConceptSource when modification is present', () => {
     const uri = 'https://glossarist.org/test/concept/3.1.2';
     const { graph } = emitConceptGraph(makeConceptWithSource(), uri);
     const src = firstSourceBlank(graph, uri)!;
-    const mod = src.triples.find(t => t.predicate === GLOSS.modificationNote);
+    const mod = src.triples.find(t => t.predicate === GLOSS.modification);
     expect((mod!.object as RdfLiteral).value).toBe('revised 2024');
   });
 
-  it('embeds a typed gloss:CitationRef with source, refn, and version', () => {
+  it('embeds a typed gloss:CitationRef with citationRefSource, citationRefId, citationRefVersion', () => {
     const uri = 'https://glossarist.org/test/concept/3.1.2';
     const { graph } = emitConceptGraph(makeConceptWithSource(), uri);
     const src = firstSourceBlank(graph, uri)!;
-    const refSlot = src.triples.find(t => t.predicate === GLOSS.conceptSource);
-    expect(refSlot).toBeDefined();
-    const ref = refSlot!.object as RdfBlankNode;
+    const originSlot = src.triples.find(t => t.predicate === GLOSS.sourceOrigin)!;
+    const cite = originSlot.object as RdfBlankNode;
+    const refSlot = cite.triples.find(t => t.predicate === GLOSS.hasCitationRef)!;
+    const ref = refSlot.object as RdfBlankNode;
     expect(ref.triples.find(t => t.predicate === RDF.type)?.object).toMatchObject({ kind: 'iri', value: GLOSS.CitationRef });
-    expect(ref.triples.find(t => t.predicate === GLOSS.source)?.object).toMatchObject({ kind: 'literal', value: 'ISO 704' });
-    expect(ref.triples.find(t => t.predicate === GLOSS.refn)?.object).toMatchObject({ kind: 'literal', value: '3.1' });
-    expect(ref.triples.find(t => t.predicate === DCTERMS.date)?.object).toMatchObject({ kind: 'literal', value: '2020' });
+    expect(ref.triples.find(t => t.predicate === GLOSS.citationRefSource)?.object).toMatchObject({ kind: 'literal', value: 'ISO 704' });
+    expect(ref.triples.find(t => t.predicate === GLOSS.citationRefId)?.object).toMatchObject({ kind: 'literal', value: '3.1' });
+    expect(ref.triples.find(t => t.predicate === GLOSS.citationRefVersion)?.object).toMatchObject({ kind: 'literal', value: '2020' });
   });
 
-  it('embeds a typed gloss:Locality with type, referenceFrom', () => {
+  it('embeds a typed gloss:Locality with localityType and referenceFrom', () => {
     const uri = 'https://glossarist.org/test/concept/3.1.2';
     const { graph } = emitConceptGraph(makeConceptWithSource(), uri);
     const src = firstSourceBlank(graph, uri)!;
-    const locSlot = src.triples.find(t => t.predicate === GLOSS.citationLocality);
-    expect(locSlot).toBeDefined();
-    const loc = locSlot!.object as RdfBlankNode;
+    const originSlot = src.triples.find(t => t.predicate === GLOSS.sourceOrigin)!;
+    const cite = originSlot.object as RdfBlankNode;
+    const locSlot = cite.triples.find(t => t.predicate === GLOSS.hasCitationLocality)!;
+    const loc = locSlot.object as RdfBlankNode;
     expect(loc.triples.find(t => t.predicate === RDF.type)?.object).toMatchObject({ kind: 'iri', value: GLOSS.Locality });
     expect(loc.triples.find(t => t.predicate === GLOSS.localityType)?.object).toMatchObject({ kind: 'literal', value: 'clause' });
     expect(loc.triples.find(t => t.predicate === GLOSS.referenceFrom)?.object).toMatchObject({ kind: 'literal', value: '3.1' });
   });
 
-  it('emits rdfs:seeAlso for the link and gloss:original for the original text', () => {
+  it('emits gloss:citationLink and gloss:citationOriginal on the nested Citation', () => {
     const uri = 'https://glossarist.org/test/concept/3.1.2';
     const { graph } = emitConceptGraph(makeConceptWithSource(), uri);
     const src = firstSourceBlank(graph, uri)!;
-    const seeAlso = src.triples.find(t => t.predicate === RDFS.seeAlso);
-    const original = src.triples.find(t => t.predicate === GLOSS.original);
-    expect((seeAlso!.object as RdfIri).value).toBe('https://example.org/iso-704');
+    const originSlot = src.triples.find(t => t.predicate === GLOSS.sourceOrigin)!;
+    const cite = originSlot.object as RdfBlankNode;
+    const link = cite.triples.find(t => t.predicate === GLOSS.citationLink);
+    const original = cite.triples.find(t => t.predicate === GLOSS.citationOriginal);
+    expect((link!.object as RdfLiteral).value).toBe('https://example.org/iso-704');
+    expect((link!.object as any).datatype).toBe('xsd:anyURI');
     expect((original!.object as RdfLiteral).value).toBe('Original wording');
   });
 

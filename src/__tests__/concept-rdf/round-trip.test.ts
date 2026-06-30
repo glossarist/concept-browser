@@ -3,7 +3,7 @@ import { Parser, Store } from 'n3';
 import { writeTurtle } from '../../components/concept-rdf/turtle-writer';
 import { writeJsonLd } from '../../components/concept-rdf/jsonld-writer';
 import { emitConceptGraph } from '../../components/concept-rdf/concept-emitter';
-import { GLOSS, SKOS, SKOSXL, DCTERMS, RDF } from '../../components/concept-rdf/predicates';
+import { GLOSS, SKOS, SKOSXL, DCTERMS, RDF, PROV, XSD } from '../../components/concept-rdf/predicates';
 import { CONCEPT_FIXTURES } from '../__fixtures__/concepts';
 
 function expandPrefixed(value: string): string {
@@ -145,12 +145,12 @@ describe('RDF round-trip — fixture-specific invariants', () => {
     const langs = ['eng', 'fra', 'jpn'];
     for (const lang of langs) {
       const lcUri = `${fixture.uri}/${lang}`;
-      const langsOnLc = store.getObjects(lcUri, expandPrefixed(DCTERMS.language), null).map(q => q.value);
+      const langsOnLc = store.getObjects(lcUri, expandPrefixed(GLOSS.language), null).map(q => q.value);
       expect(langsOnLc).toContain(lang);
     }
   });
 
-  it('with-sources: every concept-level source is typed as gloss:Citation', () => {
+  it('with-sources: every concept-level source is typed as gloss:ConceptSource', () => {
     const fixture = CONCEPT_FIXTURES.find(f => f.name === 'with-sources')!;
     const { graph } = emitConceptGraph(fixture.concept, fixture.uri);
     const store = parseTurtle(writeTurtle(graph));
@@ -159,7 +159,7 @@ describe('RDF round-trip — fixture-specific invariants', () => {
     expect(sources.length).toBeGreaterThanOrEqual(3);
     for (const src of sources) {
       const types = store.getObjects(src, RDF_TYPE, null).map(q => q.value);
-      expect(types).toContain(expandPrefixed(GLOSS.Citation));
+      expect(types).toContain(expandPrefixed(GLOSS.ConceptSource));
     }
   });
 
@@ -194,5 +194,25 @@ describe('RDF round-trip — fixture-specific invariants', () => {
       const typeQuads = store.getObjects(blank, expandPrefixed(GLOSS.relationshipType), null);
       expect(typeQuads.length).toBe(1);
     }
+  });
+});
+
+describe('RDF round-trip — concept lifecycle (WS J3)', () => {
+  it('withdrawn concept with retired date emits prov:invalidatedAtTime', () => {
+    const fixture = CONCEPT_FIXTURES.find(f => f.name === 'withdrawn')!;
+    const { graph } = emitConceptGraph(fixture.concept, fixture.uri);
+    const store = parseTurtle(writeTurtle(graph));
+
+    const invalidated = store.getObjects(fixture.uri, expandPrefixed(PROV.invalidatedAtTime), null).map(q => q.value);
+    expect(invalidated).toContain('2024-09-15T00:00:00Z');
+  });
+
+  it('valid concept with retired date does not emit prov:invalidatedAtTime', () => {
+    const fixture = CONCEPT_FIXTURES.find(f => f.name === 'with-dates')!;
+    const { graph } = emitConceptGraph(fixture.concept, fixture.uri);
+    const store = parseTurtle(writeTurtle(graph));
+
+    const invalidated = store.getObjects(fixture.uri, expandPrefixed(PROV.invalidatedAtTime), null);
+    expect(invalidated.length).toBe(0);
   });
 });
