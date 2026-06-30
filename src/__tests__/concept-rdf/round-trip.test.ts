@@ -195,6 +195,18 @@ describe('RDF round-trip — fixture-specific invariants', () => {
       expect(typeQuads.length).toBe(1);
     }
   });
+
+  it('full-relationships: supersedes / superseded_by emit dcterms:replaces / dcterms:isReplacedBy (URN form)', () => {
+    const fixture = CONCEPT_FIXTURES.find(f => f.name === 'full-relationships')!;
+    const { graph } = emitConceptGraph(fixture.concept, fixture.uri);
+    const store = parseTurtle(writeTurtle(graph));
+
+    const replaces = store.getObjects(fixture.uri, expandPrefixed(DCTERMS.replaces), null).map(q => q.value);
+    const isReplacedBy = store.getObjects(fixture.uri, expandPrefixed(DCTERMS.isReplacedBy), null).map(q => q.value);
+
+    expect(replaces.some(u => u.startsWith('urn:'))).toBe(true);
+    expect(isReplacedBy.some(u => u.startsWith('urn:'))).toBe(true);
+  });
 });
 
 describe('RDF round-trip — concept lifecycle (WS J3)', () => {

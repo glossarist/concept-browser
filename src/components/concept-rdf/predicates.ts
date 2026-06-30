@@ -165,12 +165,14 @@ export const DCTERMS = {
   date: 'dcterms:date',
   type: 'dcterms:type',
   isVersionOf: 'dcterms:isVersionOf',
+  isPartOf: 'dcterms:isPartOf',
   replaces: 'dcterms:replaces',
   isReplacedBy: 'dcterms:isReplacedBy',
   bibliographicCitation: 'dcterms:bibliographicCitation',
   format: 'dcterms:format',
   publisher: 'dcterms:publisher',
   contactPoint: 'dcterms:contactPoint',
+  BibliographicResource: 'dcterms:BibliographicResource',
 } as const;
 
 export const RDF = {
@@ -223,6 +225,7 @@ export const FOAF = {
   Organization: 'foaf:Organization',
   name: 'foaf:name',
   mbox: 'foaf:mbox',
+  page: 'foaf:page',
 } as const;
 
 export const XSD = {

@@ -27,6 +27,20 @@ function coerceToDateTime(value: string): string {
   return value;
 }
 
+const STANDARDS_BODIES = new Set(['iso', 'iec', 'ieee', 'itu', 'iecdis']);
+
+function lifecycleCounterpartUri(r: { type: string; ref?: { source?: string | null; id?: string | null } | null }): string | undefined {
+  const source = r.ref?.source ?? undefined;
+  const id = r.ref?.id ?? undefined;
+  if (!source || !id) return undefined;
+  const sourceLc = source.toLowerCase();
+  const idClean = id.replace(/\s+/g, '');
+  if (STANDARDS_BODIES.has(sourceLc)) {
+    return `urn:iso:std:${sourceLc}:${idClean}`;
+  }
+  return `urn:gloss:rel:${sourceLc}:${idClean}`;
+}
+
 function formatCitation(origin: ConceptSource['origin']): string {
   if (!origin) return '';
   const ref = origin.ref;
@@ -149,6 +163,12 @@ function emitConcept(
       inner.push(triple(GLOSS.relationshipRef, blank(...refTriples)));
     }
     w.blank(GLOSS.hasRelatedConcept, inner);
+
+    const counterpartUri = lifecycleCounterpartUri(r);
+    if (counterpartUri) {
+      if (r.type === 'supersedes') w.iri(DCTERMS.replaces, counterpartUri);
+      if (r.type === 'superseded_by') w.iri(DCTERMS.isReplacedBy, counterpartUri);
+    }
   }
 
   const retiredDate = concept.dates.find(d => d.type === 'retired' && d.date);
