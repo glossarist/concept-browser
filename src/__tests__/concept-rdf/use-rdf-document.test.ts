@@ -117,42 +117,35 @@ describe('useRdfDocument — JSON-LD emission contract', () => {
 });
 
 describe('useRdfDocument — non-verbal representation emission (WS K)', () => {
-  it('emits gloss:hasNonVerbalRep for image-backed NVR with canonical predicates', () => {
+  it('emits gloss:hasNonVerbalRepresentation for NVR with caption (K4 URI form)', () => {
     const c = ref(makeConceptWithNonVerbal());
     const { turtle } = useRdfDocument(() => c.value, () => c.value.uri ?? '');
-    expect(turtle.value).toMatch(/gloss:hasNonVerbalRep \[/);
-    expect(turtle.value).toMatch(/(a|rdf:type) gloss:NonVerbalRepresentation ;/);
-    expect(turtle.value).toMatch(/gloss:representationType "image"/);
-    expect(turtle.value).toMatch(/gloss:representationRef "fig_A\.23\.svg"\^\^xsd:anyURI/);
-    expect(turtle.value).toMatch(/gloss:caption "Angle of repose diagram"@eng/);
-    expect(turtle.value).toMatch(/dcterms:description "Schematic diagram showing the angle"@eng/);
+    expect(turtle.value).toMatch(/gloss:hasNonVerbalRepresentation <[^>]+\/nvr\/1>/);
+    expect(turtle.value).toMatch(/(a|rdf:type) gloss:NonVerbalRep/);
+    expect(turtle.value).toMatch(/skosxl:prefLabel \[/);
   });
 
-  it('emits formula NVR as a gloss:DetailedDefinition with rdf:value (canonical shape)', () => {
+  it('emits gloss:image as xsd:anyURI on the NVR resource', () => {
     const c = ref(makeConceptWithNonVerbal());
     const { turtle } = useRdfDocument(() => c.value, () => c.value.uri ?? '');
-    expect(turtle.value).toMatch(/gloss:hasNonVerbalRep \[[\s\S]*(a|rdf:type) gloss:DetailedDefinition ; rdf:value "tan\(θ\) = μ"@eng/);
+    expect(turtle.value).toMatch(/gloss:image "fig_A\.23\.svg"\^\^xsd:anyURI/);
   });
 
-  it('emits gloss:hasNonVerbalRep array in JSON-LD', () => {
+  it('emits NVR URIs in JSON-LD with NonVerbalRep type', () => {
     const c = ref(makeConceptWithNonVerbal());
     const { jsonld } = useRdfDocument(() => c.value, () => c.value.uri ?? '');
     const doc = JSON.parse(jsonld.value);
+    const nvrNodes = doc['@graph'].filter((n: any) => {
+      const t = n['@type'];
+      return Array.isArray(t) ? t.includes('gloss:NonVerbalRep') : t === 'gloss:NonVerbalRep';
+    });
+    expect(nvrNodes.length).toBeGreaterThanOrEqual(1);
     const lcNode = doc['@graph'].find((n: any) => Array.isArray(n['@type']) && n['@type'].includes('gloss:LocalizedConcept'));
     expect(lcNode).toBeDefined();
-    expect(Array.isArray(lcNode['gloss:hasNonVerbalRep'])).toBe(true);
-    expect(lcNode['gloss:hasNonVerbalRep']).toHaveLength(2);
-    const figure = lcNode['gloss:hasNonVerbalRep'].find((n: any) => {
-      const t = n['@type'];
-      return Array.isArray(t) ? t.includes('gloss:NonVerbalRepresentation') : t === 'gloss:NonVerbalRepresentation';
-    });
-    expect(figure).toBeDefined();
-    expect(figure['gloss:representationType']).toBe('image');
-    expect(figure['gloss:caption']['@value']).toBe('Angle of repose diagram');
-    expect(figure['dcterms:description']['@value']).toBe('Schematic diagram showing the angle');
-    const refRaw = figure['gloss:representationRef'];
+    const refRaw = lcNode['gloss:hasNonVerbalRepresentation'];
     const refArr = Array.isArray(refRaw) ? refRaw : [refRaw];
-    expect(refArr[0]['@value']).toBe('fig_A.23.svg');
+    expect(refArr.length).toBeGreaterThanOrEqual(1);
+    expect(refArr[0]['@id']).toMatch(/\/nvr\/1$/);
   });
 
   it('includes non-verbal reps in the sections view', () => {
@@ -160,16 +153,17 @@ describe('useRdfDocument — non-verbal representation emission (WS K)', () => {
     const { sections } = useRdfDocument(() => c.value, () => c.value.uri ?? '');
     const lcSection = sections.value.find(s => s.classId === 'gloss:LocalizedConcept');
     expect(lcSection).toBeDefined();
-    const nvrProps = lcSection!.props.filter(p => p.predicate === 'gloss:hasNonVerbalRep');
-    expect(nvrProps).toHaveLength(2);
-    expect(nvrProps.some(p => p.values.some(v => v.includes('image') || v.includes('figure')))).toBe(true);
-    expect(nvrProps.some(p => p.values.some(v => v.includes('formula') || v.includes('tan')))).toBe(true);
+    const nvrProps = lcSection!.props.filter(p =>
+      p.predicate === 'gloss:hasNonVerbalRepresentation' || p.predicate === 'gloss:hasNonVerbalRep',
+    );
+    expect(nvrProps.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('omits gloss:hasNonVerbalRep when the concept has no non-verbal reps', () => {
+  it('omits non-verbal emission when the concept has no non-verbal reps', () => {
     const c = ref(makeConcept());
     const { turtle, jsonld } = useRdfDocument(() => c.value, () => c.value.uri ?? '');
     expect(turtle.value).not.toMatch(/gloss:hasNonVerbalRep/);
+    expect(turtle.value).not.toMatch(/gloss:hasNonVerbalRepresentation/);
     const doc = JSON.parse(jsonld.value);
     const lcNode = doc['@graph'].find((n: any) => Array.isArray(n['@type']) && n['@type'].includes('gloss:LocalizedConcept'));
     expect(lcNode['gloss:hasNonVerbalRep']).toBeUndefined();

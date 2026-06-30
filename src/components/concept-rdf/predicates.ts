@@ -13,6 +13,12 @@ export const GLOSS = {
   ConceptDate: 'gloss:ConceptDate',
   ConceptSource: 'gloss:ConceptSource',
   ConceptRef: 'gloss:ConceptRef',
+  NonVerbalEntity: 'gloss:NonVerbalEntity',
+  NonVerbalRep: 'gloss:NonVerbalRep',
+  NonVerbalRepresentation: 'gloss:NonVerbalRepresentation',
+  Figure: 'gloss:Figure',
+  Table: 'gloss:Table',
+  Formula: 'gloss:Formula',
   RelatedConcept: 'gloss:RelatedConcept',
   Citation: 'gloss:Citation',
   CitationRef: 'gloss:CitationRef',
@@ -67,6 +73,13 @@ export const GLOSS = {
   nonVerbalType: 'gloss:representationType',
   representationType: 'gloss:representationType',
   representationRef: 'gloss:representationRef',
+  hasNonVerbalRepresentation: 'gloss:hasNonVerbalRepresentation',
+  expression: 'gloss:expression',
+  latexForm: 'gloss:latexForm',
+  content: 'gloss:content',
+  hasHeader: 'gloss:hasHeader',
+  hasRow: 'gloss:hasRow',
+  image: 'gloss:image',
   caption: 'gloss:caption',
   altText: 'gloss:altText',
 
@@ -77,7 +90,6 @@ export const GLOSS = {
   prefix: 'gloss:prefix',
   usageInfo: 'gloss:usageInfo',
   text: 'gloss:text',
-  image: 'gloss:image',
   isInternational: 'gloss:isInternational',
   isAbsent: 'gloss:isAbsent',
   isAcronym: 'gloss:isAcronym',
@@ -226,6 +238,7 @@ export const FOAF = {
   name: 'foaf:name',
   mbox: 'foaf:mbox',
   page: 'foaf:page',
+  Image: 'foaf:Image',
 } as const;
 
 export const XSD = {
