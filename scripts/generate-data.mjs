@@ -7,6 +7,7 @@ import { getGroups } from './lib/concept-groups.mjs';
 import { consumeDatasetEntities } from './lib/build/non-verbal-consumer.mjs';
 import { copyImageAssets } from './lib/build/image-assets.mjs';
 import { buildDatasetTurtle } from './lib/dataset-turtle.mjs';
+import { buildActivityTurtle } from './lib/build-activity-turtle.mjs';
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
@@ -131,6 +132,35 @@ function writeDatasetRdf(register, manifest, concepts, refMaps, opts) {
     contactIri: manifest.contactPoint,
   });
   fs.writeFileSync(path.join(DATA, register, `${register}.ttl`), ttl);
+}
+
+function writeBuildActivity(conceptCount, datasetRegisters) {
+  const runId = process.env.GITHUB_RUN_ID
+    ? `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT ?? '1'}`
+    : `local-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+  const startedAt = process.env.BUILD_STARTED_AT ?? new Date(Date.now() - 60_000).toISOString();
+  const endedAt = new Date().toISOString();
+  const gitSha = process.env.GITHUB_SHA ?? null;
+  const gitBranch = process.env.GITHUB_REF_NAME ?? null;
+  const pkgVersion = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).version;
+  const agentIri = process.env.CI_BOT_AGENT_IRI ?? null;
+
+  const ttl = buildActivityTurtle({
+    runId,
+    startedAt,
+    endedAt,
+    gitSha,
+    gitBranch,
+    toolId: 'concept-browser',
+    toolVersion: pkgVersion,
+    datasetRegisters,
+    conceptCount,
+    associatedAgentIri: agentIri,
+  });
+  const activityDir = path.join(DATA, 'activity');
+  fs.mkdirSync(activityDir, { recursive: true });
+  fs.writeFileSync(path.join(activityDir, `${runId}.ttl`), ttl);
+  console.log(`Emitted build activity record: data/activity/${runId}.ttl`);
 }
 
 function termToDesignation(term) {
@@ -1574,3 +1604,5 @@ console.log(`\nDone! Generated data for ${total} concepts across ${registry.leng
 for (const [id, count] of Object.entries(counts)) {
   console.log(`  ${id}: ${count} concepts`);
 }
+
+writeBuildActivity(total, registry.map(r => r.id));
