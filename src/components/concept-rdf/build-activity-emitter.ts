@@ -61,12 +61,13 @@ export function emitBuildActivityGraph(input: BuildActivityInput): RdfGraph {
   const toolIri = `https://glossarist.org/tool/${input.toolId}/${input.toolVersion}`;
   w.iri(PROV.used, toolIri);
   const toolW = graph.declare(toolIri, {
-    types: [PROV.Entity],
+    types: [PROV.Entity, 'prov:SoftwareAgent'],
     label: `${input.toolId} ${input.toolVersion}`,
-    classLabel: 'Entity',
-    classId: PROV.Entity,
+    classLabel: 'SoftwareAgent',
+    classId: 'prov:SoftwareAgent',
   });
   toolW.literal(DCTERMS.identifier, input.toolVersion);
+  toolW.literal('prov:version', input.toolVersion);
 
   for (const register of input.datasetRegisters) {
     w.iri(PROV.used, `https://glossarist.org/${register}/`);

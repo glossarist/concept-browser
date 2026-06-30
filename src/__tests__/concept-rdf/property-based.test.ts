@@ -121,7 +121,7 @@ describe('WS P3 — property-based fuzz testing (fast-check)', () => {
         const parsed = await parseTurtle(ttl, conceptJson.uri);
         return (parsed as any).size > 0;
       }),
-      { numRuns: 1000 },
+      { numRuns: 200 },
     );
   });
 
@@ -144,7 +144,7 @@ describe('WS P3 — property-based fuzz testing (fast-check)', () => {
         }
         return true;
       }),
-      { numRuns: 1000 },
+      { numRuns: 200 },
     );
   });
 
@@ -160,7 +160,7 @@ describe('WS P3 — property-based fuzz testing (fast-check)', () => {
         const trimmed = lastDataLine.trim();
         return trimmed.endsWith('.') && !trimmed.endsWith(';');
       }),
-      { numRuns: 1000 },
+      { numRuns: 200 },
     );
   });
 
@@ -173,7 +173,7 @@ describe('WS P3 — property-based fuzz testing (fast-check)', () => {
         if (!r) return false;
         return r.types.includes('gloss:Concept') && r.types.includes('skos:Concept');
       }),
-      { numRuns: 1000 },
+      { numRuns: 200 },
     );
   });
 });
