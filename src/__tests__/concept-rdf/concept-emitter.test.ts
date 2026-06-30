@@ -86,15 +86,19 @@ describe('emitConceptGraph', () => {
     expect(reified!.object.kind).toBe('blank');
   });
 
-  it('emits notes and examples as language-tagged literals', () => {
+  it('emits notes and examples as typed gloss:DetailedDefinition blanks with language tag', () => {
     const { graph } = emitConceptGraph(makeConcept(), 'https://glossarist.org/test/concept/3.1.1');
     const lc = graph.get('https://glossarist.org/test/concept/3.1.1/eng')!;
     const note = lc.triples.find(t => t.predicate === GLOSS.hasNote);
     const example = lc.triples.find(t => t.predicate === GLOSS.hasExample);
     expect(note).toBeDefined();
-    expect((note!.object as any).lang).toBe('eng');
+    expect(note!.object.kind).toBe('blank');
+    const noteBlank = note!.object as any;
+    expect(noteBlank.triples.some((t: any) => t.predicate === RDF.type
+      && t.object.kind === 'iri' && t.object.value === GLOSS.DetailedDefinition)).toBe(true);
+    expect(noteBlank.triples.some((t: any) => t.predicate === RDF.value
+      && t.object.lang === 'eng')).toBe(true);
     expect(example).toBeDefined();
-    expect((example!.object as any).lang).toBe('eng');
   });
 
   it('emits a designation resource per term with the right class', () => {
