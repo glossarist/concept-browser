@@ -8,6 +8,7 @@ import { consumeDatasetEntities } from './lib/build/non-verbal-consumer.mjs';
 import { copyImageAssets } from './lib/build/image-assets.mjs';
 import { buildDatasetTurtle } from './lib/dataset-turtle.mjs';
 import { buildActivityTurtle } from './lib/build-activity-turtle.mjs';
+import { buildVocabularyTurtle } from './lib/vocab-turtle.mjs';
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
@@ -1606,3 +1607,6 @@ for (const [id, count] of Object.entries(counts)) {
 }
 
 writeBuildActivity(total, registry.map(r => r.id));
+
+fs.writeFileSync(path.join(DATA, '_vocab.ttl'), buildVocabularyTurtle());
+console.log('Emitted vocabulary graph: data/_vocab.ttl');
