@@ -1,6 +1,6 @@
 import type { Concept, LocalizedConcept, Designation, NonVerbRep, ConceptSource } from 'glossarist';
 import type { Expression, Abbreviation, GraphicalSymbol } from 'glossarist';
-import { GLOSS, SKOS, SKOSXL, DCTERMS, RDF, OWL, RDFS } from './predicates';
+import { GLOSS, SKOS, SKOSXL, DCTERMS, RDF, XSD, PROV } from './predicates';
 import { RdfGraph, lit, iri, blank, triple } from './rdf-graph';
 import type { RdfTriple } from './rdf-graph';
 
@@ -22,12 +22,11 @@ function desigSlug(designation: string, index: number): string {
   return slug;
 }
 
-/**
- * Format a Citation into the human-readable bibliographic string used
- * for `dcterms:bibliographicCitation`. Kept stable so consumers that
- * only show the formatted string see the same value as before the
- * structured emission was added.
- */
+function coerceToDateTime(value: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00:00Z`;
+  return value;
+}
+
 function formatCitation(origin: ConceptSource['origin']): string {
   if (!origin) return '';
   const ref = origin.ref;
@@ -37,50 +36,49 @@ function formatCitation(origin: ConceptSource['origin']): string {
   return '';
 }
 
-/**
- * Build the structured RDF triples for a ConceptSource. The blank
- * node is typed `gloss:Citation`; structured fields (source, refn,
- * locality, status, type) are attached when present. The formatted
- * bibliographic string is preserved as `dcterms:bibliographicCitation`
- * so consumers that only show the string keep working.
- *
- * Returns an empty array when the source has no useful information,
- * so the caller can skip emitting an empty blank node.
- */
 function sourceTriples(s: ConceptSource): RdfTriple[] {
-  const out: RdfTriple[] = [];
-  out.push(triple(RDF.type, iri(GLOSS.Citation)));
-
-  const citation = formatCitation(s.origin);
-  if (citation) {
-    out.push(triple(DCTERMS.bibliographicCitation, lit(citation)));
-  }
+  const out: RdfTriple[] = [
+    triple(RDF.type, iri(GLOSS.ConceptSource)),
+  ];
 
   if (s.status) out.push(triple(GLOSS.sourceStatus, iri(`gloss:srcstatus/${s.status}`)));
   if (s.type) out.push(triple(GLOSS.sourceType, iri(`gloss:srctype/${s.type}`)));
-  if (s.modification) out.push(triple(GLOSS.modificationNote, lit(s.modification)));
+  if (s.modification) out.push(triple(GLOSS.modification, lit(s.modification)));
 
   const origin = s.origin;
   const ref = origin?.ref;
-  if (ref?.source || ref?.id || ref?.version) {
-    const refTriples: RdfTriple[] = [triple(RDF.type, iri(GLOSS.CitationRef))];
-    if (ref.source) refTriples.push(triple(GLOSS.source, lit(ref.source)));
-    if (ref.id) refTriples.push(triple(GLOSS.refn, lit(ref.id)));
-    if (ref.version) refTriples.push(triple(DCTERMS.date, lit(ref.version)));
-    out.push(triple(GLOSS.conceptSource, blank(...refTriples)));
-  }
-
   const locality = origin?.locality;
-  if (locality?.type || locality?.referenceFrom || locality?.referenceTo) {
-    const locTriples: RdfTriple[] = [triple(RDF.type, iri(GLOSS.Locality))];
-    if (locality.type) locTriples.push(triple(GLOSS.localityType, lit(locality.type)));
-    if (locality.referenceFrom) locTriples.push(triple(GLOSS.referenceFrom, lit(locality.referenceFrom)));
-    if (locality.referenceTo) locTriples.push(triple(GLOSS.referenceTo, lit(locality.referenceTo)));
-    out.push(triple(GLOSS.citationLocality, blank(...locTriples)));
-  }
+  const link = origin?.link;
+  const original = origin?.original;
+  const citation = formatCitation(origin);
 
-  if (origin?.link) out.push(triple(RDFS.seeAlso, iri(origin.link)));
-  if (origin?.original) out.push(triple(GLOSS.original, lit(origin.original)));
+  const hasCitationPayload = !!(ref?.source || ref?.id || ref?.version || locality?.type || locality?.referenceFrom || locality?.referenceTo || link || original || citation);
+
+  if (hasCitationPayload) {
+    const citeTriples: RdfTriple[] = [triple(RDF.type, iri(GLOSS.Citation))];
+    if (citation) citeTriples.push(triple(DCTERMS.bibliographicCitation, lit(citation)));
+
+    if (ref?.source || ref?.id || ref?.version) {
+      const refTriples: RdfTriple[] = [triple(RDF.type, iri(GLOSS.CitationRef))];
+      if (ref.source) refTriples.push(triple(GLOSS.citationRefSource, lit(ref.source)));
+      if (ref.id) refTriples.push(triple(GLOSS.citationRefId, lit(ref.id)));
+      if (ref.version) refTriples.push(triple(GLOSS.citationRefVersion, lit(ref.version)));
+      citeTriples.push(triple(GLOSS.hasCitationRef, blank(...refTriples)));
+    }
+
+    if (locality?.type || locality?.referenceFrom || locality?.referenceTo) {
+      const locTriples: RdfTriple[] = [triple(RDF.type, iri(GLOSS.Locality))];
+      if (locality.type) locTriples.push(triple(GLOSS.localityType, lit(locality.type)));
+      if (locality.referenceFrom) locTriples.push(triple(GLOSS.referenceFrom, lit(locality.referenceFrom)));
+      if (locality.referenceTo) locTriples.push(triple(GLOSS.referenceTo, lit(locality.referenceTo)));
+      citeTriples.push(triple(GLOSS.hasCitationLocality, blank(...locTriples)));
+    }
+
+    if (link) citeTriples.push(triple(GLOSS.citationLink, lit(link, { datatype: XSD.anyURI })));
+    if (original) citeTriples.push(triple(GLOSS.citationOriginal, lit(original)));
+
+    out.push(triple(GLOSS.sourceOrigin, blank(...citeTriples)));
+  }
 
   return out;
 }
@@ -115,7 +113,12 @@ function emitConcept(
 
   for (const d of concept.domains) {
     const ref = d.conceptId || d.urn || '';
-    if (ref) w.blank(GLOSS.hasDomain, [triple(GLOSS.conceptId, iri(ref))]);
+    if (ref) {
+      w.blank(GLOSS.hasDomain, [
+        triple(RDF.type, iri(GLOSS.Reference)),
+        triple(GLOSS.refId, iri(ref)),
+      ]);
+    }
   }
 
   for (const s of concept.sources) {
@@ -125,16 +128,32 @@ function emitConcept(
 
   for (const d of concept.dates) {
     if (d.type && d.date) {
-      w.blank(GLOSS.hasDate, [triple(RDF.value, lit(`${d.type}: ${d.date}`))]);
+      w.blank(GLOSS.hasDate, [
+        triple(RDF.type, iri(GLOSS.ConceptDate)),
+        triple(GLOSS.dateType, iri(`gloss:datetype/${d.type}`)),
+        triple(GLOSS.dateValue, lit(coerceToDateTime(d.date), { datatype: XSD.dateTime })),
+      ]);
     }
   }
 
   for (const r of concept.relatedConcepts) {
-    const inner: RdfTriple[] = [triple(GLOSS.relationshipType, iri(`gloss:rel/${r.type}`))];
+    const inner: RdfTriple[] = [
+      triple(RDF.type, iri(GLOSS.RelatedConcept)),
+      triple(GLOSS.relationshipType, iri(`gloss:rel/${r.type}`)),
+    ];
     if (r.content) inner.push(triple(GLOSS.relationshipContent, lit(r.content)));
-    if (r.ref?.source) inner.push(triple(GLOSS.conceptSource, lit(r.ref.source)));
-    if (r.ref?.id) inner.push(triple(GLOSS.conceptId, lit(r.ref.id)));
+    if (r.ref?.source || r.ref?.id) {
+      const refTriples: RdfTriple[] = [triple(RDF.type, iri(GLOSS.ConceptRef))];
+      if (r.ref?.source) refTriples.push(triple(GLOSS.conceptRefSource, lit(r.ref.source)));
+      if (r.ref?.id) refTriples.push(triple(GLOSS.conceptRefId, lit(r.ref.id)));
+      inner.push(triple(GLOSS.relationshipRef, blank(...refTriples)));
+    }
     w.blank(GLOSS.hasRelatedConcept, inner);
+  }
+
+  const retiredDate = concept.dates.find(d => d.type === 'retired' && d.date);
+  if ((concept.status === 'withdrawn' || concept.status === 'superseded') && retiredDate?.date) {
+    w.literal(PROV.invalidatedAtTime, coerceToDateTime(retiredDate.date), { datatype: XSD.dateTime });
   }
 
   for (const lang of concept.languages) {
@@ -163,16 +182,16 @@ function emitLocalized(
     classId: GLOSS.LocalizedConcept,
   });
 
-  w.literal(DCTERMS.language, lang);
+  w.literal(GLOSS.language, lang);
   if (lc.script) w.literal(GLOSS.script, lc.script);
-  if (lc.system) w.literal(GLOSS.system, lc.system);
+  if (lc.system) w.literal(GLOSS.conversionSystem, lc.system);
   if (lc.entryStatus) w.iri(GLOSS.hasEntryStatus, `gloss:entstatus/${lc.entryStatus}`);
   if (lc.reviewType) w.literal(GLOSS.reviewType, lc.reviewType);
   w.iri(GLOSS.isLocalizationOf, uri);
   if (lc.classification) w.literal(GLOSS.classification, lc.classification);
   if (lc.release) w.literal(GLOSS.release, lc.release);
   if (lc.lineageSourceSimilarity != null) {
-    w.literal(GLOSS.lineageSourceSimilarity, String(lc.lineageSourceSimilarity));
+    w.literal(GLOSS.lineageSimilarity, String(lc.lineageSourceSimilarity));
   }
   if (lc.reviewDate) w.literal(GLOSS.reviewDate, lc.reviewDate);
   if (lc.reviewDecisionDate) w.literal(GLOSS.reviewDecisionDate, lc.reviewDecisionDate);
@@ -195,16 +214,31 @@ function emitLocalized(
   for (const def of lc.definitions) {
     if (def.content) {
       w.literal(SKOS.definition, def.content, { lang });
-      w.blank(GLOSS.hasDefinition, [triple(RDF.value, lit(def.content, { lang }))]);
+      w.blank(GLOSS.hasDefinition, [
+        triple(RDF.type, iri(GLOSS.DetailedDefinition)),
+        triple(RDF.value, lit(def.content, { lang })),
+      ]);
     }
   }
 
   for (const n of lc.notes) {
-    if (n.content) w.literal(GLOSS.hasNote, n.content, { lang });
+    if (n.content) {
+      w.literal(GLOSS.hasNote, n.content, { lang });
+      w.blank(GLOSS.hasNote, [
+        triple(RDF.type, iri(GLOSS.DetailedDefinition)),
+        triple(RDF.value, lit(n.content, { lang })),
+      ]);
+    }
   }
 
   for (const e of lc.examples) {
-    if (e.content) w.literal(GLOSS.hasExample, e.content, { lang });
+    if (e.content) {
+      w.literal(GLOSS.hasExample, e.content, { lang });
+      w.blank(GLOSS.hasExample, [
+        triple(RDF.type, iri(GLOSS.DetailedDefinition)),
+        triple(RDF.value, lit(e.content, { lang })),
+      ]);
+    }
   }
 
   for (const ann of lc.annotations ?? []) {
@@ -226,13 +260,21 @@ function emitLocalized(
 
 function nonVerbalRepTriples(nvr: NonVerbRep, lang: string): RdfTriple[] {
   const out: RdfTriple[] = [];
-  if (nvr.type) out.push(triple(GLOSS.nonVerbalType, lit(nvr.type)));
+  const imageSrc = nvr.images?.find(i => i.src ?? false)?.src ?? undefined;
+  const canonicalType = nvr.type === 'figure' ? 'image' : nvr.type;
+
+  if ((canonicalType === 'image' || canonicalType === 'table' || canonicalType === 'formula') && imageSrc) {
+    out.push(triple(RDF.type, iri('gloss:NonVerbalRepresentation')));
+    out.push(triple(GLOSS.representationType, lit(canonicalType)));
+    out.push(triple(GLOSS.representationRef, lit(imageSrc, { datatype: XSD.anyURI })));
+  } else {
+    out.push(triple(RDF.type, iri(GLOSS.DetailedDefinition)));
+    if (nvr.caption) out.push(triple(RDF.value, lit(nvr.caption, { lang })));
+  }
+
   if (nvr.caption) out.push(triple(GLOSS.caption, lit(nvr.caption, { lang })));
   if (nvr.description) out.push(triple(DCTERMS.description, lit(nvr.description, { lang })));
   if (nvr.alt) out.push(triple(GLOSS.altText, lit(nvr.alt, { lang })));
-  for (const img of nvr.images ?? []) {
-    if (img.src) out.push(triple(GLOSS.image, iri(img.src)));
-  }
   return out;
 }
 
@@ -253,8 +295,8 @@ function emitDesignation(
   w.literal(SKOSXL.literalForm, d.designation, { lang });
   if (d.normativeStatus) w.iri(GLOSS.normativeStatus, `gloss:norm/${d.normativeStatus}`);
   if (d.geographicalArea) w.literal(GLOSS.geographicalArea, d.geographicalArea);
-  if (d.international) w.literal(GLOSS.isInternational, 'true');
-  if (d.absent) w.literal(GLOSS.isAbsent, 'true');
+  if (d.international) w.literal(GLOSS.isInternational, 'true', { datatype: XSD.boolean });
+  if (d.absent) w.literal(GLOSS.isAbsent, 'true', { datatype: XSD.boolean });
   if (d.termType) w.literal(GLOSS.hasTermType, d.termType);
   for (const p of d.pronunciations ?? []) {
     if (p.content) w.literal(GLOSS.hasPronunciation, p.content);
@@ -276,9 +318,9 @@ function emitDesignation(
 
   if (d.type === 'abbreviation') {
     const abbr = d as Abbreviation;
-    if (abbr.acronym) w.literal(GLOSS.isAcronym, 'true');
-    if (abbr.initialism) w.literal(GLOSS.isInitialism, 'true');
-    if (abbr.truncation) w.literal(GLOSS.isTruncation, 'true');
+    if (abbr.acronym) w.literal(GLOSS.isAcronym, 'true', { datatype: XSD.boolean });
+    if (abbr.initialism) w.literal(GLOSS.isInitialism, 'true', { datatype: XSD.boolean });
+    if (abbr.truncation) w.literal(GLOSS.isTruncation, 'true', { datatype: XSD.boolean });
   }
 
   if (d.type === 'graphical_symbol') {

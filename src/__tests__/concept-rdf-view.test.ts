@@ -106,11 +106,11 @@ describe('ConceptRdfView — Turtle emission', () => {
     expect(text).toMatch(/skos:definition "A data unit that cannot be subdivided\."@eng/);
   });
 
-  it('emits gloss:hasDefinition with a language tag on the nested rdf:value', async () => {
+  it('emits gloss:hasDefinition with a typed DetailedDefinition and language-tagged rdf:value', async () => {
     const wrapper = await mountRdfView();
     await openRdfSourcePanel(wrapper);
     const text = wrapper.find('pre').text();
-    expect(text).toMatch(/gloss:hasDefinition \[ rdf:value "[^"]+"@eng \]/);
+    expect(text).toMatch(/gloss:hasDefinition \[ (a|rdf:type) gloss:DetailedDefinition ; rdf:value "[^"]+"@eng \]/);
   });
 });
 

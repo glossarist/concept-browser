@@ -22,4 +22,5 @@ with a new ADR and update the old one's status — do not edit the body.
 | 0005 | [SHACL validation gate in the data pipeline](0005-shacl-validation-gate.md) | Accepted |
 | 0006 | [Lazy-load the RDF serializer at view time](0006-lazy-load-serializer.md) | Accepted |
 | 0007 | [PROV-O provenance decorator on emitted concept graphs](0007-provenance-decorator.md) | Accepted |
-| 0008 | [Structured citation emission for concept sources](0008-structured-citation-emission.md) | Accepted |
+| 0008 | [Structured citation emission for concept sources](0008-structured-citation-emission.md) | Superseded by 0009 |
+| 0009 | [Split ConceptSource and Citation to match canonical SHACL shapes](0009-split-concept-source-and-citation.md) | Accepted |

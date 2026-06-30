@@ -184,6 +184,26 @@ function withDates(): Concept {
   });
 }
 
+function withdrawnConcept(): Concept {
+  return Concept.fromJSON({
+    id: '7.1',
+    uri: `${BASE}/withdrawn`,
+    status: 'withdrawn',
+    dates: [
+      { type: 'accepted', date: '2018-03-01' },
+      { type: 'retired',  date: '2024-09-15' },
+    ],
+    localizations: {
+      eng: {
+        language_code: 'eng',
+        entry_status: 'withdrawn',
+        terms: [{ type: 'expression', designation: 'withdrawn concept', normative_status: 'preferred' }],
+        definition: [{ content: 'A withdrawn concept with a retirement date.' }],
+      },
+    },
+  });
+}
+
 export const CONCEPT_FIXTURES: readonly ConceptFixture[] = [
   { name: 'minimal',            description: 'one localization, one designation',                uri: `${BASE}/minimal`,            concept: minimal() },
   { name: 'multilingual',       description: 'three languages across Latn and CJK scripts',      uri: `${BASE}/multilingual`,       concept: multilingual() },
@@ -191,6 +211,7 @@ export const CONCEPT_FIXTURES: readonly ConceptFixture[] = [
   { name: 'with-sources',       description: 'structured citations, locality, original wording', uri: `${BASE}/with-sources`,       concept: withSources() },
   { name: 'with-non-verbal',    description: 'figure, formula, and table non-verbal reps',       uri: `${BASE}/with-non-verbal`,    concept: withNonVerbal() },
   { name: 'with-dates',         description: 'accepted/amended/retired lifecycle',               uri: `${BASE}/with-dates`,         concept: withDates() },
+  { name: 'withdrawn',          description: 'withdrawn status with retirement date (J3)',        uri: `${BASE}/withdrawn`,          concept: withdrawnConcept() },
 ];
 
 export function fixtureByName(name: string): ConceptFixture {

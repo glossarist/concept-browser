@@ -6,6 +6,7 @@ import { loadSiteConfig } from './load-site-config.mjs';
 import { getGroups } from './lib/concept-groups.mjs';
 import { consumeDatasetEntities } from './lib/build/non-verbal-consumer.mjs';
 import { copyImageAssets } from './lib/build/image-assets.mjs';
+import { buildDatasetTurtle } from './lib/dataset-turtle.mjs';
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
@@ -82,6 +83,54 @@ function loadConceptFile(filePath) {
 function writeJson(filePath, data) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, JSON.stringify(data));
+}
+
+function writeDatasetRdf(register, manifest, concepts, refMaps, opts) {
+  const uriBase = refMaps?.uriBase ?? 'https://glossarist.org';
+  const datasetIri = `${uriBase}/${register}/`;
+  const topConceptUris = concepts
+    .slice(0, 32)
+    .map(c => `${uriBase}/${register}/concept/${c.id}`);
+
+  const sections = (manifest.sections ?? []).map(section => {
+    const sectionId = section.id ?? section.slug ?? section.title;
+    return {
+      collectionIri: `${uriBase}/${register}/section/${sectionId}`,
+      title: section.title ?? section.name ?? sectionId,
+      memberUris: (section.members ?? []).map(id => `${uriBase}/${register}/concept/${id}`),
+    };
+  });
+
+  const distributions = [
+    {
+      id: `${register}-ttl`,
+      title: 'Turtle distribution',
+      mediaType: 'text/turtle',
+      downloadUrl: `${uriBase}/data/${register}/${register}.ttl`,
+    },
+    {
+      id: `${register}-jsonld`,
+      title: 'JSON-LD distribution',
+      mediaType: 'application/ld+json',
+      downloadUrl: `${uriBase}/data/${register}/${register}.jsonld`,
+    },
+  ];
+
+  const ttl = buildDatasetTurtle({
+    datasetIri,
+    registerId: register,
+    title: manifest.title ?? register,
+    description: manifest.description,
+    modified: manifest.lastUpdated ?? new Date().toISOString().slice(0, 10),
+    languages: opts.languages ?? ['eng'],
+    distributions,
+    topConceptUris,
+    sections,
+    sourceRepoUrl: manifest.sourceRepoUrl,
+    publisherIri: manifest.publisher,
+    contactIri: manifest.contactPoint,
+  });
+  fs.writeFileSync(path.join(DATA, register, `${register}.ttl`), ttl);
 }
 
 function termToDesignation(term) {
@@ -1006,6 +1055,9 @@ async function processDataset(dir, register, opts) {
   if (opts.ordering) manifest.ordering = opts.ordering;
   if (opts.sections && opts.sections.length > 0) manifest.sections = opts.sections;
   writeJson(path.join(DATA, register, 'manifest.json'), manifest);
+
+  // Dataset-level RDF (WS J2/J5): dcat:Dataset + skos:ConceptScheme + skos:Collection per section.
+  writeDatasetRdf(register, manifest, concepts, refMaps, opts);
 
   // Copy bibliography.yaml → bibliography.json
   const bibPath = path.join(sourceRoot, 'bibliography.yaml');

@@ -1,4 +1,5 @@
 import { RDF_PREFIXES } from './rdf-prefixes';
+import { RDF } from './predicates';
 import type { RdfGraph, RdfResource, RdfTerm, RdfTriple } from './rdf-graph';
 
 export function writeJsonLd(graph: RdfGraph): string {
@@ -46,6 +47,20 @@ function mergeTriplesInto(node: JsonLdNode, triples: readonly RdfTriple[]): void
     arr.push(t.object);
     grouped.set(t.predicate, arr);
   }
+
+  const typeTerms = grouped.get(RDF.type);
+  if (typeTerms && typeTerms.length > 0) {
+    const typeIris = typeTerms
+      .filter((t): t is Extract<RdfTerm, { kind: 'iri' }> => t.kind === 'iri')
+      .map(t => t.value);
+    if (typeIris.length === 1) {
+      node['@type'] = typeIris[0];
+    } else if (typeIris.length > 1) {
+      node['@type'] = typeIris;
+    }
+    grouped.delete(RDF.type);
+  }
+
   for (const [pred, terms] of grouped) {
     node[pred] = terms.length === 1
       ? termToJson(terms[0])
