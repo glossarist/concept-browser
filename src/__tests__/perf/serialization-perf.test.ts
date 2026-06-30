@@ -8,7 +8,9 @@ import { CONCEPT_FIXTURES } from '../__fixtures__/concepts';
 
 const BASE = 'https://glossarist.org/fixtures/perf';
 const TARGET_CONCEPT_COUNT = 500;
+const SCALE_CONCEPT_COUNT = 10_000;
 const TIME_BUDGET_MS = 2000;
+const SCALE_TIME_BUDGET_MS = 15_000;
 
 function makeConcepts(n: number): { uri: string; concept: Concept }[] {
   const fixtures = CONCEPT_FIXTURES;
@@ -77,3 +79,43 @@ describe('Layer 7 — serialization performance regression', () => {
     expect(perConcept).toBeLessThan(5);
   });
 });
+
+describe('Layer 7 — scale stress (P4: 10 000 concepts)', () => {
+  it(`emits ${SCALE_CONCEPT_COUNT} concepts to Turtle under ${SCALE_TIME_BUDGET_MS}ms`, () => {
+    const concepts = makeConcepts(SCALE_CONCEPT_COUNT);
+    const start = performance.now();
+    for (const { concept, uri } of concepts) {
+      const { graph } = emitConceptGraph(concept, uri);
+      writeTurtle(graph);
+    }
+    const elapsed = performance.now() - start;
+    // eslint-disable-next-line no-console
+    console.log(`P4 scale: emitted ${SCALE_CONCEPT_COUNT} concepts to Turtle in ${elapsed.toFixed(0)}ms`);
+    expect(elapsed).toBeLessThan(SCALE_TIME_BUDGET_MS);
+  });
+
+  it('emission cost scales linearly (slope within 3x of the 500-concept baseline)', () => {
+    const small = makeConcepts(500);
+    const large = makeConcepts(SCALE_CONCEPT_COUNT);
+
+    const tSmall = timeTurtle(small);
+    const tLarge = timeTurtle(large);
+    const ratio = tLarge / tSmall;
+    const expectedRatio = SCALE_CONCEPT_COUNT / 500;
+    const overhead = ratio / expectedRatio;
+
+    // eslint-disable-next-line no-console
+    console.log(`P4 scale: 500→${SCALE_CONCEPT_COUNT} ratio=${ratio.toFixed(1)}x (expected ~${expectedRatio}x, overhead=${overhead.toFixed(2)}x)`);
+
+    expect(overhead).toBeLessThan(3);
+  });
+});
+
+function timeTurtle(concepts: { concept: Concept; uri: string }[]): number {
+  const start = performance.now();
+  for (const { concept, uri } of concepts) {
+    const { graph } = emitConceptGraph(concept, uri);
+    writeTurtle(graph);
+  }
+  return performance.now() - start;
+}
