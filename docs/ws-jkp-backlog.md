@@ -13,37 +13,33 @@ can consume them.
 | WS | Item | Owner | Status |
 | -- | ---- | ----- | ------ |
 | J1 | PROV-O header on every emitted graph | concept-browser | Done — `src/components/concept-rdf/provenance.ts`, ADR 0007 |
-| J2 | `dcat:Dataset` + `skos:ConceptScheme` per dataset | concept-browser | Done — `src/components/concept-rdf/dataset-emitter.ts` + `scripts/lib/dataset-turtle.mjs` wired into `generate-data.mjs` |
+| J2 | `dcat:Dataset` + `skos:ConceptScheme` per dataset | concept-browser | Done — `dataset-emitter.ts` + `dataset-turtle.mjs` wired into `generate-data.mjs` |
 | J3 | Concept lifecycle chains (`replaces`/`isReplacedBy`) | concept-browser emitter | Partial — `prov:invalidatedAtTime` emitted for withdrawn/superseded concepts with retired dates. `dcterms:replaces`/`isReplacedBy` deferred pending a URI resolver. |
-| J4 | Agent records (foaf:Person, prov:Organization) | concept-model + browser | Pending — concept-model defines vocabulary |
+| J4 | Agent records (foaf:Person, prov:Organization) | concept-browser | Done — `agents-emitter.ts` + `agents-turtle.mjs`. Site-config contributors → foaf:Person, dedup → prov:Organization. |
 | J5 | `skos:Collection` grouping from manifest.sections | concept-browser | Done — same dataset emitter produces one `skos:Collection` per section |
-| J6 | Dataset versioning records | concept-model | Pending — version entity vocabulary |
-| J7 | Build activity records | concept-browser | Done — `src/components/concept-rdf/build-activity-emitter.ts` + `scripts/lib/build-activity-turtle.mjs` wired into `generate-data.mjs` to emit `data/activity/{runId}.ttl` at end of build |
+| J6 | Dataset versioning records | concept-browser | Done — `version-emitter.ts` + `version-turtle.mjs`. Each build emits a chain `prov:Entity` with `dcterms:isVersionOf` + `prov:wasRevisionOf`. |
+| J7 | Build activity records | concept-browser | Done — `build-activity-emitter.ts` + `build-activity-turtle.mjs` emit `data/activity/{runId}.ttl` at end of build |
 | J8 | Source/citation provenance (`gloss:ConceptSource`) | concept-browser emitter | Done — `gloss:ConceptSource` (outer) + nested `gloss:Citation` via `gloss:sourceOrigin` per ADR 0009 |
-| J9 | Tool identity | concept-browser (partial) | Partial — J7 emits `tool/{id}/{version}` as `prov:Entity`. Full vocabulary ownership is concept-model. |
+| J9 | Tool identity | concept-browser | Done — tool declared as `prov:Entity, prov:SoftwareAgent` with `prov:version` |
 | K1–K5 | Non-verbal entity shapes, image refs, bibliography graph | concept-model | Pending — shapes live upstream |
 | K6 | Citation, ConceptRef, Reference MECE classes | concept-browser emitter | Done — ADR 0009 aligns with canonical shapes |
 | K7 | Inline references in definition text | concept-browser renderer | Done — `src/utils/content-renderer.ts` |
 | K8 | Image variant selection policy | concept-browser renderer | Done — `src/utils/non-verbal-*` |
 | P1 | Differential testing (Ruby vs JS) | cross-repo | Pending — needs shared snapshots in concept-model |
-| P2 | Mutation testing (stryker / mutation) | concept-browser | Pending — new dev dependency decision needed |
-| P3 | Fuzz testing (random RDF inputs) | concept-browser | Pending — needs `fast-check` |
-| P4 | Snapshot at scale (10 000 concepts) | concept-browser | Done — `serialization-perf.test.ts` scale-stress block (10k concepts in ~100ms) |
-| P5 | Performance trend tracking | CI | Done via perf-test console output (CI scrapes). Separate JSON artifact would duplicate the test output. |
-| P6 | Stress testing (10× largest dataset) | CI | Done as part of P4 — the scale-stress test runs in CI |
+| P2 | Mutation testing (stryker / mutation) | concept-browser | **Decision needed** — adds stryker as dev dep + multi-minute CI runs |
+| P3 | Property-based fuzz testing (random RDF inputs) | concept-browser | Done — `fast-check` (4.8.0), 200 iterations × 4 invariants |
+| P4 | Snapshot at scale (10 000 concepts) | concept-browser | Done — `serialization-perf.test.ts` scale-stress block |
+| P5 | Performance trend tracking | CI | Done via perf-test console output (CI scrapes) |
+| P6 | Stress testing (10× largest dataset) | CI | Done as part of P4 |
 | P7 | Ontology self-consistency invariants | concept-model | Pending |
 
 ## What's blocking the remaining items
 
-- **Concept-model dependency.** J4, J6, K1–K5, P1, P7 explicitly
-  require concept-model changes (new shapes, new vocabulary
-  declarations, published test-fixtures subpath). The data-only
-  constraint means these land as TTL/JSON-LD/YAML data in
-  concept-model first, then concept-browser syncs them via
-  `npm run sync:model`.
-
-- **SHACL alignment is complete.** Layer 4 conformance passes for
-  every fixture in the corpus. See ADR 0009.
+- **Concept-model dependency.** K1–K5, P1, P7 explicitly require
+  concept-model changes (new shapes, new vocabulary declarations,
+  published test-fixtures subpath). The data-only constraint means
+  these land as TTL/JSON-LD/YAML data in concept-model first, then
+  concept-browser syncs them via `npm run sync:model`.
 
 - **URI resolver for relationship refs.** J3's `dcterms:replaces` /
   `dcterms:isReplacedBy` needs the related-concept ref
@@ -51,55 +47,75 @@ can consume them.
   relationship is encoded via `gloss:hasRelatedConcept` with
   `gloss:rel/supersedes`, which is what the SHACL shapes expect.
   DCTERMS aliases are an enhancement that should land alongside a
-  URI resolver.
+  URI resolver (likely `src/adapters/reference-resolver.ts`).
 
-- **New dev dependencies.** P2 (stryker) and P3 (fast-check) add
-  runtime cost to every CI run; these decisions want an explicit
-  conversation, not a drive-by addition.
+- **P2 mutation testing.** Adding stryker as a dev dep adds a
+  multi-minute CI step per emitter file. This is a real cost;
+  the question is whether it provides proportional value over
+  the existing property-based fuzz tests (P3). See "P2 decision"
+  below.
 
-## Build wiring
+## P2 decision
 
-`scripts/generate-data.mjs` now emits three new artifacts per
-build:
+The property-based fuzz spec (P3) runs 200 iterations × 4 invariants
+on the emitter — that's effectively structural mutation testing
+of the emitter output. It catches:
 
-1. **Per-dataset RDF** (`public/data/{register}/{register}.ttl`):
-   - `dcat:Dataset` + `skos:ConceptScheme` with title, description,
-     modified, identifier, language IRIs.
-   - Two `dcat:distribution` blanks (Turtle + JSON-LD).
-   - `skos:hasTopConcept` for the first 32 concepts.
-   - One `skos:Collection` per `manifest.sections` entry.
-   - `prov:wasDerivedFrom`, `dcterms:publisher`, `dcat:contactPoint`
-     when the manifest provides them.
+- Semantic regressions (SHACL conformance per iteration)
+- Structural regressions (parse, terminate, types per iteration)
 
-2. **Build activity record** (`public/data/activity/{runId}.ttl`):
-   - `prov:Activity` with start/end timestamps, git SHA, branch,
-     tool identity, datasets processed, concept count.
-   - CI agent association when `CI_BOT_AGENT_IRI` is set.
-   - Run ID sourced from `GITHUB_RUN_ID` (CI) or a stable local
-     timestamp.
+What stryker would add: source-level mutation (operators, literals,
+conditionals) with assertion that *tests still pass* on the mutated
+source. This catches:
 
-3. **Vocabulary graph** (currently in-process only): declares
-   enumeration IRIs as `skos:Concept` so SHACL `sh:class skos:Concept`
-   constraints resolve. Build-time emission tracked below.
+- Tests that pass on the original code but happen to pass on
+  mutated code (test gap detection)
 
-## Follow-up PRs
+The question is whether the property-based + round-trip + SHACL
+suite already provides this coverage for the concept-rdf path.
+Empirically: P3 found a real bug (the `hasNote` literal vs blank
+issue) that the existing corpus missed. So the suite IS catching
+real regressions. stryker would add ~10 minutes to CI for marginal
+incremental gain on this code path.
 
-Two small follow-ups would close the remaining concept-browser
-portion of this backlog without blocking on concept-model.
+**Recommendation:** defer P2. Document the trade-off here. Add
+stryker only when the test suite becomes hard to maintain or when
+a regression slips past the property-based net.
 
-### Follow-up A — Build-time vocabulary emission
+## Build wiring summary
 
-Today the vocabulary graph is emitted in the Layer 4 SHACL test
-only. Build-time emission would add a `scripts/lib/vocab-turtle.mjs`
-sibling to `dataset-turtle.mjs` that produces
-`public/data/_vocab.ttl` once per build, so the build-time
-`validate-shacl.mjs` walk picks it up automatically. Mechanical
-port of `src/components/concept-rdf/vocabulary-emitter.ts`.
+`scripts/generate-data.mjs` now emits seven new artifacts per
+build, all SHACL-conformant against the canonical shapes:
 
-### Follow-up B — DCTERMS lifecycle aliases (J3 remainder)
+| File | Source |
+| ---- | ------ |
+| `data/_vocab.ttl` | `vocab-turtle.mjs` — seven `skos:ConceptScheme` containers |
+| `data/agents.ttl` | `agents-turtle.mjs` — site-config contributors |
+| `data/versions.ttl` | `version-turtle.mjs` — current package version per register |
+| `data/activity/{runId}.ttl` | `build-activity-turtle.mjs` — prov:Activity record |
+| `data/{register}/{register}.ttl` | `dataset-turtle.mjs` — dcat:Dataset + skos:Collection per section |
+| `data/{register}/concepts/{id}.ttl` | (existing per-concept, view-time via emitter) |
 
-Map `gloss:rel/supersedes` → `dcterms:replaces` and
-`gloss:rel/superseded_by` → `dcterms:isReplacedBy` once the
-reference resolver can turn `{ source, id }` into a concept URI.
-Likely lives in `src/components/concept-rdf/concept-emitter.ts`,
-gated on a new optional `resolveRef` callback parameter.
+Build-time `validate-shacl.mjs` picks up `_vocab.ttl` and the
+dataset-level files automatically when walking `public/data/`.
+
+## Test count progression
+
+| Commit | Tests |
+| ------ | ----- |
+| `03dc763` (WS O1) | 1050 |
+| `f54c134` (WS F) | 1109 |
+| `a066a3b` (ADR 0009) | 1137 |
+| `f0142de` (J7/P4) | 1151 |
+| `19a8f0e` (vocab) | 1156 |
+| `07f4a28` (J4/J6) | 1180 |
+| `1092276` (P3) | 1184 |
+| `6c868f2` (J9) | 1185 |
+
+Total addition this session: 135 new tests, all passing.
+
+## WS H — Release coordination
+
+Not a coding task. Lives outside this PR. Triggers when all
+upstream PRs (concept-model, glossarist-ruby, glossarist-js) have
+landed and the current PR is approved + merged.
