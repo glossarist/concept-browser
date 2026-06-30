@@ -223,7 +223,6 @@ function emitLocalized(
 
   for (const n of lc.notes) {
     if (n.content) {
-      w.literal(GLOSS.hasNote, n.content, { lang });
       w.blank(GLOSS.hasNote, [
         triple(RDF.type, iri(GLOSS.DetailedDefinition)),
         triple(RDF.value, lit(n.content, { lang })),
@@ -233,7 +232,6 @@ function emitLocalized(
 
   for (const e of lc.examples) {
     if (e.content) {
-      w.literal(GLOSS.hasExample, e.content, { lang });
       w.blank(GLOSS.hasExample, [
         triple(RDF.type, iri(GLOSS.DetailedDefinition)),
         triple(RDF.value, lit(e.content, { lang })),
