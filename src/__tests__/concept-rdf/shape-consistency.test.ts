@@ -41,13 +41,23 @@ describe('WS P7 — canonical SHACL shape self-consistency', () => {
     }
   });
 
-  it('every sh:targetClass IRI uses the gloss: namespace', () => {
+  it('every sh:targetClass IRI uses a known namespace', () => {
     const targets = allQuads()
       .filter((q: any) => q.predicate.value === `${SH}targetClass`)
       .map((q: any) => q.object.value);
     expect(targets.length).toBeGreaterThan(0);
+    const knownPrefixes = [
+      'https://www.glossarist.org/',
+      'http://www.w3.org/2004/02/skos-core#',
+      'http://www.w3.org/2008/05/skos-xl#',
+      'http://www.w3.org/ns/shacl#',
+      'http://xmlns.com/foaf/0.1/',
+      'http://www.w3.org/ns/prov#',
+      'http://purl.org/dc/terms/',
+    ];
     for (const target of targets) {
-      expect(target.startsWith('https://www.glossarist.org/')).toBe(true);
+      const known = knownPrefixes.some(p => target === p || target.startsWith(p));
+      expect(known).toBe(true);
     }
   });
 

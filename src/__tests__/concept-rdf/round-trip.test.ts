@@ -163,14 +163,14 @@ describe('RDF round-trip — fixture-specific invariants', () => {
     }
   });
 
-  it('with-non-verbal: emits at least three non-verbal blank nodes on the localization', () => {
+  it('with-non-verbal: emits at least three non-verbal representations (URI form, K4)', () => {
     const fixture = CONCEPT_FIXTURES.find(f => f.name === 'with-non-verbal')!;
     const { graph } = emitConceptGraph(fixture.concept, fixture.uri);
     const store = parseTurtle(writeTurtle(graph));
 
     const lcUri = `${fixture.uri}/eng`;
-    const nvrs = store.getObjects(lcUri, expandPrefixed(GLOSS.hasNonVerbalRep), null);
-    expect(nvrs.length).toBeGreaterThanOrEqual(3);
+    const uriLinks = store.getObjects(lcUri, expandPrefixed(GLOSS.hasNonVerbalRepresentation), null);
+    expect(uriLinks.length).toBeGreaterThanOrEqual(3);
   });
 
   it('with-dates: emits one hasDate blank node per date entry', () => {

@@ -263,9 +263,29 @@ function emitLocalized(
     if (ann.content) w.literal(GLOSS.hasAnnotation, ann.content, { lang });
   }
 
-  for (const nvr of lc.nonVerbalRep ?? []) {
-    const triples = nonVerbalRepTriples(nvr, lang);
-    if (triples.length) w.blank(GLOSS.hasNonVerbalRep, triples);
+  for (let i = 0; i < (lc.nonVerbalRep ?? []).length; i++) {
+    const nvr = lc.nonVerbalRep[i];
+    const emission = nonVerbalRepEmission(nvr, lang, uri, i);
+    if (emission.kind === 'blank') {
+      w.blank(GLOSS.hasNonVerbalRep, emission.triples);
+      continue;
+    }
+    const nvrW = graph.declare(emission.nvrUri, {
+      types: [GLOSS.NonVerbalRep, SKOS.Concept],
+      label: nvr.caption ?? nvr.type ?? emission.nvrUri,
+      classLabel: 'NonVerbalRep',
+      classId: GLOSS.NonVerbalRep,
+    });
+    w.iri(GLOSS.hasNonVerbalRepresentation, emission.nvrUri);
+    for (const t of emission.triples) {
+      if (t.object.kind === 'iri') {
+        nvrW.iri(t.predicate, t.object.value);
+      } else if (t.object.kind === 'literal') {
+        nvrW.literal(t.predicate, t.object.value, { lang: t.object.lang, datatype: t.object.datatype });
+      } else {
+        nvrW.blank(t.predicate, t.object.triples);
+      }
+    }
   }
 
   for (const s of lc.sources) {
@@ -294,6 +314,46 @@ function nonVerbalRepTriples(nvr: NonVerbRep, lang: string): RdfTriple[] {
   if (nvr.description) out.push(triple(DCTERMS.description, lit(nvr.description, { lang })));
   if (nvr.alt) out.push(triple(GLOSS.altText, lit(nvr.alt, { lang })));
   return out;
+}
+
+type NonVerbalRepEmission =
+  | { readonly kind: 'blank'; readonly triples: RdfTriple[] }
+  | { readonly kind: 'uri'; readonly nvrUri: string; readonly triples: RdfTriple[] };
+
+function nonVerbalRepEmission(nvr: NonVerbRep, lang: string, conceptUri: string, index: number): NonVerbalRepEmission {
+  const imageSrc = nvr.images?.find(i => i.src ?? false)?.src ?? undefined;
+  const caption = (nvr as any).caption ?? null;
+  const hasPrefLabel = !!caption;
+
+  if (!hasPrefLabel && !imageSrc) {
+    return { kind: 'blank', triples: nonVerbalRepTriples(nvr, lang) };
+  }
+
+  const nvrUri = `${conceptUri}/nvr/${index + 1}`;
+  const out: RdfTriple[] = [triple(RDF.type, iri(GLOSS.NonVerbalRep))];
+  if (nvr.type) {
+    const desigClass = designationClassId(nvr.type);
+    if (desigClass !== GLOSS.Designation) {
+      out.push(triple(RDF.type, iri(desigClass)));
+    }
+  }
+  if (caption) {
+    out.push(triple(SKOSXL.prefLabel, blank(
+      triple(RDF.type, iri(SKOSXL.Label)),
+      triple(SKOSXL.literalForm, lit(caption, { lang })),
+    )));
+  }
+  if (imageSrc) {
+    out.push(triple(GLOSS.image, lit(imageSrc, { datatype: XSD.anyURI })));
+  }
+  if ((nvr as any).description) {
+    out.push(triple(DCTERMS.description, lit((nvr as any).description, { lang })));
+  }
+  const link = nvr.sources?.[0]?.origin?.link ?? null;
+  if (link) {
+    out.push(triple(PROV.wasDerivedFrom, lit(link, { datatype: XSD.anyURI })));
+  }
+  return { kind: 'uri', nvrUri, triples: out };
 }
 
 function emitDesignation(
