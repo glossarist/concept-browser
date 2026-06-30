@@ -9,6 +9,8 @@ import { copyImageAssets } from './lib/build/image-assets.mjs';
 import { buildDatasetTurtle } from './lib/dataset-turtle.mjs';
 import { buildActivityTurtle } from './lib/build-activity-turtle.mjs';
 import { buildVocabularyTurtle } from './lib/vocab-turtle.mjs';
+import { buildAgentsTurtle } from './lib/agents-turtle.mjs';
+import { buildVersionHistoryTurtle } from './lib/version-turtle.mjs';
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
@@ -1610,3 +1612,38 @@ writeBuildActivity(total, registry.map(r => r.id));
 
 fs.writeFileSync(path.join(DATA, '_vocab.ttl'), buildVocabularyTurtle());
 console.log('Emitted vocabulary graph: data/_vocab.ttl');
+
+const contributors = config.contributors ?? [];
+if (contributors.length > 0) {
+  fs.writeFileSync(path.join(DATA, 'agents.ttl'), buildAgentsTurtle(contributors));
+  console.log(`Emitted agents graph: data/agents.ttl (${contributors.length} contributors)`);
+}
+
+const datasetVersions = registry.map(ds => ({
+  registerId: ds.id,
+  datasetIri: `${refMaps.uriBase}/${ds.id}/`,
+  versions: [
+    {
+      version: pkgVersionForVersions(),
+      generatedAt: new Date().toISOString(),
+      changeSummary: `Build ${new Date().toISOString().slice(0, 10)}`,
+    },
+  ],
+}));
+
+if (datasetVersions.length > 0) {
+  const versionTtl = datasetVersions.map(v =>
+    buildVersionHistoryTurtle({
+      registerId: v.registerId,
+      datasetIri: v.datasetIri,
+      versions: v.versions,
+      associatedAgentIri: process.env.CI_BOT_AGENT_IRI ?? null,
+    }),
+  ).join('\n');
+  fs.writeFileSync(path.join(DATA, 'versions.ttl'), versionTtl);
+  console.log(`Emitted versions graph: data/versions.ttl (${datasetVersions.length} datasets)`);
+}
+
+function pkgVersionForVersions() {
+  return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).version;
+}

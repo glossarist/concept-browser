@@ -200,6 +200,7 @@ export const PROV = {
   wasAssociatedWith: 'prov:wasAssociatedWith',
   wasRevisionOf: 'prov:wasRevisionOf',
   used: 'prov:used',
+  actedOnBehalfOf: 'prov:actedOnBehalfOf',
   Activity: 'prov:Activity',
   Entity: 'prov:Entity',
   Agent: 'prov:Agent',
