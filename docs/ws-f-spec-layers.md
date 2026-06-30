@@ -15,7 +15,7 @@ today, which are deferred, and where to look for each.
 | 5 | Property-based (fast-check) | Deferred | Adds a runtime dependency (`fast-check`) and shared arbitrary builders that belong in `concept-model/test-fixtures/arbitrary.ts`. Revisit when concept-model publishes the arbitrary. |
 | 6 | UI snapshots | Done | `__tests__/concept-rdf-view.test.ts` — fixture corpus block. |
 | 7 | Performance regression | Done | `__tests__/perf/serialization-perf.test.ts` — 500-concept emission under 2s budget (Turtle: ~12ms, JSON-LD: ~15ms). |
-| 8 | Integration end-to-end | Deferred (CI) | Belongs in `.github/workflows/`. Track in WS H (release coordination). |
+| 8 | Integration end-to-end | Done (build-artifact) | `src/__tests__/scripts/build-integration.test.ts` spawns each emitter as a subprocess and asserts the output parses + the structural invariants hold (7 schemes in vocab, dcat:Dataset in dataset, prov:Activity in activity, etc.). Full pipeline CI integration deferred to `.github/workflows/`. |
 
 ## Fixture corpus
 
