@@ -55,7 +55,18 @@ describe('emitBuildActivityGraph — J7 build activity records', () => {
     expect(generated).toContain('2026-06-28T12:05:00Z');
   });
 
-  it('uses the git commit and the tool as prov:used entities', () => {
+  it('types the tool as prov:SoftwareAgent with version', () => {
+    const input = makeInput();
+    const graph = emitBuildActivityGraph(input);
+    const store = parse(writeTurtle(graph));
+    const toolIri = `https://glossarist.org/tool/${input.toolId}/${input.toolVersion}`;
+    const types = store.getObjects(toolIri, expand('rdf:type'), null).map(q => q.value);
+    expect(types).toContain(expand('prov:SoftwareAgent'));
+    const version = store.getObjects(toolIri, expand('prov:version'), null).map(q => q.value);
+    expect(version).toContain(input.toolVersion);
+  });
+
+  it('records the git commit and the tool as prov:used entities', () => {
     const input = makeInput();
     const graph = emitBuildActivityGraph(input);
     const store = parse(writeTurtle(graph));

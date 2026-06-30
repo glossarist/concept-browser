@@ -35,9 +35,12 @@ export function buildActivityTurtle(input) {
 
   usedEntities.push({
     iri: `https://glossarist.org/tool/${input.toolId}/${input.toolVersion}`,
-    types: ['prov:Entity'],
+    types: ['prov:Entity', 'prov:SoftwareAgent'],
     label: `${input.toolId} ${input.toolVersion}`,
-    extras: [`dcterms:identifier ${ttlLit(input.toolVersion)}`],
+    extras: [
+      `dcterms:identifier ${ttlLit(input.toolVersion)}`,
+      `prov:version ${ttlLit(input.toolVersion)}`,
+    ],
   });
 
   for (const register of input.datasetRegisters ?? []) {
