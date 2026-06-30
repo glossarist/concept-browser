@@ -11,6 +11,7 @@ import { buildActivityTurtle } from './lib/build-activity-turtle.mjs';
 import { buildVocabularyTurtle } from './lib/vocab-turtle.mjs';
 import { buildAgentsTurtle } from './lib/agents-turtle.mjs';
 import { buildVersionHistoryTurtle } from './lib/version-turtle.mjs';
+import { buildBibliographyTurtle } from './lib/bibliography-turtle.mjs';
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
@@ -1617,6 +1618,16 @@ const contributors = config.contributors ?? [];
 if (contributors.length > 0) {
   fs.writeFileSync(path.join(DATA, 'agents.ttl'), buildAgentsTurtle(contributors));
   console.log(`Emitted agents graph: data/agents.ttl (${contributors.length} contributors)`);
+}
+
+// Bibliography aggregation (K5): one bib.ttl per register from bibliography.json
+for (const ds of registry) {
+  const bibPath = path.join(DATA, ds.id, 'bibliography.json');
+  if (fs.existsSync(bibPath)) {
+    const bibJson = JSON.parse(fs.readFileSync(bibPath, 'utf8'));
+    const bibTtl = buildBibliographyTurtle(ds.id, bibJson);
+    fs.writeFileSync(path.join(DATA, ds.id, 'bib.ttl'), bibTtl);
+  }
 }
 
 const datasetVersions = registry.map(ds => ({
