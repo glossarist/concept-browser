@@ -1,0 +1,29 @@
+@prefix gloss: <https://www.glossarist.org/ontologies/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix skosxl: <http://www.w3.org/2008/05/skos-xl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://glossarist.org/fixtures/concept/minimal> a gloss:Concept, skos:Concept ;
+  gloss:identifier "1.1" ;
+  gloss:hasStatus gloss:status\/valid ;
+  gloss:hasLocalization <https://glossarist.org/fixtures/concept/minimal/eng> .
+
+<https://glossarist.org/fixtures/concept/minimal/eng> a gloss:LocalizedConcept, skos:Concept ;
+  gloss:language "eng" ;
+  gloss:hasEntryStatus gloss:entstatus\/valid ;
+  gloss:isLocalizationOf <https://glossarist.org/fixtures/concept/minimal> ;
+  skosxl:prefLabel <https://glossarist.org/fixtures/concept/minimal/eng/desig/minimal_concept> ;
+  skos:prefLabel "minimal concept"@eng ;
+  skos:definition "A minimal concept used to verify the baseline emission path."@eng ;
+  gloss:hasDefinition [ rdf:type gloss:DetailedDefinition ; rdf:value "A minimal concept used to verify the baseline emission path."@eng ] .
+
+<https://glossarist.org/fixtures/concept/minimal/eng/desig/minimal_concept> a gloss:Expression, skosxl:Label ;
+  skosxl:literalForm "minimal concept"@eng ;
+  gloss:normativeStatus gloss:norm\/preferred .

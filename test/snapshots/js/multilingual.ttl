@@ -1,0 +1,57 @@
+@prefix gloss: <https://www.glossarist.org/ontologies/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix skosxl: <http://www.w3.org/2008/05/skos-xl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://glossarist.org/fixtures/concept/multilingual> a gloss:Concept, skos:Concept ;
+  gloss:identifier "2.1" ;
+  gloss:hasStatus gloss:status\/valid ;
+  gloss:hasLocalization <https://glossarist.org/fixtures/concept/multilingual/eng> ;
+  gloss:hasLocalization <https://glossarist.org/fixtures/concept/multilingual/fra> ;
+  gloss:hasLocalization <https://glossarist.org/fixtures/concept/multilingual/jpn> .
+
+<https://glossarist.org/fixtures/concept/multilingual/eng> a gloss:LocalizedConcept, skos:Concept ;
+  gloss:language "eng" ;
+  gloss:hasEntryStatus gloss:entstatus\/valid ;
+  gloss:isLocalizationOf <https://glossarist.org/fixtures/concept/multilingual> ;
+  skosxl:prefLabel <https://glossarist.org/fixtures/concept/multilingual/eng/desig/coordinate_system> ;
+  skos:prefLabel "coordinate system"@eng ;
+  skos:definition "A system for specifying positions in space."@eng ;
+  gloss:hasDefinition [ rdf:type gloss:DetailedDefinition ; rdf:value "A system for specifying positions in space."@eng ] .
+
+<https://glossarist.org/fixtures/concept/multilingual/eng/desig/coordinate_system> a gloss:Expression, skosxl:Label ;
+  skosxl:literalForm "coordinate system"@eng ;
+  gloss:normativeStatus gloss:norm\/preferred .
+
+<https://glossarist.org/fixtures/concept/multilingual/fra> a gloss:LocalizedConcept, skos:Concept ;
+  gloss:language "fra" ;
+  gloss:hasEntryStatus gloss:entstatus\/valid ;
+  gloss:isLocalizationOf <https://glossarist.org/fixtures/concept/multilingual> ;
+  skosxl:prefLabel <https://glossarist.org/fixtures/concept/multilingual/fra/desig/syst_me_de_coordonn_es> ;
+  skos:prefLabel "système de coordonnées"@fra ;
+  skos:definition "Un système pour spécifier des positions dans l’espace."@fra ;
+  gloss:hasDefinition [ rdf:type gloss:DetailedDefinition ; rdf:value "Un système pour spécifier des positions dans l’espace."@fra ] .
+
+<https://glossarist.org/fixtures/concept/multilingual/fra/desig/syst_me_de_coordonn_es> a gloss:Expression, skosxl:Label ;
+  skosxl:literalForm "système de coordonnées"@fra ;
+  gloss:normativeStatus gloss:norm\/preferred .
+
+<https://glossarist.org/fixtures/concept/multilingual/jpn> a gloss:LocalizedConcept, skos:Concept ;
+  gloss:language "jpn" ;
+  gloss:hasEntryStatus gloss:entstatus\/valid ;
+  gloss:isLocalizationOf <https://glossarist.org/fixtures/concept/multilingual> ;
+  skosxl:prefLabel <https://glossarist.org/fixtures/concept/multilingual/jpn/desig/d0> ;
+  skos:prefLabel "座標系"@jpn ;
+  skos:definition "空間における位置を指定するための体系。"@jpn ;
+  gloss:hasDefinition [ rdf:type gloss:DetailedDefinition ; rdf:value "空間における位置を指定するための体系。"@jpn ] .
+
+<https://glossarist.org/fixtures/concept/multilingual/jpn/desig/d0> a gloss:Expression, skosxl:Label ;
+  skosxl:literalForm "座標系"@jpn ;
+  gloss:normativeStatus gloss:norm\/preferred .

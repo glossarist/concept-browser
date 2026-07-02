@@ -1,0 +1,47 @@
+@prefix gloss: <https://www.glossarist.org/ontologies/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix skosxl: <http://www.w3.org/2008/05/skos-xl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://glossarist.org/fixtures/concept/with-non-verbal> a gloss:Concept, skos:Concept ;
+  gloss:identifier "5.1" ;
+  gloss:hasStatus gloss:status\/valid ;
+  gloss:hasLocalization <https://glossarist.org/fixtures/concept/with-non-verbal/eng> .
+
+<https://glossarist.org/fixtures/concept/with-non-verbal/eng> a gloss:LocalizedConcept, skos:Concept ;
+  gloss:language "eng" ;
+  gloss:hasEntryStatus gloss:entstatus\/valid ;
+  gloss:isLocalizationOf <https://glossarist.org/fixtures/concept/with-non-verbal> ;
+  skosxl:prefLabel <https://glossarist.org/fixtures/concept/with-non-verbal/eng/desig/angle_of_repose> ;
+  skos:prefLabel "angle of repose"@eng ;
+  skos:definition "The steepest angle relative to the horizontal at which a material can be piled without sliding."@eng ;
+  gloss:hasDefinition [ rdf:type gloss:DetailedDefinition ; rdf:value "The steepest angle relative to the horizontal at which a material can be piled without sliding."@eng ] ;
+  gloss:hasNonVerbalRepresentation <https://glossarist.org/fixtures/concept/with-non-verbal/nvr/1> ;
+  gloss:hasNonVerbalRepresentation <https://glossarist.org/fixtures/concept/with-non-verbal/nvr/2> ;
+  gloss:hasNonVerbalRepresentation <https://glossarist.org/fixtures/concept/with-non-verbal/nvr/3> .
+
+<https://glossarist.org/fixtures/concept/with-non-verbal/eng/desig/angle_of_repose> a gloss:Expression, skosxl:Label ;
+  skosxl:literalForm "angle of repose"@eng ;
+  gloss:normativeStatus gloss:norm\/preferred .
+
+<https://glossarist.org/fixtures/concept/with-non-verbal/nvr/1> a gloss:NonVerbalRep, skos:Concept ;
+  rdf:type gloss:NonVerbalRep ;
+  skosxl:prefLabel [ rdf:type skosxl:Label ; skosxl:literalForm "Angle of repose diagram"@eng ] ;
+  gloss:image "https://glossarist.org/figs/angle.svg"^^xsd:anyURI ;
+  dcterms:description "Schematic diagram showing the angle."@eng .
+
+<https://glossarist.org/fixtures/concept/with-non-verbal/nvr/2> a gloss:NonVerbalRep, skos:Concept ;
+  rdf:type gloss:NonVerbalRep ;
+  skosxl:prefLabel [ rdf:type skosxl:Label ; skosxl:literalForm "tan(θ) = μ"@eng ] .
+
+<https://glossarist.org/fixtures/concept/with-non-verbal/nvr/3> a gloss:NonVerbalRep, skos:Concept ;
+  rdf:type gloss:NonVerbalRep ;
+  skosxl:prefLabel [ rdf:type skosxl:Label ; skosxl:literalForm "Measured angles"@eng ] ;
+  dcterms:description "Empirical values across materials."@eng .

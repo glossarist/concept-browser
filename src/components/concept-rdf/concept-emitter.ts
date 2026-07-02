@@ -97,15 +97,23 @@ function sourceTriples(s: ConceptSource): RdfTriple[] {
   return out;
 }
 
+export interface RefResolver {
+  (ref: { source?: string | null; id?: string | null }): string | undefined;
+}
+
+export interface EmitOptions {
+  readonly resolveRef?: RefResolver;
+}
+
 export interface EmitResult {
   readonly graph: RdfGraph;
   readonly designationUris: ReadonlyMap<string, string>;
 }
 
-export function emitConceptGraph(concept: Concept, uri: string): EmitResult {
+export function emitConceptGraph(concept: Concept, uri: string, options: EmitOptions = {}): EmitResult {
   const graph = new RdfGraph();
   const designationUris = new Map<string, string>();
-  emitConcept(graph, concept, uri, designationUris);
+  emitConcept(graph, concept, uri, designationUris, options);
   return { graph, designationUris };
 }
 
@@ -114,6 +122,7 @@ function emitConcept(
   concept: Concept,
   uri: string,
   designationUris: Map<string, string>,
+  options: EmitOptions = {},
 ): void {
   const w = graph.declare(uri, {
     types: [GLOSS.Concept, SKOS.Concept],
@@ -164,7 +173,8 @@ function emitConcept(
     }
     w.blank(GLOSS.hasRelatedConcept, inner);
 
-    const counterpartUri = lifecycleCounterpartUri(r);
+    const resolved = options.resolveRef ? options.resolveRef(r.ref ?? {}) : undefined;
+    const counterpartUri = resolved ?? lifecycleCounterpartUri(r);
     if (counterpartUri) {
       if (r.type === 'supersedes') w.iri(DCTERMS.replaces, counterpartUri);
       if (r.type === 'superseded_by') w.iri(DCTERMS.isReplacedBy, counterpartUri);
