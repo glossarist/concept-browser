@@ -207,6 +207,19 @@ describe('RDF round-trip — fixture-specific invariants', () => {
     expect(replaces.some(u => u.startsWith('urn:'))).toBe(true);
     expect(isReplacedBy.some(u => u.startsWith('urn:'))).toBe(true);
   });
+
+  it('full-relationships: when a resolveRef callback is provided, dcterms:replaces uses the resolved URI', () => {
+    const fixture = CONCEPT_FIXTURES.find(f => f.name === 'full-relationships')!;
+    const resolver = (ref: { source?: string | null; id?: string | null }): string | undefined => {
+      if (ref.source === 'IEC' && ref.id === '60050-3.1.1') return 'https://glossarist.org/iec/concept/60050-3.1.1';
+      return undefined;
+    };
+    const { graph } = emitConceptGraph(fixture.concept, fixture.uri, { resolveRef: resolver });
+    const store = parseTurtle(writeTurtle(graph));
+
+    const replaces = store.getObjects(fixture.uri, expandPrefixed(DCTERMS.replaces), null).map(q => q.value);
+    expect(replaces).toContain('https://glossarist.org/iec/concept/60050-3.1.1');
+  });
 });
 
 describe('RDF round-trip — concept lifecycle (WS J3)', () => {

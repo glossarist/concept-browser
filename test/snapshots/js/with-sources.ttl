@@ -1,0 +1,33 @@
+@prefix gloss: <https://www.glossarist.org/ontologies/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix skosxl: <http://www.w3.org/2008/05/skos-xl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://glossarist.org/fixtures/concept/with-sources> a gloss:Concept, skos:Concept ;
+  gloss:identifier "4.1" ;
+  gloss:hasStatus gloss:status\/valid ;
+  gloss:hasSource [ rdf:type gloss:ConceptSource ; gloss:sourceStatus gloss:srcstatus\/identical ; gloss:sourceType gloss:srctype\/authoritative ; gloss:modification "revised 2024" ; gloss:sourceOrigin [ rdf:type gloss:Citation ; dcterms:bibliographicCitation "ISO 704 3.1" ; gloss:hasCitationRef [ rdf:type gloss:CitationRef ; gloss:citationRefSource "ISO 704" ; gloss:citationRefId "3.1" ; gloss:citationRefVersion "2020" ] ; gloss:hasCitationLocality [ rdf:type gloss:Locality ; gloss:localityType "clause" ; gloss:referenceFrom "3.1" ; gloss:referenceTo "3.5" ] ; gloss:citationLink "https://example.org/iso-704"^^xsd:anyURI ; gloss:citationOriginal "Original wording here." ] ] ;
+  gloss:hasSource [ rdf:type gloss:ConceptSource ; gloss:sourceStatus gloss:srcstatus\/modified ; gloss:sourceType gloss:srctype\/lineage ; gloss:sourceOrigin [ rdf:type gloss:Citation ; dcterms:bibliographicCitation "IEC 60050 102-01" ; gloss:hasCitationRef [ rdf:type gloss:CitationRef ; gloss:citationRefSource "IEC 60050" ; gloss:citationRefId "102-01" ; gloss:citationRefVersion "2008" ] ; gloss:hasCitationLocality [ rdf:type gloss:Locality ; gloss:localityType "clause" ; gloss:referenceFrom "102-01-01" ] ] ] ;
+  gloss:hasSource [ rdf:type gloss:ConceptSource ; gloss:sourceStatus gloss:srcstatus\/restyled ; gloss:sourceType gloss:srctype\/lineage ; gloss:sourceOrigin [ rdf:type gloss:Citation ; dcterms:bibliographicCitation "VIM 1.2" ; gloss:hasCitationRef [ rdf:type gloss:CitationRef ; gloss:citationRefSource "VIM" ; gloss:citationRefId "1.2" ; gloss:citationRefVersion "2012" ] ] ] ;
+  gloss:hasLocalization <https://glossarist.org/fixtures/concept/with-sources/eng> .
+
+<https://glossarist.org/fixtures/concept/with-sources/eng> a gloss:LocalizedConcept, skos:Concept ;
+  gloss:language "eng" ;
+  gloss:hasEntryStatus gloss:entstatus\/valid ;
+  gloss:isLocalizationOf <https://glossarist.org/fixtures/concept/with-sources> ;
+  skosxl:prefLabel <https://glossarist.org/fixtures/concept/with-sources/eng/desig/cited_term> ;
+  skos:prefLabel "cited term"@eng ;
+  skos:definition "A concept that carries structured citations."@eng ;
+  gloss:hasDefinition [ rdf:type gloss:DetailedDefinition ; rdf:value "A concept that carries structured citations."@eng ] ;
+  gloss:hasSource [ rdf:type gloss:ConceptSource ; gloss:sourceStatus gloss:srcstatus\/identical ; gloss:sourceType gloss:srctype\/authoritative ; gloss:sourceOrigin [ rdf:type gloss:Citation ; dcterms:bibliographicCitation "ISO 1087 2.1" ; gloss:hasCitationRef [ rdf:type gloss:CitationRef ; gloss:citationRefSource "ISO 1087" ; gloss:citationRefId "2.1" ; gloss:citationRefVersion "2019" ] ; gloss:hasCitationLocality [ rdf:type gloss:Locality ; gloss:localityType "clause" ; gloss:referenceFrom "2.1" ] ] ] .
+
+<https://glossarist.org/fixtures/concept/with-sources/eng/desig/cited_term> a gloss:Expression, skosxl:Label ;
+  skosxl:literalForm "cited term"@eng ;
+  gloss:normativeStatus gloss:norm\/preferred .

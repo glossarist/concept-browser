@@ -1,0 +1,32 @@
+@prefix gloss: <https://www.glossarist.org/ontologies/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix skosxl: <http://www.w3.org/2008/05/skos-xl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://glossarist.org/fixtures/concept/withdrawn> a gloss:Concept, skos:Concept ;
+  gloss:identifier "7.1" ;
+  gloss:hasStatus gloss:status\/withdrawn ;
+  gloss:hasDate [ rdf:type gloss:ConceptDate ; gloss:dateType gloss:datetype\/accepted ; gloss:dateValue "2018-03-01T00:00:00Z"^^xsd:dateTime ] ;
+  gloss:hasDate [ rdf:type gloss:ConceptDate ; gloss:dateType gloss:datetype\/retired ; gloss:dateValue "2024-09-15T00:00:00Z"^^xsd:dateTime ] ;
+  prov:invalidatedAtTime "2024-09-15T00:00:00Z"^^xsd:dateTime ;
+  gloss:hasLocalization <https://glossarist.org/fixtures/concept/withdrawn/eng> .
+
+<https://glossarist.org/fixtures/concept/withdrawn/eng> a gloss:LocalizedConcept, skos:Concept ;
+  gloss:language "eng" ;
+  gloss:hasEntryStatus gloss:entstatus\/withdrawn ;
+  gloss:isLocalizationOf <https://glossarist.org/fixtures/concept/withdrawn> ;
+  skosxl:prefLabel <https://glossarist.org/fixtures/concept/withdrawn/eng/desig/withdrawn_concept> ;
+  skos:prefLabel "withdrawn concept"@eng ;
+  skos:definition "A withdrawn concept with a retirement date."@eng ;
+  gloss:hasDefinition [ rdf:type gloss:DetailedDefinition ; rdf:value "A withdrawn concept with a retirement date."@eng ] .
+
+<https://glossarist.org/fixtures/concept/withdrawn/eng/desig/withdrawn_concept> a gloss:Expression, skosxl:Label ;
+  skosxl:literalForm "withdrawn concept"@eng ;
+  gloss:normativeStatus gloss:norm\/preferred .
