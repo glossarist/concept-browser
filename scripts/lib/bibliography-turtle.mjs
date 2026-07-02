@@ -1,32 +1,49 @@
-function ttlLit(s) {
-  if (s == null) return '""';
-  const escaped = String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-  return `"${escaped}"`;
+import { ttlLit, ttlIri } from './turtle-escape.mjs';
+
+function entryFromV3(e, fallbackId) {
+  return {
+    id: e.id ?? fallbackId ?? '',
+    reference: e.reference ?? '',
+    title: e.title,
+    link: e.link,
+    type: e.type,
+  };
+}
+
+export function normalizeBibliographyData(raw) {
+  if (!raw || typeof raw !== 'object') return [];
+  if (Array.isArray(raw.bibliography)) {
+    return raw.bibliography.map(e => entryFromV3(e));
+  }
+  const entries = [];
+  for (const [id, value] of Object.entries(raw)) {
+    if (!value || typeof value !== 'object') continue;
+    entries.push(entryFromV3(value, id));
+  }
+  return entries;
 }
 
 export function buildBibliographyTurtle(register, bibliographyJson, baseUri = 'https://glossarist.org') {
-  const lines = [];
-  lines.push('@prefix dcterms: <http://purl.org/dc/terms/> .');
-  lines.push('@prefix foaf: <http://xmlns.com/foaf/0.1/> .');
-  lines.push('');
+  const lines = [
+    '@prefix dcterms: <http://purl.org/dc/terms/> .',
+    '@prefix foaf: <http://xmlns.com/foaf/0.1/> .',
+    '@prefix gloss: <https://www.glossarist.org/ontologies/> .',
+    '',
+  ];
 
   const datasetIri = `${baseUri}/${register}/`;
+  const entries = normalizeBibliographyData(bibliographyJson);
 
-  for (const [id, entry] of Object.entries(bibliographyJson ?? {})) {
-    if (!entry || typeof entry !== 'object') continue;
-    const bibIri = `${datasetIri}bib/${id}`;
-    lines.push(`<${bibIri}> a dcterms:BibliographicResource ;`);
-    lines.push(`  dcterms:identifier ${ttlLit(id)} ;`);
-    if (entry.reference) {
-      lines.push(`  dcterms:bibliographicCitation ${ttlLit(entry.reference)} ;`);
-    }
-    if (entry.title) {
-      lines.push(`  dcterms:title ${ttlLit(entry.title)} ;`);
-    }
-    if (entry.link) {
-      lines.push(`  foaf:page <${entry.link}> ;`);
-    }
-    lines.push(`  dcterms:isPartOf <${datasetIri}> .`);
+  for (const entry of entries) {
+    if (!entry.id || !entry.reference) continue;
+    const bibIri = `${datasetIri}bib/${entry.id}`;
+    lines.push(`${ttlIri(bibIri)} a dcterms:BibliographicResource ;`);
+    lines.push(`  dcterms:identifier ${ttlLit(entry.id)} ;`);
+    lines.push(`  dcterms:bibliographicCitation ${ttlLit(entry.reference)} ;`);
+    if (entry.title) lines.push(`  dcterms:title ${ttlLit(entry.title)} ;`);
+    if (entry.link) lines.push(`  foaf:page ${ttlIri(entry.link)} ;`);
+    if (entry.type) lines.push(`  dcterms:type ${ttlIri(`${baseUri}/${register}/bibtype/${entry.type}`)} ;`);
+    lines.push(`  dcterms:isPartOf ${ttlIri(datasetIri)} .`);
     lines.push('');
   }
 

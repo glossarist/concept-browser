@@ -23,25 +23,25 @@
   skos:prefLabel "angle of repose"@eng ;
   skos:definition "The steepest angle relative to the horizontal at which a material can be piled without sliding."@eng ;
   gloss:hasDefinition [ rdf:type gloss:DetailedDefinition ; rdf:value "The steepest angle relative to the horizontal at which a material can be piled without sliding."@eng ] ;
-  gloss:hasNonVerbalRepresentation <https://glossarist.org/fixtures/concept/with-non-verbal/nvr/1> ;
-  gloss:hasNonVerbalRepresentation <https://glossarist.org/fixtures/concept/with-non-verbal/nvr/2> ;
-  gloss:hasNonVerbalRepresentation <https://glossarist.org/fixtures/concept/with-non-verbal/nvr/3> .
+  gloss:hasNonVerbalRepresentation <https://glossarist.org/fixtures/concept/with-non-verbal/nvr/angle_svg> ;
+  gloss:hasNonVerbalRepresentation <https://glossarist.org/fixtures/concept/with-non-verbal/nvr/tan> ;
+  gloss:hasNonVerbalRepresentation <https://glossarist.org/fixtures/concept/with-non-verbal/nvr/Measured_angles> .
 
 <https://glossarist.org/fixtures/concept/with-non-verbal/eng/desig/angle_of_repose> a gloss:Expression, skosxl:Label ;
   skosxl:literalForm "angle of repose"@eng ;
   gloss:normativeStatus gloss:norm\/preferred .
 
-<https://glossarist.org/fixtures/concept/with-non-verbal/nvr/1> a gloss:NonVerbalRep, skos:Concept ;
+<https://glossarist.org/fixtures/concept/with-non-verbal/nvr/angle_svg> a gloss:NonVerbalRep, skos:Concept ;
   rdf:type gloss:NonVerbalRep ;
   skosxl:prefLabel [ rdf:type skosxl:Label ; skosxl:literalForm "Angle of repose diagram"@eng ] ;
   gloss:image "https://glossarist.org/figs/angle.svg"^^xsd:anyURI ;
   dcterms:description "Schematic diagram showing the angle."@eng .
 
-<https://glossarist.org/fixtures/concept/with-non-verbal/nvr/2> a gloss:NonVerbalRep, skos:Concept ;
+<https://glossarist.org/fixtures/concept/with-non-verbal/nvr/tan> a gloss:NonVerbalRep, skos:Concept ;
   rdf:type gloss:NonVerbalRep ;
   skosxl:prefLabel [ rdf:type skosxl:Label ; skosxl:literalForm "tan(θ) = μ"@eng ] .
 
-<https://glossarist.org/fixtures/concept/with-non-verbal/nvr/3> a gloss:NonVerbalRep, skos:Concept ;
+<https://glossarist.org/fixtures/concept/with-non-verbal/nvr/Measured_angles> a gloss:NonVerbalRep, skos:Concept ;
   rdf:type gloss:NonVerbalRep ;
   skosxl:prefLabel [ rdf:type skosxl:Label ; skosxl:literalForm "Measured angles"@eng ] ;
   dcterms:description "Empirical values across materials."@eng .

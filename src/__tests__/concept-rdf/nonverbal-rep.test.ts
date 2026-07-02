@@ -42,7 +42,7 @@ describe('WS K4 — NVRs as first-class URIs', () => {
     });
 
     const { graph, store } = emitAndParse(concept);
-    const nvrUri = `${BASE}/k4.1/nvr/1`;
+    const nvrUri = `${BASE}/k4.1/nvr/1_svg`;
     expect(graph.get(nvrUri)).toBeDefined();
 
     const lcUri = `${BASE}/k4.1/eng`;
@@ -77,7 +77,7 @@ describe('WS K4 — NVRs as first-class URIs', () => {
       },
     });
     const { store } = emitAndParse(concept);
-    const nvrUri = `${BASE}/k4.2/nvr/1`;
+    const nvrUri = `${BASE}/k4.2/nvr/fig_svg`;
     const images = store.getObjects(nvrUri, `${G}image`, null);
     expect(images.length).toBe(1);
     expect((images[0] as any).value).toBe('https://x.test/fig.svg');
@@ -102,7 +102,7 @@ describe('WS K4 — NVRs as first-class URIs', () => {
       },
     });
     const { store } = emitAndParse(concept);
-    const derived = store.getObjects(`${BASE}/k4.3/nvr/1`, `${PROV}wasDerivedFrom`, null).map(q => q.value);
+    const derived = store.getObjects(`${BASE}/k4.3/nvr/Fig`, `${PROV}wasDerivedFrom`, null).map(q => q.value);
     expect(derived).toContain('https://x.test/source');
   });
 
@@ -145,9 +145,9 @@ describe('WS K4 — NVRs as first-class URIs', () => {
     const { store } = emitAndParse(concept);
     const lcUri = `${BASE}/k4.5/eng`;
     const links = store.getObjects(lcUri, `${G}hasNonVerbalRepresentation`, null).map(q => q.value);
-    expect(links).toContain(`${BASE}/k4.5/nvr/1`);
-    expect(links).toContain(`${BASE}/k4.5/nvr/2`);
-    expect(links).toContain(`${BASE}/k4.5/nvr/3`);
+    expect(links).toContain(`${BASE}/k4.5/nvr/1_svg`);
+    expect(links).toContain(`${BASE}/k4.5/nvr/2_svg`);
+    expect(links).toContain(`${BASE}/k4.5/nvr/3_svg`);
   });
 });
 
@@ -167,7 +167,7 @@ describe('WS K4 — URI NVR conforms to canonical NonVerbalRep shape', () => {
       },
     });
     const { store } = emitAndParse(concept);
-    const nvrUri = `${BASE}/k4.6/nvr/1`;
+    const nvrUri = `${BASE}/k4.6/nvr/fig_svg`;
     const prefLabels = store.getObjects(nvrUri, `${SKOSXL}prefLabel`, null);
     expect(prefLabels.length).toBeGreaterThanOrEqual(1);
     const nvrTypes = store.getObjects(nvrUri, RDF_TYPE, null).map(q => q.value);

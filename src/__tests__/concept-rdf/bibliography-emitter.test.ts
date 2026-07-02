@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { Parser, Store } from 'n3';
 import { writeTurtle } from '../../components/concept-rdf/turtle-writer';
-import { emitBibliographyGraph, bibliographyEntryIri } from '../../components/concept-rdf/bibliography-emitter';
+import {
+  emitBibliographyGraph,
+  bibliographyEntryIri,
+  normalizeBibliographyData,
+} from '../../components/concept-rdf/bibliography-emitter';
 
 const FOAF = 'http://xmlns.com/foaf/0.1/';
 const DCTERMS = 'http://purl.org/dc/terms/';
@@ -92,5 +96,64 @@ describe('emitBibliographyGraph — K5 bibliography graph', () => {
     const iri = bibliographyEntryIri('iso-geodetic', 'a');
     const parts = store.getObjects(iri, `${DCTERMS}isPartOf`, null).map(q => q.value);
     expect(parts).toContain('https://glossarist.org/iso-geodetic/');
+  });
+});
+
+describe('B3/C — V3 bibliography shape (wrapper key)', () => {
+  it('normalizeBibliographyData unwraps { bibliography: [...] } V3 shape', () => {
+    const v3 = {
+      bibliography: [
+        { id: 'iso704', reference: 'ISO 704', title: 'Terminology work', type: 'normative' },
+        { id: 'iso10241', reference: 'ISO 10241-1' },
+      ],
+    };
+    const entries = normalizeBibliographyData(v3);
+    expect(entries.length).toBe(2);
+    expect(entries[0].id).toBe('iso704');
+    expect(entries[0].type).toBe('normative');
+    expect(entries[1].id).toBe('iso10241');
+  });
+
+  it('normalizeBibliographyData accepts the legacy flat-map shape', () => {
+    const legacy = {
+      iso704: { reference: 'ISO 704', title: 'Terminology work' },
+      iso10241: { reference: 'ISO 10241-1' },
+    };
+    const entries = normalizeBibliographyData(legacy);
+    expect(entries.length).toBe(2);
+    expect(entries.find(e => e.id === 'iso704')?.title).toBe('Terminology work');
+  });
+
+  it('emitBibliographyGraph handles both V3 and legacy shapes identically', () => {
+    const v3 = { bibliography: [{ id: 'iso704', reference: 'ISO 704', title: 'T' }] };
+    const legacy = { iso704: { reference: 'ISO 704', title: 'T' } };
+
+    const graphV3 = emitBibliographyGraph({
+      registerId: 'r',
+      entries: normalizeBibliographyData(v3),
+    });
+    const graphLegacy = emitBibliographyGraph({
+      registerId: 'r',
+      entries: normalizeBibliographyData(legacy),
+    });
+
+    const storeV3 = parse(writeTurtle(graphV3));
+    const storeLegacy = parse(writeTurtle(graphLegacy));
+
+    const iri = bibliographyEntryIri('r', 'iso704');
+    const v3Titles = storeV3.getObjects(iri, `${DCTERMS}title`, null).map(q => q.value);
+    const legacyTitles = storeLegacy.getObjects(iri, `${DCTERMS}title`, null).map(q => q.value);
+    expect(v3Titles).toEqual(legacyTitles);
+  });
+
+  it('emits dcterms:type when entry.type is provided', () => {
+    const graph = emitBibliographyGraph({
+      registerId: 'r',
+      entries: [{ id: 'a', reference: 'X', type: 'normative' }],
+    });
+    const store = parse(writeTurtle(graph));
+    const iri = bibliographyEntryIri('r', 'a');
+    const types = store.getObjects(iri, `${DCTERMS}type`, null).map(q => q.value);
+    expect(types.some(t => t.includes('bibtype/normative'))).toBe(true);
   });
 });

@@ -147,6 +147,26 @@ export class RdfGraph {
   toArray(): RdfResource[] {
     return Array.from(this.resources());
   }
+
+  merge(other: RdfGraph): this {
+    for (const r of other.resources()) {
+      const w = this.declare(r.subject, {
+        types: [...r.types],
+        label: r.label,
+        classLabel: r.classLabel,
+        classId: r.classId,
+      });
+      for (const t of r.triples) {
+        if (t.object.kind === 'iri') w.iri(t.predicate, t.object.value);
+        else if (t.object.kind === 'literal') {
+          w.literal(t.predicate, t.object.value, { lang: t.object.lang, datatype: t.object.datatype });
+        } else {
+          w.blank(t.predicate, t.object.triples);
+        }
+      }
+    }
+    return this;
+  }
 }
 
 export class ResourceWriter {
@@ -174,6 +194,15 @@ export class ResourceWriter {
   blank(predicate: string, triples: readonly RdfTriple[]): this {
     if (triples.length === 0) return this;
     return this.add(predicate, { kind: 'blank', triples: [...triples] });
+  }
+
+  addTriple(t: RdfTriple): this {
+    return this.add(t.predicate, t.object);
+  }
+
+  addTriples(triples: readonly RdfTriple[]): this {
+    for (const t of triples) this.addTriple(t);
+    return this;
   }
 }
 

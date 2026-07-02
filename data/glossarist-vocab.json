@@ -1,0 +1,130 @@
+{
+  "_comment": "Single source of truth for the Glossarist vocabulary. Consumed by vocabulary-emitter.ts (view-time) and vocab-turtle.mjs (build-time). Sourced from glossarist-ruby config.yml — keep in sync when concept-model expands the enum.",
+  "schemes": [
+    {
+      "schemeIri": "gloss:status-scheme",
+      "label": "Concept status",
+      "terms": [
+        { "iri": "gloss:status/valid",      "label": "valid" },
+        { "iri": "gloss:status/superseded", "label": "superseded" },
+        { "iri": "gloss:status/withdrawn",  "label": "withdrawn" },
+        { "iri": "gloss:status/draft",      "label": "draft" }
+      ]
+    },
+    {
+      "schemeIri": "gloss:entstatus-scheme",
+      "label": "Entry status",
+      "terms": [
+        { "iri": "gloss:entstatus/valid",      "label": "valid" },
+        { "iri": "gloss:entstatus/superseded", "label": "superseded" },
+        { "iri": "gloss:entstatus/withdrawn",  "label": "withdrawn" },
+        { "iri": "gloss:entstatus/draft",      "label": "draft" }
+      ]
+    },
+    {
+      "schemeIri": "gloss:norm-scheme",
+      "label": "Normative status",
+      "terms": [
+        { "iri": "gloss:norm/preferred",  "label": "preferred" },
+        { "iri": "gloss:norm/admitted",   "label": "admitted" },
+        { "iri": "gloss:norm/deprecated", "label": "deprecated" },
+        { "iri": "gloss:norm/superseded", "label": "superseded" }
+      ]
+    },
+    {
+      "schemeIri": "gloss:srcstatus-scheme",
+      "label": "Source status",
+      "terms": [
+        { "iri": "gloss:srcstatus/identical",       "label": "identical" },
+        { "iri": "gloss:srcstatus/similar",         "label": "similar" },
+        { "iri": "gloss:srcstatus/modified",        "label": "modified" },
+        { "iri": "gloss:srcstatus/restyle",         "label": "restyle" },
+        { "iri": "gloss:srcstatus/context_added",   "label": "context_added" },
+        { "iri": "gloss:srcstatus/generalisation",  "label": "generalisation" },
+        { "iri": "gloss:srcstatus/specialisation",  "label": "specialisation" },
+        { "iri": "gloss:srcstatus/unspecified",     "label": "unspecified" },
+        { "iri": "gloss:srcstatus/related",         "label": "related" },
+        { "iri": "gloss:srcstatus/not_equal",       "label": "not_equal" },
+        { "iri": "gloss:srcstatus/restyled",        "label": "restyled" },
+        { "iri": "gloss:srcstatus/adapted",         "label": "adapted" }
+      ]
+    },
+    {
+      "schemeIri": "gloss:srctype-scheme",
+      "label": "Source type",
+      "terms": [
+        { "iri": "gloss:srctype/authoritative", "label": "authoritative" },
+        { "iri": "gloss:srctype/lineage",       "label": "lineage" }
+      ]
+    },
+    {
+      "schemeIri": "gloss:datetype-scheme",
+      "label": "Date type",
+      "terms": [
+        { "iri": "gloss:datetype/accepted",    "label": "accepted" },
+        { "iri": "gloss:datetype/amended",     "label": "amended" },
+        { "iri": "gloss:datetype/retired",     "label": "retired" },
+        { "iri": "gloss:datetype/deprecated",  "label": "deprecated" },
+        { "iri": "gloss:datetype/superseded",  "label": "superseded" }
+      ]
+    },
+    {
+      "schemeIri": "gloss:rel-scheme",
+      "label": "Relationship type",
+      "_source": "glossarist-ruby config.yml related_concept.type — 52 types",
+      "terms": [
+        { "iri": "gloss:rel/deprecates",                 "label": "deprecates",                 "group": "lifecycle" },
+        { "iri": "gloss:rel/deprecated_by",              "label": "deprecated_by",              "group": "lifecycle" },
+        { "iri": "gloss:rel/supersedes",                 "label": "supersedes",                 "group": "lifecycle" },
+        { "iri": "gloss:rel/superseded_by",              "label": "superseded_by",              "group": "lifecycle" },
+        { "iri": "gloss:rel/replaces",                   "label": "replaces",                   "group": "lifecycle" },
+        { "iri": "gloss:rel/replaced_by",                "label": "replaced_by",                "group": "lifecycle" },
+        { "iri": "gloss:rel/invalidates",                "label": "invalidates",                "group": "lifecycle" },
+        { "iri": "gloss:rel/invalidated_by",             "label": "invalidated_by",             "group": "lifecycle" },
+        { "iri": "gloss:rel/retires",                    "label": "retires",                    "group": "lifecycle" },
+        { "iri": "gloss:rel/retired_by",                 "label": "retired_by",                 "group": "lifecycle" },
+        { "iri": "gloss:rel/narrower",                   "label": "narrower",                   "group": "hierarchical" },
+        { "iri": "gloss:rel/broader",                    "label": "broader",                    "group": "hierarchical" },
+        { "iri": "gloss:rel/broader_generic",            "label": "broader_generic",            "group": "hierarchical" },
+        { "iri": "gloss:rel/narrower_generic",           "label": "narrower_generic",           "group": "hierarchical" },
+        { "iri": "gloss:rel/broader_partitive",          "label": "broader_partitive",          "group": "hierarchical" },
+        { "iri": "gloss:rel/narrower_partitive",         "label": "narrower_partitive",         "group": "hierarchical" },
+        { "iri": "gloss:rel/has_part",                   "label": "has_part",                   "group": "hierarchical" },
+        { "iri": "gloss:rel/is_part_of",                 "label": "is_part_of",                 "group": "hierarchical" },
+        { "iri": "gloss:rel/broader_instantial",         "label": "broader_instantial",         "group": "hierarchical" },
+        { "iri": "gloss:rel/narrower_instantial",        "label": "narrower_instantial",        "group": "hierarchical" },
+        { "iri": "gloss:rel/instance_of",                "label": "instance_of",                "group": "hierarchical" },
+        { "iri": "gloss:rel/has_instance",               "label": "has_instance",               "group": "hierarchical" },
+        { "iri": "gloss:rel/equivalent",                 "label": "equivalent",                 "group": "equivalence" },
+        { "iri": "gloss:rel/exact_match",                "label": "exact_match",                "group": "equivalence" },
+        { "iri": "gloss:rel/close_match",                "label": "close_match",                "group": "equivalence" },
+        { "iri": "gloss:rel/broad_match",                "label": "broad_match",                "group": "equivalence" },
+        { "iri": "gloss:rel/narrow_match",               "label": "narrow_match",               "group": "equivalence" },
+        { "iri": "gloss:rel/related_match",              "label": "related_match",              "group": "equivalence" },
+        { "iri": "gloss:rel/compare",                    "label": "compare",                    "group": "comparative" },
+        { "iri": "gloss:rel/contrast",                   "label": "contrast",                   "group": "comparative" },
+        { "iri": "gloss:rel/see",                        "label": "see",                        "group": "associative" },
+        { "iri": "gloss:rel/references",                 "label": "references",                 "group": "associative" },
+        { "iri": "gloss:rel/related_concept",            "label": "related_concept",            "group": "associative" },
+        { "iri": "gloss:rel/related_concept_broader",    "label": "related_concept_broader",    "group": "associative" },
+        { "iri": "gloss:rel/related_concept_narrower",   "label": "related_concept_narrower",   "group": "associative" },
+        { "iri": "gloss:rel/sequentially_related",       "label": "sequentially_related",       "group": "associative" },
+        { "iri": "gloss:rel/spatially_related",          "label": "spatially_related",          "group": "associative" },
+        { "iri": "gloss:rel/temporally_related",         "label": "temporally_related",         "group": "associative" },
+        { "iri": "gloss:rel/homograph",                  "label": "homograph",                  "group": "lexical" },
+        { "iri": "gloss:rel/false_friend",               "label": "false_friend",               "group": "lexical" },
+        { "iri": "gloss:rel/has_concept",                "label": "has_concept",                "group": "register" },
+        { "iri": "gloss:rel/is_concept_of",              "label": "is_concept_of",              "group": "register" },
+        { "iri": "gloss:rel/has_definition",             "label": "has_definition",             "group": "register" },
+        { "iri": "gloss:rel/definition_of",              "label": "definition_of",              "group": "register" },
+        { "iri": "gloss:rel/inherits",                   "label": "inherits",                   "group": "versioning" },
+        { "iri": "gloss:rel/inherited_by",               "label": "inherited_by",               "group": "versioning" },
+        { "iri": "gloss:rel/has_version",                "label": "has_version",                "group": "versioning" },
+        { "iri": "gloss:rel/version_of",                 "label": "version_of",                 "group": "versioning" },
+        { "iri": "gloss:rel/current_version",            "label": "current_version",            "group": "versioning" },
+        { "iri": "gloss:rel/current_version_of",         "label": "current_version_of",         "group": "versioning" },
+        { "iri": "gloss:rel/derived",                    "label": "derived",                    "group": "legacy" }
+      ]
+    }
+  ]
+}
