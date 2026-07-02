@@ -24,7 +24,28 @@ function desigSlug(designation: string, index: number): string {
 
 function coerceToDateTime(value: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00:00Z`;
+  if (/^\d{4}-\d{2}$/.test(value)) return `${value}-01T00:00:00Z`;
+  if (/^\d{4}$/.test(value)) return `${value}-01-01T00:00:00Z`;
   return value;
+}
+
+interface DetailedDefinitionLike {
+  readonly content: string;
+  readonly examples?: readonly DetailedDefinitionLike[];
+  readonly sources?: readonly ConceptSource[];
+}
+
+function detailedDefinitionTriples(def: DetailedDefinitionLike, lang: string): RdfTriple[] {
+  const out: RdfTriple[] = [
+    triple(RDF.type, iri(GLOSS.DetailedDefinition)),
+    triple(RDF.value, lit(def.content, { lang })),
+  ];
+  for (const ex of def.examples ?? []) {
+    if (ex.content) {
+      out.push(triple(GLOSS.hasExample, blank(...detailedDefinitionTriples(ex, lang))));
+    }
+  }
+  return out;
 }
 
 const STANDARDS_BODIES = new Set(['iso', 'iec', 'ieee', 'itu', 'iecdis']);
@@ -244,28 +265,19 @@ function emitLocalized(
   for (const def of lc.definitions) {
     if (def.content) {
       w.literal(SKOS.definition, def.content, { lang });
-      w.blank(GLOSS.hasDefinition, [
-        triple(RDF.type, iri(GLOSS.DetailedDefinition)),
-        triple(RDF.value, lit(def.content, { lang })),
-      ]);
+      w.blank(GLOSS.hasDefinition, detailedDefinitionTriples(def, lang));
     }
   }
 
   for (const n of lc.notes) {
     if (n.content) {
-      w.blank(GLOSS.hasNote, [
-        triple(RDF.type, iri(GLOSS.DetailedDefinition)),
-        triple(RDF.value, lit(n.content, { lang })),
-      ]);
+      w.blank(GLOSS.hasNote, detailedDefinitionTriples(n, lang));
     }
   }
 
   for (const e of lc.examples) {
     if (e.content) {
-      w.blank(GLOSS.hasExample, [
-        triple(RDF.type, iri(GLOSS.DetailedDefinition)),
-        triple(RDF.value, lit(e.content, { lang })),
-      ]);
+      w.blank(GLOSS.hasExample, detailedDefinitionTriples(e, lang));
     }
   }
 
@@ -287,15 +299,7 @@ function emitLocalized(
       classId: GLOSS.NonVerbalRep,
     });
     w.iri(GLOSS.hasNonVerbalRepresentation, emission.nvrUri);
-    for (const t of emission.triples) {
-      if (t.object.kind === 'iri') {
-        nvrW.iri(t.predicate, t.object.value);
-      } else if (t.object.kind === 'literal') {
-        nvrW.literal(t.predicate, t.object.value, { lang: t.object.lang, datatype: t.object.datatype });
-      } else {
-        nvrW.blank(t.predicate, t.object.triples);
-      }
-    }
+    nvrW.addTriples(emission.triples);
   }
 
   for (const s of lc.sources) {
@@ -330,16 +334,32 @@ type NonVerbalRepEmission =
   | { readonly kind: 'blank'; readonly triples: RdfTriple[] }
   | { readonly kind: 'uri'; readonly nvrUri: string; readonly triples: RdfTriple[] };
 
+function nvrSlug(nvr: NonVerbRep, index: number): string {
+  const imageSrc = nvr.images?.find(i => i.src ?? false)?.src ?? undefined;
+  if (imageSrc) {
+    const basename = imageSrc.split('/').pop() ?? imageSrc;
+    const slug = basename.replace(/[^a-zA-Z0-9]/g, '_').replace(/^_+|_+$/g, '');
+    if (slug) return slug;
+  }
+  if (nvr.caption) {
+    const slug = (nvr.caption as string).replace(/[^a-zA-Z0-9]/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+    if (slug) return slug;
+  }
+  return `n${index + 1}`;
+}
+
 function nonVerbalRepEmission(nvr: NonVerbRep, lang: string, conceptUri: string, index: number): NonVerbalRepEmission {
   const imageSrc = nvr.images?.find(i => i.src ?? false)?.src ?? undefined;
   const caption = (nvr as any).caption ?? null;
-  const hasPrefLabel = !!caption;
+  const alt = (nvr as any).alt ?? null;
+  const description = (nvr as any).description ?? null;
+  const hasPrefLabel = !!caption || !!alt;
 
   if (!hasPrefLabel && !imageSrc) {
     return { kind: 'blank', triples: nonVerbalRepTriples(nvr, lang) };
   }
 
-  const nvrUri = `${conceptUri}/nvr/${index + 1}`;
+  const nvrUri = `${conceptUri}/nvr/${nvrSlug(nvr, index)}`;
   const out: RdfTriple[] = [triple(RDF.type, iri(GLOSS.NonVerbalRep))];
   if (nvr.type) {
     const desigClass = designationClassId(nvr.type);
@@ -347,17 +367,21 @@ function nonVerbalRepEmission(nvr: NonVerbRep, lang: string, conceptUri: string,
       out.push(triple(RDF.type, iri(desigClass)));
     }
   }
-  if (caption) {
+  const label = caption ?? alt;
+  if (label) {
     out.push(triple(SKOSXL.prefLabel, blank(
       triple(RDF.type, iri(SKOSXL.Label)),
-      triple(SKOSXL.literalForm, lit(caption, { lang })),
+      triple(SKOSXL.literalForm, lit(label, { lang })),
     )));
+  }
+  if (alt && alt !== caption) {
+    out.push(triple(GLOSS.altText, lit(alt, { lang })));
   }
   if (imageSrc) {
     out.push(triple(GLOSS.image, lit(imageSrc, { datatype: XSD.anyURI })));
   }
-  if ((nvr as any).description) {
-    out.push(triple(DCTERMS.description, lit((nvr as any).description, { lang })));
+  if (description) {
+    out.push(triple(DCTERMS.description, lit(description, { lang })));
   }
   const link = nvr.sources?.[0]?.origin?.link ?? null;
   if (link) {

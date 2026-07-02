@@ -517,6 +517,18 @@ gloss:NonVerbalRepShape a sh:NodeShape ;
     sh:maxCount 1 ;
   ] .
 
+# === B5: Section cascading — owl:TransitiveProperty ===
+
+gloss:hasChildSection a owl:TransitiveProperty, owl:ObjectProperty ;
+  rdfs:label "has child section"@en ;
+  rdfs:domain skos:Collection ;
+  rdfs:range skos:Collection .
+
+gloss:hasParentSection a owl:TransitiveProperty, owl:ObjectProperty ;
+  rdfs:label "has parent section"@en ;
+  rdfs:domain skos:Collection ;
+  rdfs:range skos:Collection .
+
 gloss:ReferenceShape a sh:NodeShape ;
   sh:targetClass gloss:Reference ;
   sh:or (

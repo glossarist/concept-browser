@@ -178,6 +178,33 @@ describe('emitDatasetGraph — J5 skos:Collection per section', () => {
     const ttl = writeTurtle(graph);
     expect(ttl).not.toMatch(/skos:Collection/);
   });
+
+  it('emits gloss:hasParentSection and gloss:hasChildSection for hierarchical sections', () => {
+    const root = `${DATASET_BASE}/test/section/3`;
+    const mid = `${DATASET_BASE}/test/section/3-1`;
+    const leaf = `${DATASET_BASE}/test/section/3-1-1`;
+    const input = makeInput({
+      sections: [
+        { collectionIri: root, title: 'Section 3', memberUris: [], childCollectionIris: [mid] },
+        { collectionIri: mid, title: 'Section 3.1', memberUris: [], parentCollectionIri: root, childCollectionIris: [leaf] },
+        { collectionIri: leaf, title: 'Section 3.1.1', memberUris: [], parentCollectionIri: mid },
+      ],
+    });
+    const graph = emitDatasetGraph(input);
+    const store = parseTurtle(writeTurtle(graph));
+
+    const midChildren = store.getObjects(mid, 'https://www.glossarist.org/ontologies/hasChildSection', null).map(q => q.value);
+    expect(midChildren).toContain(leaf);
+
+    const midParent = store.getObjects(mid, 'https://www.glossarist.org/ontologies/hasParentSection', null).map(q => q.value);
+    expect(midParent).toContain(root);
+
+    const leafParent = store.getObjects(leaf, 'https://www.glossarist.org/ontologies/hasParentSection', null).map(q => q.value);
+    expect(leafParent).toContain(mid);
+
+    const rootParent = store.getObjects(root, 'https://www.glossarist.org/ontologies/hasParentSection', null);
+    expect(rootParent.length).toBe(0);
+  });
 });
 
 describe('emitDatasetGraph — JSON-LD output', () => {

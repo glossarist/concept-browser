@@ -28,6 +28,8 @@ export interface DatasetSection {
   readonly collectionIri: string;
   readonly title: string;
   readonly memberUris: readonly string[];
+  readonly parentCollectionIri?: string;
+  readonly childCollectionIris?: readonly string[];
 }
 
 export function emitDatasetGraph(input: DatasetEmitterInput): RdfGraph {
@@ -80,6 +82,12 @@ export function emitDatasetGraph(input: DatasetEmitterInput): RdfGraph {
     collectionW.literal(DCTERMS.title, section.title);
     for (const member of section.memberUris) {
       collectionW.iri(SKOS.member, member);
+    }
+    if (section.parentCollectionIri) {
+      collectionW.iri('gloss:hasParentSection', section.parentCollectionIri);
+    }
+    for (const child of section.childCollectionIris ?? []) {
+      collectionW.iri('gloss:hasChildSection', child);
     }
   }
 

@@ -120,7 +120,7 @@ describe('useRdfDocument — non-verbal representation emission (WS K)', () => {
   it('emits gloss:hasNonVerbalRepresentation for NVR with caption (K4 URI form)', () => {
     const c = ref(makeConceptWithNonVerbal());
     const { turtle } = useRdfDocument(() => c.value, () => c.value.uri ?? '');
-    expect(turtle.value).toMatch(/gloss:hasNonVerbalRepresentation <[^>]+\/nvr\/1>/);
+    expect(turtle.value).toMatch(/gloss:hasNonVerbalRepresentation <[^>]+\/nvr\/[^>]+>/);
     expect(turtle.value).toMatch(/(a|rdf:type) gloss:NonVerbalRep/);
     expect(turtle.value).toMatch(/skosxl:prefLabel \[/);
   });
@@ -145,7 +145,7 @@ describe('useRdfDocument — non-verbal representation emission (WS K)', () => {
     const refRaw = lcNode['gloss:hasNonVerbalRepresentation'];
     const refArr = Array.isArray(refRaw) ? refRaw : [refRaw];
     expect(refArr.length).toBeGreaterThanOrEqual(1);
-    expect(refArr[0]['@id']).toMatch(/\/nvr\/1$/);
+    expect(refArr[0]['@id']).toMatch(/\/nvr\/[^/]+$/);
   });
 
   it('includes non-verbal reps in the sections view', () => {
