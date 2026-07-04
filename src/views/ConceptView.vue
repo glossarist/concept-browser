@@ -52,7 +52,9 @@ const concept = computed(() => store.currentConcept);
 const manifest = computed(() => store.currentManifest);
 const edges = computed(() => store.conceptEdges);
 const adjacent = ref({ prev: null as string | null, next: null as string | null });
-const viewMode = ref<'detail' | 'sphere'>('detail');
+const viewMode = ref<'detail' | 'sphere'>(
+  router.currentRoute.value.query.view === 'sphere' ? 'sphere' : 'detail'
+);
 
 /* When the user clicks a card in the sphere, we store the navigation
    payload here. The concept loads via store.viewConcept (without
@@ -111,10 +113,12 @@ function onSphereNavigate(payload: { registerId: string; conceptId: string }) {
 function switchToSphere() {
   viewMode.value = 'sphere';
   sphereFocusPayload.value = null;
+  router.replace({ query: { ...router.currentRoute.value.query, view: 'sphere' } });
 }
 
 function switchToDetail() {
   viewMode.value = 'detail';
+  router.replace({ query: { ...router.currentRoute.value.query, view: 'detail' } });
   /* Commit the URL if the sphere navigated to a different concept.
      This triggers loadConcept → the Detail view shows the right concept. */
   if (sphereFocusPayload.value) {
