@@ -283,132 +283,128 @@ const activeSectionId = computed(() => {
 
           <!-- Group entries -->
           <div v-if="isGroupExpanded(group.id)" class="space-y-1" :class="group.label ? 'ml-1' : ''">
-            <!-- LINEAGE series: timeline-style entries -->
-            <template v-if="group.kind === 'lineage'">
-              <div class="series-timeline">
-                <button
-                  v-for="ds in group.entries"
-                  :key="ds.id"
-                  @click="goToDataset(ds.id)"
-                  class="series-entry w-full text-left flex items-center gap-2 pl-6 pr-3 py-1.5 rounded-md text-sm border-l-2 transition-all duration-150"
-                  :class="currentDataset === ds.id
-                    ? 'bg-amber-50/70 dark:bg-amber-400/10 border-l-[3px] text-ink-900 dark:text-ink-50 font-semibold'
-                    : 'border-transparent text-ink-600 dark:text-ink-300 hover:bg-ink-50 dark:hover:bg-ink-700/40 hover:text-ink-900 dark:hover:text-ink-50'"
-                  :style="currentDataset === ds.id ? { borderLeftColor: 'var(--gold-accent, #B8935A)' } : {}"
-                >
-                  <span class="flex-1 truncate text-[13.5px] font-medium leading-snug">{{ ds.ref || ds.title || ds.id }}</span>
-                  <span
-                    v-if="ds.status && ds.status !== 'valid'"
-                    class="text-[9px] uppercase tracking-wide italic text-ink-400 dark:text-ink-400"
-                  >{{ ds.status }}</span>
-                  <span
-                    v-if="ds.isCurrent"
-                    class="current-star flex-shrink-0"
-                    title="Current edition"
-                  >✦</span>
-                </button>
-              </div>
-            </template>
-
-            <!-- REGULAR group: original entry style with expansion -->
-            <template v-else>
-              <div
-                v-for="ds in group.entries"
-                :key="ds.id"
-                class="rounded-lg transition-all duration-150"
-                :class="currentDataset === ds.id ? 'bg-surface' : ''"
+            <!-- Per-entry rendering: button is kind-specific, expansion is shared (DRY/MECE) -->
+            <div
+              v-for="ds in group.entries"
+              :key="ds.id"
+              class="rounded-lg transition-all duration-150"
+              :class="currentDataset === ds.id ? 'bg-surface' : ''"
+            >
+              <!-- LINEAGE: compact timeline button -->
+              <button
+                v-if="group.kind === 'lineage'"
+                @click="goToDataset(ds.id)"
+                class="series-entry w-full text-left flex items-center gap-2 pl-6 pr-3 py-1.5 rounded-md text-sm border-l-2 transition-all duration-150"
+                :class="currentDataset === ds.id
+                  ? 'bg-amber-50/70 dark:bg-amber-400/10 border-l-[3px] text-ink-900 dark:text-ink-50 font-semibold'
+                  : 'border-transparent text-ink-600 dark:text-ink-300 hover:bg-ink-50 dark:hover:bg-ink-700/40 hover:text-ink-900 dark:hover:text-ink-50'"
+                :style="currentDataset === ds.id ? { borderLeftColor: 'var(--gold-accent, #B8935A)' } : {}"
               >
-                <button
-                  @click="goToDataset(ds.id)"
-                  class="w-full text-left px-3 py-2 rounded-lg text-sm border-l-2"
-                  :class="[
-                    currentDataset === ds.id
-                      ? 'text-ink-800 dark:text-ink-50'
-                      : 'border-transparent text-ink-600 dark:text-ink-300 hover:bg-ink-50 dark:hover:bg-ink-700 hover:text-ink-800 dark:hover:text-ink-50'
-                  ]"
-                  :style="currentDataset === ds.id ? { borderLeftColor: getColor(ds.id), borderLeftWidth: '2px' } : {}"
-                >
-                  <div class="font-medium truncate leading-snug">{{ localizedDatasetField(ds.id, 'title', ds.title) }}</div>
-                  <div v-if="ds.loaded" class="text-xs mt-0.5" :class="currentDataset === ds.id ? 'text-ink-400 dark:text-ink-300' : 'text-ink-300 dark:text-ink-400'">
-                    {{ ds.conceptCount.toLocaleString() }} {{ t('home.concepts').toLowerCase() }}
-                  </div>
-                </button>
+                <span class="flex-1 truncate text-[13.5px] font-medium leading-snug">{{ ds.ref || ds.title || ds.id }}</span>
+                <span
+                  v-if="ds.status && ds.status !== 'valid'"
+                  class="text-[9px] uppercase tracking-wide italic text-ink-400 dark:text-ink-400"
+                >{{ ds.status }}</span>
+                <span
+                  v-if="ds.isCurrent"
+                  class="current-star flex-shrink-0"
+                  title="Current edition"
+                >✦</span>
+              </button>
 
-                <!-- Expanded dataset: sub-pages + sections + provenance -->
-                <div v-if="currentDataset === ds.id && (filteredDatasetPages.length || provenance.owner)" class="px-2 pb-2">
-                  <nav v-if="filteredDatasetPages.length" class="space-y-0.5 mt-1">
-                    <router-link
-                      v-for="page in filteredDatasetPages"
-                      :key="page.route || 'concepts'"
-                      :to="pageRoute(page)"
-                      class="btn-ghost w-full text-left flex items-center gap-2 text-sm"
-                      :class="isActive(page) ? 'active' : ''"
-                      @click="closeMobile"
-                    >
-                      <NavIcon :name="page.icon" />
-                      {{ navTitle(page) }}
-                    </router-link>
-                  </nav>
+              <!-- DEFAULT/OTHER: standard entry button -->
+              <button
+                v-else
+                @click="goToDataset(ds.id)"
+                class="w-full text-left px-3 py-2 rounded-lg text-sm border-l-2"
+                :class="[
+                  currentDataset === ds.id
+                    ? 'text-ink-800 dark:text-ink-50'
+                    : 'border-transparent text-ink-600 dark:text-ink-300 hover:bg-ink-50 dark:hover:bg-ink-700 hover:text-ink-800 dark:hover:text-ink-50'
+                ]"
+                :style="currentDataset === ds.id ? { borderLeftColor: getColor(ds.id), borderLeftWidth: '2px' } : {}"
+              >
+                <div class="font-medium truncate leading-snug">{{ localizedDatasetField(ds.id, 'title', ds.title) }}</div>
+                <div v-if="ds.loaded" class="text-xs mt-0.5" :class="currentDataset === ds.id ? 'text-ink-400 dark:text-ink-300' : 'text-ink-300 dark:text-ink-400'">
+                  {{ ds.conceptCount.toLocaleString() }} {{ t('home.concepts').toLowerCase() }}
+                </div>
+              </button>
 
-                  <!-- Sections tree -->
-                  <div v-if="getDatasetSections(ds.id).length" class="mt-2 pt-2 border-t border-ink-100/60">
-                    <button @click="toggleSectionNode(ds.id + '-sections')"
-                      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] uppercase tracking-wide text-ink-400 hover:text-ink-600 hover:bg-ink-50 transition-colors"
+              <!-- SHARED expansion content: sub-pages + sections + provenance.
+                   Appears for the active dataset in ALL group kinds (DRY). -->
+              <div v-if="currentDataset === ds.id && (filteredDatasetPages.length || provenance.owner)" class="px-2 pb-2">
+                <nav v-if="filteredDatasetPages.length" class="space-y-0.5 mt-1">
+                  <router-link
+                    v-for="page in filteredDatasetPages"
+                    :key="page.route || 'concepts'"
+                    :to="pageRoute(page)"
+                    class="btn-ghost w-full text-left flex items-center gap-2 text-sm"
+                    :class="isActive(page) ? 'active' : ''"
+                    @click="closeMobile"
+                  >
+                    <NavIcon :name="page.icon" />
+                    {{ navTitle(page) }}
+                  </router-link>
+                </nav>
+
+                <!-- Sections tree -->
+                <div v-if="getDatasetSections(ds.id).length" class="mt-2 pt-2 border-t border-ink-100/60">
+                  <button @click="toggleSectionNode(ds.id + '-sections')"
+                    class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] uppercase tracking-wide text-ink-400 hover:text-ink-600 hover:bg-ink-50 transition-colors"
+                  >
+                    <span class="w-3 text-[10px]">{{ expandedSectionNodes.has(ds.id + '-sections') ? '▾' : '▸' }}</span>
+                    <span class="flex-1 text-left">{{ t('nav.sections') }}</span>
+                    <span class="badge text-[9px] bg-amber-50 text-amber-600 px-1 py-0.5">{{ getDatasetSections(ds.id).length }}</span>
+                  </button>
+                  <div v-if="expandedSectionNodes.has(ds.id + '-sections')" class="mt-0.5 max-h-64 overflow-y-auto">
+                    <button
+                      @click="clearSectionFilter()"
+                      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
+                      :class="!activeSectionId ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-500 hover:bg-ink-50'"
                     >
-                      <span class="w-3 text-[10px]">{{ expandedSectionNodes.has(ds.id + '-sections') ? '▾' : '▸' }}</span>
-                      <span class="flex-1 text-left">{{ t('nav.sections') }}</span>
-                      <span class="badge text-[9px] bg-amber-50 text-amber-600 px-1 py-0.5">{{ getDatasetSections(ds.id).length }}</span>
+                      <span class="w-3 text-ink-200">&#183;</span>
+                      <span class="flex-1 text-left">{{ t('dataset.all') }}</span>
                     </button>
-                    <div v-if="expandedSectionNodes.has(ds.id + '-sections')" class="mt-0.5 max-h-64 overflow-y-auto">
-                      <button
-                        @click="clearSectionFilter()"
+                    <template v-for="section in getDatasetSections(ds.id)" :key="section.id">
+                      <button @click="goToSection(ds.id, 'section-' + section.id)"
                         class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
-                        :class="!activeSectionId ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-500 hover:bg-ink-50'"
+                        :class="activeSectionId === 'section-' + section.id ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-500 hover:bg-ink-50'"
                       >
-                        <span class="w-3 text-ink-200">&#183;</span>
-                        <span class="flex-1 text-left">{{ t('dataset.all') }}</span>
+                        <span v-if="section.children?.length" class="text-[10px] text-ink-300 w-3 cursor-pointer" @click.stop="toggleSectionNode(ds.id + '-s-' + section.id)">{{ expandedSectionNodes.has(ds.id + '-s-' + section.id) ? '▾' : '▸' }}</span>
+                        <span v-else class="w-3 text-ink-200">&#183;</span>
+                        <span class="flex-1 text-left truncate">{{ sectionDisplay(section) }}</span>
                       </button>
-                      <template v-for="section in getDatasetSections(ds.id)" :key="section.id">
-                        <button @click="goToSection(ds.id, 'section-' + section.id)"
+                      <div v-if="section.children?.length && expandedSectionNodes.has(ds.id + '-s-' + section.id)" class="ml-3">
+                        <button v-for="child in section.children" :key="child.id"
+                          @click="goToSection(ds.id, 'section-' + child.id)"
                           class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
-                          :class="activeSectionId === 'section-' + section.id ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-500 hover:bg-ink-50'"
+                          :class="activeSectionId === 'section-' + child.id ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-400 hover:bg-ink-50'"
                         >
-                          <span v-if="section.children?.length" class="text-[10px] text-ink-300 w-3 cursor-pointer" @click.stop="toggleSectionNode(ds.id + '-s-' + section.id)">{{ expandedSectionNodes.has(ds.id + '-s-' + section.id) ? '▾' : '▸' }}</span>
-                          <span v-else class="w-3 text-ink-200">&#183;</span>
-                          <span class="flex-1 text-left truncate">{{ sectionDisplay(section) }}</span>
+                          <span class="w-3 text-ink-200">&#183;</span>
+                          <span class="flex-1 text-left truncate">{{ sectionDisplay(child) }}</span>
                         </button>
-                        <div v-if="section.children?.length && expandedSectionNodes.has(ds.id + '-s-' + section.id)" class="ml-3">
-                          <button v-for="child in section.children" :key="child.id"
-                            @click="goToSection(ds.id, 'section-' + child.id)"
-                            class="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors"
-                            :class="activeSectionId === 'section-' + child.id ? 'bg-ink-800/8 text-blue-700 font-medium' : 'text-ink-400 hover:bg-ink-50'"
-                          >
-                            <span class="w-3 text-ink-200">&#183;</span>
-                            <span class="flex-1 text-left truncate">{{ sectionDisplay(child) }}</span>
-                          </button>
-                        </div>
-                      </template>
-                    </div>
+                      </div>
+                    </template>
                   </div>
+                </div>
 
-                  <div v-if="provenance.owner" class="mt-3 pt-3 border-t border-ink-100/60">
-                    <div class="text-[11px] text-ink-300 space-y-1.5 px-1">
-                      <div v-if="provenance.ref" class="text-xs font-semibold text-ink-700">
-                        {{ provenance.ref }}
-                      </div>
-                      <div class="flex items-center gap-1">
-                        <span class="text-ink-400">{{ t('sidebar.publishedBy') }}</span>
-                        <a v-if="provenance.ownerUrl" :href="provenance.ownerUrl" target="_blank" rel="noopener" class="concept-link font-medium">{{ provenance.owner }}</a>
-                        <span v-else class="text-ink-600 font-medium">{{ provenance.owner }}</span>
-                      </div>
-                      <div v-if="provenance.sourceRepo">
-                        <a :href="provenance.sourceRepo" target="_blank" rel="noopener" class="concept-link">{{ t('sidebar.viewSource') }}</a>
-                      </div>
+                <div v-if="provenance.owner" class="mt-3 pt-3 border-t border-ink-100/60">
+                  <div class="text-[11px] text-ink-300 space-y-1.5 px-1">
+                    <div v-if="provenance.ref" class="text-xs font-semibold text-ink-700">
+                      {{ provenance.ref }}
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <span class="text-ink-400">{{ t('sidebar.publishedBy') }}</span>
+                      <a v-if="provenance.ownerUrl" :href="provenance.ownerUrl" target="_blank" rel="noopener" class="concept-link font-medium">{{ provenance.owner }}</a>
+                      <span v-else class="text-ink-600 font-medium">{{ provenance.owner }}</span>
+                    </div>
+                    <div v-if="provenance.sourceRepo">
+                      <a :href="provenance.sourceRepo" target="_blank" rel="noopener" class="concept-link">{{ t('sidebar.viewSource') }}</a>
                     </div>
                   </div>
                 </div>
               </div>
-            </template>
+            </div>
           </div>
         </div>
       </template>
