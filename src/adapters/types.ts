@@ -64,7 +64,7 @@ export interface Manifest {
   lastUpdated: string;
   sourceRepo: string;
   chunkSize: number;
-  color?: string;
+  color?: string | { light: string; dark: string };
   shortname?: string;
   languageOrder?: string[];
   ref?: string;
@@ -109,7 +109,7 @@ export interface DatasetSummary {
   languages: string[];
   owner: string;
   tags: string[];
-  color?: string;
+  color?: string | { light: string; dark: string };
 }
 
 export interface DatasetRegistry {

@@ -64,7 +64,7 @@ export function useDsStyle() {
 
     const store = useVocabularyStore();
     const ds = store.datasetList.find(d => d.id === registerId);
-    const declared = ds?.manifest?.color as DatasetColorSpec | undefined;
+    const declared = ds?.manifest?.color;
     const fallback = paletteColor(store.datasetList.findIndex(d => d.id === registerId));
     const style = makeDsStyle(declared, fallback);
     cache.set(registerId, style);
