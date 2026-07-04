@@ -1,0 +1,36 @@
+{
+  "_comment": "Single source of truth for colorable semantic categories. Each entry has explicit light + dark variants. Override per-deployment via site-config.json `colors` block.",
+  "relationshipCategory": {
+    "lifecycle":      { "light": "#B43A2E", "dark": "#F87171" },
+    "mapping":        { "light": "#0E7C5A", "dark": "#34D399" },
+    "hierarchical":   { "light": "#1E5FA0", "dark": "#60A5FA" },
+    "associative":    { "light": "#6B4FBB", "dark": "#A78BFA" },
+    "comparative":    { "light": "#B57A0E", "dark": "#FBBF24" },
+    "definitional":   { "light": "#1F7A8C", "dark": "#22D3EE" },
+    "spatiotemporal": { "light": "#4A6E7A", "dark": "#67E8F9" },
+    "lexical":        { "light": "#B5377B", "dark": "#F472B6" },
+    "designation":    { "light": "#6B6E7D", "dark": "#9CA3AF" }
+  },
+  "relationshipType": {
+    "see":            { "light": "#D946A8", "dark": "#F9A8D4" },
+    "supersedes":     { "light": "#B43A2E", "dark": "#F87171" },
+    "superseded_by":  { "light": "#8C2A1F", "dark": "#FCA5A5" },
+    "references":     { "light": "#6B4FBB", "dark": "#A78BFA" },
+    "compare":        { "light": "#B57A0E", "dark": "#FBBF24" },
+    "contrast":       { "light": "#7C2D12", "dark": "#FB923C" }
+  },
+  "conceptStatus": {
+    "valid":      { "light": "#059669", "dark": "#34D399" },
+    "superseded": { "light": "#B57A0E", "dark": "#FBBF24" },
+    "withdrawn":  { "light": "#6B6E7D", "dark": "#9CA3AF" },
+    "draft":      { "light": "#6366F1", "dark": "#818CF8" }
+  },
+  "groupKind": {
+    "lineage":    { "light": "#B8935A", "dark": "#D4AF6E" },
+    "topic":      { "light": "#1E5FA0", "dark": "#60A5FA" },
+    "family":     { "light": "#6B4FBB", "dark": "#A78BFA" },
+    "collection": { "light": "#0E7C5A", "dark": "#34D399" },
+    "default":    { "light": "#6B6E7D", "dark": "#9CA3AF" }
+  },
+  "_note": "Per-relation-type colors default to the category color. Per-dataset colors default to the palette in src/utils/dataset-style.ts. Both can be overridden via site-config.json colors.dataset[id] and colors.relationshipType[type]."
+}

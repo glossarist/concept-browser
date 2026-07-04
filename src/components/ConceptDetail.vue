@@ -24,6 +24,7 @@ import { useSiteConfig } from '../config/use-site-config';
 import ConceptTimeline from './ConceptTimeline.vue';
 import ConceptRdfView from './ConceptRdfView.vue';
 import FormatDownloads from './FormatDownloads.vue';
+import ConceptEditionRail from './ConceptEditionRail.vue';
 import NonVerbalRepDisplay from './NonVerbalRepDisplay.vue';
 import NonVerbalList from './non-verbal/NonVerbalList.vue';
 import CitationDisplay from './CitationDisplay.vue';
@@ -553,6 +554,13 @@ const nonVerbalReps = computed(() => {
               </div>
             </Transition>
           </div>
+
+          <!-- Edition series — supersession chain across vocabulary editions -->
+          <ConceptEditionRail
+            :concept-uri="conceptUri(props.concept, props.registerId, props.manifest.uriBase)"
+            :register-id="registerId"
+            :concept-id="conceptId"
+          />
 
           <!-- Domains -->
           <div v-if="conceptDomains.length" class="card p-5">

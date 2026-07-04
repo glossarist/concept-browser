@@ -4,9 +4,13 @@
  * RELATIONSHIP_CATEGORIES, INVERSE_RELATIONSHIPS, and the category lookup
  * map are all computed from `taxonomies.json` at module load time.
  * Adding a new relationship type requires only a taxonomy edit — no code changes.
+ *
+ * Color pairs (light + dark) come from `data/colors.json` via the color-theme
+ * module, merged with per-deployment overrides from `site-config.json`.
  */
 import { ontology } from '../adapters/ontology-registry';
 import type { TaxonomyCategory } from '../adapters/ontology-registry';
+import { createColorTheme, type ColorPair, type ColorTheme } from './color-theme';
 
 export interface RelationshipCategory {
   id: string;
@@ -94,4 +98,30 @@ export function relationshipLabel(type: string): string {
 
 export function relationshipDefinition(type: string): string | null {
   return ontology.getDefinition('relationshipType', type);
+}
+
+// ── Color pairs (light + dark) ────────────────────────────────────────────
+//
+// `createColorTheme(undefined)` returns the default theme (no per-deployment
+// overrides). Components that need overrides should construct their own theme
+// via `useSiteConfig()` + `createColorTheme(config.colors)`.
+
+const defaultTheme: ColorTheme = createColorTheme(undefined);
+
+/** Returns the color pair for a relationship type, optionally given a known
+ *  category id (skips a taxonomy lookup when the caller already knows it). */
+export function colorPairForType(type: string, categoryId?: string): ColorPair {
+  const concept = ontology.getConcept('relationshipType', type);
+  const cat = categoryId ?? concept?.category;
+  return defaultTheme.relationshipTypeColor(type, cat);
+}
+
+/** Returns the color pair for a category id (e.g. "lifecycle"). */
+export function colorPairForCategory(categoryId: string): ColorPair {
+  return defaultTheme.relationshipCategoryColor(categoryId);
+}
+
+/** Construct a per-deployment theme that overrides defaults. */
+export function colorThemeForOverrides(siteColors: Parameters<typeof createColorTheme>[0]): ColorTheme {
+  return createColorTheme(siteColors);
 }

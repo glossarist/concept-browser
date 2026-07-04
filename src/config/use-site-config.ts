@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue';
-import type { PageConfig } from './types';
+import type { PageConfig, SiteColors } from './types';
 import type { DatasetGroup } from './types';
 import { locale } from '../i18n';
 
@@ -38,6 +38,7 @@ export interface RuntimeSiteConfig {
   pages?: PageConfig[];
   contributors?: { name: string; role?: string; organization?: string; url?: string; email?: string }[];
   copyright?: string;
+  colors?: SiteColors;
 }
 
 const siteConfig = ref<RuntimeSiteConfig | null>(null);
