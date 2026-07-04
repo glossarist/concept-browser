@@ -59,7 +59,7 @@ export function useColorTheme(): void {
     const theme = createColorTheme(siteColors);
 
     for (const ds of store.datasetList) {
-      const declared = ds.manifest?.color as DatasetColorSpec | undefined;
+      const declared = ds.manifest?.color;
       const pair = theme.datasetColor(ds.id, declared);
       const scopeId = `ds-color-scope-${ds.id.replace(/[^a-zA-Z0-9]/g, '_')}`;
       let scope = document.getElementById(scopeId);

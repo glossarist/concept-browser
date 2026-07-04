@@ -480,14 +480,6 @@
 .dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.15) !important; }
 .dark .text-red-600 { color: #fca5a5 !important; }
 
-/* ── Sidebar group labels (brand colors are too dark in dark mode) ── */
-.dark .sidebar-group-label {
-  filter: brightness(1.6);
-}
-.dark .sidebar-group-label:hover {
-  filter: brightness(1.4);
-}
-
 /* ── Gold accent that adapts to theme ── */
 :root {
   --gold-accent: #B8935A;

@@ -12,7 +12,7 @@ import { toSectionTree } from '../utils/section-tree';
 import { formatSectionLabel, sectionName as sectionLocalized } from '../utils/section-display';
 
 const OntologySidebarSection = defineAsyncComponent(() => import('./OntologySidebarSection.vue'));
-import { resolveGroupKind } from '../config/group-types';
+import { resolveGroupKind, groupTypeMeta } from '../config/group-types';
 import type { DatasetGroupKind } from '../config/types';
 import { useDatasetSeries } from '../composables/useDatasetSeries';
 const useDatasetSeriesRef = () => useDatasetSeries().series;
@@ -271,14 +271,17 @@ const activeSectionId = computed(() => {
       <!-- Grouped datasets -->
       <template v-if="hasGroups">
         <div v-for="group in groupedDatasetEntries" :key="group.id" class="mb-2">
-          <!-- Group header (skip for ungrouped) -->
+          <!-- Group header (skip for ungrouped) — shows kind glyph + accent -->
           <button
             v-if="group.label"
             @click="toggleGroup(group.id)"
             class="sidebar-group-label w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-ink-50 dark:hover:bg-ink-700/60"
+            :title="groupTypeMeta(group).description"
           >
             <span class="w-3 text-[10px] mt-0.5 flex-shrink-0 text-ink-300 dark:text-ink-400">{{ isGroupExpanded(group.id) ? '▾' : '▸' }}</span>
+            <span class="flex-shrink-0 text-sm" :style="{ color: `var(--group-kind-${group.kind}-light, var(--group-kind-default-light, #6B6E7D))` }">{{ groupTypeMeta(group).glyph }}</span>
             <span class="flex-1 text-left leading-snug text-ink-700 dark:text-ink-200 font-serif">{{ group.label }}</span>
+            <span class="text-[9px] uppercase tracking-wide text-ink-300 dark:text-ink-500 font-sans">{{ groupTypeMeta(group).label }}</span>
           </button>
 
           <!-- Group entries -->
