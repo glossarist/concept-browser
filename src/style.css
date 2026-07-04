@@ -482,10 +482,25 @@
 
 /* ── Sidebar group labels (brand colors are too dark in dark mode) ── */
 .dark .sidebar-group-label {
-  filter: brightness(2);
+  filter: brightness(1.6);
 }
 .dark .sidebar-group-label:hover {
-  filter: brightness(1.8);
+  filter: brightness(1.4);
+}
+
+/* ── Gold accent that adapts to theme ── */
+:root {
+  --gold-accent: #B8935A;
+  --gold-accent-deep: #8C6A3A;
+}
+.dark {
+  --gold-accent: #D4AF6E;
+  --gold-accent-deep: #B8935A;
+}
+
+/* Section labels brighter in dark mode */
+.dark .section-label {
+  color: theme('colors.ink.300') !important;
 }
 
 /* Scrollbar hide utility */

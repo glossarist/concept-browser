@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import { useDsStyle } from '../utils/dataset-style';
 import { useSiteConfig } from '../config/use-site-config';
 import { useI18n } from '../i18n';
+import HomeSeriesSection from '../components/HomeSeriesSection.vue';
 
 const store = useVocabularyStore();
 const router = useRouter();
@@ -74,6 +75,10 @@ function goToGraph() { router.push({ name: 'graph' }); }
       <p class="text-base text-ink-400 max-w-lg leading-relaxed">
         {{ localizedDescription || 'Explore standardized terminology datasets from ISO and IEC technical committees. Browse concepts, definitions, and cross-references across multilingual vocabularies.' }}
       </p>
+
+      <!-- Edition-series section (renders only if multi-edition series exist) -->
+      <HomeSeriesSection />
+
       <div class="flex flex-wrap gap-3 mt-7">
         <button @click="goToSearch" class="btn-primary flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>

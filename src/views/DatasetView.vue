@@ -7,6 +7,7 @@ import { useDatasetLoader } from '../composables/use-dataset-loader';
 import { FORMAT_LABELS } from '../config/types';
 import { langName, langLabel, sortLanguages } from '../utils/lang';
 import ConceptCard from '../components/ConceptCard.vue';
+import DatasetSeriesCard from '../components/DatasetSeriesCard.vue';
 import { useI18n, locale } from '../i18n';
 import { useSiteConfig } from '../config/use-site-config';
 import type { SectionNode, ConceptSummary } from '../adapters/types';
@@ -319,6 +320,11 @@ function clearSection() {
           {{ t('nav.about') }}
         </router-link>
       </div>
+    </div>
+
+    <!-- Edition series sidebar (only renders if this dataset belongs to a multi-edition series) -->
+    <div v-if="manifest" class="mb-6">
+      <DatasetSeriesCard :register-id="registerId" />
     </div>
 
     <!-- Downloads -->

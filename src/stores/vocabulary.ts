@@ -333,6 +333,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
     datasetList,
     discoverDatasets,
     loadDataset,
+    ensureEdgesForDataset,
     viewConcept,
     navigateToUri,
     searchAcrossDatasets,

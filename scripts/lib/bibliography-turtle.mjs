@@ -36,7 +36,10 @@ export function buildBibliographyTurtle(register, bibliographyJson, baseUri = 'h
 
   for (const entry of entries) {
     if (!entry.id || !entry.reference) continue;
-    const bibIri = `${datasetIri}bib/${entry.id}`;
+    /* Percent-encode the bib id when embedding it in an IRI — many
+       bibliography ids contain spaces or other reserved chars
+       (e.g. "ISO/IEC 17000:2020") which are forbidden in raw IRI form. */
+    const bibIri = `${datasetIri}bib/${encodeURIComponent(entry.id)}`;
     lines.push(`${ttlIri(bibIri)} a dcterms:BibliographicResource ;`);
     lines.push(`  dcterms:identifier ${ttlLit(entry.id)} ;`);
     lines.push(`  dcterms:bibliographicCitation ${ttlLit(entry.reference)} ;`);
