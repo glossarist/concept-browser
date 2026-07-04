@@ -181,6 +181,7 @@ export const DCTERMS = {
   replaces: 'dcterms:replaces',
   isReplacedBy: 'dcterms:isReplacedBy',
   bibliographicCitation: 'dcterms:bibliographicCitation',
+  subject: 'dcterms:subject',
   format: 'dcterms:format',
   publisher: 'dcterms:publisher',
   contactPoint: 'dcterms:contactPoint',
@@ -224,12 +225,21 @@ export const PROV = {
 
 export const DCAT = {
   Dataset: 'dcat:Dataset',
+  DatasetSeries: 'dcat:DatasetSeries',
+  Catalog: 'dcat:Catalog',
   Distribution: 'dcat:Distribution',
   distribution: 'dcat:distribution',
+  dataset: 'dcat:dataset',
+  hasVersion: 'dcat:hasVersion',
+  isVersionOf: 'dcat:isVersionOf',
+  hasCurrentVersion: 'gloss:hasCurrentVersion',
+  isCurrentVersionOf: 'gloss:isCurrentVersionOf',
   downloadURL: 'dcat:downloadURL',
   mediaType: 'dcat:mediaType',
   byteSize: 'dcat:byteSize',
   contactPoint: 'dcat:contactPoint',
+  theme: 'dcat:theme',
+  keyword: 'dcat:keyword',
 } as const;
 
 export const FOAF = {
