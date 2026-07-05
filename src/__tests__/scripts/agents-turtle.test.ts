@@ -15,14 +15,14 @@ const DCTERMS = 'http://purl.org/dc/terms/';
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
 
 describe('buildAgentsTurtle (mjs)', () => {
-  it('parses without errors', () => {
-    const ttl = buildAgentsTurtle([{ name: 'Ada Lovelace' }]);
+  it('parses without errors', async () => {
+    const ttl = await buildAgentsTurtle([{ name: 'Ada Lovelace' }]);
     const store = parse(ttl);
     expect(store.size).toBeGreaterThan(0);
   });
 
-  it('types each person as foaf:Person, prov:Person, prov:Agent', () => {
-    const ttl = buildAgentsTurtle([{ name: 'Ada Lovelace' }]);
+  it('types each person as foaf:Person, prov:Person, prov:Agent', async () => {
+    const ttl = await buildAgentsTurtle([{ name: 'Ada Lovelace' }]);
     const store = parse(ttl);
     const types = store.getObjects('https://glossarist.org/agent/ada-lovelace', RDF_TYPE, null).map(q => q.value);
     expect(types).toContain(`${FOAF}Person`);
@@ -30,8 +30,8 @@ describe('buildAgentsTurtle (mjs)', () => {
     expect(types).toContain(`${PROV}Agent`);
   });
 
-  it('records name, mailto mbox, role, and seeAlso', () => {
-    const ttl = buildAgentsTurtle([
+  it('records name, mailto mbox, role, and seeAlso', async () => {
+    const ttl = await buildAgentsTurtle([
       { name: 'Ada Lovelace', email: 'ada@example.org', role: 'Editor', url: 'https://example.org/ada' },
     ]);
     const store = parse(ttl);
@@ -42,8 +42,8 @@ describe('buildAgentsTurtle (mjs)', () => {
     expect(store.getObjects(iri, 'http://www.w3.org/2000/01/rdf-schema#seeAlso', null).map(q => q.value)).toContain('https://example.org/ada');
   });
 
-  it('creates a single prov:Organization per unique organization', () => {
-    const ttl = buildAgentsTurtle([
+  it('creates a single prov:Organization per unique organization', async () => {
+    const ttl = await buildAgentsTurtle([
       { name: 'Alice', organization: 'ISO' },
       { name: 'Bob',   organization: 'ISO' },
     ]);
@@ -53,8 +53,8 @@ describe('buildAgentsTurtle (mjs)', () => {
     expect(types).toContain(`${PROV}Organization`);
   });
 
-  it('emits only prefix declarations for an empty input', () => {
-    const ttl = buildAgentsTurtle([]);
+  it('emits only prefix declarations for an empty input', async () => {
+    const ttl = await buildAgentsTurtle([]);
     expect(ttl).toContain('@prefix foaf:');
     expect(ttl).not.toContain('<https://glossarist.org/agent/');
   });

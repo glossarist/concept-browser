@@ -91,7 +91,7 @@ function writeJson(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data));
 }
 
-function writeDatasetRdf(register, manifest, concepts, refMaps, opts) {
+async function writeDatasetRdf(register, manifest, concepts, refMaps, opts) {
   const uriBase = refMaps?.uriBase ?? 'https://glossarist.org';
   const datasetIri = `${uriBase}/${register}/`;
   const topConceptUris = concepts
@@ -122,7 +122,7 @@ function writeDatasetRdf(register, manifest, concepts, refMaps, opts) {
     },
   ];
 
-  const ttl = buildDatasetTurtle({
+  const ttl = await buildDatasetTurtle({
     datasetIri,
     registerId: register,
     title: manifest.title ?? register,
@@ -139,7 +139,7 @@ function writeDatasetRdf(register, manifest, concepts, refMaps, opts) {
   fs.writeFileSync(path.join(DATA, register, `${register}.ttl`), ttl);
 }
 
-function writeBuildActivity(conceptCount, datasetRegisters) {
+async function writeBuildActivity(conceptCount, datasetRegisters) {
   const runId = process.env.GITHUB_RUN_ID
     ? `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT ?? '1'}`
     : `local-${new Date().toISOString().replace(/[:.]/g, '-')}`;
@@ -150,7 +150,7 @@ function writeBuildActivity(conceptCount, datasetRegisters) {
   const pkgVersion = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).version;
   const agentIri = process.env.CI_BOT_AGENT_IRI ?? null;
 
-  const ttl = buildActivityTurtle({
+  const ttl = await buildActivityTurtle({
     runId,
     startedAt,
     endedAt,
@@ -1092,7 +1092,7 @@ async function processDataset(dir, register, opts) {
   writeJson(path.join(DATA, register, 'manifest.json'), manifest);
 
   // Dataset-level RDF (WS J2/J5): dcat:Dataset + skos:ConceptScheme + skos:Collection per section.
-  writeDatasetRdf(register, manifest, concepts, refMaps, opts);
+  await writeDatasetRdf(register, manifest, concepts, refMaps, opts);
 
   // Copy bibliography.yaml → bibliography.json
   const bibPath = path.join(sourceRoot, 'bibliography.yaml');
@@ -1610,14 +1610,14 @@ for (const [id, count] of Object.entries(counts)) {
   console.log(`  ${id}: ${count} concepts`);
 }
 
-writeBuildActivity(total, registry.map(r => r.id));
+await writeBuildActivity(total, registry.map(r => r.id));
 
 fs.writeFileSync(path.join(DATA, '_vocab.ttl'), await buildVocabularyTurtle());
 console.log('Emitted vocabulary graph: data/_vocab.ttl');
 
 const contributors = config.contributors ?? [];
 if (contributors.length > 0) {
-  fs.writeFileSync(path.join(DATA, 'agents.ttl'), buildAgentsTurtle(contributors));
+  fs.writeFileSync(path.join(DATA, 'agents.ttl'), await buildAgentsTurtle(contributors));
   console.log(`Emitted agents graph: data/agents.ttl (${contributors.length} contributors)`);
 }
 
@@ -1626,7 +1626,7 @@ for (const ds of registry) {
   const bibPath = path.join(DATA, ds.id, 'bibliography.json');
   if (fs.existsSync(bibPath)) {
     const bibJson = JSON.parse(fs.readFileSync(bibPath, 'utf8'));
-    const bibTtl = buildBibliographyTurtle(ds.id, bibJson);
+    const bibTtl = await buildBibliographyTurtle(ds.id, bibJson);
     fs.writeFileSync(path.join(DATA, ds.id, 'bib.ttl'), bibTtl);
   }
 }
@@ -1644,14 +1644,14 @@ const datasetVersions = registry.map(ds => ({
 }));
 
 if (datasetVersions.length > 0) {
-  const versionTtl = datasetVersions.map(v =>
+  const versionTtl = (await Promise.all(datasetVersions.map(v =>
     buildVersionHistoryTurtle({
       registerId: v.registerId,
       datasetIri: v.datasetIri,
       versions: v.versions,
       associatedAgentIri: process.env.CI_BOT_AGENT_IRI ?? null,
     }),
-  ).join('\n');
+  ))).join('\n');
   fs.writeFileSync(path.join(DATA, 'versions.ttl'), versionTtl);
   console.log(`Emitted versions graph: data/versions.ttl (${datasetVersions.length} datasets)`);
 }

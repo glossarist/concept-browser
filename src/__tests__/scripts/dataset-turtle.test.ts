@@ -50,23 +50,23 @@ const expand = (v: string): string => {
 };
 
 describe('buildDatasetTurtle (mjs)', () => {
-  it('parses without errors and produces a non-empty graph', () => {
-    const ttl = buildDatasetTurtle(makeInput());
+  it('parses without errors and produces a non-empty graph', async () => {
+    const ttl = await buildDatasetTurtle(makeInput());
     const store = parse(ttl);
     expect(store.size).toBeGreaterThan(0);
   });
 
-  it('types the dataset as dcat:Dataset and skos:ConceptScheme', () => {
+  it('types the dataset as dcat:Dataset and skos:ConceptScheme', async () => {
     const input = makeInput();
-    const store = parse(buildDatasetTurtle(input));
+    const store = parse(await buildDatasetTurtle(input));
     const types = store.getObjects(input.datasetIri, expand('rdf:type'), null).map(q => q.value);
     expect(types).toContain(expand('dcat:Dataset'));
     expect(types).toContain(expand('skos:ConceptScheme'));
   });
 
-  it('emits a dcat:Distribution blank per distribution', () => {
+  it('emits a dcat:Distribution blank per distribution', async () => {
     const input = makeInput();
-    const store = parse(buildDatasetTurtle(input));
+    const store = parse(await buildDatasetTurtle(input));
     const dists = store.getObjects(input.datasetIri, expand('dcat:distribution'), null);
     expect(dists.length).toBe(1);
     const mediaTypes = store.getObjects(dists[0], expand('dcat:mediaType'), null).map(q => q.value);
@@ -75,9 +75,9 @@ describe('buildDatasetTurtle (mjs)', () => {
     expect(byteSizes).toContain('12345');
   });
 
-  it('emits skos:Collection per section with skos:member entries', () => {
+  it('emits skos:Collection per section with skos:member entries', async () => {
     const input = makeInput();
-    const store = parse(buildDatasetTurtle(input));
+    const store = parse(await buildDatasetTurtle(input));
     const section = input.sections[0];
     const types = store.getObjects(section.collectionIri, expand('rdf:type'), null).map(q => q.value);
     expect(types).toContain(expand('skos:Collection'));
@@ -85,9 +85,9 @@ describe('buildDatasetTurtle (mjs)', () => {
     expect(members).toContain(`${BASE}/test/concept/1`);
   });
 
-  it('escapes double-quotes and backslashes in titles', () => {
+  it('escapes double-quotes and backslashes in titles', async () => {
     const input = makeInput({ title: 'has "quotes" and back\\slash' });
-    const store = parse(buildDatasetTurtle(input));
+    const store = parse(await buildDatasetTurtle(input));
     const titles = store.getObjects(input.datasetIri, expand('dcterms:title'), null).map(q => q.value);
     expect(titles).toContain('has "quotes" and back\\slash');
   });

@@ -14,8 +14,8 @@ const DCTERMS = 'http://purl.org/dc/terms/';
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
 
 describe('buildVersionTurtle (mjs)', () => {
-  it('parses without errors', () => {
-    const ttl = buildVersionTurtle({
+  it('parses without errors', async () => {
+    const ttl = await buildVersionTurtle({
       registerId: 'test',
       version: '1.0',
       versionIri: 'https://glossarist.org/test/versions/1.0',
@@ -26,8 +26,8 @@ describe('buildVersionTurtle (mjs)', () => {
     expect(store.size).toBeGreaterThan(0);
   });
 
-  it('types the version as prov:Entity', () => {
-    const ttl = buildVersionTurtle({
+  it('types the version as prov:Entity', async () => {
+    const ttl = await buildVersionTurtle({
       registerId: 'test',
       version: '1.0',
       versionIri: 'https://glossarist.org/test/versions/1.0',
@@ -39,8 +39,8 @@ describe('buildVersionTurtle (mjs)', () => {
     expect(types).toContain(`${PROV}Entity`);
   });
 
-  it('emits prov:wasRevisionOf when a previous version is provided', () => {
-    const ttl = buildVersionTurtle({
+  it('emits prov:wasRevisionOf when a previous version is provided', async () => {
+    const ttl = await buildVersionTurtle({
       registerId: 'test',
       version: '1.0',
       versionIri: 'https://glossarist.org/test/versions/1.0',
@@ -55,8 +55,8 @@ describe('buildVersionTurtle (mjs)', () => {
 });
 
 describe('buildVersionHistoryTurtle (mjs)', () => {
-  it('emits a chain with revision links', () => {
-    const ttl = buildVersionHistoryTurtle({
+  it('emits a chain with revision links', async () => {
+    const ttl = await buildVersionHistoryTurtle({
       registerId: 'test',
       datasetIri: 'https://glossarist.org/test/',
       versions: [
