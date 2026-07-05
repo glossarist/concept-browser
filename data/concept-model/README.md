@@ -14,6 +14,7 @@ dependency on concept-model.
 |------|---------|
 | `glossarist.context.jsonld` | JSON-LD term map — reference |
 | `glossarist.ttl` | OWL ontology — input for `scripts/generate-ontology-schema.mjs` |
+| `prefixes.ttl` | Canonical prefix bindings (SSOT) — input for `scripts/generate-prefixes.mjs` |
 | `shapes/glossarist.shacl.ttl` | SHACL shapes — input for `scripts/validate-shacl.mjs` (build-time CI gate) |
 
 ## Syncing

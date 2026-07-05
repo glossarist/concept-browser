@@ -12,6 +12,7 @@ import { buildVocabularyTurtle } from './lib/vocab-turtle.mjs';
 import { buildAgentsTurtle } from './lib/agents-turtle.mjs';
 import { buildVersionHistoryTurtle } from './lib/version-turtle.mjs';
 import { buildBibliographyTurtle } from './lib/bibliography-turtle.mjs';
+import { ttlLit } from './lib/turtle-escape.mjs';
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
@@ -672,7 +673,7 @@ function getPrimaryDesignation(conceptYaml) {
 }
 
 function escapeTurtle(s) {
-  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+  return ttlLit(s).slice(1, -1);
 }
 
 function conceptJsonToTurtle(concept) {
