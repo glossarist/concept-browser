@@ -106,3 +106,28 @@ Deployed to https://www.geolexica.org via GitHub Pages. CI/CD pipeline: `.github
 - **ALWAYS bump PATCH version only** (e.g. 0.7.41 → 0.7.42). Never bump minor or major unless explicitly requested.
 - **Release (Patch) workflow** — manually triggered via GitHub Actions UI.
 - After release, bump `@glossarist/concept-browser` in every consumer repo listed in **README § Known deployments**.
+
+## ABSOLUTE RULE: NEVER HARDCODE DEPLOYMENT CONFIGURATION
+
+### What happened
+The RelationSphere view had a regex that hardcoded `glossarist.org` and `oimlsmart.github.io/vocab` as the only recognized hostnames. This silently broke the sphere view for every other deployment (www.glossarist.org, iala-vocab, any custom domain). 20+ other locations used `'https://glossarist.org'` as a default fallback for the instance data base URI, causing consumer data to carry the wrong identity.
+
+### Why this is wrong
+- **Breaks encapsulation.** Deployment configuration (domain, basePath, uriBase) is the CONSUMER's decision, not the library's. Hardcoding it forces every consumer to override or patch.
+- **Violates OCP.** Adding a new deployment should NOT require editing source code. It should only require configuration.
+- **Silent failure.** The hardcoded defaults don't throw — they silently produce wrong-namespace IRIs. The consumer doesn't know their data is wrong until someone inspects the RDF output.
+- **Configuration is NOT code.** `uriBase`, `basePath`, `domain` belong in `site-config.yml`, not in `.ts`/`.js`/`.mjs` files as string literals.
+
+### THE RULES
+
+1. **NEVER hardcode deployment-specific values** (domain names, hostnames, base paths, URI roots) in source code. These are configuration, not code.
+
+2. **NEVER use a hostname string as a default fallback.** If a configuration value is missing, THROW with a descriptive error. Do not silently substitute a hardcoded default.
+
+3. **ALL URI construction must derive the base from configuration** (`site-config.yml:uriBase`, `manifest.uriBase`, or an explicit function parameter). No `'https://glossarist.org'` as a `||` or `??` fallback.
+
+4. **URI parsing must be deployment-agnostic.** Use `UriRouter.parseUri()` (the SSOT). Never roll your own regex that hardcodes hostnames.
+
+5. **The ontology namespace** `https://www.glossarist.org/ontologies/` is NOT a deployment URL — it's the canonical ontology identity and IS correct to hardcode. The rule applies to INSTANCE DATA URIs only.
+
+6. **When in doubt, throw.** A missing `uriBase` should produce a clear error message pointing at the configuration field, not silently emit wrong data.
