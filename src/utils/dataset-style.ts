@@ -1,6 +1,7 @@
 import { useVocabularyStore } from '../stores/vocabulary';
 import type { DatasetColorSpec } from '../config/types';
 import { createColorTheme } from './color-theme';
+import { resolveColor as resolveColorGlossarist } from 'glossarist/models';
 
 const PALETTE = [
   '#3366ff', '#0d9488', '#d97706', '#8b5cf6',
@@ -45,10 +46,17 @@ function normalizeSpec(spec: DatasetColorSpec | undefined, fallback: string): { 
     return { light: fallback, dark };
   }
   if (typeof spec === 'string') {
+    // Single hex applies to both modes, but dark mode needs the
+    // alpha-blended fallback for contrast on dark surfaces.
     const dark = hexToRgba(spec, 0.85);
     return { light: spec, dark };
   }
-  return { light: spec.light, dark: spec.dark };
+  // Pair case: delegate to glossarist-js's resolveColor so the canonical
+  // "missing mode returns null" rule stays in one place. concept-browser
+  // then fills in any null with the other mode's value.
+  const light = resolveColorGlossarist(spec, 'light') ?? spec.dark ?? fallback;
+  const dark = resolveColorGlossarist(spec, 'dark') ?? spec.light ?? hexToRgba(light, 0.85);
+  return { light, dark };
 }
 
 export function paletteColor(index: number): string {
