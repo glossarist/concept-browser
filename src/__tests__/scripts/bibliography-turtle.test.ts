@@ -15,13 +15,13 @@ function parse(turtle: string): Store {
 
 describe('buildBibliographyTurtle (mjs)', () => {
   it('parses without errors', async () => {
-    const ttl = await buildBibliographyTurtle('iso-geodetic', { iso704: { reference: 'ISO 704' } });
+    const ttl = await buildBibliographyTurtle('iso-geodetic', { iso704: { reference: 'ISO 704' } }, 'https://glossarist.org');
     const store = parse(ttl);
     expect(store.size).toBeGreaterThan(0);
   });
 
   it('types each entry as dcterms:BibliographicResource', async () => {
-    const ttl = await buildBibliographyTurtle('iso-geodetic', { iso704: { reference: 'ISO 704' } });
+    const ttl = await buildBibliographyTurtle('iso-geodetic', { iso704: { reference: 'ISO 704' } }, 'https://glossarist.org');
     const store = parse(ttl);
     const types = store.getObjects('https://glossarist.org/iso-geodetic/bib/iso704', RDF_TYPE, null).map(q => q.value);
     expect(types).toContain(`${DCTERMS}BibliographicResource`);
@@ -30,7 +30,7 @@ describe('buildBibliographyTurtle (mjs)', () => {
   it('emits identifier, bibliographicCitation, and title', async () => {
     const ttl = await buildBibliographyTurtle('iso-geodetic', {
       iso704: { reference: 'ISO 704', title: 'Terminology work — Principles and methods' },
-    });
+    }, 'https://glossarist.org');
     const store = parse(ttl);
     const iri = 'https://glossarist.org/iso-geodetic/bib/iso704';
     expect(store.getObjects(iri, `${DCTERMS}identifier`, null).map(q => q.value)).toContain('iso704');
@@ -41,7 +41,7 @@ describe('buildBibliographyTurtle (mjs)', () => {
   it('emits foaf:page when link is provided', async () => {
     const ttl = await buildBibliographyTurtle('iso-geodetic', {
       ref: { reference: 'X', link: 'https://example.org/x' },
-    });
+    }, 'https://glossarist.org');
     const store = parse(ttl);
     const iri = 'https://glossarist.org/iso-geodetic/bib/ref';
     expect(store.getObjects(iri, `${FOAF}page`, null).map(q => q.value)).toContain('https://example.org/x');
@@ -51,7 +51,7 @@ describe('buildBibliographyTurtle (mjs)', () => {
     const ttl = await buildBibliographyTurtle('iso-geodetic', {
       a: { reference: 'A' },
       b: { reference: 'B' },
-    });
+    }, 'https://glossarist.org');
     const store = parse(ttl);
     expect(store.getObjects('https://glossarist.org/iso-geodetic/bib/a', `${DCTERMS}bibliographicCitation`, null).map(q => q.value)).toContain('A');
     expect(store.getObjects('https://glossarist.org/iso-geodetic/bib/b', `${DCTERMS}bibliographicCitation`, null).map(q => q.value)).toContain('B');

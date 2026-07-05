@@ -207,7 +207,8 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
       // We do NOT call adapter.extractEdges(concept) here because that would duplicate
       // edges already present in edges.json, causing double-rendering of relations.
       const domainEdges = adapter.extractDomainEdges(concept);
-      const uriBase = adapter.manifest?.uriBase || 'https://glossarist.org';
+      const uriBase = adapter.manifest?.uriBase;
+      if (!uriBase) throw new Error('vocabulary store: manifest.uriBase is required — set uriBase in site-config.yml');
       const uri = conceptUri(concept, registerId, uriBase);
 
       const designations: Record<string, string> = {};

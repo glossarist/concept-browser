@@ -38,6 +38,7 @@ export function makeManifest(overrides: Partial<Manifest> = {}): Manifest {
 
 export interface AdapterStubOptions {
   concepts?: ConceptSummary[];
+  manifest?: Manifest | null;
   search?: () => SearchHit[];
   fetchConcept?: () => Promise<any>;
   getAdjacentConcepts?: () => { prev: string | null; next: string | null };
@@ -55,7 +56,7 @@ export interface AdapterStubOptions {
 export function makeAdapterStub(options: AdapterStubOptions = {}): any {
   return {
     index: options.concepts ?? [],
-    manifest: null,
+    manifest: options.manifest ?? makeManifest(),
     registerId: 'test',
     getConceptCount: () => (options.concepts ?? []).length,
     getConcepts: () => options.concepts ?? [],

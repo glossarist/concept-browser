@@ -113,7 +113,8 @@ let navDuration = 2200;  /* mutable — shorter for expand changes than for conc
 async function loadNeighborTerms() {
   const factory = getFactory();
   const lang = sphereLang.value;
-  const uriBase = props.manifest.uriBase || 'https://glossarist.org';
+  const uriBase = props.manifest.uriBase;
+  if (!uriBase) throw new Error('RelationSphere: manifest.uriBase is required');
   const neighborRegisters = new Set<string>();
 
   /* Phase 1: collect which neighbor datasets we need to load */
