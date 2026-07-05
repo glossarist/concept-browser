@@ -13,65 +13,89 @@ Glossarist Concept Browser (`@glossarist/concept-browser`) — a Vue 3 SPA that 
 - `npm run preview` — Preview production build locally
 - `npm test` or `npm run test` — Run tests once (vitest). Runs `pretest` first, which executes the script syntax gate.
 - `npm run test:watch` — Run tests in watch mode
-- `npm run check:scripts` — Syntax-gate every `.mjs`/`.js`/`.cjs` file under `scripts/` and `cli/` via `node --check`. Also runs automatically via the `pretest` and `prebuild` hooks, and as an explicit CI step before `npm test`. Prevents regressions like v0.7.45 where `await` was used inside a non-async function in `scripts/generate-data.mjs` (a file vitest never imports and vue-tsc never type-checks).
+- `npm run check:scripts` — Syntax-gate every `.mjs`/`.js`/`.cjs` file under `scripts/` and `cli/`
+- `npm run mutation:test` — Run stryker mutation testing (scoped to RDF emitters, ~3-5 min)
 - Run a single test: `npx vitest run src/__tests__/graph.test.ts`
-- `npm run fetch-datasets` — Clone/update source repos into `.datasets/`, harmonize concepts to canonical format. Supports `DATASET_SOURCE_{ID}` env var for local path override.
-- `npm run generate-data` — Convert harmonized YAML concepts to JSON-LD. Reads from `.datasets/` (populated by fetch-datasets) and `datasets.yml`.
-- `node scripts/build-edges.js` — Pre-compute cross-reference and domain edges from generated concept JSON files, writes `edges.json` + `domain-nodes.json` (run after `generate-data`)
+- `npm run fetch-datasets` — Clone/update source repos into `.datasets/`, harmonize concepts to canonical format
+- `npm run generate-data` — Convert harmonized YAML concepts to JSON-LD + RDF artifacts
+- `node scripts/build-edges.js` — Pre-compute cross-reference and domain edges
 - `npm run build:full` — Full pipeline: fetch + generate + build-edges + build
-- `npx concept-browser <command>` — CLI: fetch, generate, edges, build
+- `npx concept-browser <command>` — CLI: fetch, generate, edges, build, doctor, normalize
+- `node scripts/process-about-pages.mjs` — Compile markdown/AsciiDoc about pages for datasets and groups
 
 ## Architecture
 
 ### Data Pipeline
-Source repos (listed in `datasets.yml`) → `scripts/fetch-datasets.mjs` (clone + harmonize to canonical format) → `.datasets/{id}/concepts/*.yaml` → `scripts/generate-data.mjs` (canonical YAML → JSON-LD) → static files in `public/data/{id}/`. Cross-reference extraction happens in two places: inline refs (`{{term, IEV:xxx}}` and `{urn:iso:std:iso:NNNN:x.x.x.x,term}`) are extracted during harmonization and stored as `references` in the YAML. The `build-edges.js` script reads `gl:references` from generated JSON-LD.
+Source repos (listed in `datasets.yml`) → `scripts/fetch-datasets.mjs` → `.datasets/{id}/concepts/*.yaml` → `scripts/generate-data.mjs` → static files in `public/data/{id}/`. The generator now emits additional RDF artifacts: `_vocab.ttl` (vocabulary graph), `{register}.ttl` (dataset-level dcat:Dataset), `activity/{runId}.ttl` (build provenance), `agents.ttl` (contributor records), `versions.ttl` (version chain), `bib.ttl` (bibliography).
 
-### Canonical Concept Format
-All datasets are harmonized to ONE canonical YAML format before `generate-data.mjs` processes them. See `docs/dataset-schema.md` for the full specification. Key rules: definitions always `[{content: "text"}]`, sources always an array, `entry_status` normalized to `valid`/`supersected`/`withdrawn`/`draft`. No format-variant handling in `generate-data.mjs`.
+### RDF Intermediate Representation
+`src/components/concept-rdf/` contains a graph-based IR that is the single source of truth for all RDF emission. The `ConceptEmitter` walks the Concept model and populates an `RdfGraph`; the Turtle/JSON-LD writers and the UI sections builder all consume the same graph. Key design (ADRs 0001–0009):
+- `RdfGraph` — subject-grouped triple store with insertion-order preservation
+- `concept-emitter.ts` — walks Concept model → RdfGraph, aligned with canonical SHACL shapes
+- `turtle-writer.ts` / `jsonld-writer.ts` — serialize RdfGraph to Turtle or JSON-LD
+- `vocabulary-emitter.ts` — emits SKOS ConceptSchemes for enumeration IRIs
+- `dataset-emitter.ts` — emits dcat:Dataset + skos:ConceptScheme per register
+- `group-emitter.ts` — emits dcat:DatasetSeries (lineage) or dcat:Catalog (topic/family/collection)
+- `bibliography-emitter.ts` — emits dcterms:BibliographicResource per entry
+- `build-activity-emitter.ts` — emits prov:Activity per build run
+- `agents-emitter.ts` — emits foaf:Person / prov:Organization from site-config contributors
+- `version-emitter.ts` — emits prov:Entity version chain
+- `image-variant-emitter.ts` — emits foaf:Image per format/language variant
+- `table-formula-emitter.ts` — emits gloss:Table / gloss:Formula
 
-### GCR Packaging Format
-The target architecture uses GCR (Glossarist Concept Repository) files — sealed ZIP archives with harmonized concepts + metadata, modeled after LXR from `lutaml-xsd`. See `docs/gcr-spec.md`. Currently, the browser reads from cloned repos; when the glossarist gem provides `glossarist package`, the pipeline will switch to consuming `.gcr` files.
+### SHACL Conformance
+All concept fixtures conform to canonical SHACL shapes at `data/concept-model/shapes/glossarist.shacl.ttl`. Layer 4 (`shacl-conformance.test.ts`) is a strict gate — any fixture that doesn't conform fails the build. The shapes file has been extended with K1 shapes: `gloss:NonVerbalEntity`, `gloss:Figure`, `gloss:Table`, `gloss:Formula`, `gloss:ImageShape`, `gloss:NonVerbalRepShape`.
 
-### Data Flow
-`public/datasets.json` → lists dataset IDs → each maps to `public/data/{id}/` containing `manifest.json`, `index.json`, `edges.json` (cross-reference + domain edges), `domain-nodes.json` (domain classification nodes with concept counts), and `concepts/*.json`. The `AdapterFactory` discovers datasets at startup, loads manifests and indexes, then concepts are fetched on-demand when a user navigates to one.
+### Color System
+`data/colors.json` is the SSOT for all colorable semantic categories (relationship types, concept statuses, group kinds). Each entry has explicit `light` + `dark` variants. Per-deployment overrides via `site-config.json` `colors` block. `useColorTheme()` composable emits CSS custom properties on document root.
+
+Dataset colors accept either a single hex (backward compat) or `{ light, dark }` pair. `useDsStyle()` returns both variants + alpha helpers.
+
+### Dataset Groups
+Datasets can be organized into groups via `site-config.json` `datasetGroups`. Each group has a `kind`:
+- `lineage` — editions of the same vocabulary (e.g. VIML 1968/2000/2013/2022). Renders as timeline with year badges.
+- `topic` — different vocabularies on the same subject. Card grid.
+- `family` — related vocabularies from same publisher. Flat list.
+- `collection` — curated bundle. Featured cards.
+- `default` — flat list, no special semantics.
+
+Group metadata lives in `src/config/group-types.ts` (registry pattern). Renderer dispatch via `src/config/group-renderers.ts` → `DatasetGroupRenderer.vue` (OCP: new kind = one entry + one component).
 
 ### Key Layers
 
-- **Adapters** (`src/adapters/`) — Data access layer. `DatasetAdapter` handles manifest loading, index parsing (with chunked index support for large datasets), concept fetching with caching, search, edge extraction from pre-computed `gl:references`, and designation-based concept lookup (`lookupByDesignation`). `AdapterFactory` is a singleton that discovers and manages adapters. `UriRouter` (SSOT for URI routing) maps concept URIs to register/concept-id pairs with wildcard pattern matching and URN prefix mapping. `ReferenceResolver` provides unified resolution for URIs, URNs, and prefixed refs through a single `Resolution` type (`internal | external | unresolved`), delegating URI pattern matching to `UriRouter`.
+- **Adapters** (`src/adapters/`) — `DatasetAdapter`, `AdapterFactory`, `UriRouter` (SSOT for URI routing), `ReferenceResolver`.
 
-- **Graph Engine** (`src/graph/GraphEngine.ts`) — Directed multigraph for concept relationships. Supports cross-register edges with correct register derivation from URIs, edge deduplication, stub node creation with auto-upgrade, BFS subgraph extraction, and forward/reverse adjacency. Used by the vocabulary store and rendered in `GraphPanel`/`GraphView` via D3.
+- **Graph Engine** (`src/graph/GraphEngine.ts`) — Directed multigraph for concept relationships. Used by the vocabulary store and rendered in `GraphPanel`/`GraphView`/`RelationSphere` via D3.
 
-- **Config** (`src/config/`) — `SiteConfig` model and `useSiteConfig()` composable for domain-based multi-tenant branding. Reads `site-config.json` at runtime, filters datasets and applies branding per hostname.
+- **Config** (`src/config/`) — `SiteConfig`, `useSiteConfig()`, `group-types.ts` (group kind registry), `group-renderers.ts` (OCP renderer registry).
 
-- **Stores** (Pinia) — `vocabulary` store is the central data orchestrator: manages dataset lifecycle, seeds graph nodes from index entries, extracts edges from concept documents, and handles URI-based navigation. `ui` store holds sidebar state, selected language, and search query.
+- **Stores** (Pinia) — `vocabulary` (data orchestrator), `ui` (sidebar state, selected language, search query, dark mode).
 
-- **Router** — Vue Router with routes: `/` (home), `/dataset/:registerId`, `/dataset/:registerId/concept/:conceptId`, `/search`, `/graph`, `/resolve/:uri(.*)` (universal deep-link). Uses `import.meta.env.BASE_URL` for GitHub Pages deployment.
+- **Router** — Routes: `/`, `/dataset/:registerId`, `/dataset/:registerId/concept/:conceptId`, `/dataset/:registerId/about`, `/search`, `/graph`, `/group/:groupId`, `/group/:groupId/about`, `/resolve/:uri(.*)`. Concept view mode persisted via `?view=sphere` query param.
 
-- **Views/Components** — Standard Vue 3 SFC structure. Views are in `src/views/`, reusable components in `src/components/`.
+- **Views/Components** — `ConceptView` (detail + sphere toggle), `DatasetView` (concept list + series card), `GroupView` (group overview + about page), `AboutView` (structured metadata fallback).
 
 ### Hierarchical Sections
-Registers can define hierarchical sections in `register.yaml` using the `children` field. The section tree is serialized verbatim into `manifest.sections` by `generate-data.mjs` — it is the single source of truth for hierarchy at runtime.
-
-- **Build (`scripts/lib/concept-groups.mjs`):** `getGroups(conceptYaml)` produces a concept's direct section memberships. No parent inflation.
-- **Runtime (`src/utils/section-tree.ts`):** pure helpers — `findSectionNode`, `collectDescendantSectionIds`, `toSectionNode`, `toSectionTree`.
-- **Filtering (`src/views/DatasetView.vue`):** `sectionClosure` computed builds the descendant closure once per filter change; `conceptMatchesSection` intersects each concept's `groups` with the closure. Arbitrary depth works.
-- **Display (`src/utils/section-display.ts`):** `formatSectionLabel` is the single source for the "id — name" disambiguation rule.
+Sections in `register.yaml` → `manifest.sections`. Cascading membership via `gloss:hasChildSection` / `gloss:hasParentSection` (owl:TransitiveProperty). Runtime helpers in `src/utils/section-tree.ts`.
 
 ### URI Scheme and Resolution
-Concepts use URIs like `https://glossarist.org/{registerId}/concept/{conceptId}`. Resolution flows through `AdapterFactory.resolve()` → `ReferenceResolver.resolveUri()` → `UriRouter`. URNs (`urn:iso:std:iso:NNNN:id`) and prefixed refs (`IEV:xxx`) are resolved via `urnStandardMap` and `refPrefixMap` from manifest data. External references resolve to configurable URL templates. The `/resolve/{uri}` route provides universal concept deep-linking.
+Concepts use URIs like `https://glossarist.org/{registerId}/concept/{conceptId}`. `UriRouter.parseUri()` is the SSOT for concept URI parsing. No hardcoded hostnames.
 
 ### Dataset Styling
-Each dataset gets a dynamic color from its `manifest.json` `color` field (set via `datasets.yml`). Colors are used via `useDsStyle()` composable with per-register caching. No hardcoded per-dataset CSS classes — all dataset colors are data-driven.
+Each dataset color from `manifest.json` or `site-config.json`. Colors accept `{ light, dark }` pairs. `useDsStyle()` composable with per-register caching. CSS variables emitted by `useColorTheme()` on `:root` and per-dataset `[data-ds]` scopes.
 
 ### Content Rendering
-`src/utils/content-renderer.ts` is the single source of truth for ALL inline content rendering. Pipeline stages (in order): math placeholders (`stem:`, `latexmath:`), AsciiDoc tables, lists, text formatting (bold/italic/subscript), bibliography cross-refs, figure refs, URN inline refs, and the mention dispatcher (cite-ref, urn-ref, numeric, designation, two-arg concept refs via `parseMention` from glossarist ≥ 0.3.7). Mention convention: **ID always first, render term last** — `{{concept_id, display_text}}`. `renderContent()` is a pure function accepting `RenderOptions` (includes `xrefResolver`, `bibResolver`, `figResolver`, `conceptRefResolver`, `citeResolver`, `urnRefResolver`) — no module-level state. `cleanContent()` strips all notation to plain text. `math.ts` re-exports for backward compat only — new code imports from `content-renderer.ts`.
+`src/utils/content-renderer.ts` — single source of truth for ALL inline content. Pipeline: math → AsciiDoc tables → lists → text formatting → bibliography refs → figure refs → URN refs → mention dispatcher. `renderContent()` is a pure function with `RenderOptions` resolvers.
 
-### Designation Lookup
-`DatasetAdapter` builds a `designationMap` (lowercase designation → concept ID) during `buildSummaryIndex()`. The `lookupByDesignation()` method enables the runtime `conceptRefResolver` to resolve `{{atomic data unit, atomic data units}}` mentions to the actual concept ID `express-language.atomic_data_unit` — without this, designation-based cross-references would not link.
+### Relation Sphere
+`RelationSphere.vue` — 3D sphere visualization of a concept's neighborhood. Physics: d3 force simulation with sphere constraint, velocity clamp, and SLERP-eased navigation. Colors sourced from the taxonomy + color-theme SSOTs via `relation-sphere-styling.ts` bridge. View mode toggle (s/d keyboard shortcuts) persisted in URL.
+
+### Vocabulary SSOT
+`data/glossarist-vocab.json` — single source for all 50+ relationship types, 4 concept statuses, 4 entry statuses, 3 normative statuses, 12 source statuses, 2 source types, 5 date types. Both TS and mjs emitters consume this file. Relationship labels come from `src/data/taxonomies.json` via `relationshipLabel()` — no duplicate i18n keys.
 
 ## Tech Stack
 
-Vue 3 + TypeScript + Vite + Pinia + Vue Router + Tailwind CSS 3 + D3.js + KaTeX + Vitest (with happy-dom)
+Vue 3 + TypeScript + Vite + Pinia + Vue Router + Tailwind CSS 3 + D3.js + KaTeX + n3 + rdf-validate-shacl + fast-check + Vitest (with happy-dom)
 
 ## Deployment
 
@@ -80,5 +104,5 @@ Deployed to https://www.geolexica.org via GitHub Pages. CI/CD pipeline: `.github
 ## Release Rules
 
 - **ALWAYS bump PATCH version only** (e.g. 0.7.41 → 0.7.42). Never bump minor or major unless explicitly requested.
-- **Release (Patch) workflow** (`.github/workflows/release-patch.yml`): manually triggered via GitHub Actions UI. Bumps version, runs tests, commits, tags, pushes to main, then triggers `release.yml` via `workflow_dispatch`. The `release.yml` workflow performs the npm publish with provenance (OIDC trusted publishing — no `NPM_TOKEN` needed) and creates a GitHub Release.
-- After release, bump `@glossarist/concept-browser` in every consumer repo listed in **README § Known deployments** and merge through their normal PR flow. The current consumers are `geolexica/geolexica.github.io`, `geolexica/isotc204.geolexica.org`, `geolexica/isotc211.geolexica.org`, `geolexica/osgeo.geolexica.org`, `oimlsmart/vocab`, `metanorma/oiml-terms`, `metanorma/iala-vocab`, `metanorma/iso-10303-2-vocab`. Keep the two lists in sync — README is the source of truth.
+- **Release (Patch) workflow** — manually triggered via GitHub Actions UI.
+- After release, bump `@glossarist/concept-browser` in every consumer repo listed in **README § Known deployments**.

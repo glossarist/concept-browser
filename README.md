@@ -14,8 +14,13 @@ A statically deployable single-page application for browsing terminology dataset
 - **Multi-dataset browsing** — Concepts from multiple terminology registers in one place
 - **Full multilingual support** — Definitions, notes, and examples in all available languages with i18n UI
 - **Concept history timeline** — Review dates, decisions, and change notes per language
+- **Relation sphere** — 3D sphere visualization of a concept's neighborhood with d3 force simulation, per-relation-type colors, and degree filtering
+- **Edition series** — Sidebar timeline for vocabulary edition groups (e.g. VIML 1968/2000/2013/2022) with current-edition markers and supersession chain navigation
 - **Cross-reference graph** — D3 force-directed graph showing concept relationships with dataset filtering
-- **Rich sidebar provenance** — Publication reference, owner, status, concept/language counts from manifest data
+- **Dataset groups** — Organize datasets into lineage series, topic bundles, publication families, or curated collections. Each group kind has distinct sidebar rendering
+- **Light/dark mode colors** — Per-dataset `{ light, dark }` color pairs. Per-relation-type colors configurable via site-config
+- **RDF / SHACL outputs** — Every concept emits SHACL-conformant Turtle + JSON-LD. Dataset-level `dcat:Dataset`, group-level `dcat:DatasetSeries`/`dcat:Catalog`, vocabulary SKOS ConceptSchemes, bibliography `dcterms:BibliographicResource`, build provenance `prov:Activity`
+- **Rich sidebar provenance** — Publication reference, owner, status, concept/language counts, sections tree from manifest data
 - **Math rendering** — KaTeX rendering for AsciiMath notation in definitions (`stem:[...]`)
 - **Responsive design** — Mobile-first layout with light/dark mode
 - **Static deployment** — No server required. Deploy to any static host
@@ -56,10 +61,12 @@ concept-browser <command> [options]
 
 Commands:
   fetch      Fetch/update datasets (from GCR packages, local paths, or source repos)
-  generate   Convert harmonized YAML concepts to JSON-LD static files
+  generate   Convert harmonized YAML concepts to JSON-LD static files + RDF artifacts
   edges      Build cross-reference edges from generated concept data
   build      Full pipeline: fetch + generate + edges + vite build
   site       Same as build (alias)
+  doctor     Run diagnostic checks (node version, deps, shapes, data integrity)
+  normalize  NFC-normalize YAML concept files in-place
 
 Options:
   --site <id>  Site config ID (looks for site-config.yml in CWD)
@@ -78,13 +85,19 @@ Environment:
 site-config.yml
   └─> scripts/fetch-datasets.mjs       (fetch from GCR, localPath, or sourceRepo)
       └─> .datasets/{id}/concepts/*.yaml
-          └─> scripts/generate-data.mjs (YAML → JSON-LD)
+          └─> scripts/generate-data.mjs (YAML → JSON-LD + RDF artifacts)
               └─> public/data/{id}/
                   ├── manifest.json      Dataset metadata (ref, owner, stats)
                   ├── index.json         Concept listing (chunked for large sets)
                   ├── edges.json         Pre-computed cross-reference + domain edges
                   ├── domain-nodes.json  Domain classification nodes
+                  ├── {register}.ttl     Dataset-level RDF (dcat:Dataset + skos:ConceptScheme + sections)
+                  ├── bib.ttl            Bibliography graph (dcterms:BibliographicResource)
                   └── concepts/*.json    Individual concept documents
+              └─> public/data/_vocab.ttl    Vocabulary graph (SKOS ConceptSchemes)
+              └─> public/data/activity/    Build provenance (prov:Activity per build)
+              └─> public/data/agents.ttl   Contributor records (foaf:Person)
+              └─> public/data/versions.ttl Version chain (prov:Entity)
           └─> scripts/build-edges.js    (extract graph + domain edges)
 ```
 
@@ -151,7 +164,7 @@ datasets:
 | `description` | no | Shown on home page and about page |
 | `owner` | no | Organization name shown in sidebar provenance |
 | `ref` | no | Publication reference shown in sidebar provenance (e.g., "OIML V 1:2022") |
-| `color` | no | Hex color for UI accent. Auto-assigned if omitted |
+| `color` | no | Accent color — single hex (`"#004996"`) or `{ light, dark }` pair |
 | `tags` | no | Array of labels shown on dataset card |
 | `languageOrder` | no | Array of ISO 639-2 codes controlling display order |
 | `translations` | no | Localized title and description per language |
@@ -233,13 +246,17 @@ pages:
 
 ### Dataset groups
 
-When a site has many datasets, you can group them in the sidebar navigation. Datasets within a group are displayed under a collapsible header.
+When a site has many datasets, you can group them in the sidebar navigation. Each group has a `kind` that determines its visual treatment and semantic assumptions.
 
 ```yaml
 datasetGroups:
   - id: viml
     label: "VIML — International Vocabulary of Legal Metrology"
-    color: "#004996"
+    kind: lineage                  # edition series (same vocabulary, different years)
+    current: viml-2022             # current edition for the series
+    color:
+      light: "#004996"
+      dark: "#3B82F6"
     datasets: [viml-2022, viml-2013, viml-2000, viml-1968]
     translations:
       fra:
@@ -247,22 +264,44 @@ datasetGroups:
 
   - id: vim
     label: "VIM — International Vocabulary of Metrology"
-    color: "#005A9C"
+    kind: lineage
+    current: vim-2012
+    color:
+      light: "#005A9C"
+      dark: "#2196F3"
     datasets: [vim-2012, vim-2010, vim-2007, vim-1993]
 ```
 
-#### Dataset group field reference
+#### Group kinds
+
+| Kind | Glyph | Description | Sidebar rendering |
+|------|-------|-------------|-------------------|
+| `lineage` | ⏳ | Editions of the same vocabulary over time | Compact timeline with year badges + current-edition star (✦) |
+| `topic` | ◆ | Different vocabularies on the same subject | Standard list entries |
+| `family` | ✦ | Related vocabularies from the same publisher | Standard list entries |
+| `collection` | ❖ | Curated bundle of datasets | Standard list entries |
+| `default` | ▸ | No special semantics (backward compat) | Standard list entries |
+
+For `lineage` groups:
+- The `current` field identifies the newest valid edition. If omitted, the newest member by year is auto-detected.
+- Members are displayed as a timeline with year + reference + status badges.
+- When an edition is active, the full expansion (sub-pages, sections tree, provenance) appears below the timeline entry — same as non-series datasets.
+- A supersession chain card (`ConceptEditionRail`) appears in the concept detail sidebar, showing how the concept evolved across editions.
+
+#### Group field reference
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `id` | yes | Unique identifier for the group |
 | `label` | yes | Display name shown as the collapsible group header |
+| `kind` | no | Group kind: `lineage`, `topic`, `family`, `collection`, `default`. Defaults to `default` |
+| `current` | no | For `lineage`: dataset id of the current (newest valid) edition |
 | `description` | no | Short description of the group |
-| `color` | no | Hex color for the group header text |
+| `color` | no | Accent color — single hex or `{ light, dark }` pair |
 | `datasets` | yes | Ordered array of dataset IDs belonging to this group |
 | `translations` | no | Localized label and description per language |
 
-Datasets not assigned to any group appear at the bottom of the dataset list. If `datasetGroups` is omitted, all datasets are displayed as a flat list (the default behavior).
+Datasets not assigned to any group appear at the bottom of the dataset list.
 
 ### Internationalization
 
@@ -287,6 +326,41 @@ datasetGroups:
 ```
 
 This pattern applies everywhere localized text appears: site-level translations, dataset translations, group translations, and page translations. Do not use language suffixes like `_fra` — use nested language maps instead.
+
+### Color system
+
+Dataset and group colors accept either a single hex string (backward compat) or a `{ light, dark }` pair:
+
+```yaml
+# Single hex (applied to both modes)
+color: "#004996"
+
+# Explicit light/dark pair
+color:
+  light: "#004996"
+  dark: "#3B82F6"
+```
+
+Relationship-type colors default from `data/colors.json` but can be overridden per deployment:
+
+```yaml
+colors:
+  relationshipType:
+    supersedes:
+      light: "#FF0000"
+      dark: "#FF5555"
+  dataset:
+    viml-2022:
+      light: "#004996"
+      dark: "#3B82F6"
+```
+
+CSS variables are emitted on document root by `useColorTheme()`:
+- `--rel-{category}-{light|dark}` per relationship category
+- `--rel-type-{type}-{light|dark}` per relationship type
+- `--concept-status-{status}-{light|dark}` per concept status
+- `--group-kind-{kind}-{light|dark}` per group kind
+- `--ds-{light|dark}` per dataset (scoped via `[data-ds]`)
 
 ### Cross-reference mapping
 
@@ -375,30 +449,39 @@ To add a new deployment here, open a PR against this README.
 - **Pinia** (state management)
 - **Vue Router** (SPA navigation)
 - **Tailwind CSS 3** (utility-first styling)
-- **D3.js** (force-directed graph)
+- **D3.js** (force-directed graph + relation sphere)
 - **KaTeX** (math rendering)
+- **n3** + **rdf-validate-shacl** (RDF parsing + SHACL validation)
+- **fast-check** (property-based fuzz testing)
+- **Vitest** with happy-dom
 
 ### Project structure
 
 ```
 src/
 ├── adapters/          Data access layer (DatasetAdapter, AdapterFactory, UriRouter)
-├── components/        Vue components (AppSidebar, AppFooter, ConceptDetail, GraphPanel, etc.)
+├── components/        Vue components (AppSidebar, ConceptDetail, RelationSphere, etc.)
+│   ├── concept-rdf/   RDF graph IR + emitters + writers (concept, dataset, group, vocab, etc.)
+│   └── groups/        OCP group renderer dispatcher + per-kind sidebar components
+├── composables/       Vue composables (useDatasetSeries, useColorTheme, useSphereProjection)
+├── config/            Site config types, group-types registry, group-renderers registry
+├── data/              Static data (taxonomies.json, colors.json, concept-model shapes)
 ├── graph/             Graph engine for concept relationships
 ├── stores/            Pinia stores (vocabulary, ui)
-├── views/             Page-level components (HomeView, DatasetView, ConceptView, etc.)
+├── views/             Page-level components (HomeView, DatasetView, ConceptView, GroupView)
 ├── i18n/              Internationalization (YAML locale files, auto-discovered)
-├── utils/             Utilities (math rendering, language names, dataset styling)
-└── style.css          Global styles and Tailwind layers
+└── utils/             Utilities (color-theme, dataset-style, relationship-categories, content-renderer)
 
 cli/
-└── index.mjs          CLI entry point (fetch, generate, edges, build commands)
+└── index.mjs          CLI entry point (fetch, generate, edges, build, doctor, normalize)
 
 scripts/
-├── fetch-datasets.mjs Clone + harmonize source repos, resolve localPath/GCR
-├── generate-data.mjs  Convert YAML → JSON-LD, generate manifest with provenance data
-├── build-edges.js     Extract cross-reference edges
-└── generate-404.js    SPA fallback for GitHub Pages
+├── fetch-datasets.mjs       Clone + harmonize source repos
+├── generate-data.mjs        Convert YAML → JSON-LD + RDF artifacts
+├── build-edges.js           Extract cross-reference edges
+├── process-about-pages.mjs  Compile markdown/AsciiDoc about pages
+├── validate-shacl.mjs       SHACL validation gate
+└── lib/                     Build-time emitters (vocab, dataset, group, agents, version, etc.)
 ```
 
 ---
@@ -418,7 +501,16 @@ UI translations are YAML files in `src/i18n/locales/`, auto-discovered via `impo
 ```bash
 npm test              # Run all tests (Vitest with happy-dom)
 npm run test:watch    # Watch mode
+npm run mutation:test # Stryker mutation testing (scoped to RDF emitters, ~3-5 min)
 ```
+
+Test coverage includes:
+- 1357+ tests across unit, round-trip, SHACL conformance, property-based fuzz, and build-integration layers
+- 7-fixture concept corpus (minimal, multilingual, full-relationships, with-sources, with-non-verbal, with-dates, withdrawn)
+- SHACL conformance gate: all fixtures validated against canonical shapes
+- Property-based fuzz: 200 iterations × 4 invariants via fast-check
+- 10,000-concept scale stress test (< 100ms)
+- Stryker mutation testing scoped to concept/dataset/bibliography emitters
 
 ---
 
