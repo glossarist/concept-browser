@@ -110,6 +110,14 @@ from scope:
   `site-content/groups/<id>/about/about.{lang}.adoc`. Routes:
   `/group/<id>` and `/group/<id>/about`. Site-level about (from
   `site-config.yml:pages[]`) still routes to `/about`.
+
+  **Gap**: the script exists but is **not wired into `concept-browser build`**
+  or any npm script (verified in `cli/index.mjs` build case and
+  `package.json:scripts`). Deployment workflows that run only
+  `concept-browser build` will not compile about pages. Either wire
+  `process-about-pages` into the build command upstream, or have
+  deployment workflows call it explicitly. Tracked in deployment PR
+  [geolexica/isotc204.geolexica.org#28](https://github.com/geolexica/isotc204.geolexica.org/pull/28).
 - **Color SSOT** (commit `58a907a`). `colors.dataset[id]` and
   `colors.group[id]` in `site-config.json` are the per-deployment
   override SSOT. The `color?:` field on `DatasetConfig` and
