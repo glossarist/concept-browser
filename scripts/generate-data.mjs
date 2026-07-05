@@ -1612,7 +1612,7 @@ for (const [id, count] of Object.entries(counts)) {
 
 writeBuildActivity(total, registry.map(r => r.id));
 
-fs.writeFileSync(path.join(DATA, '_vocab.ttl'), buildVocabularyTurtle());
+fs.writeFileSync(path.join(DATA, '_vocab.ttl'), await buildVocabularyTurtle());
 console.log('Emitted vocabulary graph: data/_vocab.ttl');
 
 const contributors = config.contributors ?? [];
