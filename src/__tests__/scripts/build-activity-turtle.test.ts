@@ -14,6 +14,7 @@ function makeInput(overrides: any = {}): any {
     datasetRegisters: ['iso-geodetic'],
     conceptCount: 1234,
     associatedAgentIri: 'https://glossarist.org/agent/ci-bot',
+    baseUri: 'https://glossarist.org',
     ...overrides,
   };
 }
@@ -71,5 +72,10 @@ describe('buildActivityTurtle (mjs)', () => {
     const store = parse(await buildActivityTurtle(input));
     const agents = store.getObjects(ACTIVITY_IRI(input.runId), expand('prov:wasAssociatedWith'), null).map(q => q.value);
     expect(agents).toContain(input.associatedAgentIri);
+  });
+
+  it('throws when baseUri is missing (no hardcoded default)', async () => {
+    const { baseUri, ...inputWithoutBaseUri } = makeInput();
+    await expect(buildActivityTurtle(inputWithoutBaseUri)).rejects.toThrow('baseUri');
   });
 });

@@ -19,9 +19,15 @@ function writerPrefixes() {
   };
 }
 
-export async function buildAgentsTurtle(contributors, agentBase) {
+/**
+ * @param {Array} contributors
+ * @param {string} agentBase
+ * @param {string} orgBase
+ */
+export async function buildAgentsTurtle(contributors, agentBase, orgBase) {
   if (!agentBase) throw new Error('buildAgentsTurtle requires agentBase');
+  if (!orgBase) throw new Error('buildAgentsTurtle requires orgBase');
   const agents = agentsFromContributors(contributors ?? [], agentBase);
-  const quads = collectQuads(agentsToQuads(agents));
+  const quads = collectQuads(agentsToQuads(agents, { orgBase }));
   return writeTurtle(quads, { prefixes: writerPrefixes() });
 }
