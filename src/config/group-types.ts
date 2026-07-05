@@ -33,7 +33,7 @@ export const GROUP_TYPES: Record<DatasetGroupKind, GroupTypeMeta> = {
     kind: 'lineage',
     label: 'Edition series',
     description: 'Same vocabulary, different editions over time',
-    glyph: '⏳',
+    glyph: '⟶',
     ordered: true,
     supersession: true,
     sameVocabulary: true,
