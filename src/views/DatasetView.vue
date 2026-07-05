@@ -2,6 +2,7 @@
 import { computed, ref, watch, onMounted, onUnmounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
+import { useUiStore } from '../stores/ui';
 import { useDsStyle } from '../utils/dataset-style';
 import { useDatasetLoader } from '../composables/use-dataset-loader';
 import { FORMAT_LABELS } from '../config/types';
@@ -17,6 +18,7 @@ import { formatSectionLabel } from '../utils/section-display';
 const props = defineProps<{ registerId: string }>();
 
 const store = useVocabularyStore();
+const uiStore = useUiStore();
 const { getStyle } = useDsStyle();
 const { ensureLoaded, loading, localError } = useDatasetLoader(() => props.registerId);
 const { t } = useI18n();
@@ -29,6 +31,16 @@ const localizedTitle = computed(() => localizedDatasetField(props.registerId, 't
 const localizedDescription = computed(() => localizedDatasetField(props.registerId, 'description', manifest.value?.description));
 const adapter = computed(() => store.datasets.get(props.registerId));
 const chunkLoading = ref(false);
+
+// Concept-count badge: tinted bg + always-readable text in either mode.
+// Previously used `.light` for bg and `.dark` for text — but `.dark` is
+// just `.light` with alpha, so text was invisible against the bg.
+const conceptCountBadgeStyle = computed(() => {
+  const s = getStyle(props.registerId);
+  return uiStore.isDark
+    ? { backgroundColor: s.darkAlpha(0.25), color: s.light }
+    : { backgroundColor: s.light, color: '#ffffff' };
+});
 
 // Background chunk preloading via requestIdleCallback
 let idlePreloadHandle: ReturnType<typeof requestIdleCallback> | ReturnType<typeof setTimeout> | null = null;
@@ -310,7 +322,7 @@ function clearSection() {
       <h1 class="font-serif text-3xl text-ink-800 mb-2">{{ localizedTitle }}</h1>
       <p class="text-ink-400 leading-relaxed max-w-2xl">{{ localizedDescription }}</p>
       <div class="flex flex-wrap gap-2 mt-4">
-        <span class="badge" :style="{ backgroundColor: getStyle(registerId).light, color: getStyle(registerId).dark }">{{ manifest.conceptCount.toLocaleString() }} {{ t('dataset.concepts') }}</span>
+        <span class="badge" :style="conceptCountBadgeStyle">{{ manifest.conceptCount.toLocaleString() }} {{ t('dataset.concepts') }}</span>
         <span class="badge badge-gray">{{ manifest.languages.length }} {{ t('dataset.languages') }}</span>
         <span class="badge badge-green">{{ manifest.owner }}</span>
         <router-link :to="{ name: 'stats', params: { registerId } }" class="badge badge-blue hover:opacity-80 transition-opacity">

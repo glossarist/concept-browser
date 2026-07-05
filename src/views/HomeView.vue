@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useVocabularyStore } from '../stores/vocabulary';
+import { useUiStore } from '../stores/ui';
 import { useRouter } from 'vue-router';
 import { useDsStyle } from '../utils/dataset-style';
 import { useSiteConfig } from '../config/use-site-config';
@@ -8,10 +9,18 @@ import { useI18n } from '../i18n';
 import HomeSeriesSection from '../components/HomeSeriesSection.vue';
 
 const store = useVocabularyStore();
+const uiStore = useUiStore();
 const router = useRouter();
 const { getStyle } = useDsStyle();
 const { config: siteConfig, localizedTitle, localizedSubtitle, localizedDescription, localizedDatasetField } = useSiteConfig();
 const { t } = useI18n();
+
+function tagBadgeStyle(dsId: string) {
+  const s = getStyle(dsId);
+  return uiStore.isDark
+    ? { backgroundColor: s.darkAlpha(0.25), color: s.light }
+    : { backgroundColor: s.light, color: '#ffffff' };
+}
 const exploring = ref(false);
 
 async function exploreRandom() {
@@ -181,7 +190,7 @@ function goToGraph() { router.push({ name: 'graph' }); }
           </div>
 
           <div class="flex flex-wrap gap-1.5 pl-[22px] mb-3">
-            <span v-for="tag in (ds.manifest.tags ?? []).slice(0, 3)" :key="tag" class="badge text-[10px]" :style="{ backgroundColor: getStyle(ds.id).light, color: getStyle(ds.id).dark }">
+            <span v-for="tag in (ds.manifest.tags ?? []).slice(0, 3)" :key="tag" class="badge text-[10px]" :style="tagBadgeStyle(ds.id)">
               {{ tag }}
             </span>
           </div>
