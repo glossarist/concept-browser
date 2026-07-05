@@ -273,7 +273,7 @@ function buildGraph() {
 
   /* First pass: collect depth-1 neighbors (deduped) so we know N for even
      ring placement. */
-  const depth1List: Array<{ uri: string; parsed: { register: string; conceptId: string }; isOutgoing: boolean; edge: GraphEdge }> = [];
+  const depth1List: Array<{ uri: string; parsed: { registerId: string; conceptId: string }; isOutgoing: boolean; edge: GraphEdge }> = [];
   for (const edge of props.edges) {
     const isOutgoing = edge.source === focusUri || edge.source === focusId;
     const otherUri = isOutgoing ? edge.target : edge.source;
@@ -324,7 +324,7 @@ function buildGraph() {
     const inEdges = store.graph.getIncomingEdges(uri);
     /* Collect this node's children first so we can place them as an even
        sub-ring around their parent. */
-    const children: Array<{ uri: string; parsed: { register: string; conceptId: string }; isOutgoing: boolean; edge: GraphEdge }> = [];
+    const children: Array<{ uri: string; parsed: { registerId: string; conceptId: string }; isOutgoing: boolean; edge: GraphEdge }> = [];
     for (const edge of [...outEdges, ...inEdges]) {
       if (nodeMap.size + children.length >= MAX_NODES) break;
       const isOutgoing = edge.source === uri;
@@ -340,8 +340,8 @@ function buildGraph() {
       nodeMap.set(parsed.conceptId, {
         id: parsed.conceptId,
         term: parsed.conceptId,
-        ref: parsed.register,
-        register: parsed.register,
+        ref: parsed.registerId,
+        register: parsed.registerId,
         conceptId: parsed.conceptId,
         depth: depth + 1,
         x: pos.x, y: pos.y, z: pos.z,
