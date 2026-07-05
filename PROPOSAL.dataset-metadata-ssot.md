@@ -1,85 +1,123 @@
 # PROPOSAL: Single Source of Truth for Dataset Metadata
 
+## Status
+
+**Updated 2026-07-05** — partially overtaken by `b618eaf` (about pipeline)
+and `58a907a` (color SSOT). The proposal is tightened below to address
+only what remains open. See "What's already done" section.
+
 ## Summary
 
-Dataset descriptive metadata currently lives in **four overlapping places**,
-with no clear precedence rule. Consumers cannot answer "what is the title of
-this dataset?" without knowing which file the question is about, and authors
-cannot update a description without editing it in multiple files. This
-proposal consolidates dataset metadata into **one source of truth** per
-dataset, with deployment repos holding only the layout concerns (where to
-fetch the data from).
+Dataset descriptive metadata currently lives in **four overlapping
+places**, with no clear precedence rule. Consumers cannot answer "what
+is the title of this dataset?" without knowing which file the question
+is about, and authors cannot update a description without editing it in
+multiple files. This proposal consolidates dataset metadata into **one
+source of truth** per dataset, with deployment repos holding only the
+layout concerns (where to fetch the data from).
 
 ## Problem
 
-A single dataset today has its title, description, and about-page
+A single dataset today has its title, description, owner, and source
 information scattered across:
 
 1. **`site-config.yml`** in the deployment repo (`DatasetConfig`):
    - `title`, `description`, `owner`, `color`, `tags`, `ref`, `refAliases`,
      `translations`, `sourceRepo`
-   - Used directly by the build pipeline (site-config wins on conflicts).
+   - Used at build time, but with **register.yaml precedence** (register
+     wins, site-config is the fallback — verified in
+     `scripts/generate-data.mjs:1170` for `languages` and `description`).
 
 2. **`register.yaml`** in the dataset itself (`DatasetRegister`):
    - `name` (localized object), `description` (localized object),
      `about` (localized paths to per-edition markdown), `owner`,
-     `sourceRepo`, `ref`, `refAliases`, `tags`, `logo`
-   - Travels with the dataset inside the GCR.
+     `sourceRepo`, `ref`, `refAliases`, `tags`, `logo`, `status`,
+     `supersedes`, `year`, `languages`, `languageOrder`, `ordering`,
+     `sections`
+   - Travels with the dataset inside the GCR. Read at build time for
+     `languages` and `description` resolution; **not** read for
+     `title`/`owner`/`sourceRepo`/`ref` (verified by absence in
+     `generate-data.mjs`).
 
 3. **`pages:` array** in `site-config.yml` (`PageConfig`):
-   - One global `about` page per site, source path is in the deployment repo
-   - Not dataset-scoped in practice (`datasetScoped` flag exists but is
-     rarely set).
+   - One global `about` page per site, source path is in the deployment
+     repo. Site-level only — no per-dataset equivalent in this array.
 
 4. **`about:` field** in `register.yaml` (localized paths):
-   - Per-edition about pages that travel with the dataset
-   - Independent of the global `pages:` array
+   - **Dead.** Concept-browser does not read this field. About content
+     is discovered via filesystem convention (see below).
 
 ### Symptoms
 
-- **Drift.** Two humans edit the same field in two files. Whichever loads
-  last wins at runtime, but neither human knows which.
-- **Ambiguity.** `description` on the deployment's `DatasetConfig` (single
-  string) and `description` on the dataset's `DatasetRegister` (localized
-  object) have the same name but different shapes. Reviewers can't tell
-  them apart.
+- **Drift.** Two humans edit the same field in two files. Build-time
+  resolution picks one (register wins for `description`/`languages`;
+  site-config wins for everything else by default since register isn't
+  consulted). Neither human knows which without reading the source.
+- **Ambiguity.** `description` on the deployment's `DatasetConfig`
+  (single string) and `description` on the dataset's `DatasetRegister`
+  (localized object) have the same name but different shapes. The
+  register version wins when both are populated; site-config is the
+  fallback.
 - **Inconsistency.** A dataset deployed to two sites may have different
-  descriptions in each deployment's `site-config.yml`, even though the
-  underlying dataset is identical. The dataset loses its identity.
-- **Loss of provenance.** The dataset's own `about:` page is invisible to
-  the global `pages:` config. Two mechanisms for the same concept (an
-  "about" page), no documented relationship.
+  `title`/`owner`/`sourceRepo` in each deployment's `site-config.yml`,
+  even though the underlying dataset is identical. The dataset loses
+  its identity for these fields because they're not read from register.
+- **Loss of provenance.** `register.yaml`'s `about:` field is unused.
+  About content is discovered by scanning
+  `.datasets/<id>/about/about.{lang}.{md,adoc,html}` — a filesystem
+  convention with no schema backing.
+- **Two `about:` mechanisms.** register.yaml's `about:` field and the
+  filesystem `about/` directory both exist. They mean different things
+  and neither tool validates their agreement.
 
 ### Concrete example
 
 In the `isotc204-glossary` lineage-series deployment (PRs
-[geolexica/isotc204-glossary#33](https://github.com/geolexica/isotc204-glossary/pull/33)
-and
+[geolexica/isotc204-glossary#33](https://github.com/geolexica/isotc204-glossary/pull/33),
+[#34](https://github.com/geolexica/isotc204-glossary/pull/34), and
 [geolexica/isotc204.geolexica.org#28](https://github.com/geolexica/isotc204.geolexica.org/pull/28)),
 the same three-line description for each edition must be written into
 **both** the deployment's `site-config.yml` AND the dataset's
-`register.yaml`. We must also remember to set `status:` correctly per
-edition (current vs superseded) in `register.yaml`, but the site-config
-doesn't reflect status at all. This is two files that must agree.
+`register.yaml` (description is read from register; but title/owner
+must be in site-config since register isn't consulted for them).
+PR #34 also placed per-edition about pages at `<dataset>/about-eng.md`
+and registered them via `register.yaml: about:` — but concept-browser
+ignores that field and scans for `<dataset>/about/about.eng.md`
+instead. PR #34 needs revision before it works.
 
-The `about:` field in `register.yaml` is a localized path; the `pages:`
-array in site-config is a global list with no per-dataset equivalent.
-We need both mechanisms because they solve different problems, but they
-should agree on the model.
+## What's already done
 
-## Proposal
+These parts of the original proposal are now implemented and removed
+from scope:
 
-### Principle: dataset-internal metadata is in the dataset; deployment-internal metadata is in the deployment.
+- **About content pipeline** (commit `b618eaf`, `scripts/process-about-pages.mjs`).
+  Per-dataset and per-group about pages compiled from
+  `.datasets/<id>/about/about.{lang}.{md,adoc,html}` and
+  `site-content/groups/<id>/about/about.{lang}.adoc`. Routes:
+  `/group/<id>` and `/group/<id>/about`. Site-level about (from
+  `site-config.yml:pages[]`) still routes to `/about`.
+- **Color SSOT** (commit `58a907a`). `colors.dataset[id]` and
+  `colors.group[id]` in `site-config.json` are the per-deployment
+  override SSOT. The `color?:` field on `DatasetConfig` and
+  `DatasetGroup` remains as a fallback default.
+- **Group-kind visual distinction** (`b618eaf`). Sidebar group headers
+  show the kind glyph with CSS variable accent color. No metadata
+  duplication concern here.
+
+## Proposal (what remains)
+
+### Principle
 
 Dataset metadata that travels with the data (GCR or local checkout) is
-authoritative: `name`, `description`, `about`, `owner`, `sourceRepo`,
-`ref`, `refAliases`, `tags`, `logo`, `status`, `supersedes`, `year`,
-`languages`, `languageOrder`, `ordering`, `sections`.
+authoritative for **content** fields: `name`, `description`, `about`,
+`owner`, `sourceRepo`, `ref`, `refAliases`, `tags`, `logo`, `status`,
+`supersedes`, `year`, `languages`, `languageOrder`, `ordering`,
+`sections`.
 
-Deployment metadata that doesn't travel with the data: `id`, `uri`
-(deployment's URI prefix for routing), `gcrPackage` or `localPath` (where
-to fetch the data), `color` (deployment-side accent), `datasetGroups`
-membership.
+Deployment metadata that doesn't travel with the data is authoritative
+for **layout** concerns: `id`, `uri` (deployment's URI prefix for
+routing), `gcrPackage` or `localPath` (where to fetch the data), `color`
+(deployment-side accent), `datasetGroups` membership, `existingSiteUrl`.
 
 ### Concrete changes
 
@@ -93,10 +131,10 @@ export interface DatasetConfig {
   uriAliases?: string[];
   gcrPackage?: string;     // remote
   localPath?: string;      // local checkout
-  sourceRepo?: string;     // for "View source" links (could move to register)
+  existingSiteUrl?: string;
 
   // Deployment-scoped presentation
-  color?: string;          // accent in this site's palette
+  color?: DatasetColorSpec;  // fallback default; override via colors.dataset[id]
 
   // Optional per-deployment override (with explicit semantics)
   overrides?: DatasetOverrides;
@@ -106,6 +144,10 @@ export interface DatasetOverrides {
   title?: LocalizedText;        // explicit "I am overriding the register's title"
   description?: LocalizedText;
   owner?: string;
+  sourceRepo?: string;
+  ref?: string;
+  refAliases?: string[];
+  tags?: string[];
   // ... whatever fields a deployment legitimately needs to override
 }
 ```
@@ -115,15 +157,15 @@ Anything not in `DatasetConfig` or `DatasetOverrides` is loaded from
 
 #### 2. Make `manifest.json` the runtime SSOT
 
-The build pipeline already emits `manifest.json` per dataset. Make it the
-single source that the UI reads for all dataset metadata:
+The build pipeline already emits `manifest.json` per dataset. Make it
+the single source that the UI reads for all dataset metadata:
 
 ```json
 {
   "id": "isotc204-ed3",
   "title": "ISO/TC 204 ITS Vocabulary (Edition 3, draft)",
   "description": "Edition 3 draft, generated from the iso14812 ontology...",
-  "about": { "eng": "/data/isotc204-ed3/about-eng.html" },
+  "about": { "eng": "/pages/dataset-isotc204-ed3-about.json" },
   "owner": "ISO/TC 204",
   "status": "current",
   "supersedes": "isotc204-2025",
@@ -133,25 +175,27 @@ single source that the UI reads for all dataset metadata:
 }
 ```
 
-UI components read from manifest only — not from site-config. Site-config
-is consumed at build time only.
+UI components read from manifest only — not from site-config. The
+about-content pipeline already emits `public/pages/dataset-<id>-about.*.json`;
+manifest surfaces the URL.
 
-#### 3. Unify the `about:` mechanism
+#### 3. Decide the fate of `register.yaml:about:`
 
-Remove the global `pages: [{type: 'about', source: 'about.md'}]` array
-entry for `about`. Replace with:
+Two options:
 
-- A **per-dataset `about:` field** in `register.yaml` (localized path
-  to a markdown file inside the dataset). Becomes a route
-  `/dataset/<id>/about`.
-- An optional **site-level `about:` field** in `site-config.yml` for
-  sites without a single dominant dataset (points at a markdown file
-  in the deployment repo). Becomes route `/about`.
+- **Option A (recommended): Remove the field.** The filesystem
+  convention `about/about.{lang}.{md,adoc,html}` is the discovery
+  mechanism. Drop `about:` from the v3 `DatasetRegister` schema to
+  match reality.
+- **Option B: Wire concept-browser to honor it.** If the dataset
+  author wants explicit paths (e.g. for non-standard locations), make
+  `process-about-pages.mjs` consult `register.yaml:about:` first and
+  fall back to filesystem scan. Document the precedence.
 
-Both surface the same way in the UI but are clearly distinguished by
-route and source.
+Option A is simpler and matches the implementation. Recommend unless
+someone has a concrete use case for explicit paths.
 
-#### 4. Drop duplicate fields from `register.yaml` or `site-config.yml`
+#### 4. Drop duplicate fields from `site-config.yml:datasets[]`
 
 After the migration, each field appears in exactly one place:
 
@@ -160,29 +204,31 @@ After the migration, each field appears in exactly one place:
 | `id`               | both (must match) | deployment references dataset by id |
 | `uri`              | site-config       | deployment routing concern         |
 | `gcrPackage`/`localPath` | site-config | deployment fetch source         |
-| `name`             | register          | dataset's own identity            |
-| `description`      | register          | dataset's own identity            |
-| `about`            | register          | travels with data                 |
-| `owner`            | register          | travels with data                 |
-| `sourceRepo`       | register          | travels with data                 |
-| `ref`, `refAliases`| register          | travels with data                 |
-| `tags`             | register          | travels with data                 |
-| `status`           | register          | travels with data                 |
-| `color`            | site-config       | deployment accent palette         |
-| `datasetGroups`    | site-config       | cross-dataset layout              |
+| `existingSiteUrl`  | site-config       | deployment-only link               |
+| `name`             | register          | dataset's own identity             |
+| `description`      | register          | dataset's own identity             |
+| `about`            | filesystem        | `about/about.{lang}.md` discovery  |
+| `owner`            | register          | dataset's own identity             |
+| `sourceRepo`       | register          | dataset's own identity             |
+| `ref`, `refAliases`| register          | dataset's own identity             |
+| `tags`             | register          | dataset's own identity             |
+| `status`           | register          | dataset's own identity             |
+| `color`            | site-config       | deployment accent palette          |
+| `datasetGroups`    | site-config       | cross-dataset layout               |
 
 ### Migration
 
-- **Step 1**: Add `manifest.json` as the runtime SSOT (already largely
-  in place — just confirm the build pipeline copies all register fields
-  through).
-- **Step 2**: Update UI components to read from manifest only. Currently
-  some read from site-config's `DatasetConfig` directly; route them to
-  manifest instead.
-- **Step 3**: Stop duplicating fields in new deployments. Existing
-  deployments keep working (the legacy fields are still respected), but
-  documentation steers authors toward the SSOT.
-- **Step 4**: Add a `concept-browser doctor` check that flags
+- **Step 1**: Extend `generate-data.mjs` to read ALL register fields
+  (currently only `languages` and `description` are read from register;
+  extend to `title`, `owner`, `sourceRepo`, `ref`, `refAliases`,
+  `tags`). This makes register the SSOT without removing anything from
+  site-config.
+- **Step 2**: Surface all register fields through `manifest.json`. UI
+  components stop reading site-config directly for these fields.
+- **Step 3**: Trim `DatasetConfig` to the deployment-only fields. Add
+  `DatasetOverrides` for explicit per-deployment deviations.
+- **Step 4**: Resolve `register.yaml:about:` (Option A or B above).
+- **Step 5**: Add a `concept-browser doctor` check that flags
   duplicated fields and recommends moving them to the dataset.
 
 ### Non-goals
@@ -195,32 +241,41 @@ After the migration, each field appears in exactly one place:
 - **Per-concept metadata.** Concepts inside a dataset already have one
   source of truth (the YAML). This proposal is about dataset-level
   metadata only.
+- **Site-level about page.** The `pages: [{type: 'about'}]` array entry
+  for site-wide about is orthogonal and stays as-is.
 
 ## Open questions
 
-1. **Should `uri` move to the dataset register?** It's currently
-   deployment-specific because it's used as a routing prefix. But the
-   URN inside `urn:iso:std:iso:14812:2025:*` IS a dataset property.
-   Resolution: keep `uri` as a deployment-side routing template, but
-   the dataset's `urn` (in register) is the canonical identity.
+1. **Should `uri` move to the dataset register?** Currently deployment-
+   specific because it's used as a routing prefix. But the URN inside
+   `urn:iso:std:iso:14812:2025:*` IS a dataset property. Resolution:
+   keep `uri` as a deployment-side routing template, but the dataset's
+   `urn` (in register) is the canonical identity.
 
-2. **What about `color`?** Currently deployment-specific. Could be a
-   dataset property if the dataset has a brand color (e.g. OIML blue).
-   Tentative answer: keep as deployment override; default to a value
-   from register if present.
+2. **How does this interact with lineage-series `datasetGroups`?** The
+   group itself has a `color`, `label`, and `kind`. The group's metadata
+   could move into a "dataset-group" entity file in the deployment repo
+   (parallel to the per-dataset register), OR travel in site-config.
+   Current implementation has group about pages via
+   `site-content/groups/<id>/about/` — a third location. Out of scope
+   here, but flag for follow-up.
 
-3. **How does this interact with lineage-series `datasetGroups`?**
-   The group itself has a `color` and `label`. The group's metadata
-   could move into a "dataset-group" entity file in the deployment
-   repo, parallel to the per-dataset register. Out of scope here —
-   the group config is a deployment property and stays in site-config.
+3. **What about `existingSiteUrl`?** Currently a `DatasetConfig` field.
+   Could move to register if the dataset has a canonical external site.
+   Tentative answer: keep in site-config — it's deployment-specific
+   (different sites may link to different "canonical" references).
 
 ## References
 
 - Current `DatasetConfig` shape: `src/config/types.ts:85`
 - Current `PageConfig` shape: `src/config/types.ts:138`
+- About content pipeline: `scripts/process-about-pages.mjs` (commit `b618eaf`)
+- Color SSOT: `src/config/types.ts:218` (commit `58a907a`)
+- Register.yaml resolution (partial): `scripts/generate-data.mjs:1140` (only
+  `languages` and `description` consulted today)
 - `DatasetRegister` (glossarist gem): `lib/glossarist/dataset_register.rb`
 - Triggering deployment PRs:
   - geolexica/isotc204-glossary#33 (data)
-  - geolexica/isotc204-glossary#34 (per-edition about pages + status fixes)
+  - geolexica/isotc204-glossary#34 (per-edition about pages + status fixes —
+    needs revision per Option A above)
   - geolexica/isotc204.geolexica.org#28 (deployment config)
