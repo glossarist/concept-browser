@@ -18,6 +18,7 @@ import { useDsStyle } from '../utils/dataset-style';
 import { getFactory } from '../adapters/factory';
 import { SPHERE_RELATION_CATEGORIES as RELATION_CATEGORIES, sphereCategoryForType as categoryForType, categorizeRelationForSphere as categorizeRelation, colorForTypeInMode as colorForTypeRaw, relationLabel as relationTypeLabel } from '../utils/relation-sphere-styling';
 import { easeInOutCubic, slerp, fibonacciSpherePosition, project, cardEdge, type Vec3 } from '../composables/useSphereProjection';
+import { UriRouter } from '../adapters/UriRouter';
 import { getPreferredTerm } from '../utils/concept-helpers';
 import { renderContent } from '../utils/content-renderer';
 import { useI18n } from '../i18n';
@@ -226,14 +227,6 @@ function updateNodeTerm(n: SNode) {
 }
 
 /* ── Build internal graph from concept + edges (BFS) ────── */
-function parseNeighborUri(uri: string, fallbackReg: string): { register: string; conceptId: string } | null {
-  const m = uri.match(/(?:glossarist\.org|oimlsmart\.github\.io\/vocab)\/([^/]+)\/concept\/([^/?#]+)/);
-  if (m) return { register: m[1], conceptId: m[2] };
-  /* URN or other shape — use fallback register, last path segment as id */
-  const parts = uri.split('/').filter(Boolean);
-  if (parts.length === 0) return null;
-  return { register: fallbackReg, conceptId: parts[parts.length - 1] };
-}
 
 function hashSeed(s: string): number {
   let h = 0;
@@ -285,7 +278,7 @@ function buildGraph() {
     const isOutgoing = edge.source === focusUri || edge.source === focusId;
     const otherUri = isOutgoing ? edge.target : edge.source;
     if (!otherUri || visited.has(otherUri)) continue;
-    const parsed = parseNeighborUri(otherUri, edge.register || props.registerId);
+    const parsed = UriRouter.parseUri(otherUri);
     if (!parsed || parsed.conceptId === focusId) continue;
     visited.set(otherUri, 1);
     depth1List.push({ uri: otherUri, parsed, isOutgoing, edge });
@@ -298,8 +291,8 @@ function buildGraph() {
     nodeMap.set(parsed.conceptId, {
       id: parsed.conceptId,
       term: edge.label || parsed.conceptId,
-      ref: parsed.register,
-      register: parsed.register,
+      ref: parsed.registerId,
+      register: parsed.registerId,
       conceptId: parsed.conceptId,
       depth: 1,
       x: pos.x, y: pos.y, z: pos.z,
@@ -337,7 +330,7 @@ function buildGraph() {
       const isOutgoing = edge.source === uri;
       const otherUri = isOutgoing ? edge.target : edge.source;
       if (!otherUri || visited.has(otherUri)) continue;
-      const parsed = parseNeighborUri(otherUri, edge.register || props.registerId);
+      const parsed = UriRouter.parseUri(otherUri);
       if (!parsed || parsed.conceptId === focusId || nodeMap.has(parsed.conceptId)) continue;
       visited.set(otherUri, depth + 1);
       children.push({ uri: otherUri, parsed, isOutgoing, edge });
