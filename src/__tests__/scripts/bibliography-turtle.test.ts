@@ -14,21 +14,21 @@ function parse(turtle: string): Store {
 }
 
 describe('buildBibliographyTurtle (mjs)', () => {
-  it('parses without errors', () => {
-    const ttl = buildBibliographyTurtle('iso-geodetic', { iso704: { reference: 'ISO 704' } });
+  it('parses without errors', async () => {
+    const ttl = await buildBibliographyTurtle('iso-geodetic', { iso704: { reference: 'ISO 704' } });
     const store = parse(ttl);
     expect(store.size).toBeGreaterThan(0);
   });
 
-  it('types each entry as dcterms:BibliographicResource', () => {
-    const ttl = buildBibliographyTurtle('iso-geodetic', { iso704: { reference: 'ISO 704' } });
+  it('types each entry as dcterms:BibliographicResource', async () => {
+    const ttl = await buildBibliographyTurtle('iso-geodetic', { iso704: { reference: 'ISO 704' } });
     const store = parse(ttl);
     const types = store.getObjects('https://glossarist.org/iso-geodetic/bib/iso704', RDF_TYPE, null).map(q => q.value);
     expect(types).toContain(`${DCTERMS}BibliographicResource`);
   });
 
-  it('emits identifier, bibliographicCitation, and title', () => {
-    const ttl = buildBibliographyTurtle('iso-geodetic', {
+  it('emits identifier, bibliographicCitation, and title', async () => {
+    const ttl = await buildBibliographyTurtle('iso-geodetic', {
       iso704: { reference: 'ISO 704', title: 'Terminology work — Principles and methods' },
     });
     const store = parse(ttl);
@@ -38,8 +38,8 @@ describe('buildBibliographyTurtle (mjs)', () => {
     expect(store.getObjects(iri, `${DCTERMS}title`, null).map(q => q.value)).toContain('Terminology work — Principles and methods');
   });
 
-  it('emits foaf:page when link is provided', () => {
-    const ttl = buildBibliographyTurtle('iso-geodetic', {
+  it('emits foaf:page when link is provided', async () => {
+    const ttl = await buildBibliographyTurtle('iso-geodetic', {
       ref: { reference: 'X', link: 'https://example.org/x' },
     });
     const store = parse(ttl);
@@ -47,8 +47,8 @@ describe('buildBibliographyTurtle (mjs)', () => {
     expect(store.getObjects(iri, `${FOAF}page`, null).map(q => q.value)).toContain('https://example.org/x');
   });
 
-  it('emits one resource per bibliography entry', () => {
-    const ttl = buildBibliographyTurtle('iso-geodetic', {
+  it('emits one resource per bibliography entry', async () => {
+    const ttl = await buildBibliographyTurtle('iso-geodetic', {
       a: { reference: 'A' },
       b: { reference: 'B' },
     });

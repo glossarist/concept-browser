@@ -27,7 +27,7 @@ describe('WS F Layer 8 — build pipeline integration', () => {
   it('dataset-turtle.mjs produces parseable dcat:Dataset', () => {
     const out = runInline(`
       import { buildDatasetTurtle } from './scripts/lib/dataset-turtle.mjs';
-      console.log(buildDatasetTurtle({
+      console.log(await buildDatasetTurtle({
         datasetIri: 'https://glossarist.org/test/',
         registerId: 'test', title: 'Test', modified: '2026-06-28',
         languages: ['eng'], distributions: [], topConceptUris: [], sections: [],
@@ -45,7 +45,7 @@ describe('WS F Layer 8 — build pipeline integration', () => {
   it('build-activity-turtle.mjs produces parseable prov:Activity', () => {
     const out = runInline(`
       import { buildActivityTurtle } from './scripts/lib/build-activity-turtle.mjs';
-      console.log(buildActivityTurtle({
+      console.log(await buildActivityTurtle({
         runId: 'test', startedAt: '2026-01-01T00:00:00Z', endedAt: '2026-01-01T00:05:00Z',
         toolId: 'cb', toolVersion: '0.7.52', datasetRegisters: [], conceptCount: 0,
       }));
@@ -61,7 +61,7 @@ describe('WS F Layer 8 — build pipeline integration', () => {
   it('agents-turtle.mjs produces parseable foaf:Person', () => {
     const out = runInline(`
       import { buildAgentsTurtle } from './scripts/lib/agents-turtle.mjs';
-      console.log(buildAgentsTurtle([{ name: 'Ada Lovelace', role: 'Editor', organization: 'Royal Society' }]));
+      console.log(await buildAgentsTurtle([{ name: 'Ada Lovelace', role: 'Editor', organization: 'Royal Society' }]));
     `);
     const store = parseTurtle(out);
     const persons = [...store].filter(q =>
@@ -74,7 +74,7 @@ describe('WS F Layer 8 — build pipeline integration', () => {
   it('bibliography-turtle.mjs produces parseable dcterms:BibliographicResource', () => {
     const out = runInline(`
       import { buildBibliographyTurtle } from './scripts/lib/bibliography-turtle.mjs';
-      console.log(buildBibliographyTurtle('test', { iso704: { reference: 'ISO 704' } }));
+      console.log(await buildBibliographyTurtle('test', { iso704: { reference: 'ISO 704' } }));
     `);
     const store = parseTurtle(out);
     const bibs = [...store].filter(q =>
@@ -87,7 +87,7 @@ describe('WS F Layer 8 — build pipeline integration', () => {
   it('version-turtle.mjs produces parseable prov:Entity chain', () => {
     const out = runInline(`
       import { buildVersionHistoryTurtle } from './scripts/lib/version-turtle.mjs';
-      console.log(buildVersionHistoryTurtle({
+      console.log(await buildVersionHistoryTurtle({
         registerId: 'test', datasetIri: 'https://glossarist.org/test/',
         versions: [
           { version: '1.0', generatedAt: '2024-01-01T00:00:00Z' },
@@ -120,11 +120,11 @@ describe('WS F Layer 8 — build pipeline integration', () => {
       import { buildVersionHistoryTurtle } from './scripts/lib/version-turtle.mjs';
       const parts = [
         await buildVocabularyTurtle(),
-        buildDatasetTurtle({ datasetIri: 'https://glossarist.org/test/', registerId: 'test', title: 't', modified: '2026-01-01', languages: ['eng'], distributions: [], topConceptUris: [], sections: [] }),
-        buildActivityTurtle({ runId: 'r', startedAt: '2026-01-01T00:00:00Z', endedAt: '2026-01-01T00:05:00Z', toolId: 'cb', toolVersion: '0', datasetRegisters: [], conceptCount: 0 }),
-        buildAgentsTurtle([{ name: 'Ada' }]),
-        buildBibliographyTurtle('test', { x: { reference: 'X' } }),
-        buildVersionHistoryTurtle({ registerId: 't', datasetIri: 'https://glossarist.org/t/', versions: [{ version: '1', generatedAt: '2026-01-01' }] }),
+        await buildDatasetTurtle({ datasetIri: 'https://glossarist.org/test/', registerId: 'test', title: 't', modified: '2026-01-01', languages: ['eng'], distributions: [], topConceptUris: [], sections: [] }),
+        await buildActivityTurtle({ runId: 'r', startedAt: '2026-01-01T00:00:00Z', endedAt: '2026-01-01T00:05:00Z', toolId: 'cb', toolVersion: '0', datasetRegisters: [], conceptCount: 0 }),
+        await buildAgentsTurtle([{ name: 'Ada' }]),
+        await buildBibliographyTurtle('test', { x: { reference: 'X' } }),
+        await buildVersionHistoryTurtle({ registerId: 't', datasetIri: 'https://glossarist.org/t/', versions: [{ version: '1', generatedAt: '2026-01-01' }] }),
       ];
       console.log(parts.join('\\n'));
     `);

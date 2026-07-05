@@ -36,39 +36,39 @@ const expand = (v: string): string => {
 };
 
 describe('buildActivityTurtle (mjs)', () => {
-  it('parses without errors', () => {
-    const ttl = buildActivityTurtle(makeInput());
+  it('parses without errors', async () => {
+    const ttl = await buildActivityTurtle(makeInput());
     const store = parse(ttl);
     expect(store.size).toBeGreaterThan(0);
   });
 
-  it('types the activity as prov:Activity', () => {
+  it('types the activity as prov:Activity', async () => {
     const input = makeInput();
-    const store = parse(buildActivityTurtle(input));
+    const store = parse(await buildActivityTurtle(input));
     const types = store.getObjects(ACTIVITY_IRI(input.runId), expand('rdf:type'), null).map(q => q.value);
     expect(types).toContain(expand('prov:Activity'));
   });
 
-  it('records git commit and tool as prov:used', () => {
+  it('records git commit and tool as prov:used', async () => {
     const input = makeInput();
-    const store = parse(buildActivityTurtle(input));
+    const store = parse(await buildActivityTurtle(input));
     const used = store.getObjects(ACTIVITY_IRI(input.runId), expand('prov:used'), null).map(q => q.value);
     expect(used).toContain(`https://glossarist.org/commit/${input.gitSha}`);
     expect(used).toContain(`https://glossarist.org/tool/${input.toolId}/${input.toolVersion}`);
   });
 
-  it('references every dataset register via prov:used', () => {
+  it('references every dataset register via prov:used', async () => {
     const input = makeInput({ datasetRegisters: ['a', 'b', 'c'] });
-    const store = parse(buildActivityTurtle(input));
+    const store = parse(await buildActivityTurtle(input));
     const used = store.getObjects(ACTIVITY_IRI(input.runId), expand('prov:used'), null).map(q => q.value);
     for (const r of input.datasetRegisters) {
       expect(used).toContain(`https://glossarist.org/${r}/`);
     }
   });
 
-  it('associates the CI agent when provided', () => {
+  it('associates the CI agent when provided', async () => {
     const input = makeInput();
-    const store = parse(buildActivityTurtle(input));
+    const store = parse(await buildActivityTurtle(input));
     const agents = store.getObjects(ACTIVITY_IRI(input.runId), expand('prov:wasAssociatedWith'), null).map(q => q.value);
     expect(agents).toContain(input.associatedAgentIri);
   });
