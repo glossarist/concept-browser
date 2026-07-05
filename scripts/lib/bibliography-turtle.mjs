@@ -10,7 +10,7 @@ import {
   writeTurtle,
 } from 'glossarist/rdf';
 
-const DEFAULT_BASE_URI = 'https://glossarist.org';
+// No hardcoded default base URI — callers MUST pass it.
 
 function writerPrefixes() {
   return {
@@ -22,7 +22,8 @@ function writerPrefixes() {
 
 export { normalizeBibliographyData };
 
-export async function buildBibliographyTurtle(register, bibliographyJson, baseUri = DEFAULT_BASE_URI) {
+export async function buildBibliographyTurtle(register, bibliographyJson, baseUri) {
+  if (!baseUri) throw new Error('buildBibliographyTurtle requires baseUri');
   const entries = normalizeBibliographyData(bibliographyJson);
   const quads = collectQuads(bibliographyToQuads({ registerId: register, entries, baseUri }));
   return writeTurtle(quads, { prefixes: writerPrefixes() });

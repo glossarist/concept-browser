@@ -19,6 +19,7 @@ describe('DatasetAdapter', () => {
 
   beforeEach(() => {
     adapter = new DatasetAdapter('test', '/data/test');
+    adapter.manifest = { uriBase: 'https://glossarist.org' } as any;
     mockFetch.mockReset();
   });
 

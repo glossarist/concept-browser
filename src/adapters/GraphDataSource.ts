@@ -42,7 +42,9 @@ export class GraphDataSource {
   }
 
   private get uriBase(): string {
-    return this.adapter.manifest?.uriBase || 'https://glossarist.org';
+    const uriBase = this.adapter.manifest?.uriBase;
+    if (!uriBase) throw new Error('GraphDataSource: manifest.uriBase is required');
+    return uriBase;
   }
 
   private get urnMap(): ReadonlyMap<string, string> {

@@ -19,7 +19,8 @@ function writerPrefixes() {
   };
 }
 
-export async function buildAgentsTurtle(contributors, agentBase = 'https://glossarist.org/agent') {
+export async function buildAgentsTurtle(contributors, agentBase) {
+  if (!agentBase) throw new Error('buildAgentsTurtle requires agentBase');
   const agents = agentsFromContributors(contributors ?? [], agentBase);
   const quads = collectQuads(agentsToQuads(agents));
   return writeTurtle(quads, { prefixes: writerPrefixes() });

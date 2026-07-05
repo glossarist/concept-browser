@@ -92,7 +92,8 @@ function writeJson(filePath, data) {
 }
 
 async function writeDatasetRdf(register, manifest, concepts, refMaps, opts) {
-  const uriBase = refMaps?.uriBase ?? 'https://glossarist.org';
+  const uriBase = refMaps?.uriBase;
+  if (!uriBase) throw new Error('generate-data: uriBase is required — set uriBase in site-config.yml');
   const datasetIri = `${uriBase}/${register}/`;
   const topConceptUris = concepts
     .slice(0, 32)
@@ -375,7 +376,8 @@ function buildRefMaps(config, registerCache) {
   const xref = config.crossReferences || {};
   if (xref.refPrefixMap) Object.assign(refPrefixMap, xref.refPrefixMap);
 
-  const uriBase = config.uriBase || `https://${config.domain}`;
+  const uriBase = config.uriBase;
+  if (!uriBase) throw new Error('site-config.yml: uriBase is required');
   return { patternIndex, refPrefixMap, uriBase, register: null };
 }
 
@@ -1617,7 +1619,7 @@ console.log('Emitted vocabulary graph: data/_vocab.ttl');
 
 const contributors = config.contributors ?? [];
 if (contributors.length > 0) {
-  fs.writeFileSync(path.join(DATA, 'agents.ttl'), await buildAgentsTurtle(contributors));
+  fs.writeFileSync(path.join(DATA, 'agents.ttl'), await buildAgentsTurtle(contributors, refMaps.uriBase + '/agent'));
   console.log(`Emitted agents graph: data/agents.ttl (${contributors.length} contributors)`);
 }
 
@@ -1626,7 +1628,7 @@ for (const ds of registry) {
   const bibPath = path.join(DATA, ds.id, 'bibliography.json');
   if (fs.existsSync(bibPath)) {
     const bibJson = JSON.parse(fs.readFileSync(bibPath, 'utf8'));
-    const bibTtl = await buildBibliographyTurtle(ds.id, bibJson);
+    const bibTtl = await buildBibliographyTurtle(ds.id, bibJson, refMaps.uriBase);
     fs.writeFileSync(path.join(DATA, ds.id, 'bib.ttl'), bibTtl);
   }
 }

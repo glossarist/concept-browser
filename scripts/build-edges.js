@@ -49,7 +49,8 @@ function extractReferences(concept, registerId) {
 }
 
 function extractDomains(concept, registerId, uriBase) {
-  const base = uriBase || 'https://glossarist.org';
+  if (!uriBase) throw new Error('build-edges: uriBase is required — set uriBase in site-config.yml');
+  const base = uriBase;
   const edges = [];
   const sourceUri = concept['@id'];
   const seen = new Set();
@@ -188,7 +189,8 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest)
   // Build domain-nodes.json from manifest sections (authoritative source)
   const manifestSections = manifest.sections;
   if (manifestSections && manifestSections.length > 0) {
-    const uriBase = manifest.uriBase || 'https://glossarist.org';
+    const uriBase = manifest.uriBase;
+    if (!uriBase) throw new Error('build-edges: manifest.uriBase is required');
 
     function buildSectionNode(section, idx) {
       const sectionId = `section-${section.id}`;
@@ -293,7 +295,8 @@ for (const ds of datasets) {
   if (!manifest) continue;
   try {
     console.log(`${manifest.title} (${ds}):`);
-    const uriBase = manifest.uriBase || 'https://glossarist.org';
+    const uriBase = manifest.uriBase;
+    if (!uriBase) throw new Error('build-edges: manifest.uriBase is required');
     const result = buildEdgesForDataset(join(DATA_DIR, ds), ds, uriBase, urnMap, manifest);
     allDatasetEdges.set(ds, result.edges);
     allSourceRefs.push(...result.sourceRefs);
@@ -347,7 +350,8 @@ if (auditUnmatched.size > 0) {
 // edges.json contains edges targeting that dataset's URIs.
 const datasetUriPrefixes = new Map();
 for (const [ds, manifest] of manifestCache) {
-  const uriBase = manifest.uriBase || 'https://glossarist.org';
+  const uriBase = manifest.uriBase;
+    if (!uriBase) throw new Error('build-edges: manifest.uriBase is required');
   datasetUriPrefixes.set(ds, `${uriBase}/${ds}/`);
 }
 

@@ -1,5 +1,6 @@
 id: geolexica
 domain: www.geolexica.org
+uriBase: https://www.geolexica.org
 title: Geolexica
 subtitle: Terminology Register
 description: A terminology register for ISO and IEC standards.
