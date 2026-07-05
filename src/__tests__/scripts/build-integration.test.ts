@@ -15,7 +15,7 @@ function runInline(code: string): string {
 
 describe('WS F Layer 8 — build pipeline integration', () => {
   it('vocab-turtle.mjs produces parseable Turtle with 7 schemes', () => {
-    const out = runInline(`import { buildVocabularyTurtle } from './scripts/lib/vocab-turtle.mjs'; console.log(buildVocabularyTurtle());`);
+    const out = runInline(`import { buildVocabularyTurtle } from './scripts/lib/vocab-turtle.mjs'; console.log(await buildVocabularyTurtle());`);
     const store = parseTurtle(out);
     const schemes = [...store].filter(q =>
       q.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' &&
@@ -119,7 +119,7 @@ describe('WS F Layer 8 — build pipeline integration', () => {
       import { buildBibliographyTurtle } from './scripts/lib/bibliography-turtle.mjs';
       import { buildVersionHistoryTurtle } from './scripts/lib/version-turtle.mjs';
       const parts = [
-        buildVocabularyTurtle(),
+        await buildVocabularyTurtle(),
         buildDatasetTurtle({ datasetIri: 'https://glossarist.org/test/', registerId: 'test', title: 't', modified: '2026-01-01', languages: ['eng'], distributions: [], topConceptUris: [], sections: [] }),
         buildActivityTurtle({ runId: 'r', startedAt: '2026-01-01T00:00:00Z', endedAt: '2026-01-01T00:05:00Z', toolId: 'cb', toolVersion: '0', datasetRegisters: [], conceptCount: 0 }),
         buildAgentsTurtle([{ name: 'Ada' }]),

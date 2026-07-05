@@ -13,22 +13,22 @@ const SKOS = 'http://www.w3.org/2004/02/skos/core#';
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
 
 describe('buildVocabularyTurtle (mjs)', () => {
-  it('parses without errors and produces a non-empty graph', () => {
-    const ttl = buildVocabularyTurtle();
+  it('parses without errors and produces a non-empty graph', async () => {
+    const ttl = await buildVocabularyTurtle();
     const store = parse(ttl);
     expect(store.size).toBeGreaterThan(0);
   });
 
-  it('declares at least one skos:ConceptScheme', () => {
-    const store = parse(buildVocabularyTurtle());
+  it('declares at least one skos:ConceptScheme', async () => {
+    const store = parse(await buildVocabularyTurtle());
     const schemes = [...store].filter(q =>
       q.predicate.value === RDF_TYPE && q.object.value === `${SKOS}ConceptScheme`,
     );
     expect(schemes.length).toBeGreaterThan(0);
   });
 
-  it('declares enumeration IRIs as skos:Concept instances', () => {
-    const store = parse(buildVocabularyTurtle());
+  it('declares enumeration IRIs as skos:Concept instances', async () => {
+    const store = parse(await buildVocabularyTurtle());
     const concepts = [...store].filter(q =>
       q.predicate.value === RDF_TYPE && q.object.value === `${SKOS}Concept`,
     );
@@ -53,8 +53,8 @@ describe('buildVocabularyTurtle (mjs)', () => {
     expect(schemes.length).toBe(7);
   });
 
-  it('emits skos:hasTopConcept and skos:inScheme bidirectionally', () => {
-    const store = parse(buildVocabularyTurtle());
+  it('emits skos:hasTopConcept and skos:inScheme bidirectionally', async () => {
+    const store = parse(await buildVocabularyTurtle());
     const hasTopConcept = [...store].filter(q => q.predicate.value === `${SKOS}hasTopConcept`);
     const inScheme = [...store].filter(q => q.predicate.value === `${SKOS}inScheme`);
     expect(hasTopConcept.length).toBeGreaterThan(0);
