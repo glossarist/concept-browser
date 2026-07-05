@@ -15,29 +15,23 @@
 // `data/concept-model/shapes/glossarist.shacl.ttl` (synced from
 // glossarist/concept-model via `npm run sync:model`). Pass --shapes <path>
 // or set SHAPES_PATH to override.
+//
+// Delegates the actual validation to glossarist-js's validateShacl
+// wrapper, which handles factory aggregation and shapes caching. The
+// directory walk + CLI parsing stay here because they're build-pipeline
+// specific.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, extname, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Parser as N3Parser, DataFactory } from 'n3';
+import { Parser as N3Parser } from 'n3';
 import rdfDataset from '@rdfjs/dataset';
-import ShaclValidator from 'rdf-validate-shacl';
+import { validateShacl, quadsToDataset } from 'glossarist/rdf';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const VENDORED_SHAPES = resolve(__dirname, '..', 'data', 'concept-model', 'shapes', 'glossarist.shacl.ttl');
 
-const COMBINED_FACTORY = {
-  namedNode: DataFactory.namedNode,
-  blankNode: DataFactory.blankNode,
-  literal: DataFactory.literal,
-  defaultGraph: DataFactory.defaultGraph,
-  quad: DataFactory.quad,
-  fromTerm: DataFactory.fromTerm,
-  fromQuad: DataFactory.fromQuad,
-  dataset: rdfDataset.dataset.bind(rdfDataset),
-};
-const createDataset = COMBINED_FACTORY.dataset;
-const ShaclValidatorCtor = ShaclValidator.default ?? ShaclValidator;
+const createDataset = rdfDataset.dataset.bind(rdfDataset);
 
 function parseArgs(argv) {
   const out = { dataRoot: 'public/data', shapesPath: null };
@@ -119,6 +113,10 @@ async function main() {
   const args = parseArgs(process.argv);
   const shapesPath = resolveShapesPath(args.shapesPath);
 
+  // Pre-parse the shapes file once so we can pass it explicitly via the
+  // { shapes } option. glossarist-js caches by path internally, but
+  // passing the dataset directly avoids a re-read of the file when the
+  // same path is reused for every validation call.
   let shapesDataset;
   try {
     const shapesText = readFileSync(shapesPath, 'utf8');
@@ -127,8 +125,6 @@ async function main() {
     console.error(`Failed to load SHACL shapes from ${shapesPath}: ${e.message}`);
     process.exit(2);
   }
-
-  const validator = new ShaclValidatorCtor(shapesDataset, { factory: COMBINED_FACTORY });
 
   let statDir;
   try {
@@ -158,7 +154,7 @@ async function main() {
       violations.push({ path, parseError: e.message });
       continue;
     }
-    const report = validator.validate(graph);
+    const report = await validateShacl(graph, { shapes: shapesDataset });
     if (!report.conforms) {
       for (const v of report.results) {
         violations.push({ path, result: v });
