@@ -1620,7 +1620,7 @@ console.log('Emitted vocabulary graph: data/_vocab.ttl');
 
 const contributors = config.contributors ?? [];
 if (contributors.length > 0) {
-  fs.writeFileSync(path.join(DATA, 'agents.ttl'), await buildAgentsTurtle(contributors, refMaps.uriBase + '/agent'));
+  fs.writeFileSync(path.join(DATA, 'agents.ttl'), await buildAgentsTurtle(contributors, refMaps.uriBase + '/agent', refMaps.uriBase + '/org'));
   console.log(`Emitted agents graph: data/agents.ttl (${contributors.length} contributors)`);
 }
 

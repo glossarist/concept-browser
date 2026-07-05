@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { Parser, Store } from 'n3';
-import { buildAgentsTurtle } from '../../../scripts/lib/agents-turtle.mjs';
+import { buildAgentsTurtle as _buildAgentsTurtle } from '../../../scripts/lib/agents-turtle.mjs';
+
+const buildAgentsTurtle = _buildAgentsTurtle as unknown as (...args: any[]) => Promise<string>;
 
 function parse(turtle: string): Store {
   const parser = new Parser({ format: 'Turtle' });
@@ -16,13 +18,13 @@ const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
 
 describe('buildAgentsTurtle (mjs)', () => {
   it('parses without errors', async () => {
-    const ttl = await buildAgentsTurtle([{ name: 'Ada Lovelace' }], 'https://glossarist.org/agent');
+    const ttl = await buildAgentsTurtle([{ name: 'Ada Lovelace' }], 'https://glossarist.org/agent', 'https://glossarist.org/org');
     const store = parse(ttl);
     expect(store.size).toBeGreaterThan(0);
   });
 
   it('types each person as foaf:Person, prov:Person, prov:Agent', async () => {
-    const ttl = await buildAgentsTurtle([{ name: 'Ada Lovelace' }], 'https://glossarist.org/agent');
+    const ttl = await buildAgentsTurtle([{ name: 'Ada Lovelace' }], 'https://glossarist.org/agent', 'https://glossarist.org/org');
     const store = parse(ttl);
     const types = store.getObjects('https://glossarist.org/agent/ada-lovelace', RDF_TYPE, null).map(q => q.value);
     expect(types).toContain(`${FOAF}Person`);
@@ -33,7 +35,7 @@ describe('buildAgentsTurtle (mjs)', () => {
   it('records name, mailto mbox, role, and seeAlso', async () => {
     const ttl = await buildAgentsTurtle([
       { name: 'Ada Lovelace', email: 'ada@example.org', role: 'Editor', url: 'https://example.org/ada' },
-    ], 'https://glossarist.org/agent');
+    ], 'https://glossarist.org/agent', 'https://glossarist.org/org');
     const store = parse(ttl);
     const iri = 'https://glossarist.org/agent/ada-lovelace';
     expect(store.getObjects(iri, `${FOAF}name`, null).map(q => q.value)).toContain('Ada Lovelace');
@@ -46,7 +48,7 @@ describe('buildAgentsTurtle (mjs)', () => {
     const ttl = await buildAgentsTurtle([
       { name: 'Alice', organization: 'ISO' },
       { name: 'Bob',   organization: 'ISO' },
-    ], 'https://glossarist.org/agent');
+    ], 'https://glossarist.org/agent', 'https://glossarist.org/org');
     const store = parse(ttl);
     const types = store.getObjects('https://glossarist.org/org/iso', RDF_TYPE, null).map(q => q.value);
     expect(types).toContain(`${FOAF}Organization`);
@@ -54,8 +56,18 @@ describe('buildAgentsTurtle (mjs)', () => {
   });
 
   it('emits only prefix declarations for an empty input', async () => {
-    const ttl = await buildAgentsTurtle([], 'https://glossarist.org/agent');
+    const ttl = await buildAgentsTurtle([], 'https://glossarist.org/agent', 'https://glossarist.org/org');
     expect(ttl).toContain('@prefix foaf:');
     expect(ttl).not.toContain('<https://glossarist.org/agent/');
+  });
+
+  it('throws when agentBase is missing (no hardcoded default)', async () => {
+    await expect(buildAgentsTurtle([{ name: 'X' }])).rejects.toThrow('agentBase');
+  });
+
+  it('throws when orgBase is missing (no hardcoded default)', async () => {
+    await expect(
+      buildAgentsTurtle([{ name: 'X' }], 'https://example.org/agent'),
+    ).rejects.toThrow('orgBase');
   });
 });
