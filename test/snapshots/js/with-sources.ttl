@@ -1,6 +1,7 @@
 @prefix gloss: <https://www.glossarist.org/ontologies/> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix skosxl: <http://www.w3.org/2008/05/skos-xl#> .
+@prefix iso-thes: <http://purl.org/iso25964/skos-thes#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -8,7 +9,9 @@
 @prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix dcat: <http://www.w3.org/ns/dcat#> .
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix vann: <http://purl.org/vocab/vann/> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
 
 <https://glossarist.org/fixtures/concept/with-sources> a gloss:Concept, skos:Concept ;
   gloss:identifier "4.1" ;

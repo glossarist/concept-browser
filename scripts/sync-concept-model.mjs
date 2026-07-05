@@ -66,6 +66,7 @@ function fetchAny(ref, candidates) {
 const targets = {
   'glossarist.context.jsonld': ['ontologies/glossarist.context.jsonld', 'glossarist.context.jsonld'],
   'glossarist.ttl': ['ontologies/glossarist.ttl', 'glossarist.ttl'],
+  'prefixes.ttl': ['ontologies/prefixes.ttl'],
   'shapes/glossarist.shacl.ttl': ['ontologies/shapes/glossarist.shacl.ttl', 'shapes/glossarist.shacl.ttl'],
 };
 
