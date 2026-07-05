@@ -432,7 +432,7 @@ Sites currently powered by `@glossarist/concept-browser`. When cutting a release
 | [`geolexica/osgeo.geolexica.org`](https://github.com/geolexica/osgeo.geolexica.org) | https://osgeo.geolexica.org |
 | [`oimlsmart/vocab`](https://github.com/oimlsmart/vocab) | https://www.oimlsmart.org/vocab/ (VIML)¹ |
 | [`metanorma/oiml-terms`](https://github.com/metanorma/oiml-terms) | https://metanorma.github.io/oiml-terms/ |
-| [`metanorma/iala-vocab`](https://github.com/metanorma/iala-vocab) | https://metanorma.github.io/iala-vocab/ |
+| [`glossarist/iala-vocab`](https://github.com/glossarist/iala-vocab) | https://glossarist.github.io/iala-vocab/ |
 | [`metanorma/iso-10303-2-vocab`](https://github.com/metanorma/iso-10303-2-vocab) | https://metanorma.github.io/iso-10303-2-vocab/ |
 
 To add a new deployment here, open a PR against this README.
