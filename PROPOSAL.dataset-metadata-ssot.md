@@ -2,9 +2,12 @@
 
 ## Status
 
-**Updated 2026-07-05** — partially overtaken by `b618eaf` (about pipeline)
-and `58a907a` (color SSOT). The proposal is tightened below to address
-only what remains open. See "What's already done" section.
+**Updated 2026-07-05 (revision 2)** — partially overtaken by `b618eaf`
+(about pipeline) and `58a907a` (color SSOT). This revision corrects an
+earlier error: most register fields *are* already read by
+`generate-data.mjs` (not just `languages`/`description`). The actual
+remaining issue is the **inconsistent precedence rule** across fields.
+See "Current precedence" table and "What's already done" below.
 
 ## Summary
 
@@ -28,16 +31,20 @@ information scattered across:
      wins, site-config is the fallback — verified in
      `scripts/generate-data.mjs:1170` for `languages` and `description`).
 
-2. **`register.yaml`** in the dataset itself (`DatasetRegister`):
-   - `name` (localized object), `description` (localized object),
-     `about` (localized paths to per-edition markdown), `owner`,
-     `sourceRepo`, `ref`, `refAliases`, `tags`, `logo`, `status`,
-     `supersedes`, `year`, `languages`, `languageOrder`, `ordering`,
-     `sections`
-   - Travels with the dataset inside the GCR. Read at build time for
-     `languages` and `description` resolution; **not** read for
-     `title`/`owner`/`sourceRepo`/`ref` (verified by absence in
-     `generate-data.mjs`).
+2. **`register.yaml`** in the dataset itself (modeled by
+   `glossarist-js`'s `Register` class — see `src/models/register.js`):
+   - First-class fields: `id`, `ref`, `refAliases`, `year`, `urn`,
+     `urnAliases`, `status`, `supersedes`, `owner`, `sourceRepo`, `tags`,
+     `languages`, `languageOrder`, `ordering`, `logo`, `description`
+     (localized object), `about` (localized paths), `provenance`,
+     `contributors`, `sections`. There is **no `name`/`title` field** on
+     the model — the closest is `ref` (the citation string, e.g.
+     `"ISO 14812:2025"`).
+   - Travels with the dataset inside the GCR. Read at build time as a
+     **fallback** for most content fields (see precedence table below).
+   - **`about:`** is parsed onto `Register.about` but concept-browser
+     never consults it — about content is discovered via filesystem
+     convention only (`scripts/process-about-pages.mjs`).
 
 3. **`pages:` array** in `site-config.yml` (`PageConfig`):
    - One global `about` page per site, source path is in the deployment
@@ -49,21 +56,26 @@ information scattered across:
 
 ### Symptoms
 
-- **Drift.** Two humans edit the same field in two files. Build-time
-  resolution picks one (register wins for `description`/`languages`;
-  site-config wins for everything else by default since register isn't
-  consulted). Neither human knows which without reading the source.
+- **Inconsistent precedence.** `languages` and `description` resolve
+  with **register wins** (site-config is the fallback); every other
+  content field resolves with **site-config wins** (register is the
+  fallback). Verified in `scripts/generate-data.mjs:1166-1199`. There
+  is no single rule; humans cannot predict which file wins without
+  reading the source.
+- **Drift.** Because both files are *consulted* for most fields, two
+  humans can edit the same field in two files and the build silently
+  picks one. The duplicate stays in the other file as latent drift.
 - **Ambiguity.** `description` on the deployment's `DatasetConfig`
-  (single string) and `description` on the dataset's `DatasetRegister`
+  (single string) and `description` on the dataset's `Register`
   (localized object) have the same name but different shapes. The
   register version wins when both are populated; site-config is the
   fallback.
-- **Inconsistency.** A dataset deployed to two sites may have different
-  `title`/`owner`/`sourceRepo` in each deployment's `site-config.yml`,
-  even though the underlying dataset is identical. The dataset loses
-  its identity for these fields because they're not read from register.
-- **Loss of provenance.** `register.yaml`'s `about:` field is unused.
-  About content is discovered by scanning
+- **Title has no real source.** `Register` has no `name`/`title` field.
+  Title resolves as `ds.title || reg?.ref || ds.id` — i.e. the
+  citation string is repurposed as the display title when site-config
+  omits one. This is a footgun.
+- **Loss of provenance.** `register.yaml`'s `about:` field is parsed
+  but unused. About content is discovered by scanning
   `.datasets/<id>/about/about.{lang}.{md,adoc,html}` — a filesystem
   convention with no schema backing.
 - **Two `about:` mechanisms.** register.yaml's `about:` field and the
@@ -79,7 +91,9 @@ In the `isotc204-glossary` lineage-series deployment (PRs
 the same three-line description for each edition must be written into
 **both** the deployment's `site-config.yml` AND the dataset's
 `register.yaml` (description is read from register; but title/owner
-must be in site-config since register isn't consulted for them).
+have to be duplicated in site-config to take effect, because the
+default precedence for those fields is site-config-wins — the register
+fallback only kicks in when site-config is silent).
 PR #34 also placed per-edition about pages at `<dataset>/about-eng.md`
 and registered them via `register.yaml: about:` — but concept-browser
 ignores that field and scans for `<dataset>/about/about.eng.md`
@@ -103,16 +117,29 @@ from scope:
 - **Group-kind visual distinction** (`b618eaf`). Sidebar group headers
   show the kind glyph with CSS variable accent color. No metadata
   duplication concern here.
+- **Register field reading** (current state of
+  `scripts/generate-data.mjs`). Most register fields *are* read at
+  build time (owner, sourceRepo, ref, refAliases, tags, status, urn,
+  urnAliases, sections, ordering, languageOrder, languages,
+  description). The remaining issue is the **inconsistent precedence
+  rule** — see "Proposal (what remains)" below.
 
 ## Proposal (what remains)
 
 ### Principle
 
 Dataset metadata that travels with the data (GCR or local checkout) is
-authoritative for **content** fields: `name`, `description`, `about`,
-`owner`, `sourceRepo`, `ref`, `refAliases`, `tags`, `logo`, `status`,
+authoritative for **content** fields: `description`, `about`, `owner`,
+`sourceRepo`, `ref`, `refAliases`, `tags`, `logo`, `status`,
 `supersedes`, `year`, `languages`, `languageOrder`, `ordering`,
 `sections`.
+
+> **Note on title.** `Register` currently has no `name`/`title` field.
+> The display title resolves as `ds.title || reg?.ref || ds.id` today.
+> Two options: (a) add a first-class `name` field to `Register` in
+> `glossarist-js` (preferred long-term); (b) accept `ref` as the title
+> proxy and document it. This proposal assumes (a) will happen and uses
+> `name` / `title` interchangeably below.
 
 Deployment metadata that doesn't travel with the data is authoritative
 for **layout** concerns: `id`, `uri` (deployment's URI prefix for
@@ -205,7 +232,7 @@ After the migration, each field appears in exactly one place:
 | `uri`              | site-config       | deployment routing concern         |
 | `gcrPackage`/`localPath` | site-config | deployment fetch source         |
 | `existingSiteUrl`  | site-config       | deployment-only link               |
-| `name`             | register          | dataset's own identity             |
+| `name`             | register (pending upstream addition to `Register`) | dataset's own identity             |
 | `description`      | register          | dataset's own identity             |
 | `about`            | filesystem        | `about/about.{lang}.md` discovery  |
 | `owner`            | register          | dataset's own identity             |
@@ -218,13 +245,18 @@ After the migration, each field appears in exactly one place:
 
 ### Migration
 
-- **Step 1**: Extend `generate-data.mjs` to read ALL register fields
-  (currently only `languages` and `description` are read from register;
-  extend to `title`, `owner`, `sourceRepo`, `ref`, `refAliases`,
-  `tags`). This makes register the SSOT without removing anything from
-  site-config.
+- **Step 1 (DONE — close the gap)**: Most register fields *are* already
+  read by `generate-data.mjs`. The remaining gap is the **inconsistent
+  precedence rule**: today `languages`/`description` use register-wins
+  while every other content field uses site-config-wins. Pick one rule
+  (recommend: **register-wins** for all content fields, **site-config
+  only via explicit `overrides`**) and apply it uniformly. This is a
+  one-place change in `generate-data.mjs:1166-1199`.
 - **Step 2**: Surface all register fields through `manifest.json`. UI
   components stop reading site-config directly for these fields.
+  (Partial: manifest already has title/description/owner/languages/etc.
+  Need to add `about`, `ref`, `refAliases`, `tags`, `status`,
+  `supersedes`, `year`, `logo`.)
 - **Step 3**: Trim `DatasetConfig` to the deployment-only fields. Add
   `DatasetOverrides` for explicit per-deployment deviations.
 - **Step 4**: Resolve `register.yaml:about:` (Option A or B above).
@@ -271,8 +303,8 @@ After the migration, each field appears in exactly one place:
 - Current `PageConfig` shape: `src/config/types.ts:138`
 - About content pipeline: `scripts/process-about-pages.mjs` (commit `b618eaf`)
 - Color SSOT: `src/config/types.ts:218` (commit `58a907a`)
-- Register.yaml resolution (partial): `scripts/generate-data.mjs:1140` (only
-  `languages` and `description` consulted today)
+- Register.yaml resolution (partial): `scripts/generate-data.mjs:1166-1199`
+  (most fields consulted; precedence rule is inconsistent across fields)
 - `DatasetRegister` (glossarist gem): `lib/glossarist/dataset_register.rb`
 - Triggering deployment PRs:
   - geolexica/isotc204-glossary#33 (data)
