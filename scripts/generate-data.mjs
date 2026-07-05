@@ -140,7 +140,7 @@ async function writeDatasetRdf(register, manifest, concepts, refMaps, opts) {
   fs.writeFileSync(path.join(DATA, register, `${register}.ttl`), ttl);
 }
 
-async function writeBuildActivity(conceptCount, datasetRegisters) {
+async function writeBuildActivity(conceptCount, datasetRegisters, baseUri) {
   const runId = process.env.GITHUB_RUN_ID
     ? `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT ?? '1'}`
     : `local-${new Date().toISOString().replace(/[:.]/g, '-')}`;
@@ -162,6 +162,7 @@ async function writeBuildActivity(conceptCount, datasetRegisters) {
     datasetRegisters,
     conceptCount,
     associatedAgentIri: agentIri,
+    baseUri,
   });
   const activityDir = path.join(DATA, 'activity');
   fs.mkdirSync(activityDir, { recursive: true });
@@ -1612,7 +1613,7 @@ for (const [id, count] of Object.entries(counts)) {
   console.log(`  ${id}: ${count} concepts`);
 }
 
-await writeBuildActivity(total, registry.map(r => r.id));
+await writeBuildActivity(total, registry.map(r => r.id), refMaps.uriBase);
 
 fs.writeFileSync(path.join(DATA, '_vocab.ttl'), await buildVocabularyTurtle());
 console.log('Emitted vocabulary graph: data/_vocab.ttl');
