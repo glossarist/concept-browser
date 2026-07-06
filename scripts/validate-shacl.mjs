@@ -26,7 +26,7 @@ import { join, extname, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Parser as N3Parser } from 'n3';
 import rdfDataset from '@rdfjs/dataset';
-import { validateShacl, quadsToDataset } from 'glossarist/rdf';
+import { validateShacl, quadsToDataset } from 'glossarist/rdf/shacl';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const VENDORED_SHAPES = resolve(__dirname, '..', 'data', 'concept-model', 'shapes', 'glossarist.shacl.ttl');

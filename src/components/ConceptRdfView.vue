@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { Concept } from 'glossarist';
-import RdfInstanceHeader from './concept-rdf/RdfInstanceHeader.vue';
-import RdfInstanceSection from './concept-rdf/RdfInstanceSection.vue';
-import RdfSourcePanel from './concept-rdf/RdfSourcePanel.vue';
+import RdfInstanceHeader from './RdfInstanceHeader.vue';
+import RdfInstanceSection from './RdfInstanceSection.vue';
+import RdfSourcePanel from './RdfSourcePanel.vue';
 import ErrorBoundary from './ErrorBoundary.vue';
-import { useRdfDocument } from './concept-rdf/use-rdf-document';
+import { useRdfDocument } from './use-rdf-document';
 
 const props = defineProps<{
   concept: Concept;
