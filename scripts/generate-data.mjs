@@ -1182,9 +1182,13 @@ for (let i = 0; i < config.datasets.length; i++) {
     ? regDesc[defaultLang] || Object.values(regDesc)[0] || ''
     : dsDesc || '';
 
-  // Title: site-config wins because Register has no name field yet
-  // (TODO.refactor/40 — add Register.name). ref is a citation proxy.
-  const resolvedTitle = ds.title || reg?.ref || ds.id;
+  // Title: register.displayName wins (TODO.refactor/40 — Register.name
+  // is now first-class in glossarist-js). Site-config title is fallback,
+  // then ref (citation proxy), then id.
+  const resolvedTitle = reg?.displayName(defaultLang)
+    ?? ds.title
+    ?? reg?.ref
+    ?? ds.id;
 
   counts[ds.id] = await processDataset(dir, ds.id, {
     title: resolvedTitle,
