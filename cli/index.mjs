@@ -30,9 +30,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgRoot = resolve(__dirname, '..');
 
 const commands = {
-  fetch: () => import('../scripts/fetch-datasets.mjs'),
-  generate: () => import('../scripts/generate-data.mjs'),
-  edges: () => import('../scripts/build-edges.js'),
+  fetch:    async () => (await import('../scripts/fetch-datasets.mjs')).main(),
+  generate: async () => { await import('../scripts/generate-data.mjs'); },
+  edges:    async () => (await import('../scripts/build-edges.js')).main(),
+  about:    async () => (await import('../scripts/process-about-pages.mjs')).main(),
 };
 
 function parseArgs(argv) {
@@ -61,7 +62,8 @@ Commands:
   fetch      Fetch/update datasets from GCR packages or source repos
   generate   Convert YAML concepts to JSON-LD static data
   edges      Build cross-reference edges from generated concepts
-  build      Full pipeline (fetch + generate + edges + vite build)
+  about      Compile per-dataset and per-group about pages
+  build      Full pipeline (fetch + generate + edges + about + vite build)
   site       Same as build
   normalize  NFC-normalize YAML files in .datasets/
   doctor     Diagnose the local environment (deps, datasets, shapes, context)
@@ -87,7 +89,7 @@ Environment:
     if (!process.env.BASE_PATH && config?.basePath) {
       process.env.BASE_PATH = config.basePath;
     }
-    for (const step of ['fetch', 'generate', 'edges']) {
+    for (const step of ['fetch', 'generate', 'edges', 'about']) {
       console.log(`\n=== ${step.toUpperCase()} ===\n`);
       await commands[step]();
     }
@@ -191,40 +193,43 @@ Environment:
   }
 
   const runner = commands[cmd];
-  if (!runner) {
-    if (cmd === 'normalize') {
-      const { normalizeYaml } = await import('../scripts/normalize-yaml.mjs');
-      const check = process.argv.includes('--check');
-      const paths = process.argv.slice(2).filter(a => !a.startsWith('-') && a !== 'normalize');
-      const { checked, nonNfc, fixed } = normalizeYaml({ check, paths });
-      if (check) {
-        if (nonNfc === 0) {
-          console.log(`NFC OK: ${checked} file(s) checked, all normalized`);
-          return;
-        }
-        console.error(`NFC check failed: ${nonNfc} of ${checked} file(s) are not NFC-normalized\n`);
-        for (const f of fixed) console.error(`  ${f}`);
-        process.exit(1);
-      }
-      if (nonNfc === 0) {
-        console.log(`NFC OK: ${checked} file(s) checked, all already normalized`);
-      } else {
-        console.log(`Normalized ${nonNfc} of ${checked} file(s)`);
-        for (const f of fixed) console.log(`  ${f}`);
-      }
-      return;
-    }
-    if (cmd === 'doctor') {
-      const { main: doctorMain } = await import('../scripts/doctor.mjs');
-      await doctorMain();
-      return;
-    }
-    console.error(`Unknown command: ${cmd}`);
-    console.error('Run `concept-browser help` for usage.');
-    process.exit(1);
+  if (runner) {
+    await runner();
+    return;
   }
 
-  await runner();
+  if (cmd === 'normalize') {
+    const { normalizeYaml } = await import('../scripts/normalize-yaml.mjs');
+    const check = process.argv.includes('--check');
+    const paths = process.argv.slice(2).filter(a => !a.startsWith('-') && a !== 'normalize');
+    const { checked, nonNfc, fixed } = normalizeYaml({ check, paths });
+    if (check) {
+      if (nonNfc === 0) {
+        console.log(`NFC OK: ${checked} file(s) checked, all normalized`);
+        return;
+      }
+      console.error(`NFC check failed: ${nonNfc} of ${checked} file(s) are not NFC-normalized\n`);
+      for (const f of fixed) console.error(`  ${f}`);
+      process.exit(1);
+    }
+    if (nonNfc === 0) {
+      console.log(`NFC OK: ${checked} file(s) checked, all already normalized`);
+    } else {
+      console.log(`Normalized ${nonNfc} of ${checked} file(s)`);
+      for (const f of fixed) console.log(`  ${f}`);
+    }
+    return;
+  }
+
+  if (cmd === 'doctor') {
+    const { main: doctorMain } = await import('../scripts/doctor.mjs');
+    await doctorMain();
+    return;
+  }
+
+  console.error(`Unknown command: ${cmd}`);
+  console.error('Run `concept-browser help` for usage.');
+  process.exit(1);
 }
 
 main().catch(e => {

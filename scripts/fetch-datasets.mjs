@@ -19,10 +19,9 @@ import path from 'path';
 import JSZip from 'jszip';
 import { loadGcr } from 'glossarist';
 import { execFileSync } from 'child_process';
+import { fileURLToPath } from 'url';
 import { loadSiteConfig } from './load-site-config.mjs';
-import { assertLocalPathSafe } from './lib/local-path-safety.mjs';
-
-const ROOT = process.cwd();
+import { assertLocalPathSafe } from './lib/local-path-safety.mjs';const ROOT = process.cwd();
 const DATASETS_DIR = path.join(ROOT, '.datasets');
 const GCR_DIR = path.join(ROOT, '.gcr');
 
@@ -136,68 +135,76 @@ function cloneOrUpdate(sourceRepo, targetDir) {
 // --- localPath safety check: see scripts/lib/local-path-safety.mjs ---
 
 // --- Main ---
-console.log('Fetching glossarist datasets...\n');
+export async function main() {
+  console.log('Fetching glossarist datasets...\n');
 
-const { config } = loadSiteConfig();
-const gcrMetadata = {};
+  const { config } = loadSiteConfig();
+  const gcrMetadata = {};
 
-for (const ds of config.datasets) {
-  console.log(`${ds.id}:`);
+  for (const ds of config.datasets) {
+    console.log(`${ds.id}:`);
 
-  const gcrPath = path.join(GCR_DIR, `${ds.id}.gcr`);
-  const targetDir = path.join(DATASETS_DIR, ds.id);
+    const gcrPath = path.join(GCR_DIR, `${ds.id}.gcr`);
+    const targetDir = path.join(DATASETS_DIR, ds.id);
 
-  try {
-    if (fs.existsSync(gcrPath)) {
-      console.log(`  Using local .gcr/${ds.id}.gcr`);
-      await extractGcr(gcrPath, targetDir);
-    } else if (ds.gcrPackage) {
-      console.log(`  Using GCR package: ${ds.gcrPackage}`);
-      try {
-        await downloadGcr(ds.gcrPackage, gcrPath);
-      } catch (e) {
-        console.warn(`  GCR download failed: ${e.message}`);
-        console.warn(`  Skipping ${ds.id}`);
+    try {
+      if (fs.existsSync(gcrPath)) {
+        console.log(`  Using local .gcr/${ds.id}.gcr`);
+        await extractGcr(gcrPath, targetDir);
+      } else if (ds.gcrPackage) {
+        console.log(`  Using GCR package: ${ds.gcrPackage}`);
+        try {
+          await downloadGcr(ds.gcrPackage, gcrPath);
+        } catch (e) {
+          console.warn(`  GCR download failed: ${e.message}`);
+          console.warn(`  Skipping ${ds.id}`);
+          console.log();
+          continue;
+        }
+        await extractGcr(gcrPath, targetDir);
+      } else if (ds.localPath) {
+        // localPath means "data is here, use in-place." No copy, no staging.
+        // generate-data.mjs reads from localPath directly via datasetDir(ds).
+        const localResolved = assertLocalPathSafe(ds.id, ds.localPath);
+        console.log(`  Using localPath in-place: ${localResolved}`);
+      } else if (ds.sourceRepo) {
+        cloneOrUpdate(ds.sourceRepo, targetDir);
+      } else {
+        console.warn(`  No source configured, skipping`);
         console.log();
         continue;
       }
-      await extractGcr(gcrPath, targetDir);
-    } else if (ds.localPath) {
-      // localPath means "data is here, use in-place." No copy, no staging.
-      // generate-data.mjs reads from localPath directly via datasetDir(ds).
-      const localResolved = assertLocalPathSafe(ds.id, ds.localPath);
-      console.log(`  Using localPath in-place: ${localResolved}`);
-    } else if (ds.sourceRepo) {
-      cloneOrUpdate(ds.sourceRepo, targetDir);
-    } else {
-      console.warn(`  No source configured, skipping`);
-      console.log();
-      continue;
-    }
 
-    // Read metadata for dependency validation (from GCR ZIP, not extracted dir)
-    const meta = await readGcrMetadata(gcrPath);
-    if (meta) {
-      gcrMetadata[ds.id] = meta;
-      console.log(`  ${meta.concept_count || '?'} concepts, ${meta.uri_prefix || 'no uri'}`);
+      // Read metadata for dependency validation (from GCR ZIP, not extracted dir)
+      const meta = await readGcrMetadata(gcrPath);
+      if (meta) {
+        gcrMetadata[ds.id] = meta;
+        console.log(`  ${meta.concept_count || '?'} concepts, ${meta.uri_prefix || 'no uri'}`);
+      }
+    } catch (e) {
+      console.warn(`  Failed: ${e.message}`);
+      console.warn(`  Skipping ${ds.id}`);
     }
-  } catch (e) {
-    console.warn(`  Failed: ${e.message}`);
-    console.warn(`  Skipping ${ds.id}`);
+    console.log();
   }
-  console.log();
+
+  // Dependency validation
+  console.log('Validating dependencies...\n');
+  const errors = validateDependencies(config, gcrMetadata);
+  if (errors.length) {
+    console.error('Dependency validation FAILED:');
+    for (const err of errors) {
+      console.error(`  ✗ ${err}`);
+    }
+    process.exit(1);
+  }
+  console.log('All dependencies satisfied.\n');
+
+  console.log('Done.');
 }
 
-// Dependency validation
-console.log('Validating dependencies...\n');
-const errors = validateDependencies(config, gcrMetadata);
-if (errors.length) {
-  console.error('Dependency validation FAILED:');
-  for (const err of errors) {
-    console.error(`  ✗ ${err}`);
-  }
-  process.exit(1);
+const isDirectInvocation = process.argv[1]
+  && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
+if (isDirectInvocation) {
+  await main();
 }
-console.log('All dependencies satisfied.\n');
-
-console.log('Done.');

@@ -6,8 +6,8 @@
  * Usage: node scripts/build-edges.js
  */
 import { extractSourceRefs } from './extract-source-refs.js';
-import { readFileSync, writeFileSync, readdirSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { readFileSync, writeFileSync, readdirSync, existsSync, realpathSync } from 'fs';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
 import { Register } from 'glossarist';
@@ -252,6 +252,7 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest)
 }
 
 // Main
+export function main() {
 console.log('Building edge indexes...\n');
 
 if (!existsSync(DATA_DIR)) {
@@ -388,3 +389,10 @@ const refCount = Object.values(crossRefIndex).reduce((sum, arr) => sum + arr.len
 console.log(`Written cross-ref-index.json (${refCount} cross-references across ${datasets.length} datasets)`);
 
 console.log('Done.');
+}
+
+const isDirectInvocation = process.argv[1]
+  && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+if (isDirectInvocation) {
+  main();
+}
