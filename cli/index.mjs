@@ -30,13 +30,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgRoot = resolve(__dirname, '..');
 
 const commands = {
-  fetch: () => import('../scripts/fetch-datasets.mjs'),
-  generate: () => import('../scripts/generate-data.mjs'),
-  edges: () => import('../scripts/build-edges.js'),
-  about: async () => {
-    const m = await import('../scripts/process-about-pages.mjs');
-    await m.main();
-  },
+  fetch:    async () => (await import('../scripts/fetch-datasets.mjs')).main(),
+  generate: async () => { await import('../scripts/generate-data.mjs'); },
+  edges:    async () => (await import('../scripts/build-edges.js')).main(),
+  about:    async () => (await import('../scripts/process-about-pages.mjs')).main(),
 };
 
 function parseArgs(argv) {

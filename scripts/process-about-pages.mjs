@@ -14,7 +14,7 @@
 //
 // Output shape: { title: string, html: string }
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, realpathSync } from 'node:fs';
 import { join, basename, extname, resolve } from 'node:path';
 import { cwd } from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -182,8 +182,12 @@ export function main() {
   console.log(total > 0 ? `\nCompiled ${total} about page(s).` : '\nNo about pages found.');
 }
 
+// realpathSync dereferences symlinks and monorepo hoists so the
+// comparison is stable across npx, symlinked binaries, and workspace
+// installs. Without this, `process.argv[1]` may string-differ from
+// `import.meta.url` even when they point to the same file.
 const isDirectInvocation = process.argv[1]
-  && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
 if (isDirectInvocation) {
   main();
 }
