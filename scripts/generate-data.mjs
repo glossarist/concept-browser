@@ -13,6 +13,7 @@ import { buildAgentsTurtle } from './lib/agents-turtle.mjs';
 import { buildVersionHistoryTurtle } from './lib/version-turtle.mjs';
 import { buildBibliographyTurtle } from './lib/bibliography-turtle.mjs';
 import { ttlLit } from './lib/turtle-escape.mjs';
+import { firstNonEmpty } from './lib/first-non-empty.mjs';
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
@@ -1169,12 +1170,11 @@ for (let i = 0; i < config.datasets.length; i++) {
   // Use cached register
   const reg = registerCache[ds.id] || null;
 
-  // Resolve languages: register.yaml first, then site-config fallback
-  const dsLanguages = (reg?.languages?.length ? reg.languages : null)
-    || ds.languages
-    || ['eng'];
+  // Content fields: register-wins, site-config fallback. Layout-only
+  // fields (uri, color, gcrPackage) stay on site-config.
+  const dsLanguages = firstNonEmpty(reg?.languages, ds.languages, ['eng']);
 
-  // Resolve description: register.yaml first, then site-config
+  // Resolve description: register-wins (localized object), site-config fallback
   const defaultLang = dsLanguages[0] || 'eng';
   const regDesc = reg?.description;
   const dsDesc = ds.description;
@@ -1182,28 +1182,35 @@ for (let i = 0; i < config.datasets.length; i++) {
     ? regDesc[defaultLang] || Object.values(regDesc)[0] || ''
     : dsDesc || '';
 
-  // Resolve title: site-config override, then ref from register
+  // Title: site-config wins because Register has no name field yet
+  // (TODO.refactor/40 — add Register.name). ref is a citation proxy.
   const resolvedTitle = ds.title || reg?.ref || ds.id;
 
   counts[ds.id] = await processDataset(dir, ds.id, {
     title: resolvedTitle,
     description: resolvedDescription,
-    owner: ds.owner || reg?.owner,
+    owner: firstNonEmpty(reg?.owner, ds.owner),
     languages: dsLanguages,
-    sourceRepo: ds.sourceRepo || reg?.sourceRepo,
-    languageOrder: ds.languageOrder || reg?.languageOrder,
-    ref: ds.ref || reg?.ref,
-    refAliases: ds.refAliases || reg?.refAliases,
-    tags: ds.tags || reg?.tags,
+    sourceRepo: firstNonEmpty(reg?.sourceRepo, ds.sourceRepo),
+    languageOrder: firstNonEmpty(reg?.languageOrder, ds.languageOrder),
+    ref: firstNonEmpty(reg?.ref, ds.ref),
+    refAliases: firstNonEmpty(reg?.refAliases, ds.refAliases),
+    tags: firstNonEmpty(reg?.tags, ds.tags),
     color: ds.color || DS_PALETTE[i % DS_PALETTE.length],
-    datasetUri: ds.uri || reg?.urn,
-    uriAliases: ds.uriAliases || reg?.urnAliases,
-    status: ds.editionStatus || reg?.status,
+    datasetUri: firstNonEmpty(reg?.urn, ds.uri),
+    uriAliases: firstNonEmpty(reg?.urnAliases, ds.uriAliases),
+    status: firstNonEmpty(reg?.status, ds.editionStatus),
     ordering: reg?.ordering || null,
     sections: reg?.sections ? reg.sections.map(s => s.toJSON()) : [],
     hasBibliography: fs.existsSync(path.join(datasetDir(ds), 'bibliography.yaml')),
     hasImages: fs.existsSync(path.join(datasetDir(ds), 'images')),
   });
+  const resolvedOwner = firstNonEmpty(reg?.owner, ds.owner) ?? '';
+  const resolvedTags = firstNonEmpty(reg?.tags, ds.tags) ?? [];
+  const resolvedDatasetUri = firstNonEmpty(reg?.urn, ds.uri);
+  const resolvedUriAliases = firstNonEmpty(reg?.urnAliases, ds.uriAliases);
+  const resolvedRef = firstNonEmpty(reg?.ref, ds.ref);
+  const resolvedRefAliases = firstNonEmpty(reg?.refAliases, ds.refAliases);
   registry.push({
     id: ds.id,
     manifestUrl: `/data/${ds.id}/manifest.json`,
@@ -1212,15 +1219,15 @@ for (let i = 0; i < config.datasets.length; i++) {
       description: resolvedDescription,
       conceptCount: counts[ds.id] || 0,
       languages: dsLanguages,
-      owner: ds.owner || reg?.owner || '',
-      tags: ds.tags || reg?.tags || [],
+      owner: resolvedOwner,
+      tags: resolvedTags,
       color: ds.color || DS_PALETTE[i % DS_PALETTE.length],
     },
-    datasetUri: ds.uri || reg?.urn || undefined,
+    datasetUri: resolvedDatasetUri,
     uriBase: config.uriBase || undefined,
-    uriAliases: ds.uriAliases || reg?.urnAliases || undefined,
-    ref: ds.ref || reg?.ref || undefined,
-    refAliases: ds.refAliases || reg?.refAliases || undefined,
+    uriAliases: resolvedUriAliases,
+    ref: resolvedRef,
+    refAliases: resolvedRefAliases,
   });
 }
 writeJson(path.join(PUBLIC, 'datasets.json'), registry);
@@ -1553,21 +1560,22 @@ for (const key of ['logo', 'footerLogo']) {
   }
 }
 
-// Build dataset translations map: merge site-config overrides with register.yaml descriptions
+// Build dataset translations map: register descriptions win, site-config fills gaps
 const datasetTranslations = {};
 for (const d of config.datasets) {
   const reg = registerCache[d.id];
   const translations = { ...d.translations };
 
-  // Merge register.yaml descriptions as translations
+  // Register descriptions are authoritative; site-config translations fill gaps
   if (reg?.description && typeof reg.description === 'object') {
     for (const [lang, desc] of Object.entries(reg.description)) {
       if (!translations[lang]) translations[lang] = {};
-      if (!translations[lang].description) translations[lang].description = desc;
+      translations[lang].description = desc;
     }
   }
 
-  // Merge register.yaml ref as translated title if not already set
+  // Title falls back to register.ref when site-config doesn't supply one
+  // (TODO.refactor/40 — replace ref with Register.name once it exists)
   if (reg?.ref) {
     const langs = reg.languages || [];
     for (const lang of langs) {
