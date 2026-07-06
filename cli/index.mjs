@@ -33,7 +33,10 @@ const commands = {
   fetch: () => import('../scripts/fetch-datasets.mjs'),
   generate: () => import('../scripts/generate-data.mjs'),
   edges: () => import('../scripts/build-edges.js'),
-  about: () => import('../scripts/process-about-pages.mjs'),
+  about: async () => {
+    const m = await import('../scripts/process-about-pages.mjs');
+    await m.main();
+  },
 };
 
 function parseArgs(argv) {
