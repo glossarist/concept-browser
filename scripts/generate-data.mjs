@@ -1183,19 +1183,9 @@ for (let i = 0; i < config.datasets.length; i++) {
     : dsDesc || '';
 
   // Title: register.displayName wins (TODO.refactor/40 — Register.name
-  // is now first-class in glossarist-js). Site-config title is fallback,
-  // then ref (citation proxy), then id.
-  //
-  // Defensive: glossarist-js v0.4.12 doesn't yet expose displayName as
-  // a method on Register. Fall back to reading the localized `name` object
-  // directly until the upstream feature lands. Once released, the fallback
-  // is a no-op for callers that have displayName.
-  const regDisplayName = typeof reg?.displayName === 'function'
-    ? reg.displayName(defaultLang)
-    : (reg?.name && typeof reg.name === 'object'
-        ? (reg.name[defaultLang] || Object.values(reg.name)[0])
-        : undefined);
-  const resolvedTitle = regDisplayName
+  // is first-class in glossarist-js since v0.4.13). Site-config title
+  // is fallback, then ref (citation proxy), then id.
+  const resolvedTitle = reg?.displayName(defaultLang)
     ?? ds.title
     ?? reg?.ref
     ?? ds.id;

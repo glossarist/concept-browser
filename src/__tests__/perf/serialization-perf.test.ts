@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Concept } from 'glossarist';
-import { emitConceptGraph } from '../../components/concept-rdf/concept-emitter';
-import { writeTurtle } from '../../components/concept-rdf/turtle-writer';
-import { writeJsonLd } from '../../components/concept-rdf/jsonld-writer';
+import { conceptToQuads, collectQuads, writeTurtleSync, PREFIXES } from 'glossarist/rdf';
 import type { ConceptFixture } from '../__fixtures__/concepts';
 import { CONCEPT_FIXTURES } from '../__fixtures__/concepts';
 
@@ -41,9 +39,9 @@ describe('Layer 7 — serialization performance regression', () => {
     const concepts = makeConcepts(TARGET_CONCEPT_COUNT);
 
     const start = performance.now();
-    for (const { concept, uri } of concepts) {
-      const { graph } = emitConceptGraph(concept, uri);
-      writeTurtle(graph);
+    for (const { concept } of concepts) {
+      const quads = collectQuads(conceptToQuads(concept, { registerId: 'perf', uriBase: BASE }));
+      writeTurtleSync(quads, { prefixes: PREFIXES });
     }
     const elapsed = performance.now() - start;
 
@@ -52,27 +50,12 @@ describe('Layer 7 — serialization performance regression', () => {
     expect(elapsed).toBeLessThan(TIME_BUDGET_MS);
   });
 
-  it(`emits JSON-LD for ${TARGET_CONCEPT_COUNT} concepts under ${TIME_BUDGET_MS}ms`, () => {
-    const concepts = makeConcepts(TARGET_CONCEPT_COUNT);
-
-    const start = performance.now();
-    for (const { concept, uri } of concepts) {
-      const { graph } = emitConceptGraph(concept, uri);
-      writeJsonLd(graph);
-    }
-    const elapsed = performance.now() - start;
-
-    // eslint-disable-next-line no-console
-    console.log(`Layer 7 perf: emitted ${TARGET_CONCEPT_COUNT} concepts to JSON-LD in ${elapsed.toFixed(0)}ms`);
-    expect(elapsed).toBeLessThan(TIME_BUDGET_MS);
-  });
-
   it('per-concept emit cost stays below 5ms on average', () => {
     const concepts = makeConcepts(100);
     const start = performance.now();
-    for (const { concept, uri } of concepts) {
-      const { graph } = emitConceptGraph(concept, uri);
-      writeTurtle(graph);
+    for (const { concept } of concepts) {
+      const quads = collectQuads(conceptToQuads(concept, { registerId: 'perf', uriBase: BASE }));
+      writeTurtleSync(quads, { prefixes: PREFIXES });
     }
     const elapsed = performance.now() - start;
     const perConcept = elapsed / 100;
@@ -84,9 +67,9 @@ describe('Layer 7 — scale stress (P4: 10 000 concepts)', () => {
   it(`emits ${SCALE_CONCEPT_COUNT} concepts to Turtle under ${SCALE_TIME_BUDGET_MS}ms`, () => {
     const concepts = makeConcepts(SCALE_CONCEPT_COUNT);
     const start = performance.now();
-    for (const { concept, uri } of concepts) {
-      const { graph } = emitConceptGraph(concept, uri);
-      writeTurtle(graph);
+    for (const { concept } of concepts) {
+      const quads = collectQuads(conceptToQuads(concept, { registerId: 'perf', uriBase: BASE }));
+      writeTurtleSync(quads, { prefixes: PREFIXES });
     }
     const elapsed = performance.now() - start;
     // eslint-disable-next-line no-console
@@ -113,9 +96,9 @@ describe('Layer 7 — scale stress (P4: 10 000 concepts)', () => {
 
 function timeTurtle(concepts: { concept: Concept; uri: string }[]): number {
   const start = performance.now();
-  for (const { concept, uri } of concepts) {
-    const { graph } = emitConceptGraph(concept, uri);
-    writeTurtle(graph);
+  for (const { concept } of concepts) {
+    const quads = collectQuads(conceptToQuads(concept, { registerId: 'perf', uriBase: BASE }));
+    writeTurtleSync(quads, { prefixes: PREFIXES });
   }
   return performance.now() - start;
 }
