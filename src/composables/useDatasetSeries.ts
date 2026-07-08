@@ -92,7 +92,7 @@ function deriveSeriesTitle(m: Manifest | undefined): string {
 }
 
 function manifestToMember(m: Manifest, activeDatasetId?: string): DatasetSeriesMember {
-  const year = extractYear(m.id) ?? extractYear(m.ref ?? '') ?? extractYear(m.title);
+  const year = m.year ?? extractYear(m.id) ?? extractYear(m.ref ?? '') ?? extractYear(m.title);
   return {
     id: m.id,
     ref: m.ref ?? m.title,
