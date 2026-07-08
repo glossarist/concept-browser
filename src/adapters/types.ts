@@ -70,6 +70,13 @@ export interface Manifest {
   ref?: string;
   refAliases?: string[];
   editionStatus?: string;
+  /**
+   * Edition year, sourced from register.yaml:year. When the dataset id
+   * doesn't contain a parseable year (e.g. "isotc204-ed3"), this field
+   * is the only way to position the edition correctly in a lineage
+   * timeline. Falls back to extractYear(id/ref/title) at the consumer.
+   */
+  year?: number;
   ordering?: string;
   sections?: ManifestSection[];
   languageStats?: Record<string, { terms: number; definitions: number }>;
