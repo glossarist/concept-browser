@@ -81,6 +81,7 @@ export class DatasetAdapter {
       sourceRepo: '',
       chunkSize: 1000,
       color: summary.color,
+      year: summary.year,
     };
     this.manifestComplete = false;
   }
