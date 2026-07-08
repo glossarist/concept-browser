@@ -1,6 +1,6 @@
 id: geolexica
 domain: www.geolexica.org
-uriBase: https://www.geolexica.org
+uri_base: https://www.geolexica.org
 title: Geolexica
 subtitle: Terminology Register
 description: A terminology register for ISO and IEC standards.
@@ -8,34 +8,34 @@ description: A terminology register for ISO and IEC standards.
 datasets:
   - id: iev
     uri: "urn:iec:std:iec:60050:*"
-    uriAliases:
+    uri_aliases:
       - "https://glossarist.org/iev/*"
-    gcrPackage: https://github.com/glossarist/glossarist-data-iev/releases/latest/download/iev.gcr
-    sourceRepo: https://github.com/glossarist/glossarist-data-iev
+    gcr_package: https://github.com/glossarist/glossarist-data-iev/releases/latest/download/iev.gcr
+    source_repo: https://github.com/glossarist/glossarist-data-iev
     title: "IEC Electropedia (IEV)"
     description: "International Electrotechnical Vocabulary"
     owner: IEC TC 1
     color: "#3366ff"
     tags: [electrotechnical, iec, multilingual]
-    languageOrder: [eng, fra, deu, spa, kor, jpn, zho, nld, pol, por, srp, swe, ara]
+    language_order: [eng, fra, deu, spa, kor, jpn, zho, nld, pol, por, srp, swe, ara]
 
   - id: isotc211
     uri: "https://glossarist.org/isotc211/*"
-    gcrPackage: https://github.com/geolexica/isotc211-glossary/releases/latest/download/isotc211.gcr
-    sourceRepo: https://github.com/geolexica/isotc211-glossary
+    gcr_package: https://github.com/geolexica/isotc211-glossary/releases/latest/download/isotc211.gcr
+    source_repo: https://github.com/geolexica/isotc211-glossary
     title: "ISO/TC 211 Multi-Lingual Glossary"
     description: "Geographic information terminology from ISO/TC 211"
     owner: ISO/TC 211
     color: "#0d9488"
     tags: [geographic-information, gis, iso, multilingual]
-    languageOrder: [eng, fra, ara, deu, spa, rus, kor, jpn, zho, dan, fin, msa, nld, pol, swe]
+    language_order: [eng, fra, ara, deu, spa, rus, kor, jpn, zho, dan, fin, msa, nld, pol, swe]
 
   - id: isotc204
     uri: "urn:iso:std:iso:14812:*"
-    uriAliases:
+    uri_aliases:
       - "https://glossarist.org/isotc204/*"
-    gcrPackage: https://github.com/geolexica/isotc204-glossary/releases/latest/download/isotc204.gcr
-    sourceRepo: https://github.com/geolexica/isotc204-glossary
+    gcr_package: https://github.com/geolexica/isotc204-glossary/releases/latest/download/isotc204.gcr
+    source_repo: https://github.com/geolexica/isotc204-glossary
     title: "ISO/TC 204 ITS Vocabulary"
     description: "Intelligent transport systems vocabulary from ISO 14812"
     owner: ISO/TC 204
@@ -44,8 +44,8 @@ datasets:
 
   - id: osgeo
     uri: "https://glossarist.org/osgeo/*"
-    gcrPackage: https://github.com/geolexica/osgeo-glossary/releases/latest/download/osgeo.gcr
-    sourceRepo: https://github.com/geolexica/osgeo-glossary
+    gcr_package: https://github.com/geolexica/osgeo-glossary/releases/latest/download/osgeo.gcr
+    source_repo: https://github.com/geolexica/osgeo-glossary
     title: "OSGeo Lexicon"
     description: "Open Source Geospatial Foundation glossary"
     owner: OSGeo
@@ -55,8 +55,8 @@ datasets:
 routing: []
 
 branding:
-  primaryColor: "#2563eb"
-  darkColor: "#1e293b"
+  primary_color: "#2563eb"
+  dark_color: "#1e293b"
   fonts:
     header:
       family: "DM Serif Display"
@@ -66,8 +66,8 @@ branding:
       family: "DM Sans"
       source: "google"
       weights: [400, 500, 700]
-  ownerName: Geolexica
-  ownerUrl: https://www.geolexica.org
+  owner_name: Geolexica
+  owner_url: https://www.geolexica.org
 
 features:
   news: false
@@ -75,10 +75,10 @@ features:
   graph: true
   about: true
   search: true
-  poweredBy:
+  powered_by:
     title: "Glossarist"
     url: "https://glossarist.org"
 
 defaults:
   language: eng
-  languageOrder: [eng, fra]
+  language_order: [eng, fra]
