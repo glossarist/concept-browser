@@ -117,6 +117,7 @@ export interface DatasetSummary {
   owner: string;
   tags: string[];
   color?: string | { light: string; dark: string };
+  year?: number;
 }
 
 export interface DatasetRegistry {

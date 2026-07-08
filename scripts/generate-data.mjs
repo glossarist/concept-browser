@@ -1228,6 +1228,7 @@ for (let i = 0; i < config.datasets.length; i++) {
       owner: resolvedOwner,
       tags: resolvedTags,
       color: ds.color || DS_PALETTE[i % DS_PALETTE.length],
+      year: reg?.year ?? undefined,
     },
     datasetUri: resolvedDatasetUri,
     uriBase: config.uriBase || undefined,

@@ -120,6 +120,27 @@ describe('tc204 deployment: multi-edition lineage series', () => {
     expect(series[0].current?.id).toBe('isotc204-ed3');
     expect(series[0].current?.status).toBe('unknown');
   });
+
+  it('year propagates through DatasetSummary → setSummaryManifest → member', () => {
+    // When the factory loads the registry, datasets with a summary skip
+    // the full manifest fetch and use a minimal manifest built from the
+    // summary. That minimal manifest MUST carry `year` so the series
+    // card can render edition years before the full manifest loads.
+    // Without this, ed3 (id has no 4-digit year) shows "—" until the
+    // full manifest finishes loading.
+    const manifests = [
+      makeManifest({ id: 'isotc204-ed3', status: 'draft', year: 2026 }),
+      makeManifest({ id: 'isotc204-2025', status: 'valid', year: 2025 }),
+      makeManifest({ id: 'isotc204-2022', status: 'valid', year: 2022 }),
+    ];
+    const series = groupManifestsIntoSeries(manifests, undefined, [TC204_GROUP]);
+    // Every member has a year — no "—" in the series card
+    for (const m of series[0].members) {
+      expect(m.year).toBeDefined();
+      expect(typeof m.year).toBe('number');
+    }
+    expect(series[0].members.find(m => m.id === 'isotc204-ed3')?.year).toBe(2026);
+  });
 });
 
 describe('tc204 deployment: group about discovery', () => {
