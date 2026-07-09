@@ -1,0 +1,61 @@
+---
+import AppLayout from '../../../layouts/Default.astro';
+import { getEntry, getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  const datasets = await getCollection('datasets');
+  return datasets.map(ds => ({ params: { id: ds.data.id } }));
+}
+
+const { id } = Astro.params;
+const dataset = await getEntry('datasets', id!);
+const concepts = await getCollection('concepts', c => c.data.registerId === id);
+
+const statusCounts = {};
+for (const c of concepts) {
+  const s = c.data.status || 'unknown';
+  statusCounts[s] = (statusCounts[s] || 0) + 1;
+}
+const sections = new Set();
+for (const c of concepts) {
+  for (const g of c.data.groups || []) sections.add(g);
+}
+---
+
+<AppLayout title={`Statistics — ${dataset?.data.title ?? id}`} activeDataset={id}>
+  <h1 class="text-2xl font-bold text-ink-800 dark:text-ink-100 mb-6">Statistics</h1>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="card p-4">
+      <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">{concepts.length}</div>
+      <div class="text-xs text-ink-400 mt-1">Total concepts</div>
+    </div>
+    <div class="card p-4">
+      <div class="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{Object.keys(statusCounts).length}</div>
+      <div class="text-xs text-ink-400 mt-1">Status types</div>
+    </div>
+    <div class="card p-4">
+      <div class="text-3xl font-bold text-amber-600 dark:text-amber-400">{sections.size}</div>
+      <div class="text-xs text-ink-400 mt-1">Sections</div>
+    </div>
+    <div class="card p-4">
+      <div class="text-3xl font-bold text-purple-600 dark:text-purple-400">{dataset?.data.languages.length ?? 1}</div>
+      <div class="text-xs text-ink-400 mt-1">Languages</div>
+    </div>
+  </div>
+
+  <section class="mt-8">
+    <h2 class="text-sm font-semibold text-ink-500 uppercase tracking-wider mb-3">Status distribution</h2>
+    <div class="space-y-2">
+      {Object.entries(statusCounts).map(([status, count]) => (
+        <div class="flex items-center gap-3">
+          <span class="text-sm w-20 text-ink-600 dark:text-ink-300">{status}</span>
+          <div class="flex-1 bg-ink-100 dark:bg-ink-800 rounded-full h-5 overflow-hidden">
+            <div class="bg-blue-500 h-full rounded-full flex items-center justify-end pr-2" style={`width: ${Math.round((count / concepts.length) * 100)}%`}>
+              <span class="text-xs text-white font-medium">{count as number}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+</AppLayout>

@@ -1,32 +1,63 @@
 ---
+// Layout shell with header, sidebar, footer.
 import '@/styles/tailwind.css';
+import SiteHeader from '../components/site/SiteHeader.astro';
+import SiteSidebar from '../components/site/SiteSidebar.astro';
+import SiteFooter from '../components/site/SiteFooter.astro';
+import { getSiteConfig } from '../lib/site-config';
 
 interface Props {
   title: string;
   description?: string;
+  activeDataset?: string;
+  activeGroup?: string;
 }
 
-const { title, description = '' } = Astro.props;
+const { title, description = '', activeDataset, activeGroup } = Astro.props;
+const siteConfig = await getSiteConfig();
 ---
 
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>{title}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="description" content={description} />
+    <title>{title}</title>
     <script is:inline>
-      // No-flash dark mode: apply before first paint
       (function() {
-        const cookie = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('theme='));
-        const theme = cookie ? cookie.split('=')[1] : null;
-        if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        const c = document.cookie.split(';').map(s => s.trim()).find(s => s.startsWith('theme='));
+        const t = c ? c.split('=')[1] : null;
+        if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches))
           document.documentElement.classList.add('dark');
-        }
       })();
     </script>
   </head>
-  <body class="bg-white dark:bg-ink-900 text-ink-700 dark:text-ink-100 min-h-screen">
-    <slot />
+  <body class="bg-surface dark:bg-ink-900 text-ink-700 dark:text-ink-100">
+    <SiteHeader title={siteConfig.title} />
+    <div class="flex max-w-[1600px] mx-auto">
+      <SiteSidebar activeDataset={activeDataset} activeGroup={activeGroup} />
+      <main class="flex-1 min-w-0 p-4 md:p-6 lg:p-8">
+        <slot />
+      </main>
+    </div>
+    <SiteFooter />
   </body>
 </html>
+
+<script>
+  // Sidebar toggle for mobile
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  const sidebar = document.getElementById('sidebar');
+  if (sidebarToggle && sidebar) {
+    sidebarToggle.addEventListener('click', () => sidebar.classList.toggle('hidden'));
+  }
+  // Dark mode toggle
+  const themeToggle = document.getElementById('theme-toggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      const isDark = document.documentElement.classList.toggle('dark');
+      document.cookie = `theme=${isDark ? 'dark' : 'light'};path=/;max-age=31536000`;
+    });
+  }
+</script>
