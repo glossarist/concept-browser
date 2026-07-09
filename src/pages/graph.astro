@@ -1,24 +1,35 @@
 ---
 import AppLayout from '../layouts/Default.astro';
+import GraphIsland from '../islands/GraphIsland.vue';
 import { getCollection } from 'astro:content';
+
 const concepts = await getCollection('concepts');
 const datasets = await getCollection('datasets');
+
+// Build graph data: one node per dataset, edges where concepts share groups
+const nodes = datasets.map(ds => ({
+  id: ds.data.id,
+  label: ds.data.title,
+  group: 'dataset',
+}));
+// Also add concept nodes (limited for performance)
+const conceptNodes = concepts.slice(0, 200).map(c => ({
+  id: `${c.data.registerId}/${c.data.conceptId}`,
+  label: c.data.designations.eng ?? c.data.conceptId,
+  group: 'concept',
+}));
+const edges = concepts.slice(0, 200).map(c => ({
+  source: c.data.registerId,
+  target: `${c.data.registerId}/${c.data.conceptId}`,
+}));
 ---
 
 <AppLayout title="Concept Graph">
   <h1 class="text-2xl font-bold text-ink-800 dark:text-ink-100 mb-4">Cross-dataset Graph</h1>
   <p class="text-ink-500 dark:text-ink-400 mb-4">
     {concepts.length} concepts across {datasets.length} datasets.
-    Cross-dataset relationship visualization (D3 island loads on interaction).
   </p>
-  <div class="card p-4">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {datasets.map(ds => (
-        <a href={`/dataset/${ds.data.id}`} class="block p-3 rounded border border-ink-100 dark:border-ink-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
-          <div class="text-sm font-medium text-ink-700 dark:text-ink-200 truncate">{ds.data.title}</div>
-          <div class="text-xs text-ink-400 mt-1">{ds.data.conceptCount} concepts</div>
-        </a>
-      ))}
-    </div>
+  <div class="card p-0 overflow-hidden">
+    <GraphIsland client:visible nodes={[...nodes, ...conceptNodes]} edges={edges} />
   </div>
 </AppLayout>

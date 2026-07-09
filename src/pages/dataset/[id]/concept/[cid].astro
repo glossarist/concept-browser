@@ -1,70 +1,30 @@
 ---
 import AppLayout from '../../../../layouts/Default.astro';
+import ConceptIsland from '../../../../islands/ConceptIsland.vue';
 import { getEntry, getCollection } from 'astro:content';
 
 export async function getStaticPaths() {
   const concepts = await getCollection('concepts');
   return concepts.map(c => ({
     params: { id: c.data.registerId, cid: c.data.conceptId },
+    props: { conceptData: c.data },
   }));
 }
 
-const { id, cid } = Astro.params;
+const { id, cid, conceptData } = Astro.props;
 const dataset = await getEntry('datasets', id!);
-if (!dataset) return Astro.redirect('/404');
-
-const concept = await getEntry('concepts', `${id}/${cid}`);
 ---
 
-<AppLayout title={concept ? `${concept.data.designations.eng ?? cid} — ${dataset.data.title}` : cid} activeDataset={id}>
-  <article class="max-w-4xl">
-    {concept ? (
-      <>
-        <header class="mb-6">
-          <div class="text-xs text-ink-400 mb-1">
-            <a href={`/dataset/${id}`} class="hover:text-blue-600">{dataset.data.title}</a>
-            <span class="mx-1">›</span>
-            <span>{cid}</span>
-          </div>
-          <h1 class="text-3xl font-bold text-ink-800 dark:text-ink-100">
-            {concept.data.designations.eng ?? cid}
-          </h1>
-          {concept.data.status && (
-            <span class={`inline-block mt-2 text-xs px-2 py-0.5 rounded-full ${concept.data.status === 'valid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'}`}>
-              {concept.data.status}
-            </span>
-          )}
-        </header>
+<AppLayout title={conceptData ? `${conceptData.designations.eng ?? cid} — ${dataset?.data.title ?? ''}` : cid} activeDataset={id}>
+  <div class="mb-4 text-xs text-ink-400">
+    <a href={`/dataset/${id}`} class="hover:text-blue-600">{dataset?.data.title}</a>
+    <span class="mx-1">›</span>
+    <span>{cid}</span>
+  </div>
 
-        {concept.data.definition?.eng && (
-          <section class="mb-6">
-            <h2 class="text-sm font-semibold text-ink-500 uppercase tracking-wider mb-2">Definition</h2>
-            <p class="text-ink-700 dark:text-ink-200 leading-relaxed">{concept.data.definition.eng}</p>
-          </section>
-        )}
-
-        {concept.data.groups && concept.data.groups.length > 0 && (
-          <section class="mb-6">
-            <h2 class="text-sm font-semibold text-ink-500 uppercase tracking-wider mb-2">Sections</h2>
-            <div class="flex flex-wrap gap-2">
-              {concept.data.groups.map(g => (
-                <a href={`/dataset/${id}?section=${g}`} class="text-xs px-2 py-1 rounded bg-ink-100 dark:bg-ink-800 text-ink-600 dark:text-ink-300 hover:bg-blue-100 dark:hover:bg-blue-900/30">{g}</a>
-              ))}
-            </div>
-          </section>
-        )}
-
-        <section class="mb-6">
-          <h2 class="text-sm font-semibold text-ink-500 uppercase tracking-wider mb-2">Permalink</h2>
-          <code class="text-xs text-ink-400 break-all">{concept.data.uri}</code>
-        </section>
-      </>
-    ) : (
-      <div class="text-center py-12">
-        <h1 class="text-2xl font-bold text-ink-400">Concept not found</h1>
-        <p class="mt-2 text-ink-400">{cid} in {dataset.data.title}</p>
-        <a href={`/dataset/${id}`} class="mt-4 inline-block text-blue-600 hover:underline">← Back to {dataset.data.title}</a>
-      </div>
-    )}
-  </article>
+  <ConceptIsland
+    client:load
+    concept={conceptData}
+    registerId={id}
+  />
 </AppLayout>

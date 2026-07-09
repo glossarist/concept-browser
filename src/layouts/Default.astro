@@ -1,6 +1,7 @@
 ---
 // Layout shell with header, sidebar, footer.
 import '@/styles/tailwind.css';
+import { ClientRouter } from 'astro:transitions';
 import SiteHeader from '../components/site/SiteHeader.astro';
 import SiteSidebar from '../components/site/SiteSidebar.astro';
 import SiteFooter from '../components/site/SiteFooter.astro';
@@ -24,6 +25,7 @@ const siteConfig = await getSiteConfig();
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="description" content={description} />
     <title>{title}</title>
+    <ClientRouter />
     <script is:inline>
       (function() {
         const c = document.cookie.split(';').map(s => s.trim()).find(s => s.startsWith('theme='));
