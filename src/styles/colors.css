@@ -1,0 +1,45 @@
+:root {
+  /* Relationship type colors */
+  --rel-definitional: #3b82f6;
+  --rel-designation: #10b981;
+  --rel-contextual: #f59e0b;
+  --rel-organizational: #8b5cf6;
+  --rel-temporal: #ec4899;
+
+  /* Concept status colors */
+  --status-valid: #10b981;
+  --status-superseded: #f59e0b;
+  --status-withdrawn: #ef4444;
+  --status-draft: #6366f1;
+
+  /* Group kind accent colors */
+  --group-lineage: #d97706;
+  --group-topic: #059669;
+  --group-family: #6366f1;
+  --group-collection: #0891b2;
+
+  /* Ink palette */
+  --ink-50: #f8fafc;
+  --ink-100: #f1f5f9;
+  --ink-200: #e2e8f0;
+  --ink-300: #cbd5e1;
+  --ink-400: #94a3b8;
+  --ink-500: #64748b;
+  --ink-600: #475569;
+  --ink-700: #334155;
+  --ink-800: #1e293b;
+  --ink-900: #0f172a;
+}
+
+.dark {
+  --ink-50: #1e293b;
+  --ink-100: #1a2332;
+  --ink-200: #162032;
+  --ink-300: #475569;
+  --ink-400: #64748b;
+  --ink-500: #94a3b8;
+  --ink-600: #cbd5e1;
+  --ink-700: #e2e8f0;
+  --ink-800: #f1f5f9;
+  --ink-900: #f8fafc;
+}

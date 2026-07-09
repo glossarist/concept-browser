@@ -1,0 +1,23 @@
+---
+// SEO meta tags for Astro pages.
+interface Props {
+  title: string;
+  description?: string;
+  canonicalUrl?: string;
+  type?: string;
+  image?: string;
+}
+const { title, description = '', canonicalUrl, type = 'website', image } = Astro.props;
+const site = Astro.site?.toString().replace(/\/$/, '') || '';
+const canonical = canonicalUrl || `${site}${Astro.url.pathname}`;
+const ogImage = image || `${site}/og-image.png`;
+---
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:type" content={type} />
+<meta property="og:url" content={canonical} />
+<meta property="og:image" content={ogImage} />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<link rel="canonical" href={canonical} />

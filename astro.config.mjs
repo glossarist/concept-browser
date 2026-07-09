@@ -16,7 +16,7 @@ export default defineConfig({
   base,
   output: 'static',
   integrations: [
-    vue({ appEntrypoint: '/src/astro-islands/app' }),
+    vue(),
     tailwind({ applyBaseStyles: false }),
     sitemap(),
   ],
