@@ -30,7 +30,6 @@
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.3",
-    "@astrojs/tailwind": "^6.0.2",
     "@astrojs/vue": "^7.0.1",
     "@plurimath/plurimath": "^0.2.2",
     "@vitejs/plugin-vue": "^5.2.3",
