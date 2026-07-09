@@ -1,6 +1,8 @@
 ---
 import AppLayout from '../../../../layouts/Default.astro';
 import ConceptIsland from '../../../../islands/ConceptIsland.vue';
+import NonVerbalIsland from '../../../../islands/NonVerbalIsland.vue';
+import BibliographyIsland from '../../../../islands/BibliographyIsland.vue';
 import { getEntry, getCollection } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -27,4 +29,29 @@ const dataset = await getEntry('datasets', id!);
     concept={conceptData}
     registerId={id}
   />
+
+  <NonVerbalIsland
+    client:visible
+    nonVerbalReps={(conceptData as any)?.nonVerbalReps}
+    registerId={id}
+  />
+
+  <BibliographyIsland
+    client:visible
+    entries={(conceptData as any)?.bibliography ?? []}
+  />
 </AppLayout>
+
+<script>
+  // Keyboard shortcuts (TODO 24: accessibility)
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 's' || e.key === 'S') {
+      window.location.href = '/search';
+    } else if (e.key === 'h' || e.key === 'H') {
+      window.location.href = '/';
+    } else if (e.key === '?') {
+      alert('Keyboard shortcuts:\n  S — Search\n  H — Home\n  ? — This help');
+    }
+  });
+</script>
