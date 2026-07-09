@@ -1,0 +1,35 @@
+---
+import AppLayout from '../../../layouts/Default.astro';
+import { getEntry } from 'astro:content';
+
+export async function getStaticPaths() {
+  const datasets = await getCollection('datasets');
+  return datasets.map(ds => ({ params: { id: ds.data.id } }));
+}
+import { getCollection } from 'astro:content';
+
+const { id } = Astro.params;
+const dataset = await getEntry('datasets', id!);
+const pages = await getCollection('pages');
+const aboutPage = pages.find(p => p.id.includes(`dataset-${id}-about`));
+---
+
+<AppLayout title={`About — ${dataset?.data.title ?? id}`} activeDataset={id}>
+  <article class="max-w-3xl prose dark:prose-invert">
+    {aboutPage ? (
+      <div set:html={aboutPage.data.html || aboutPage.body} />
+    ) : (
+      <div>
+        <h1>About {dataset?.data.title}</h1>
+        <p>{dataset?.data.description}</p>
+        <dl class="mt-6 space-y-2">
+          <div><dt class="font-semibold">Owner</dt><dd>{dataset?.data.owner || '—'}</dd></div>
+          <div><dt class="font-semibold">Languages</dt><dd>{dataset?.data.languages.join(', ')}</dd></div>
+          <div><dt class="font-semibold">Concepts</dt><dd>{dataset?.data.conceptCount}</dd></div>
+          {dataset?.data.ref && <div><dt class="font-semibold">Reference</dt><dd>{dataset.data.ref}</dd></div>}
+          {dataset?.data.year && <div><dt class="font-semibold">Year</dt><dd>{dataset.data.year}</dd></div>}
+        </dl>
+      </div>
+    )}
+  </article>
+</AppLayout>

@@ -1,0 +1,20 @@
+---
+import AppLayout from '../layouts/Default.astro';
+import { getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  const pages = await getCollection('pages');
+  return pages
+    .filter(p => p.data.type === 'page' || !p.data.type)
+    .map(p => ({ params: { slug: p.id.replace(/\.(md|html)$/, '') }, props: { page: p } }));
+}
+
+const { page } = Astro.props;
+---
+
+<AppLayout title={page.data.title}>
+  <article class="max-w-3xl prose dark:prose-invert">
+    <h1>{page.data.title}</h1>
+    <div set:html={page.data.html || page.body} />
+  </article>
+</AppLayout>

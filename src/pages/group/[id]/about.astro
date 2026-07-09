@@ -1,0 +1,24 @@
+---
+import AppLayout from '../../../layouts/Default.astro';
+import { getEntry, getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  const groups = await getCollection('groups');
+  return groups.map(g => ({ params: { id: g.data.id } }));
+}
+
+const { id } = Astro.params;
+const group = await getEntry('groups', id!);
+const pages = await getCollection('pages');
+const aboutPage = pages.find(p => p.id.includes(`group-${id}-about`));
+---
+
+<AppLayout title={`About — ${group?.data.label ?? id}`} activeGroup={id}>
+  <article class="max-w-3xl">
+    {aboutPage ? (
+      <div set:html={aboutPage.data.html || aboutPage.body} />
+    ) : (
+      <h1>About {group?.data.label}</h1>
+    )}
+  </article>
+</AppLayout>

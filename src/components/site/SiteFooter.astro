@@ -1,0 +1,14 @@
+---
+import { getSiteConfig } from '../../lib/site-config';
+const siteConfig = await getSiteConfig();
+---
+<footer class="border-t border-ink-100/60 dark:border-ink-700/40 py-6 mt-12">
+  <div class="max-w-[1600px] mx-auto px-4 flex items-center justify-between text-xs text-ink-400">
+    <span>{siteConfig.title || 'Glossarist'}</span>
+    <div class="flex items-center gap-4">
+      <a href="/about" class="hover:text-ink-600 dark:hover:text-ink-300">About</a>
+      <a href="/contributors" class="hover:text-ink-600 dark:hover:text-ink-300">Contributors</a>
+      {siteConfig.branding?.poweredBy && <span>{siteConfig.branding.poweredBy}</span>}
+    </div>
+  </div>
+</footer>

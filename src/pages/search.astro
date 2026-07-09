@@ -1,0 +1,39 @@
+---
+import AppLayout from '../layouts/Default.astro';
+import { getCollection } from 'astro:content';
+const datasets = await getCollection('datasets');
+const concepts = await getCollection('concepts');
+---
+
+<AppLayout title="Search">
+  <div class="max-w-3xl mx-auto">
+    <h1 class="text-2xl font-bold text-ink-800 dark:text-ink-100 mb-4">Search</h1>
+    <input
+      type="search"
+      id="concept-search"
+      placeholder={`Search ${concepts.length} concepts...`}
+      class="w-full px-4 py-3 border border-ink-200 dark:border-ink-700 rounded-lg bg-surface dark:bg-ink-800 text-ink-700 dark:text-ink-100 focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+    />
+    <div id="search-results" class="mt-4 space-y-2"></div>
+    <div id="search-empty" class="mt-4 text-ink-400 text-sm">Type to search across {datasets.length} datasets.</div>
+  </div>
+  <script is:inline define={{ concepts: concepts.map(c => ({ id: c.data.conceptId, registerId: c.data.registerId, term: c.data.designations.eng ?? c.data.conceptId, status: c.data.status })) }}>
+    const data = concepts;
+    const input = document.getElementById('concept-search');
+    const results = document.getElementById('search-results');
+    const empty = document.getElementById('search-empty');
+    input.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      if (!q) { results.innerHTML = ''; empty.style.display = ''; return; }
+      empty.style.display = 'none';
+      const hits = data.filter(c => c.term.toLowerCase().includes(q)).slice(0, 50);
+      results.innerHTML = hits.map(c => 
+        `<a href="/dataset/${c.registerId}/concept/${c.id}" class="block p-3 rounded hover:bg-ink-50 dark:hover:bg-ink-800/40 border border-ink-100/60 dark:border-ink-700/40">
+          <span class="font-medium text-ink-700 dark:text-ink-200">${c.term}</span>
+          <span class="text-xs text-ink-400 ml-2">${c.registerId}</span>
+        </a>`
+      ).join('');
+      if (!hits.length) results.innerHTML = '<p class="text-ink-400 text-sm">No results.</p>';
+    });
+  </script>
+</AppLayout>

@@ -1,61 +1,38 @@
 ---
-import DefaultLayout from '../../../layouts/Default.astro';
+import AppLayout from '../../../layouts/Default.astro';
 import { getEntry, getCollection } from 'astro:content';
 
 export async function getStaticPaths() {
   const datasets = await getCollection('datasets');
-  return datasets.map(ds => ({
-    params: { id: ds.data.id },
-  }));
+  return datasets.map(ds => ({ params: { id: ds.data.id } }));
 }
 
 const { id } = Astro.params;
 const dataset = await getEntry('datasets', id!);
+if (!dataset) return Astro.redirect('/404');
 
-if (!dataset) {
-  return Astro.redirect('/404');
-}
-
-const concepts = await getCollection('concepts', (c) =>
-  c.data.registerId === id
-);
+const concepts = await getCollection('concepts', c => c.data.registerId === id);
 ---
 
-<DefaultLayout title={dataset.data.title} description={dataset.data.description}>
-  <div class="max-w-7xl mx-auto px-4 py-8">
-    <header class="mb-6">
-      <h1 class="text-3xl font-bold text-ink-800 dark:text-ink-100">{dataset.data.title}</h1>
-      <p class="text-lg text-ink-500 dark:text-ink-400 mt-2">{dataset.data.description}</p>
-      <div class="mt-3 flex items-center gap-4 text-sm text-ink-400">
-        <span>{concepts.length} concepts</span>
-        {dataset.data.year && <span>· {dataset.data.year}</span>}
-        <span>· {dataset.data.languages.join(', ')}</span>
-        {dataset.data.owner && <span>· {dataset.data.owner}</span>}
-      </div>
-    </header>
-
-    {concepts.length > 0 ? (
-      <ul class="divide-y divide-ink-100/60 dark:divide-ink-700/40">
-        {concepts.map(c => (
-          <li>
-            <a
-              href={`/dataset/${id}/concept/${c.data.conceptId}`}
-              class="block py-3 hover:bg-ink-50/50 dark:hover:bg-ink-800/30 px-2 rounded transition-colors"
-            >
-              <span class="font-medium text-ink-700 dark:text-ink-200">
-                {c.data.designations.eng ?? c.data.conceptId}
-              </span>
-              {c.data.definition?.eng && (
-                <span class="block text-sm text-ink-400 dark:text-ink-500 mt-0.5 line-clamp-1">
-                  {c.data.definition.eng}
-                </span>
-              )}
-            </a>
-          </li>
-        ))}
-      </ul>
-    ) : (
-      <p class="text-ink-400">No concepts found in this dataset.</p>
-    )}
+<AppLayout title={dataset.data.title} description={dataset.data.description} activeDataset={id}>
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold text-ink-800 dark:text-ink-100">{dataset.data.title}</h1>
+    <p class="text-lg text-ink-500 dark:text-ink-400 mt-2">{dataset.data.description}</p>
+    <div class="mt-3 flex items-center gap-4 text-sm text-ink-400">
+      <span>{concepts.length} concepts</span>
+      {dataset.data.year && <span>· {dataset.data.year}</span>}
+      <span>· {dataset.data.languages.join(', ')}</span>
+    </div>
   </div>
-</DefaultLayout>
+  {concepts.length > 0 ? (
+    <ul class="divide-y divide-ink-100/60 dark:divide-ink-700/40">
+      {concepts.map(c => (
+        <li>
+          <a href={`/dataset/${id}/concept/${c.data.conceptId}`} class="block py-3 px-2 rounded hover:bg-ink-50/50 dark:hover:bg-ink-800/30">
+            <span class="font-medium text-ink-700 dark:text-ink-200">{c.data.designations.eng ?? c.data.conceptId}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  ) : <p class="text-ink-400">No concepts in this dataset.</p>}
+</AppLayout>
