@@ -1,6 +1,5 @@
 import { defineConfig } from 'astro/config';
 import vue from '@astrojs/vue';
-import tailwind from '@astrojs/tailwind';
 import sitemap from '@astrojs/sitemap';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -17,7 +16,6 @@ export default defineConfig({
   output: 'static',
   integrations: [
     vue(),
-    tailwind({ applyBaseStyles: false }),
     sitemap(),
   ],
   i18n: {
