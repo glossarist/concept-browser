@@ -1,7 +1,8 @@
 import { defineCollection, z } from 'astro:content';
+import { glob } from 'astro/loaders';
 
 const datasets = defineCollection({
-  type: 'data',
+  loader: glob({ pattern: '**/*.json', base: './src/content/datasets' }),
   schema: z.object({
     id: z.string(),
     title: z.string(),
@@ -24,7 +25,7 @@ const datasets = defineCollection({
 });
 
 const groups = defineCollection({
-  type: 'data',
+  loader: glob({ pattern: '**/*.json', base: './src/content/groups' }),
   schema: z.object({
     id: z.string(),
     label: z.string(),
@@ -37,7 +38,7 @@ const groups = defineCollection({
 });
 
 const concepts = defineCollection({
-  type: 'data',
+  loader: glob({ pattern: '**/*.json', base: './src/content/concepts' }),
   schema: z.object({
     registerId: z.string(),
     conceptId: z.string(),
@@ -52,7 +53,7 @@ const concepts = defineCollection({
 });
 
 const pages = defineCollection({
-  type: 'data',
+  loader: glob({ pattern: '**/*.{md,json}', base: './src/content/pages' }),
   schema: z.object({
     title: z.string(),
     type: z.string().optional(),

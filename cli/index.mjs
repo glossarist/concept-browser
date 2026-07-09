@@ -173,15 +173,34 @@ Environment:
       }
     }
 
-    // Run vite build using the package's vite.config.ts via programmatic API
-    console.log(`\n=== BUILD SPA ===\n`);
-    const viteConfig = resolve(pkgRoot, 'vite.config.ts');
-    const { build: viteBuild } = await import('vite');
-    await viteBuild({
-      configFile: viteConfig,
-      root: pkgRoot,
-      mode: 'production',
-    });
+    // Bridge data to Astro content collections
+    console.log(`\n=== BRIDGE DATA ===\n`);
+    const bridge = resolve(pkgRoot, 'scripts', 'bridge-to-astro.mjs');
+    if (existsSync(bridge)) {
+      await import(`file://${bridge}`);
+    }
+
+    // Run Astro build (TODO.astro/22)
+    console.log(`\n=== BUILD ASTRO ===\n`);
+    const astroConfig = resolve(pkgRoot, 'astro.config.mjs');
+    if (existsSync(astroConfig)) {
+      try {
+        const { build: astroBuild } = await import('astro');
+        await astroBuild({ root: pkgRoot, logLevel: 'info' });
+      } catch (e) {
+        console.warn(`  Astro build failed (${e.message}), falling back to Vite SPA`);
+        console.log(`\n=== BUILD SPA ===\n`);
+        const viteConfig = resolve(pkgRoot, 'vite.config.ts');
+        const { build: viteBuild } = await import('vite');
+        await viteBuild({ configFile: viteConfig, root: pkgRoot, mode: 'production' });
+      }
+    } else {
+      // Fall back to Vite SPA if Astro config doesn't exist
+      console.log(`\n=== BUILD SPA ===\n`);
+      const viteConfig = resolve(pkgRoot, 'vite.config.ts');
+      const { build: viteBuild } = await import('vite');
+      await viteBuild({ configFile: viteConfig, root: pkgRoot, mode: 'production' });
+    }
 
     // Run postbuild (404 page) via dynamic import
     const postbuild = resolve(pkgRoot, 'scripts', 'generate-404.js');
