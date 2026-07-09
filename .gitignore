@@ -28,3 +28,4 @@ site-configs.yml
 
 # Test snapshots
 __snapshots__/
+.astro/

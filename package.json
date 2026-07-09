@@ -23,11 +23,18 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "mutation:test": "stryker run stryker.config.mjs",
-    "validate:shacl": "node scripts/validate-shacl.mjs"
+    "validate:shacl": "node scripts/validate-shacl.mjs",
+    "dev:astro": "astro dev",
+    "build:astro": "astro build",
+    "preview:astro": "astro preview"
   },
   "dependencies": {
+    "@astrojs/sitemap": "^3.7.3",
+    "@astrojs/tailwind": "^6.0.2",
+    "@astrojs/vue": "^5.1.4",
     "@plurimath/plurimath": "^0.2.2",
     "@vitejs/plugin-vue": "^5.2.3",
+    "astro": "^5.18.2",
     "autoprefixer": "^10.4.21",
     "d3": "^7.9.0",
     "favicons": "^7.2.0",
@@ -43,6 +50,7 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.9",
     "@rdfjs/dataset": "^2.0.2",
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
