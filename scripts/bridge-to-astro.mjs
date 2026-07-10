@@ -12,9 +12,14 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, '..');
-const PUBLIC_DATA = join(ROOT, 'public', 'data');
-const CONTENT_DIR = join(ROOT, 'src', 'content');
+const CWD = process.cwd();
+const PKG_ROOT = join(__dirname, '..');
+// Read generated data from the CONSUMER's working directory (where
+// generate-data.mjs writes public/data/). Write content collections
+// to the PACKAGE's src/content/ (where Astro expects them).
+const PUBLIC_DATA = join(CWD, 'public', 'data');
+const PUBLIC_ROOT = join(CWD, 'public');
+const CONTENT_DIR = join(PKG_ROOT, 'src', 'content');
 
 function readJson(p) {
   if (!existsSync(p)) return null;
@@ -27,8 +32,8 @@ function writeJson(dir, name, data) {
 }
 
 // --- Datasets ---
-const registryPath = join(PUBLIC_DATA, 'datasets.json');
-const siteConfigPath = join(ROOT, 'public', 'site-config.json');
+const registryPath = join(PUBLIC_ROOT, 'datasets.json');
+const siteConfigPath = join(PUBLIC_ROOT, 'site-config.json');
 const registry = readJson(registryPath) || [];
 const siteConfig = readJson(siteConfigPath) || {};
 
@@ -114,7 +119,7 @@ for (const g of groups) {
 }
 
 // --- Pages (from public/pages/*.json) ---
-const pagesDir = join(ROOT, 'public', 'pages');
+const pagesDir = join(CWD, 'public', 'pages');
 if (existsSync(pagesDir)) {
   for (const file of readdirSync(pagesDir)) {
     if (!file.endsWith('.json')) continue;

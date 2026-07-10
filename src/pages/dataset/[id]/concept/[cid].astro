@@ -13,7 +13,8 @@ export async function getStaticPaths() {
   }));
 }
 
-const { id, cid, conceptData } = Astro.props;
+const { id, cid } = Astro.params;
+const { conceptData } = Astro.props;
 const dataset = await getEntry('datasets', id!);
 ---
 
