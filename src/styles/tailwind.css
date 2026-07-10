@@ -1,15 +1,13 @@
-/* Tailwind CSS 4 — CSS-first configuration */
+/* Tailwind CSS 4 — CSS-first, single source of truth */
 @import "tailwindcss";
 
-/* Scan these paths for utility class usage */
 @source "../index.html";
 @source "../src/**/*.{vue,astro,ts,js,css}";
 
-/* Dark mode via class strategy (same as Tailwind 3) */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Ink palette — ported from tailwind.config.js verbatim */
+  /* Ink palette (from original tailwind.config.js) */
   --color-ink: #1a1b2e;
   --color-ink-50: #f0f0f4;
   --color-ink-100: #dddde6;
@@ -27,7 +25,85 @@
   --color-surface-alt: #f3f2ee;
   --color-surface-raised: #ffffff;
 
+  /* Relationship type colors */
+  --color-rel-definitional: #3b82f6;
+  --color-rel-designation: #10b981;
+  --color-rel-contextual: #f59e0b;
+  --color-rel-organizational: #8b5cf6;
+  --color-rel-temporal: #ec4899;
+
+  /* Concept status colors */
+  --color-status-valid: #10b981;
+  --color-status-superseded: #f59e0b;
+  --color-status-withdrawn: #ef4444;
+  --color-status-draft: #6366f1;
+
+  /* Group kind accent colors */
+  --color-group-lineage: #d97706;
+  --color-group-topic: #059669;
+  --color-group-family: #6366f1;
+  --color-group-collection: #0891b2;
+
   /* Typography */
   --font-serif: "DM Serif Display", Georgia, serif;
   --font-sans: "DM Sans", system-ui, sans-serif;
+}
+
+/* Backward-compat CSS custom property aliases (for code that uses
+   the old --rel-*, --status-*, --group-* variable names) */
+:root {
+  --rel-definitional: var(--color-rel-definitional);
+  --rel-designation: var(--color-rel-designation);
+  --rel-contextual: var(--color-rel-contextual);
+  --rel-organizational: var(--color-rel-organizational);
+  --rel-temporal: var(--color-rel-temporal);
+  --status-valid: var(--color-status-valid);
+  --status-superseded: var(--color-status-superseded);
+  --status-withdrawn: var(--color-status-withdrawn);
+  --status-draft: var(--color-status-draft);
+  --group-lineage: var(--color-group-lineage);
+  --group-topic: var(--color-group-topic);
+  --group-family: var(--color-group-family);
+  --group-collection: var(--color-group-collection);
+  --brand-primary: #2563eb;
+  --brand-primary-rgb: 37, 99, 235;
+  --brand-dark: #1e293b;
+  --font-header: "DM Serif Display", Georgia, serif;
+  --font-body: "DM Sans", system-ui, sans-serif;
+}
+
+/* Custom utilities (replaces @layer components from TW3) */
+@utility card {
+  background-color: var(--color-surface-raised);
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-ink-100) 60%, transparent);
+  box-shadow: 0 1px 3px rgba(26, 27, 46, 0.04), 0 1px 2px rgba(26, 27, 46, 0.02);
+}
+
+@utility badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+
+@utility concept-link {
+  text-underline-offset: 2px;
+}
+.concept-link:hover {
+  text-decoration: underline;
+  cursor: pointer;
+  transition-property: color;
+  transition-duration: 150ms;
+}
+
+@utility hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }

@@ -25,22 +25,22 @@ const dataset = await getEntry('datasets', id!);
     <span>{cid}</span>
   </div>
 
+  <!-- Concept island uses REAL SPA components (DesignationList, NonVerbalRepDisplay,
+       FormatDownloads, ConceptRdfView). client:only="vue" skips SSR because the
+       components access Pinia stores + glossarist/rdf (Node-only) that can't
+       server-render. The island hydrates client-side with full functionality. -->
   <ConceptIsland
-    client:load
+    client:only="vue"
     concept={conceptData}
     registerId={id}
+    conceptUri={conceptData?.uri ?? ''}
   />
 
-  <NonVerbalIsland
-    client:visible
-    nonVerbalReps={(conceptData as any)?.nonVerbalReps}
-    registerId={id}
-  />
-
-  <BibliographyIsland
-    client:visible
-    entries={(conceptData as any)?.bibliography ?? []}
-  />
+  <!-- Static fallback content (shown before hydration, for SEO/no-JS) -->
+  <noscript>
+    <h1 class="text-2xl font-bold">{conceptData?.designations?.eng ?? cid}</h1>
+    <p class="text-ink-500">{conceptData?.definition?.eng ?? ''}</p>
+  </noscript>
 </AppLayout>
 
 <script>
