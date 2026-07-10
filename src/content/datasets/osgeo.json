@@ -1,0 +1,22 @@
+{
+  "id": "osgeo",
+  "title": "OSGeo Lexicon",
+  "description": "Open Source Geospatial Foundation glossary",
+  "uri": "https://glossarist.org/osgeo/*",
+  "uriBase": "https://www.geolexica.org",
+  "status": "valid",
+  "owner": "OSGeo",
+  "languages": [
+    "eng"
+  ],
+  "conceptCount": 444,
+  "color": "#059669",
+  "tags": [
+    "osgeo",
+    "open-source",
+    "gis"
+  ],
+  "sections": [],
+  "sourceRepo": "https://github.com/geolexica/osgeo-glossary",
+  "lastUpdated": "2026-07-10"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "iev",
+  "title": "IEC Electropedia (IEV)",
+  "description": "International Electrotechnical Vocabulary",
+  "uri": "urn:iec:std:iec:60050:*",
+  "uriBase": "https://www.geolexica.org",
+  "status": "valid",
+  "owner": "IEC TC 1",
+  "languages": [
+    "eng"
+  ],
+  "conceptCount": 22228,
+  "color": "#3366ff",
+  "tags": [
+    "electrotechnical",
+    "iec",
+    "multilingual"
+  ],
+  "sections": [],
+  "sourceRepo": "https://github.com/glossarist/glossarist-data-iev",
+  "lastUpdated": "2026-07-10"
+}

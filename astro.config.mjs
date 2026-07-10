@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import vue from '@astrojs/vue';
 import sitemap from '@astrojs/sitemap';
+import tailwindcss from '@tailwindcss/vite';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 
@@ -30,6 +31,7 @@ export default defineConfig({
     defaultStrategy: 'viewport',
   },
   vite: {
+    plugins: [tailwindcss()],
     define: {
       __CONCEPT_BROWSER_VERSION__: JSON.stringify(pkgVersion),
     },

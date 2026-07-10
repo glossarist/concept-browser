@@ -1,0 +1,23 @@
+{
+  "id": "isotc204",
+  "title": "Geolexica for Intelligent Transport Systems",
+  "description": "Intelligent transport systems vocabulary from ISO 14812",
+  "uri": "urn:iso:std:iso:14812:*",
+  "uriBase": "https://www.geolexica.org",
+  "status": "valid",
+  "owner": "ISO/TC 204",
+  "languages": [
+    "eng"
+  ],
+  "conceptCount": 312,
+  "color": "#d97706",
+  "tags": [
+    "transport",
+    "its",
+    "iso",
+    "automated-driving"
+  ],
+  "sections": [],
+  "sourceRepo": "https://github.com/geolexica/isotc204-glossary",
+  "lastUpdated": "2026-07-10"
+}

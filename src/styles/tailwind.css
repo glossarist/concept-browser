@@ -1,4 +1,33 @@
-@import './colors.css';
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind CSS 4 — CSS-first configuration */
+@import "tailwindcss";
+
+/* Scan these paths for utility class usage */
+@source "../index.html";
+@source "../src/**/*.{vue,astro,ts,js,css}";
+
+/* Dark mode via class strategy (same as Tailwind 3) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Ink palette — ported from tailwind.config.js verbatim */
+  --color-ink: #1a1b2e;
+  --color-ink-50: #f0f0f4;
+  --color-ink-100: #dddde6;
+  --color-ink-200: #b8b9cc;
+  --color-ink-300: #8d8faa;
+  --color-ink-400: #636588;
+  --color-ink-500: #484a6e;
+  --color-ink-600: #36385a;
+  --color-ink-700: #2c2e4a;
+  --color-ink-800: #1a1b2e;
+  --color-ink-900: #0f1020;
+
+  /* Surface palette */
+  --color-surface: #faf9f6;
+  --color-surface-alt: #f3f2ee;
+  --color-surface-raised: #ffffff;
+
+  /* Typography */
+  --font-serif: "DM Serif Display", Georgia, serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+}
