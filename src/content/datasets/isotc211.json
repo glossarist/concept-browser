@@ -1,0 +1,23 @@
+{
+  "id": "isotc211",
+  "title": "ISO/TC 211 Multi-Lingual Glossary of Terms",
+  "description": "Geographic information terminology from ISO/TC 211",
+  "uri": "https://glossarist.org/isotc211/*",
+  "uriBase": "https://www.geolexica.org",
+  "status": "valid",
+  "owner": "ISO/TC 211",
+  "languages": [
+    "eng"
+  ],
+  "conceptCount": 1302,
+  "color": "#0d9488",
+  "tags": [
+    "geographic-information",
+    "gis",
+    "iso",
+    "multilingual"
+  ],
+  "sections": [],
+  "sourceRepo": "https://github.com/geolexica/isotc211-glossary",
+  "lastUpdated": "2026-07-10"
+}

@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
 import { resolve, dirname, extname, join } from 'path'
 import { readFileSync, existsSync, statSync, createReadStream } from 'fs'
 import { fileURLToPath } from 'url'
@@ -162,7 +163,7 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@plurimath/plurimath'],
   },
-  plugins: [yamlPlugin(), faviconPlugin(), brandingPlugin(), dataServePlugin(), inlineDataPlugin(), vue()],
+  plugins: [tailwindcss(), yamlPlugin(), faviconPlugin(), brandingPlugin(), dataServePlugin(), inlineDataPlugin(), vue()],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

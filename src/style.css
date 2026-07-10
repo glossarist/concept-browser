@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import "./styles/tailwind.css";
 
 :root {
   --brand-primary: #2563eb;
@@ -28,6 +27,7 @@
 }
 
 @layer components {
+
   /* Cards */
   .card {
     @apply bg-surface-raised rounded-xl border border-ink-100/60;
@@ -35,7 +35,7 @@
   }
 
   .card-hover {
-    @apply card transition-all duration-200;
+    @apply bg-surface-raised rounded-xl border border-ink-100/60 transition-all duration-200;
   }
   .card-hover:hover {
     box-shadow: 0 4px 16px rgba(26, 27, 46, 0.08), 0 2px 4px rgba(26, 27, 46, 0.04);
@@ -84,24 +84,24 @@
     @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium tracking-wide;
   }
   .badge-blue {
-    @apply badge bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300;
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium tracking-wide bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300;
   }
   .badge-green {
-    @apply badge bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300;
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300;
   }
   .badge-yellow {
-    @apply badge bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300;
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium tracking-wide bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300;
   }
   .badge-gray {
-    @apply badge bg-ink-50 text-ink-600;
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium tracking-wide bg-ink-50 text-ink-600;
   }
   .badge-purple {
-    @apply badge bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300;
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium tracking-wide bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300;
   }
 
   /* Brand badge — uses primary color from CSS var */
   .badge-brand {
-    @apply badge;
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium tracking-wide;
     background-color: rgba(var(--brand-primary-rgb), 0.1);
     color: var(--brand-primary);
   }
@@ -245,7 +245,7 @@
   }
   .prose-page a,
   .prose-news a {
-    @apply concept-link;
+    @apply underline-offset-2 hover:underline cursor-pointer transition-colors;
   }
   .prose-page strong,
   .prose-news strong {
@@ -492,7 +492,7 @@
 
 /* Section labels brighter in dark mode */
 .dark .section-label {
-  color: theme('colors.ink.300') !important;
+  color: var(--color-ink-300) !important;
 }
 
 /* Scrollbar hide utility */
