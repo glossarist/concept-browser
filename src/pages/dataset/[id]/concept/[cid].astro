@@ -1,8 +1,7 @@
 ---
 import AppLayout from '../../../../layouts/Default.astro';
-import ConceptIsland from '../../../../islands/ConceptIsland.vue';
-import NonVerbalIsland from '../../../../islands/NonVerbalIsland.vue';
-import BibliographyIsland from '../../../../islands/BibliographyIsland.vue';
+import ConceptDetailIsland from '../../../../islands/ConceptDetailIsland.vue';
+import RelationSphereIsland from '../../../../islands/RelationSphereIsland.vue';
 import { getEntry, getCollection } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -16,6 +15,7 @@ export async function getStaticPaths() {
 const { id, cid } = Astro.params;
 const { conceptData } = Astro.props;
 const dataset = await getEntry('datasets', id!);
+const viewMode = Astro.url.searchParams.get('view') ?? 'detail';
 ---
 
 <AppLayout title={conceptData ? `${conceptData.designations.eng ?? cid} — ${dataset?.data.title ?? ''}` : cid} activeDataset={id}>
@@ -25,18 +25,21 @@ const dataset = await getEntry('datasets', id!);
     <span>{cid}</span>
   </div>
 
-  <!-- Concept island uses REAL SPA components (DesignationList, NonVerbalRepDisplay,
-       FormatDownloads, ConceptRdfView). client:only="vue" skips SSR because the
-       components access Pinia stores + glossarist/rdf (Node-only) that can't
-       server-render. The island hydrates client-side with full functionality. -->
-  <ConceptIsland
-    client:only="vue"
-    concept={conceptData}
-    registerId={id}
-    conceptUri={conceptData?.uri ?? ''}
-  />
+  {viewMode === 'sphere' ? (
+    <RelationSphereIsland
+      client:only="vue"
+      concept={conceptData}
+      conceptUri={conceptData?.uri ?? ''}
+    />
+  ) : (
+    <ConceptDetailIsland
+      client:only="vue"
+      concept={conceptData}
+      registerId={id}
+      conceptUri={conceptData?.uri ?? ''}
+    />
+  )}
 
-  <!-- Static fallback content (shown before hydration, for SEO/no-JS) -->
   <noscript>
     <h1 class="text-2xl font-bold">{conceptData?.designations?.eng ?? cid}</h1>
     <p class="text-ink-500">{conceptData?.definition?.eng ?? ''}</p>
@@ -44,15 +47,12 @@ const dataset = await getEntry('datasets', id!);
 </AppLayout>
 
 <script>
-  // Keyboard shortcuts (TODO 24: accessibility)
   document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.key === 's' || e.key === 'S') {
-      window.location.href = '/search';
-    } else if (e.key === 'h' || e.key === 'H') {
-      window.location.href = '/';
-    } else if (e.key === '?') {
-      alert('Keyboard shortcuts:\n  S — Search\n  H — Home\n  ? — This help');
+      const url = new URL(window.location.href);
+      url.searchParams.set('view', url.searchParams.get('view') === 'sphere' ? 'detail' : 'sphere');
+      window.location.href = url.toString();
     }
   });
 </script>

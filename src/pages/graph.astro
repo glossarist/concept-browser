@@ -6,19 +6,15 @@ import { getCollection } from 'astro:content';
 const concepts = await getCollection('concepts');
 const datasets = await getCollection('datasets');
 
-// Build graph data: one node per dataset, edges where concepts share groups
 const nodes = datasets.map(ds => ({
   id: ds.data.id,
   label: ds.data.title,
-  group: 'dataset',
 }));
-// Also add concept nodes (limited for performance)
-const conceptNodes = concepts.slice(0, 200).map(c => ({
+const conceptNodes = concepts.slice(0, 500).map(c => ({
   id: `${c.data.registerId}/${c.data.conceptId}`,
   label: c.data.designations.eng ?? c.data.conceptId,
-  group: 'concept',
 }));
-const edges = concepts.slice(0, 200).map(c => ({
+const edges = concepts.slice(0, 500).map(c => ({
   source: c.data.registerId,
   target: `${c.data.registerId}/${c.data.conceptId}`,
 }));
@@ -30,6 +26,10 @@ const edges = concepts.slice(0, 200).map(c => ({
     {concepts.length} concepts across {datasets.length} datasets.
   </p>
   <div class="card p-0 overflow-hidden">
-    <GraphIsland client:visible nodes={[...nodes, ...conceptNodes]} edges={edges} />
+    <GraphIsland
+      client:only="vue"
+      nodes={[...nodes, ...conceptNodes]}
+      edges={edges}
+    />
   </div>
 </AppLayout>

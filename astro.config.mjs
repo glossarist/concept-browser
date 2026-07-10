@@ -17,7 +17,7 @@ export default defineConfig({
   base,
   output: 'static',
   integrations: [
-    vue(),
+    vue({ appEntrypoint: '/src/islands/app-entry' }),
     sitemap(),
   ],
   i18n: {

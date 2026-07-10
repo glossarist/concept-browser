@@ -1,5 +1,6 @@
 ---
 import AppLayout from '../../../layouts/Default.astro';
+import SeriesCardIsland from '../../../islands/SeriesCardIsland.vue';
 import { getEntry, getCollection } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -35,4 +36,9 @@ const concepts = await getCollection('concepts', c => c.data.registerId === id);
       ))}
     </ul>
   ) : <p class="text-ink-400">No concepts in this dataset.</p>}
+
+  <!-- Lineage series card (REAL DatasetSeriesCard via island) -->
+  <div class="mt-8">
+    <SeriesCardIsland client:only="vue" registerId={id} />
+  </div>
 </AppLayout>

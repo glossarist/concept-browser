@@ -15,6 +15,9 @@ const searchData = concepts.map(c => ({
 <AppLayout title="Search">
   <div class="max-w-3xl mx-auto">
     <h1 class="text-2xl font-bold text-ink-800 dark:text-ink-100 mb-4">Search</h1>
-    <SearchIsland client:load concepts={searchData} />
+    <SearchIsland client:only="vue" concepts={searchData} />
+    <noscript>
+      <p class="text-ink-400">Search requires JavaScript.</p>
+    </noscript>
   </div>
 </AppLayout>
