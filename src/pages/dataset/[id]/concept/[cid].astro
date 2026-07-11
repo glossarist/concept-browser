@@ -2,6 +2,7 @@
 import AppLayout from '../../../../layouts/Default.astro';
 import ConceptDetailIsland from '../../../../islands/ConceptDetailIsland.vue';
 import RelationSphereIsland from '../../../../islands/RelationSphereIsland.vue';
+import ConceptDiffIsland from '../../../../islands/ConceptDiffIsland.vue';
 import { getEntry, getCollection } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -16,6 +17,21 @@ const { id, cid } = Astro.params;
 const { conceptData } = Astro.props;
 const dataset = await getEntry('datasets', id!);
 const viewMode = Astro.url.searchParams.get('view') ?? 'detail';
+
+// Find same concept in other datasets (for diff comparison)
+const allConcepts = await getCollection('concepts', c => c.data.conceptId === cid);
+const datasets = await getCollection('datasets');
+const editions = await Promise.all(
+  allConcepts.map(async c => {
+    const ds = datasets.find(d => d.data.id === c.data.registerId);
+    return {
+      id: c.data.registerId,
+      title: ds?.data.title ?? c.data.registerId,
+      year: ds?.data.year,
+      conceptData: c.data,
+    };
+  })
+);
 ---
 
 <AppLayout title={conceptData ? `${conceptData.designations.eng ?? cid} — ${dataset?.data.title ?? ''}` : cid} activeDataset={id}>
@@ -38,6 +54,19 @@ const viewMode = Astro.url.searchParams.get('view') ?? 'detail';
       registerId={id}
       conceptUri={conceptData?.uri ?? ''}
     />
+  )}
+
+  <!-- Concept diff: compare same concept across editions (uses glossarist/diff) -->
+  {editions.length > 1 && (
+    <div class="mt-8">
+      <h2 class="text-sm font-semibold text-ink-500 uppercase tracking-wider mb-3">Edition Comparison</h2>
+      <ConceptDiffIsland
+        client:only="vue"
+        currentConcept={conceptData}
+        registerId={id}
+        editions={editions}
+      />
+    </div>
   )}
 
   <noscript>
