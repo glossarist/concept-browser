@@ -3,6 +3,7 @@ import AppLayout from '../../../../layouts/Default.astro';
 import ConceptDetailIsland from '../../../../islands/ConceptDetailIsland.vue';
 import RelationSphereIsland from '../../../../islands/RelationSphereIsland.vue';
 import ConceptDiffIsland from '../../../../islands/ConceptDiffIsland.vue';
+import SupersessionDiffIsland from '../../../../islands/SupersessionDiffIsland.vue';
 import { getEntry, getCollection } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -18,7 +19,7 @@ const { conceptData } = Astro.props;
 const dataset = await getEntry('datasets', id!);
 const viewMode = Astro.url.searchParams.get('view') ?? 'detail';
 
-// Find same concept in other datasets (for diff comparison)
+// Find same concept in other datasets (for edition diff comparison)
 const allConcepts = await getCollection('concepts', c => c.data.conceptId === cid);
 const datasets = await getCollection('datasets');
 const editions = await Promise.all(
@@ -32,6 +33,14 @@ const editions = await Promise.all(
     };
   })
 );
+
+// Detect supersession relationships from the dataset's lineage
+// (isotc204-ed3 supersedes isotc204-2025, which supersedes isotc204-2022)
+const sortedEditions = [...editions].sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
+const currentIdx = sortedEditions.findIndex(e => e.id === id);
+const supersedes = currentIdx > 0 ? sortedEditions[currentIdx - 1] : null;
+const supersededBy = currentIdx >= 0 && currentIdx < sortedEditions.length - 1
+  ? sortedEditions[currentIdx + 1] : null;
 ---
 
 <AppLayout title={conceptData ? `${conceptData.designations.eng ?? cid} — ${dataset?.data.title ?? ''}` : cid} activeDataset={id}>
@@ -54,6 +63,19 @@ const editions = await Promise.all(
       registerId={id}
       conceptUri={conceptData?.uri ?? ''}
     />
+  )}
+
+  <!-- Supersession diff: compare with superseding/superseded concept (uses glossarist/diff) -->
+  {(supersedes || supersededBy) && (
+    <div class="mt-6">
+      <SupersessionDiffIsland
+        client:only="vue"
+        concept={conceptData}
+        registerId={id}
+        supersedes={supersedes ? { conceptId: cid, registerId: supersedes.id, term: supersedes.conceptData?.designations?.eng, conceptData: supersedes.conceptData } : null}
+        supersededBy={supersededBy ? { conceptId: cid, registerId: supersededBy.id, term: supersededBy.conceptData?.designations?.eng, conceptData: supersededBy.conceptData } : null}
+      />
+    </div>
   )}
 
   <!-- Concept diff: compare same concept across editions (uses glossarist/diff) -->
