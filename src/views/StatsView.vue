@@ -45,7 +45,7 @@ const stats = computed(() => {
 
   const langs: LangStat[] = [...allLangs].map(lang => ({
     lang,
-    terms: conceptCounts[lang] ?? ls[lang]?.terms ?? 0,
+    terms: ls[lang]?.terms ?? conceptCounts[lang] ?? 0,
     definitions: ls[lang]?.definitions ?? conceptCounts[lang] ?? 0,
   }));
 
