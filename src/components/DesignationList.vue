@@ -4,7 +4,10 @@ import { designationTypeInfo, normativeStatusInfo, abbreviationDetails, termType
 import { relationshipLabel } from '../utils/relationship-categories';
 import { langName } from '../utils/lang';
 import { getDesignationTarget } from '../adapters/model-bridge';
+import { useI18n } from '../i18n';
 import CitationDisplay from './CitationDisplay.vue';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   designations: Designation[];
@@ -57,10 +60,18 @@ function resolvedLabel(dr: { content: string | null; ref?: { source: string | nu
         <span v-if="d.system" class="badge text-[10px] bg-gray-50 text-gray-600">system: {{ d.system }}</span>
       </div>
       <div v-if="d.sources?.length" class="mt-1 space-y-0.5">
-        <div v-for="(ds, dsi) in d.sources" :key="'ds'+dsi" class="text-xs text-ink-400 flex items-center gap-1.5">
-          <span v-if="ds.type" class="badge text-[9px]" :class="sourceTypeInfo(ds.type).color">{{ sourceTypeInfo(ds.type).label }}</span>
-          <CitationDisplay v-if="ds.origin" :citation="ds.origin" :register-id="registerId" />
-          <span v-else-if="ds.modification" class="text-ink-300">{{ ds.modification }}</span>
+        <div v-for="(ds, dsi) in d.sources" :key="'ds'+dsi" class="text-xs text-ink-400">
+          <div class="flex items-center gap-1.5">
+            <span v-if="ds.type" class="badge text-[9px]" :class="sourceTypeInfo(ds.type).color">{{ sourceTypeInfo(ds.type).label }}</span>
+            <CitationDisplay v-if="ds.origin" :citation="ds.origin" :register-id="registerId" />
+            <span v-else-if="ds.modification" class="text-ink-300">{{ ds.modification }}</span>
+          </div>
+          <div v-if="ds.sourced_from?.length" class="ml-4 mt-0.5">
+            <span class="text-ink-300 text-[9px]">{{ t('concept.sourcedFrom') }}:</span>
+            <div v-for="(sf, sfi) in ds.sourced_from" :key="'sf'+sfi" class="ml-2">
+              <CitationDisplay v-if="sf" :citation="sf" :register-id="registerId" />
+            </div>
+          </div>
         </div>
       </div>
       <div v-if="d.related?.length" class="mt-0.5 space-y-0.5">

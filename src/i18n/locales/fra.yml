@@ -64,6 +64,7 @@ concept.metadata: Métadonnées
 concept.noData: Aucune donnée disponible pour cette langue.
 concept.lifecycleDates: Dates du cycle de vie
 concept.conceptSources: Sources du concept
+concept.sourcedFrom: Issu de
 concept.incoming: Entrantes
 concept.outgoing: Sortantes
 concept.lang: lang.
