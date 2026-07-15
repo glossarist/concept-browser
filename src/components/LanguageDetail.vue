@@ -176,6 +176,12 @@ function handleContentClick(e: MouseEvent) {
             <div class="text-ink-700">
               <CitationDisplay v-if="src.origin" :citation="src.origin" />
             </div>
+            <div v-if="src.sourced_from?.length" class="text-xs text-ink-400 mt-1">
+              <span class="text-ink-300">{{ t('concept.sourcedFrom') }}:</span>
+              <div v-for="(sf, sfi) in src.sourced_from" :key="'sf'+sfi" class="ml-2">
+                <CitationDisplay v-if="sf" :citation="sf" />
+              </div>
+            </div>
           </div>
         </div>
       </div>

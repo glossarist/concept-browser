@@ -11,9 +11,13 @@
 // DELETE this file when upstream ships proper declarations — tracked by
 // PR glossarist/glossarist-js#31 (targets v0.4.3+).
 
-import type { ConceptSource, GlossaristModel } from 'glossarist';
+import type { ConceptSource, Citation, GlossaristModel } from 'glossarist';
 
 declare module 'glossarist' {
+  interface ConceptSource {
+    sourced_from?: Citation[];
+  }
+
   class RegistrableModel extends GlossaristModel {
     static register(type: string, cls: typeof RegistrableModel): void;
     static fromData(data: Record<string, unknown>): RegistrableModel;

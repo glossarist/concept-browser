@@ -103,6 +103,7 @@ interface JsonLdSource {
   'gl:sourceStatus'?: string;
   'gl:modification'?: string;
   'gl:origin'?: JsonLdOrigin;
+  'gl:sourced_from'?: JsonLdOrigin[];
 }
 
 interface JsonLdRelated {
@@ -216,12 +217,30 @@ export function getRelatedCitation(rc: object): Record<string, unknown> | null {
 // Relationship types whose target is a designation string, not a concept ref.
 const DESIGNATION_REL_TYPES = new Set(['abbreviated_form_for', 'short_form_for']);
 
+function attachSourcedFromToSources(
+  sources: readonly { sourced_from?: unknown }[],
+  rawSources: unknown,
+): void {
+  if (!Array.isArray(rawSources)) return;
+  for (let i = 0; i < sources.length && i < rawSources.length; i++) {
+    const raw = rawSources[i] as Record<string, unknown> | undefined;
+    if (raw?.sourced_from && Array.isArray(raw.sourced_from)) {
+      (sources[i] as { sourced_from: unknown }).sourced_from = raw.sourced_from.map(
+        (sf: unknown) => sf instanceof Citation ? sf : Citation.fromJSON(sf as Record<string, unknown>)
+      );
+    }
+  }
+}
+
 function attachBridges(concept: Concept, localizations: Record<string, unknown>): void {
   for (const lang of concept.languages) {
     const lc = concept.localization(lang);
     const raw = localizations[lang];
     if (!lc || !raw || typeof raw !== 'object') continue;
     const rawObj = raw as Record<string, unknown>;
+
+    // Attach sourced_from to localization-level sources
+    attachSourcedFromToSources(lc.sources as unknown as { sourced_from?: unknown }[], rawObj.sources);
 
     // Annotations
     const annList = rawObj.annotations;
@@ -234,7 +253,8 @@ function attachBridges(concept: Concept, localizations: Record<string, unknown>)
     // Designation-level relationship targets, ref text, sourceId, citation
     const rawTerms = rawObj.terms;
     if (Array.isArray(rawTerms)) {
-      for (const rawTerm of rawTerms) {
+      for (let ti = 0; ti < rawTerms.length; ti++) {
+        const rawTerm = rawTerms[ti];
         if (!rawTerm || typeof rawTerm !== 'object') continue;
         const rawT = rawTerm as Record<string, unknown>;
         const rawDesignation = rawT.designation as string | undefined;
@@ -244,6 +264,11 @@ function attachBridges(concept: Concept, localizations: Record<string, unknown>)
         const rawRelated = rawT.related;
         if (!Array.isArray(rawRelated)) continue;
         attachRelatedBridges(designation.related, rawRelated);
+        // Attach sourced_from to designation-level sources
+        attachSourcedFromToSources(
+          designation.sources as unknown as { sourced_from?: unknown }[],
+          rawT.sources,
+        );
       }
     }
 
@@ -408,6 +433,19 @@ function mapDetailedDefinitionFromJsonLd(d: any): Record<string, unknown> {
   return result;
 }
 
+function mapOriginFromJsonLd(o: JsonLdOrigin): Record<string, unknown> {
+  const origin: Record<string, unknown> = {};
+  const ref = mapRefFromJsonLd(o['gl:ref']);
+  if (ref) origin.ref = ref;
+  const loc = mapLocalityFromJsonLd(o['gl:locality']);
+  if (loc) origin.locality = loc;
+  if (o['gl:link']) origin.link = o['gl:link'];
+  if (o['gl:id']) origin.id = o['gl:id'];
+  if (o['gl:version']) origin.version = o['gl:version'];
+  if (o['gl:source']) origin.source = o['gl:source'];
+  return origin;
+}
+
 function mapSourceFromJsonLd(s: JsonLdSource): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   if (s['gl:id']) result.id = s['gl:id'];
@@ -416,17 +454,11 @@ function mapSourceFromJsonLd(s: JsonLdSource): Record<string, unknown> {
   if (s['gl:modification']) result.modification = s['gl:modification'];
 
   if (s['gl:origin']) {
-    const origin: Record<string, unknown> = {};
-    const o = s['gl:origin'];
-    const ref = mapRefFromJsonLd(o['gl:ref']);
-    if (ref) origin.ref = ref;
-    const loc = mapLocalityFromJsonLd(o['gl:locality']);
-    if (loc) origin.locality = loc;
-    if (o['gl:link']) origin.link = o['gl:link'];
-    if (o['gl:id']) origin.id = o['gl:id'];
-    if (o['gl:version']) origin.version = o['gl:version'];
-    if (o['gl:source']) origin.source = o['gl:source'];
-    result.origin = origin;
+    result.origin = mapOriginFromJsonLd(s['gl:origin']);
+  }
+
+  if (s['gl:sourced_from']?.length) {
+    result.sourced_from = s['gl:sourced_from'].map(sf => mapOriginFromJsonLd(sf));
   }
 
   return result;
@@ -614,6 +646,10 @@ export function conceptFromJson(doc: Record<string, unknown>): Concept {
   const concept = Concept.fromJSON(doc);
   const locs = (doc as Record<string, unknown>).localizations as Record<string, unknown> | undefined;
   if (locs) attachBridges(concept, locs);
+  attachSourcedFromToSources(
+    concept.sources as unknown as { sourced_from?: unknown }[],
+    (doc as Record<string, unknown>).sources,
+  );
   return concept;
 }
 

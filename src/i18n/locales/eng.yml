@@ -64,6 +64,7 @@ concept.metadata: Metadata
 concept.noData: No data available for this language.
 concept.lifecycleDates: Lifecycle dates
 concept.conceptSources: Concept sources
+concept.sourcedFrom: Sourced from
 concept.incoming: Incoming
 concept.outgoing: Outgoing
 concept.lang: lang

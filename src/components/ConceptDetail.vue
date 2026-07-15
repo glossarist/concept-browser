@@ -448,6 +448,12 @@ const nonVerbalReps = computed(() => {
                     <span v-if="!src.origin && src.modification" class="text-ink-400">{{ src.modification }}</span>
                   </div>
                   <div v-if="src.modification" class="text-xs text-ink-300 mt-1">{{ src.modification }}</div>
+                  <div v-if="src.sourced_from?.length" class="text-xs text-ink-400 mt-1">
+                    <span class="text-ink-300">{{ t('concept.sourcedFrom') }}:</span>
+                    <div v-for="(sf, sfi) in src.sourced_from" :key="'sf'+sfi" class="ml-2">
+                      <CitationDisplay v-if="sf" :citation="sf" :register-id="registerId" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -614,6 +620,12 @@ const nonVerbalReps = computed(() => {
                   <CitationDisplay v-if="src.origin" :citation="src.origin" />
                 </div>
                 <div v-if="src.modification" class="text-ink-300 mt-0.5">{{ src.modification }}</div>
+                <div v-if="src.sourced_from?.length" class="text-ink-400 mt-0.5">
+                  <span class="text-ink-300">{{ t('concept.sourcedFrom') }}:</span>
+                  <div v-for="(sf, sfi) in src.sourced_from" :key="'sf'+sfi" class="ml-2">
+                    <CitationDisplay v-if="sf" :citation="sf" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
