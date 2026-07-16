@@ -3,51 +3,8 @@ import AppLayout from '../layouts/Default.astro';
 import { getCollection } from 'astro:content';
 
 const datasets = await getCollection('datasets');
-const groups = await getCollection('groups');
+const totalConcepts = datasets.reduce((sum, d) => sum + (d.data.conceptCount || 0), 0);
+const title = datasets.length > 0 ? datasets[0].data.title : 'Concept Browser';
 ---
 
-<AppLayout title="Glossarica" description="Terminology Register">
-  <div class="mb-8">
-    <h1 class="text-3xl font-bold text-ink-800 dark:text-ink-100">Glossarist</h1>
-    <p class="text-lg text-ink-500 dark:text-ink-400 mt-1">Terminology Register</p>
-  </div>
-
-  {groups.length > 0 ? (
-    <section class="space-y-8">
-      {groups.map(group => (
-        <div>
-          <h2 class="text-xl font-semibold text-ink-700 dark:text-ink-200 mb-3">{group.data.label}</h2>
-          {group.data.description && <p class="text-sm text-ink-400 mb-4">{group.data.description}</p>}
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {group.data.datasets.map((id: string) => {
-              const ds = datasets.find(d => d.data.id === id);
-              if (!ds) return null;
-              return (
-                <a href={`/dataset/${ds.data.id}`} class="card p-5 hover:shadow-md transition-shadow">
-                  <h3 class="font-medium text-ink-800 dark:text-ink-100">{ds.data.title}</h3>
-                  <p class="text-sm text-ink-500 dark:text-ink-400 mt-1 line-clamp-2">{ds.data.description}</p>
-                  <div class="mt-3 flex items-center gap-3 text-xs text-ink-400">
-                    <span>{ds.data.conceptCount} concepts</span>
-                    {ds.data.year && <span>· {ds.data.year}</span>}
-                  </div>
-                </a>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </section>
-  ) : (
-    <section>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {datasets.map(ds => (
-          <a href={`/dataset/${ds.data.id}`} class="card p-5 hover:shadow-md transition-shadow">
-            <h3 class="font-medium text-ink-800 dark:text-ink-100">{ds.data.title}</h3>
-            <p class="text-sm text-ink-500 dark:text-ink-400 mt-1 line-clamp-2">{ds.data.description}</p>
-            <div class="mt-3 text-xs text-ink-400">{ds.data.conceptCount} concepts</div>
-          </a>
-        ))}
-      </div>
-    </section>
-  )}
-</AppLayout>
+<AppLayout title={title} description={`${totalConcepts} concepts across ${datasets.length} datasets`} />

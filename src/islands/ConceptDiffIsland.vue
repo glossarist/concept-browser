@@ -125,13 +125,23 @@ watch(compareEdition, async (edId) => {
 });
 
 function toConceptLike(data: any, registerId: string) {
+  const langs = data.languages ?? (data.localizations ? Object.keys(data.localizations) : []);
   return {
     id: data.conceptId ?? data.id,
     termid: String(data.conceptId ?? data.id),
     status: data.status,
-    localizations: {},
-    localizedConcepts: {},
-    ...data,
+    languages: langs,
+    localization(lang: string) {
+      const loc = (data.localizations ?? {})[lang];
+      if (!loc) return null;
+      return {
+        languageCode: loc.languageCode ?? lang,
+        terms: loc.terms ?? [],
+        definitions: loc.definitions ?? [],
+        notes: loc.notes ?? [],
+        examples: loc.examples ?? [],
+      };
+    },
   };
 }
 
@@ -139,36 +149,42 @@ const sections = computed(() => {
   if (!diffResult.value) return {};
   const out: Record<string, any> = {};
   const diff = diffResult.value as any;
+  const loc = diff.localization?.('eng') ?? diff.localizations?.eng;
+  if (!loc) return out;
 
-  // Definition changes
-  if (diff.definition?.hasChanges) {
-    out.definition = { hunks: diff.definition.hunks };
-  } else if (diff.definition?.type === 'added') {
-    out.definition = { type: 'added', value: diff.definition.newText };
-  } else if (diff.definition?.type === 'removed') {
-    out.definition = { type: 'removed', value: diff.definition.oldText };
+  const defChanged = loc.definitions?.changed?.[0];
+  if (defChanged?.textDiff?.hunks?.length) {
+    out.definition = { hunks: defChanged.textDiff.hunks };
+  } else if (loc.definitions?.added?.length) {
+    out.definition = { type: 'added', value: loc.definitions.added[0].value?.content ?? loc.definitions.added[0].value };
+  } else if (loc.definitions?.removed?.length) {
+    out.definition = { type: 'removed', value: loc.definitions.removed[0].value?.content ?? loc.definitions.removed[0].value };
   }
 
-  // Terms/designations
-  if (diff.terms?.hasChanges) {
-    out.terms = { hunks: diff.terms.hunks };
-  }
-
-  // Notes
-  if (diff.notes?.added?.length || diff.notes?.removed?.length) {
-    out.notes = {
+  const termChanged = loc.designations?.changed?.[0];
+  if (termChanged?.textDiff?.hunks?.length) {
+    out.terms = { hunks: termChanged.textDiff.hunks };
+  } else if (loc.designations?.added?.length || loc.designations?.removed?.length) {
+    out.terms = {
       type: 'changed',
-      oldValue: diff.notes.removed?.join('; ') ?? '',
-      newValue: diff.notes.added?.join('; ') ?? '',
+      oldValue: (loc.designations.removed ?? []).map((d: any) => d.value?.designation ?? d.value?.text ?? String(d.value ?? '')).join('; '),
+      newValue: (loc.designations.added ?? []).map((d: any) => d.value?.designation ?? d.value?.text ?? String(d.value ?? '')).join('; '),
     };
   }
 
-  // Examples
-  if (diff.examples?.added?.length || diff.examples?.removed?.length) {
+  if (loc.notes?.added?.length || loc.notes?.removed?.length) {
+    out.notes = {
+      type: 'changed',
+      oldValue: (loc.notes.removed ?? []).map((n: any) => n.value?.content ?? n.value?.text ?? String(n.value ?? '')).join('; '),
+      newValue: (loc.notes.added ?? []).map((n: any) => n.value?.content ?? n.value?.text ?? String(n.value ?? '')).join('; '),
+    };
+  }
+
+  if (loc.examples?.added?.length || loc.examples?.removed?.length) {
     out.examples = {
       type: 'changed',
-      oldValue: diff.examples.removed?.join('; ') ?? '',
-      newValue: diff.examples.added?.join('; ') ?? '',
+      oldValue: (loc.examples.removed ?? []).map((e: any) => e.value?.content ?? e.value?.text ?? String(e.value ?? '')).join('; '),
+      newValue: (loc.examples.added ?? []).map((e: any) => e.value?.content ?? e.value?.text ?? String(e.value ?? '')).join('; '),
     };
   }
 

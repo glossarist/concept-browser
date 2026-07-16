@@ -1,44 +1,16 @@
 ---
 import AppLayout from '../../../layouts/Default.astro';
-import SeriesCardIsland from '../../../islands/SeriesCardIsland.vue';
-import { getEntry, getCollection } from 'astro:content';
+import { getCollection } from 'astro:content';
 
 export async function getStaticPaths() {
   const datasets = await getCollection('datasets');
-  return datasets.map(ds => ({ params: { id: ds.data.id } }));
+  return datasets.map(d => ({
+    params: { id: d.data.id },
+    props: { dataset: d.data },
+  }));
 }
 
-const { id } = Astro.params;
-const dataset = await getEntry('datasets', id!);
-if (!dataset) return Astro.redirect('/404');
-
-const concepts = await getCollection('concepts', c => c.data.registerId === id);
+const { dataset } = Astro.props;
 ---
 
-<AppLayout title={dataset.data.title} description={dataset.data.description} activeDataset={id}>
-  <div class="mb-6">
-    <h1 class="text-3xl font-bold text-ink-800 dark:text-ink-100">{dataset.data.title}</h1>
-    <p class="text-lg text-ink-500 dark:text-ink-400 mt-2">{dataset.data.description}</p>
-    <div class="mt-3 flex items-center gap-4 text-sm text-ink-400">
-      <span>{concepts.length} concepts</span>
-      {dataset.data.year && <span>· {dataset.data.year}</span>}
-      <span>· {dataset.data.languages.join(', ')}</span>
-    </div>
-  </div>
-  {concepts.length > 0 ? (
-    <ul class="divide-y divide-ink-100/60 dark:divide-ink-700/40">
-      {concepts.map(c => (
-        <li>
-          <a href={`/dataset/${id}/concept/${c.data.conceptId}`} class="block py-3 px-2 rounded hover:bg-ink-50/50 dark:hover:bg-ink-800/30">
-            <span class="font-medium text-ink-700 dark:text-ink-200">{c.data.designations.eng ?? c.data.conceptId}</span>
-          </a>
-        </li>
-      ))}
-    </ul>
-  ) : <p class="text-ink-400">No concepts in this dataset.</p>}
-
-  <!-- Lineage series card (REAL DatasetSeriesCard via island) -->
-  <div class="mt-8">
-    <SeriesCardIsland client:only="vue" registerId={id} />
-  </div>
-</AppLayout>
+<AppLayout title={`${dataset.title}`} description={dataset.description} />

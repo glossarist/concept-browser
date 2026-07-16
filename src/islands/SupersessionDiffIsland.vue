@@ -175,56 +175,69 @@ async function compareWith(target: SupersessionTarget) {
 }
 
 function toConceptLike(data: any) {
+  const langs = data.languages ?? (data.localizations ? Object.keys(data.localizations) : []);
   return {
     id: data.conceptId ?? data.id,
     termid: String(data.conceptId ?? data.id),
     status: data.status,
     uri: data.uri,
-    localizations: {},
-    localizedConcepts: {},
-    ...data,
+    languages: langs,
+    localization(lang: string) {
+      const loc = (data.localizations ?? {})[lang];
+      if (!loc) return null;
+      return {
+        languageCode: loc.languageCode ?? lang,
+        terms: loc.terms ?? [],
+        definitions: loc.definitions ?? [],
+        notes: loc.notes ?? [],
+        examples: loc.examples ?? [],
+      };
+    },
   };
 }
 
 const diffSections = computed(() => {
   if (!diffResult.value) return {};
   const diff = diffResult.value as any;
+  const loc = diff.localization?.('eng') ?? diff.localizations?.eng;
+  if (!loc) return {};
   const out: any = {};
 
-  // Definition
-  if (diff.definition?.hasChanges && diff.definition.hunks?.length) {
-    out.definition = { hunks: diff.definition.hunks };
-  } else if (diff.definition?.type === 'added') {
-    out.definition = { type: 'added', value: diff.definition.newText };
-  } else if (diff.definition?.type === 'removed') {
-    out.definition = { type: 'removed', value: diff.definition.oldText };
+  const defChanged = loc.definitions?.changed?.[0];
+  if (defChanged?.textDiff?.hunks?.length) {
+    out.definition = { hunks: defChanged.textDiff.hunks };
+  } else if (loc.definitions?.added?.length) {
+    out.definition = { type: 'added', value: loc.definitions.added[0].value?.content ?? loc.definitions.added[0].value };
+  } else if (loc.definitions?.removed?.length) {
+    out.definition = { type: 'removed', value: loc.definitions.removed[0].value?.content ?? loc.definitions.removed[0].value };
   }
 
-  // Designations
-  if (diff.designations?.added?.length || diff.designations?.removed?.length) {
+  if (loc.designations?.added?.length || loc.designations?.removed?.length || loc.designations?.changed?.length) {
     const items: Array<{ type?: string; text: string }> = [];
-    for (const d of diff.designations.added ?? []) {
-      items.push({ type: 'added', text: d.designation ?? d.text ?? String(d) });
+    for (const d of loc.designations.added ?? []) {
+      items.push({ type: 'added', text: d.value?.designation ?? d.value?.text ?? String(d.value ?? '') });
     }
-    for (const d of diff.designations.removed ?? []) {
-      items.push({ type: 'removed', text: d.designation ?? d.text ?? String(d) });
+    for (const d of loc.designations.removed ?? []) {
+      items.push({ type: 'removed', text: d.value?.designation ?? d.value?.text ?? String(d.value ?? '') });
+    }
+    for (const d of loc.designations.changed ?? []) {
+      items.push({ type: 'removed', text: d.oldValue?.designation ?? d.oldValue?.text ?? String(d.oldValue ?? '') });
+      items.push({ type: 'added', text: d.newValue?.designation ?? d.newValue?.text ?? String(d.newValue ?? '') });
     }
     out.designations = { items };
   }
 
-  // Notes
-  if (diff.notes?.added?.length || diff.notes?.removed?.length) {
+  if (loc.notes?.added?.length || loc.notes?.removed?.length) {
     out.notes = [
-      ...(diff.notes.added ?? []).map((n: any) => ({ type: 'added', text: n.content ?? n.text ?? String(n) })),
-      ...(diff.notes.removed ?? []).map((n: any) => ({ type: 'removed', text: n.content ?? n.text ?? String(n) })),
+      ...(loc.notes.added ?? []).map((n: any) => ({ type: 'added', text: n.value?.content ?? n.value?.text ?? String(n.value ?? '') })),
+      ...(loc.notes.removed ?? []).map((n: any) => ({ type: 'removed', text: n.value?.content ?? n.value?.text ?? String(n.value ?? '') })),
     ];
   }
 
-  // Examples
-  if (diff.examples?.added?.length || diff.examples?.removed?.length) {
+  if (loc.examples?.added?.length || loc.examples?.removed?.length) {
     out.examples = [
-      ...(diff.examples.added ?? []).map((e: any) => ({ type: 'added', text: e.content ?? e.text ?? String(e) })),
-      ...(diff.examples.removed ?? []).map((e: any) => ({ type: 'removed', text: e.content ?? e.text ?? String(e) })),
+      ...(loc.examples.added ?? []).map((e: any) => ({ type: 'added', text: e.value?.content ?? e.value?.text ?? String(e.value ?? '') })),
+      ...(loc.examples.removed ?? []).map((e: any) => ({ type: 'removed', text: e.value?.content ?? e.value?.text ?? String(e.value ?? '') })),
     ];
   }
 

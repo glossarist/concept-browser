@@ -1,35 +1,5 @@
 ---
 import AppLayout from '../layouts/Default.astro';
-import GraphIsland from '../islands/GraphIsland.vue';
-import { getCollection } from 'astro:content';
-
-const concepts = await getCollection('concepts');
-const datasets = await getCollection('datasets');
-
-const nodes = datasets.map(ds => ({
-  id: ds.data.id,
-  label: ds.data.title,
-}));
-const conceptNodes = concepts.slice(0, 500).map(c => ({
-  id: `${c.data.registerId}/${c.data.conceptId}`,
-  label: c.data.designations.eng ?? c.data.conceptId,
-}));
-const edges = concepts.slice(0, 500).map(c => ({
-  source: c.data.registerId,
-  target: `${c.data.registerId}/${c.data.conceptId}`,
-}));
 ---
 
-<AppLayout title="Concept Graph">
-  <h1 class="text-2xl font-bold text-ink-800 dark:text-ink-100 mb-4">Cross-dataset Graph</h1>
-  <p class="text-ink-500 dark:text-ink-400 mb-4">
-    {concepts.length} concepts across {datasets.length} datasets.
-  </p>
-  <div class="card p-0 overflow-hidden">
-    <GraphIsland
-      client:only="vue"
-      nodes={[...nodes, ...conceptNodes]}
-      edges={edges}
-    />
-  </div>
-</AppLayout>
+<AppLayout title="Graph" description="Concept relationship graph" />

@@ -1,0 +1,87 @@
+# site-config.example.yml
+#
+# Copy this file to `site-config.yml` in your project root and customize.
+# The concept-browser reads this config to know:
+#   - Site identity (title, domain, branding)
+#   - Which datasets to serve and where to find them
+#   - UI languages, features, navigation
+#
+# Everything is explicit — no hidden conventions, no hardcoded datasets.
+
+# ── Site identity ──
+id: my-dictionary
+domain: example.com
+uri_base: https://example.com
+base_path: /
+title: My Dictionary
+subtitle: A terminology register
+description: Concepts from My Organization
+
+# ── UI languages ──
+ui_languages:
+  - code: eng
+    label: English
+
+# ── Datasets ──
+# Each dataset has an `id` and a data source. Sources can be:
+#   - gcr_package: URL to a .gcr file (downloaded at build time)
+#   - local_path: relative path to a directory with concepts/
+#   - source_repo: git repo URL (cloned at build time)
+datasets:
+  - id: my-vocab-2025
+    title: My Vocabulary 2025
+    description: Current edition
+    owner: My Organization
+    color: "#2563eb"
+    # Option A: GCR package (auto-downloaded)
+    # gcr_package: https://github.com/org/repo/releases/download/v1.0/my-vocab.gcr
+    # Option B: Local path (relative to project root)
+    local_path: datasets/my-vocab-2025
+    ref: My Vocab (2025)
+    year: 2025
+
+  - id: my-vocab-2020
+    title: My Vocabulary 2020
+    description: Previous edition
+    owner: My Organization
+    color: "#64748b"
+    local_path: datasets/my-vocab-2020
+    ref: My Vocab (2020)
+    year: 2020
+
+# ── Dataset groups (optional) ──
+# Group related datasets into lineages, topics, etc.
+dataset_groups:
+  - id: my-vocab
+    label: My Vocabulary
+    kind: lineage          # lineage | topic | family | collection | default
+    current: my-vocab-2025
+    datasets:
+      - my-vocab-2025
+      - my-vocab-2020
+
+# ── Branding (optional) ──
+branding:
+  primary_color: "#2563eb"
+  dark_color: "#1e293b"
+  fonts:
+    header:
+      family: DM Serif Display
+      source: google
+      weights: [400]
+    body:
+      family: DM Sans
+      source: google
+      weights: [400, 500, 700]
+  # logo:
+  #   alt: My Dictionary
+  #   light: /images/logo-light.svg
+  #   dark: /images/logo-dark.svg
+
+# ── Features ──
+features:
+  news: false
+  stats: true
+  graph: true
+  about: true
+  search: true

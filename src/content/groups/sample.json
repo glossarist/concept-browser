@@ -1,6 +1,0 @@
-{
-  "id": "sample",
-  "label": "Sample Group",
-  "kind": "default",
-  "datasets": ["sample"]
-}

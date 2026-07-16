@@ -1,58 +1,16 @@
 ---
 import AppLayout from '../../../layouts/Default.astro';
-import GroupRendererIsland from '../../../islands/GroupRendererIsland.vue';
-import { getEntry, getCollection } from 'astro:content';
+import { getCollection } from 'astro:content';
 
 export async function getStaticPaths() {
   const groups = await getCollection('groups');
-  return groups.map(g => ({ params: { id: g.data.id } }));
+  return groups.map(g => ({
+    params: { id: g.data.id },
+    props: { group: g.data },
+  }));
 }
 
-const { id } = Astro.params;
-const group = await getEntry('groups', id!);
-if (!group) return Astro.redirect('/404');
-
-const allDatasets = await getCollection('datasets');
-const members = group.data.datasets
-  .map((did: string) => allDatasets.find(d => d.data.id === did))
-  .filter(Boolean);
-const sorted = group.data.kind === 'lineage'
-  ? [...members].sort((a, b) => (a!.data.year ?? 0) - (b!.data.year ?? 0))
-  : members;
+const { group } = Astro.props;
 ---
 
-<AppLayout title={group.data.label} activeGroup={id}>
-  <!-- Use the REAL DatasetGroupRenderer as an island (with SSG fallback) -->
-  <div class="mb-6">
-    <h1 class="text-3xl font-bold text-ink-800 dark:text-ink-100">{group.data.label}</h1>
-    {group.data.description && <p class="text-ink-500 dark:text-ink-400 mt-2">{group.data.description}</p>}
-    <div class="mt-2 text-sm text-ink-400">
-      {group.data.kind === 'lineage' ? '⟶ Edition series' : `${members.length} datasets`}
-      {' · '}{sorted.reduce((s: number, d: any) => s + (d.data.conceptCount || 0), 0).toLocaleString()} concepts
-    </div>
-  </div>
-
-  <!-- SSG fallback (visible before hydration) -->
-  <div class="relative pl-8">
-    <div class="absolute left-3 top-0 bottom-0 w-0.5 bg-ink-200 dark:bg-ink-700"></div>
-    <div class="space-y-6">
-      {[...sorted].reverse().map((ds: any) => (
-        <div class="relative">
-          <div class={`absolute -left-6 w-5 h-5 rounded-full border-2 ${group.data.current === ds.data.id ? 'bg-amber-400 border-amber-400' : 'bg-surface dark:bg-ink-800 border-ink-300 dark:border-ink-600'}`}></div>
-          <a href={`/dataset/${ds.data.id}`} class="block card p-4 hover:shadow-md transition-shadow">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="font-semibold text-ink-800 dark:text-ink-100">{ds.data.title}</h3>
-                {ds.data.ref && <span class="text-xs text-ink-400">{ds.data.ref}</span>}
-              </div>
-              <div class="text-right text-xs text-ink-400">
-                {ds.data.year && <div class="text-lg font-bold text-ink-600 dark:text-ink-300">{ds.data.year}</div>}
-                <div>{ds.data.conceptCount} concepts</div>
-              </div>
-            </div>
-          </a>
-        </div>
-      ))}
-    </div>
-  </div>
-</AppLayout>
+<AppLayout title={group.label} description={group.description} />

@@ -1,23 +1,5 @@
 ---
 import AppLayout from '../layouts/Default.astro';
-import SearchIsland from '../islands/SearchIsland.vue';
-import { getCollection } from 'astro:content';
-
-const concepts = await getCollection('concepts');
-const searchData = concepts.map(c => ({
-  conceptId: c.data.conceptId,
-  registerId: c.data.registerId,
-  term: c.data.designations.eng ?? c.data.conceptId,
-  status: c.data.status,
-}));
 ---
 
-<AppLayout title="Search">
-  <div class="max-w-3xl mx-auto">
-    <h1 class="text-2xl font-bold text-ink-800 dark:text-ink-100 mb-4">Search</h1>
-    <SearchIsland client:only="vue" concepts={searchData} />
-    <noscript>
-      <p class="text-ink-400">Search requires JavaScript.</p>
-    </noscript>
-  </div>
-</AppLayout>
+<AppLayout title="Search" description="Search concepts" />

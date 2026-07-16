@@ -238,6 +238,7 @@ function hashSeed(s: string): number {
 function buildGraph() {
   const focusUri = conceptUri(props.concept, props.registerId, props.manifest.uriBase);
   const focusId = props.concept?.id || props.registerId;
+  const focusNodeId = `${props.registerId}/${focusId}`;
   const lang = sphereLang.value;
   const maxDepth = degree.value;
 
@@ -255,7 +256,7 @@ function buildGraph() {
     props.concept?.localization?.('eng') ??
     (conceptLangs.length > 0 ? props.concept?.localization?.(conceptLangs[0]) : undefined);
   const focusNode: SNode = {
-    id: focusId,
+    id: focusNodeId,
     term: getPreferredTerm(focusLc ?? null, focusId),
     ref: props.manifest.ref || props.registerId,
     register: props.registerId,
@@ -265,9 +266,9 @@ function buildGraph() {
     vx: 0, vy: 0, vz: 0,
   };
 
-  const nodeMap = new Map<string, SNode>([[focusId, focusNode]]);
+  const nodeMap = new Map<string, SNode>([[focusNodeId, focusNode]]);
   const visited: Map<string, number> = new Map([[focusUri, 0]]);  // uri → depth
-  const idToUri = new Map<string, string>([[focusId, focusUri]]);  // for inter-neighbor edge pass
+  const idToUri = new Map<string, string>([[focusNodeId, focusUri]]);  // for inter-neighbor edge pass
   const resultLinks: SLink[] = [];
   const linkKeys = new Set<string>();  /* dedupe edges */
   const queue: Array<{ uri: string; depth: number; id: string }> = [];
@@ -280,7 +281,7 @@ function buildGraph() {
     const otherUri = isOutgoing ? edge.target : edge.source;
     if (!otherUri || visited.has(otherUri)) continue;
     const parsed = UriRouter.parseUri(otherUri);
-    if (!parsed || parsed.conceptId === focusId) continue;
+    if (!parsed || (parsed.conceptId === focusId && parsed.registerId === props.registerId)) continue;
     visited.set(otherUri, 1);
     depth1List.push({ uri: otherUri, parsed, isOutgoing, edge });
   }
@@ -288,9 +289,10 @@ function buildGraph() {
   /* Second pass: place depth-1 nodes on an even ring around the focus. */
   const depth1Total = depth1List.length;
   depth1List.forEach(({ uri, parsed, isOutgoing, edge }, i) => {
+    const nid = `${parsed.registerId}/${parsed.conceptId}`;
     const pos = fibonacciSpherePosition(1, i, depth1Total, hashSeed(parsed.conceptId));
-    nodeMap.set(parsed.conceptId, {
-      id: parsed.conceptId,
+    nodeMap.set(nid, {
+      id: nid,
       term: edge.label || parsed.conceptId,
       ref: parsed.registerId,
       register: parsed.registerId,
@@ -299,9 +301,9 @@ function buildGraph() {
       x: pos.x, y: pos.y, z: pos.z,
       vx: 0, vy: 0, vz: 0,
     });
-    idToUri.set(parsed.conceptId, uri);
-    const src = isOutgoing ? focusId : parsed.conceptId;
-    const tgt = isOutgoing ? parsed.conceptId : focusId;
+    idToUri.set(nid, uri);
+    const src = isOutgoing ? focusNodeId : nid;
+    const tgt = isOutgoing ? nid : focusNodeId;
     const key = `${src}\0${tgt}\0${edge.type}`;
     if (!linkKeys.has(key)) {
       linkKeys.add(key);
@@ -313,7 +315,7 @@ function buildGraph() {
         depth: 1,
       });
     }
-    queue.push({ uri, depth: 1, id: parsed.conceptId });
+    queue.push({ uri, depth: 1, id: `${parsed.registerId}/${parsed.conceptId}` });
   });
 
   /* BFS deeper levels using graph engine (has cross-dataset edges) */
@@ -332,14 +334,17 @@ function buildGraph() {
       const otherUri = isOutgoing ? edge.target : edge.source;
       if (!otherUri || visited.has(otherUri)) continue;
       const parsed = UriRouter.parseUri(otherUri);
-      if (!parsed || parsed.conceptId === focusId || nodeMap.has(parsed.conceptId)) continue;
+      if (!parsed) continue;
+      const childId = `${parsed.registerId}/${parsed.conceptId}`;
+      if (childId === focusNodeId || nodeMap.has(childId)) continue;
       visited.set(otherUri, depth + 1);
       children.push({ uri: otherUri, parsed, isOutgoing, edge });
     }
     children.forEach(({ uri: cUri, parsed, isOutgoing, edge }, i) => {
+      const cid = `${parsed.registerId}/${parsed.conceptId}`;
       const pos = fibonacciSpherePosition(depth + 1, i, children.length, hashSeed(parsed.conceptId));
-      nodeMap.set(parsed.conceptId, {
-        id: parsed.conceptId,
+      nodeMap.set(cid, {
+        id: cid,
         term: parsed.conceptId,
         ref: parsed.registerId,
         register: parsed.registerId,
@@ -348,9 +353,9 @@ function buildGraph() {
         x: pos.x, y: pos.y, z: pos.z,
         vx: 0, vy: 0, vz: 0,
       });
-      idToUri.set(parsed.conceptId, cUri);
-      const src = isOutgoing ? id : parsed.conceptId;
-      const tgt = isOutgoing ? parsed.conceptId : id;
+      idToUri.set(cid, cUri);
+      const src = isOutgoing ? id : cid;
+      const tgt = isOutgoing ? cid : id;
       const key = `${src}\0${tgt}\0${edge.type}`;
       if (!linkKeys.has(key)) {
         linkKeys.add(key);
@@ -362,7 +367,7 @@ function buildGraph() {
           depth: depth + 1,
         });
       }
-      queue.push({ uri: cUri, depth: depth + 1, id: parsed.conceptId });
+      queue.push({ uri: cUri, depth: depth + 1, id: cid });
     });
   }
 
@@ -795,13 +800,8 @@ function renderDOM() {
        The top bar gives instant dataset identification at any angle; the
        tinted background ties same-dataset cards together visually. */
     el.style.setProperty('--ds-color', dsColor);
-    if (n.depth !== 0) {
-      el.style.borderTop = `4px solid ${dsColor}`;
-      el.style.background = `linear-gradient(180deg, color-mix(in srgb, ${dsColor} 10%, var(--surface)) 0%, var(--surface) 30%)`;
-    } else {
-      /* Focus keeps a solid surface — it's already distinguished by the
-         blue ring; adding a tint would compete. */
-    }
+    el.style.borderTop = `4px solid ${dsColor}`;
+    el.style.background = `linear-gradient(180deg, color-mix(in srgb, ${dsColor} 10%, var(--surface)) 0%, var(--surface) 30%)`;
 
     el.innerHTML = `
       <div class="sp-ref">${n.register} · ${n.conceptId}</div>
@@ -978,7 +978,7 @@ function navigate(newConceptId: string, newRegisterId: string) {
 /* ── Watch concept change ───────────────────────────────── */
 /* When props.concept changes (via store.viewConcept from sphere click,
    or external navigation), animate the transition with a SLERP tween. */
-let lastConceptId = '';
+let lastConceptKey = '';
 
 /* UI language change → sync sphere language (unless user has explicitly
    chosen a different one via the Language selector). We track that with
@@ -1017,10 +1017,12 @@ async function rebuildForLangChange() {
   await loadNeighborTerms();
 }
 
-watch(() => props.concept?.id, (newId) => {
-  if (!newId || newId === lastConceptId) return;
-  const wasFirst = !lastConceptId;
-  lastConceptId = newId;
+watch(() => [props.concept?.id, props.registerId] as const, ([newId, newReg]) => {
+  if (!newId) return;
+  const key = `${newReg}/${newId}`;
+  if (key === lastConceptKey) return;
+  const wasFirst = !lastConceptKey;
+  lastConceptKey = key;
 
   if (wasFirst) {
     /* Initial load — fresh placement, no tween */
@@ -1290,7 +1292,7 @@ async function waitForCanvas(): Promise<void> {
 
 onMounted(async () => {
   window.addEventListener('resize', onResize);
-  lastConceptId = props.concept?.id || '';
+  lastConceptKey = `${props.registerId}/${props.concept?.id || ''}`;
   await waitForCanvas();
 
   /* Setup pan/zoom via d3-zoom on the canvas.
@@ -1493,8 +1495,10 @@ defineExpose({ navigate });
 }
 :deep(.sp-rel) { margin-left: auto; }
 :deep(.sp-node.focus) {
-  border: 2px solid var(--blue); z-index: 20; cursor: default;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 0 0 4px rgba(37,99,235,0.1);
+  z-index: 20; cursor: default;
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+  box-shadow: 0 0 12px 4px rgba(37,99,235,0.25), 0 0 24px 8px rgba(37,99,235,0.12);
 }
 :deep(.sp-focus-badge) {
   position: absolute; top: -10px; right: 12px; font-size: 9px; color: white;

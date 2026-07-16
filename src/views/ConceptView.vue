@@ -48,18 +48,20 @@ watch(
   { immediate: true }
 );
 
+/* When the user clicks a card in the sphere, we store the navigation
+   payload here. The concept loads via store.viewConcept (without
+   router.push). When the user switches to Detail, we commit the URL. */
+const sphereFocusPayload = ref<{ registerId: string; conceptId: string } | null>(null);
+
 const concept = computed(() => store.currentConcept);
 const manifest = computed(() => store.currentManifest);
 const edges = computed(() => store.conceptEdges);
+const activeRegisterId = computed(() => sphereFocusPayload.value?.registerId ?? props.registerId);
 const adjacent = ref({ prev: null as string | null, next: null as string | null });
 const viewMode = ref<'detail' | 'sphere'>(
   router.currentRoute.value.query.view === 'sphere' ? 'sphere' : 'detail'
 );
 
-/* When the user clicks a card in the sphere, we store the navigation
-   payload here. The concept loads via store.viewConcept (without
-   router.push). When the user switches to Detail, we commit the URL. */
-const sphereFocusPayload = ref<{ registerId: string; conceptId: string } | null>(null);
 const permalinkCopied = ref(false);
 
 async function copyPermalink() {
@@ -88,26 +90,19 @@ function goAdjacent(id: string) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function onSphereNavigate(payload: { registerId: string; conceptId: string }) {
+async function onSphereNavigate(payload: { registerId: string; conceptId: string }) {
   if (!payload.registerId || !payload.conceptId) return;
-  /* DON'T router.push — that sets conceptLoading=true and unmounts the
-     sphere. Instead, load the concept directly via the store. This
-     updates store.currentConcept + store.conceptEdges, which flow as
-     props to RelationSphere without any loading flash. The sphere's
-     watch on props.concept fires → rebuilds the graph → animates. */
-  sphereFocusPayload.value = { registerId: payload.registerId, conceptId: payload.conceptId };
-  (async () => {
-    try {
-      const adapter = store.datasets.get(payload.registerId);
-      if (!adapter?.index) {
-        await store.loadDataset(payload.registerId);
-      }
-      await store.viewConcept(payload.registerId, payload.conceptId);
-      loadAdjacent();
-    } catch (e) {
-      console.warn('Sphere navigation failed:', e);
+  try {
+    const adapter = store.datasets.get(payload.registerId);
+    if (!adapter?.index) {
+      await store.loadDataset(payload.registerId);
     }
-  })();
+    await store.viewConcept(payload.registerId, payload.conceptId);
+    sphereFocusPayload.value = { registerId: payload.registerId, conceptId: payload.conceptId };
+    loadAdjacent();
+  } catch (e) {
+    console.warn('Sphere navigation failed:', e);
+  }
 }
 
 function switchToSphere() {
@@ -283,7 +278,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
           v-if="viewMode === 'sphere'"
           :concept="concept"
           :manifest="manifest"
-          :register-id="registerId"
+          :register-id="activeRegisterId"
           :edges="edges"
           @navigate="onSphereNavigate"
         />

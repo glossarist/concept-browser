@@ -319,17 +319,20 @@ const activeSectionId = computed(() => {
               <button
                 v-else
                 @click="goToDataset(ds.id)"
-                class="w-full text-left px-3 py-2 rounded-lg text-sm border-l-2"
+                class="w-full text-left px-3 py-2 rounded-lg text-sm border-l-2 flex items-start gap-2"
                 :class="[
                   currentDataset === ds.id
                     ? 'text-ink-800 dark:text-ink-50'
                     : 'border-transparent text-ink-600 dark:text-ink-300 hover:bg-ink-50 dark:hover:bg-ink-700 hover:text-ink-800 dark:hover:text-ink-50'
                 ]"
-                :style="currentDataset === ds.id ? { borderLeftColor: getColor(ds.id), borderLeftWidth: '2px' } : {}"
+                :style="{ borderLeftColor: currentDataset === ds.id ? getColor(ds.id) : 'transparent' }"
               >
-                <div class="font-medium truncate leading-snug">{{ localizedDatasetField(ds.id, 'title', ds.title) }}</div>
-                <div v-if="ds.loaded" class="text-xs mt-0.5" :class="currentDataset === ds.id ? 'text-ink-400 dark:text-ink-300' : 'text-ink-300 dark:text-ink-400'">
-                  {{ ds.conceptCount.toLocaleString() }} {{ t('home.concepts').toLowerCase() }}
+                <span class="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" :style="{ backgroundColor: getColor(ds.id) }"></span>
+                <div class="min-w-0 flex-1">
+                  <div class="font-medium truncate leading-snug">{{ localizedDatasetField(ds.id, 'title', ds.title) }}</div>
+                  <div v-if="ds.loaded" class="text-xs mt-0.5" :class="currentDataset === ds.id ? 'text-ink-400 dark:text-ink-300' : 'text-ink-300 dark:text-ink-400'">
+                    {{ ds.conceptCount.toLocaleString() }} {{ t('home.concepts').toLowerCase() }}
+                  </div>
                 </div>
               </button>
 
