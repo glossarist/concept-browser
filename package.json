@@ -93,11 +93,11 @@
     "src",
     "data",
     "public/favicon.svg",
+    "astro.config.mjs",
     "index.html",
     "vite.config.ts",
     "tsconfig.json",
     "tailwind.config.js",
-    "postcss.config.js",
     "env.d.ts"
   ]
 }

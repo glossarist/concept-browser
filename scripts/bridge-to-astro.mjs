@@ -1,25 +1,18 @@
 /**
- * Data bridge: converts existing public/data/*.json into Astro
- * content collections at src/content/. Run before `astro build`.
+ * Data bridge: converts public/data/*.json into Astro content collections.
  *
- * Reads: public/data/datasets.json, public/data/{id}/manifest.json,
- *        public/data/{id}/index.json
- * Writes: src/content/datasets/*.json, src/content/groups/*.json,
- *         src/content/concepts/{registerId}/{conceptId}.json
+ * Reads from the CONSUMER's CWD: public/data/datasets.json, public/data/{id}/manifest.json
+ * Writes to the CONSUMER's CWD: .cb-content/{datasets,groups,concepts,pages}/
+ *
+ * The package directory (node_modules/@glossarist/concept-browser/) is NEVER written to.
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const CWD = process.cwd();
-const PKG_ROOT = join(__dirname, '..');
-// Read generated data from the CONSUMER's working directory (where
-// generate-data.mjs writes public/data/). Write content collections
-// to the PACKAGE's src/content/ (where Astro expects them).
 const PUBLIC_DATA = join(CWD, 'public', 'data');
 const PUBLIC_ROOT = join(CWD, 'public');
-const CONTENT_DIR = join(PKG_ROOT, 'src', 'content');
+const CONTENT_DIR = join(CWD, '.cb-content');
 
 function readJson(p) {
   if (!existsSync(p)) return null;
@@ -140,6 +133,7 @@ for (const g of groups) {
 // --- Pages (from public/pages/*.json) ---
 const pagesDir = join(CWD, 'public', 'pages');
 if (existsSync(pagesDir)) {
+  mkdirSync(join(CONTENT_DIR, 'pages'), { recursive: true });
   for (const file of readdirSync(pagesDir)) {
     if (!file.endsWith('.json')) continue;
     const page = readJson(join(pagesDir, file));
