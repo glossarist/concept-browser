@@ -458,14 +458,9 @@ function mapSourceFromJsonLd(s: JsonLdSource): Record<string, unknown> {
     result.origin = mapOriginFromJsonLd(s['gl:origin']);
   }
 
-<<<<<<< HEAD
-  if (s['gl:sourced_from']?.length) {
-    result.sourced_from = s['gl:sourced_from'].map(sf => mapOriginFromJsonLd(sf));
-=======
   const sf = s['gl:sourcedFrom'] ?? s['gl:sourced_from'];
   if (sf?.length) {
     result.sourced_from = sf.map(item => mapOriginFromJsonLd(item));
->>>>>>> b8431fbe (feat: Astro 7 SPA + SSG architecture with Tailwind 4 and cross-edition fixes)
   }
 
   return result;
