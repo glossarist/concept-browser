@@ -1,0 +1,29 @@
+---
+import AppLayout from '../layouts/Default.astro';
+import { getCollection } from 'astro:content';
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+  const datasets = await getCollection('datasets');
+  const paths = [
+    { params: { path: 'ontology' } },
+    { params: { path: 'about' } },
+    { params: { path: 'contributors' } },
+    { params: { path: 'news' } },
+  ];
+  for (const ds of datasets) {
+    paths.push({ params: { path: `dataset/${ds.data.id}/about` } });
+    paths.push({ params: { path: `dataset/${ds.data.id}/stats` } });
+    for (const g of await getCollection('groups')) {
+      paths.push({ params: { path: `group/${g.data.id}/about` } });
+    }
+  }
+  return paths;
+}
+
+const datasets = await getCollection('datasets');
+const title = datasets.length > 0 ? datasets[0].data.title : 'Concept Browser';
+---
+
+<AppLayout title={title} />

@@ -49,6 +49,26 @@ const concepts = defineCollection({
     definition: z.record(z.string(), z.string()).optional(),
     groups: z.array(z.string()).default([]),
     tags: z.array(z.string()).default([]),
+    languages: z.array(z.string()).optional(),
+    localizations: z.record(z.string(), z.object({
+      languageCode: z.string().optional(),
+      terms: z.array(z.union([
+        z.string(),
+        z.object({ designation: z.string(), normativeStatus: z.string().optional() }),
+      ])).default([]),
+      definitions: z.array(z.union([
+        z.string(),
+        z.object({ content: z.string() }),
+      ])).default([]),
+      notes: z.array(z.union([
+        z.string(),
+        z.object({ content: z.string() }),
+      ])).default([]),
+      examples: z.array(z.union([
+        z.string(),
+        z.object({ content: z.string() }),
+      ])).default([]),
+    })).optional(),
   }),
 });
 

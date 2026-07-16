@@ -1,11 +1,9 @@
 ---
 import AppLayout from '../layouts/Default.astro';
+import { getCollection } from 'astro:content';
+
+const datasets = await getCollection('datasets');
+const title = datasets.length > 0 ? datasets[0].data.title : 'Concept Browser';
 ---
 
-<AppLayout title="Not Found">
-  <div class="text-center py-20">
-    <h1 class="text-6xl font-bold text-ink-200 dark:text-ink-700">404</h1>
-    <p class="mt-4 text-lg text-ink-500 dark:text-ink-400">Page not found</p>
-    <a href="/" class="mt-6 inline-block text-blue-600 dark:text-blue-400 hover:underline">← Back to home</a>
-  </div>
-</AppLayout>
+<AppLayout title={title} />

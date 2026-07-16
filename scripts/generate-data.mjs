@@ -273,6 +273,7 @@ function sourcesToJsonLd(sources) {
     if (s.id) doc['gl:id'] = s.id;
     if (s.type) doc['gl:sourceType'] = s.type;
     if (s.status) doc['gl:sourceStatus'] = s.status;
+    if (s.modification) doc['gl:modification'] = s.modification;
     if (s.origin) {
       const origin = { '@type': 'gl:Citation' };
       const ref = refToJsonLd(s.origin.ref);
@@ -281,6 +282,17 @@ function sourcesToJsonLd(sources) {
       if (loc) origin['gl:locality'] = loc;
       if (s.origin.link) origin['gl:link'] = s.origin.link;
       doc['gl:origin'] = origin;
+    }
+    if (s.sourced_from && s.sourced_from.length) {
+      doc['gl:sourcedFrom'] = s.sourced_from.map(sf => {
+        const cite = { '@type': 'gl:Citation' };
+        const ref = refToJsonLd(sf.ref);
+        if (ref) cite['gl:ref'] = ref;
+        const loc = localityToJsonLd(sf.locality);
+        if (loc) cite['gl:locality'] = loc;
+        if (sf.link) cite['gl:link'] = sf.link;
+        return cite;
+      });
     }
     return doc;
   });

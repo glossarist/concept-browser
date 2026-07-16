@@ -5,17 +5,21 @@ import tailwindcss from '@tailwindcss/vite';
 import yaml from 'js-yaml';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
+import { resolve, dirname } from 'path';
 
-const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf-8'));
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
 const pkgVersion = pkg.version;
 
 const site = process.env.SITE_URL || 'https://www.geolexica.org';
 const base = process.env.BASE_PATH || '/';
 
 export default defineConfig({
+  root: __dirname,
   site,
   base,
   output: 'static',
+  publicDir: resolve(process.cwd(), 'public'),
   integrations: [
     vue({ appEntrypoint: '/src/islands/app-entry' }),
     sitemap(),

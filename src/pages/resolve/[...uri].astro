@@ -1,8 +1,0 @@
----
-export async function getStaticPaths() {
-  return [{ params: { uri: 'placeholder' } }];
-}
-
-const { uri } = Astro.params;
-return Astro.redirect(`/search?q=${encodeURIComponent(uri || '')}`);
----

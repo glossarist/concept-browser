@@ -91,6 +91,25 @@ for (const reg of registry) {
         groups: concept.groups || [],
         tags: [],
       };
+
+      const fullConceptPath = join(PUBLIC_DATA, id, 'concepts', `${concept.id}.json`);
+      const fullConcept = readJson(fullConceptPath);
+      if (fullConcept) {
+        const lc = fullConcept['gl:localizedConcept'] || fullConcept.localizedConcept || {};
+        const localizations = {};
+        for (const [lang, loc] of Object.entries(lc)) {
+          localizations[lang] = {
+            languageCode: loc['gl:languageCode'] || lang,
+            terms: (loc['gl:designation'] || []).map(d => ({ designation: d['gl:term'] || d.term || '', normativeStatus: d['gl:normativeStatus'] || d.normativeStatus })).filter(d => d.designation),
+            definitions: (loc['gl:definition'] || []).map(d => ({ content: d['gl:content'] || d.content || '' })).filter(d => d.content),
+            notes: (loc['gl:notes'] || []).map(n => ({ content: n['gl:content'] || n.content || '' })).filter(n => n.content),
+            examples: (loc['gl:examples'] || []).map(e => ({ content: e['gl:content'] || e.content || '' })).filter(e => e.content),
+          };
+        }
+        conceptEntry.localizations = localizations;
+        conceptEntry.languages = Object.keys(localizations);
+      }
+
       writeJson(
         join(CONTENT_DIR, 'concepts', id),
         `${concept.id}.json`,

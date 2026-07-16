@@ -6,6 +6,8 @@ import { useSiteConfig } from '../config/use-site-config';
 import { useI18n } from '../i18n';
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 
+const glossaristLogo = new URL('../assets/glossarist-logo.svg', import.meta.url).href;
+
 const router = useRouter();
 const ui = useUiStore();
 const store = useVocabularyStore();
@@ -76,13 +78,8 @@ onBeforeUnmount(() => document.removeEventListener('click', closeLangOnOutside))
             class="h-8 max-w-[48px] object-contain rounded"
           />
         </div>
-        <div v-else class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style="background-color: var(--brand-dark)">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-            <line x1="9" y1="7" x2="17" y2="7"/>
-            <line x1="9" y1="11" x2="15" y2="11"/>
-          </svg>
+        <div v-else class="h-8 flex items-center">
+          <img :src="glossaristLogo" alt="Glossarist" class="h-8 max-w-[48px] object-contain rounded" />
         </div>
         <span class="font-serif text-lg text-ink-800 leading-none hidden sm:inline">{{ localizedTitle }}</span>
       </button>

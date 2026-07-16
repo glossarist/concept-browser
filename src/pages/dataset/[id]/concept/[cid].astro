@@ -1,10 +1,6 @@
 ---
 import AppLayout from '../../../../layouts/Default.astro';
-import ConceptDetailIsland from '../../../../islands/ConceptDetailIsland.vue';
-import RelationSphereIsland from '../../../../islands/RelationSphereIsland.vue';
-import ConceptDiffIsland from '../../../../islands/ConceptDiffIsland.vue';
-import SupersessionDiffIsland from '../../../../islands/SupersessionDiffIsland.vue';
-import { getEntry, getCollection } from 'astro:content';
+import { getCollection } from 'astro:content';
 
 export async function getStaticPaths() {
   const concepts = await getCollection('concepts');
@@ -14,96 +10,14 @@ export async function getStaticPaths() {
   }));
 }
 
-const { id, cid } = Astro.params;
 const { conceptData } = Astro.props;
-const dataset = await getEntry('datasets', id!);
-const viewMode = Astro.url.searchParams.get('view') ?? 'detail';
-
-// Find same concept in other datasets (for edition diff comparison)
-const allConcepts = await getCollection('concepts', c => c.data.conceptId === cid);
-const datasets = await getCollection('datasets');
-const editions = await Promise.all(
-  allConcepts.map(async c => {
-    const ds = datasets.find(d => d.data.id === c.data.registerId);
-    return {
-      id: c.data.registerId,
-      title: ds?.data.title ?? c.data.registerId,
-      year: ds?.data.year,
-      conceptData: c.data,
-    };
-  })
-);
-
-// Detect supersession relationships from the dataset's lineage
-// (isotc204-ed3 supersedes isotc204-2025, which supersedes isotc204-2022)
-const sortedEditions = [...editions].sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
-const currentIdx = sortedEditions.findIndex(e => e.id === id);
-const supersedes = currentIdx > 0 ? sortedEditions[currentIdx - 1] : null;
-const supersededBy = currentIdx >= 0 && currentIdx < sortedEditions.length - 1
-  ? sortedEditions[currentIdx + 1] : null;
+const term = conceptData?.localizations?.eng?.terms?.[0]?.designation ?? conceptData?.eng ?? conceptData?.conceptId;
+const definition = conceptData?.localizations?.eng?.definitions?.[0]?.content ?? '';
 ---
 
-<AppLayout title={conceptData ? `${conceptData.designations.eng ?? cid} — ${dataset?.data.title ?? ''}` : cid} activeDataset={id}>
-  <div class="mb-4 text-xs text-ink-400">
-    <a href={`/dataset/${id}`} class="hover:text-blue-600">{dataset?.data.title}</a>
-    <span class="mx-1">›</span>
-    <span>{cid}</span>
-  </div>
-
-  {viewMode === 'sphere' ? (
-    <RelationSphereIsland
-      client:only="vue"
-      concept={conceptData}
-      conceptUri={conceptData?.uri ?? ''}
-    />
-  ) : (
-    <ConceptDetailIsland
-      client:only="vue"
-      concept={conceptData}
-      registerId={id}
-      conceptUri={conceptData?.uri ?? ''}
-    />
-  )}
-
-  <!-- Supersession diff: compare with superseding/superseded concept (uses glossarist/diff) -->
-  {(supersedes || supersededBy) && (
-    <div class="mt-6">
-      <SupersessionDiffIsland
-        client:only="vue"
-        concept={conceptData}
-        registerId={id}
-        supersedes={supersedes ? { conceptId: cid, registerId: supersedes.id, term: supersedes.conceptData?.designations?.eng, conceptData: supersedes.conceptData } : null}
-        supersededBy={supersededBy ? { conceptId: cid, registerId: supersededBy.id, term: supersededBy.conceptData?.designations?.eng, conceptData: supersededBy.conceptData } : null}
-      />
-    </div>
-  )}
-
-  <!-- Concept diff: compare same concept across editions (uses glossarist/diff) -->
-  {editions.length > 1 && (
-    <div class="mt-8">
-      <h2 class="text-sm font-semibold text-ink-500 uppercase tracking-wider mb-3">Edition Comparison</h2>
-      <ConceptDiffIsland
-        client:only="vue"
-        currentConcept={conceptData}
-        registerId={id}
-        editions={editions}
-      />
-    </div>
-  )}
-
-  <noscript>
-    <h1 class="text-2xl font-bold">{conceptData?.designations?.eng ?? cid}</h1>
-    <p class="text-ink-500">{conceptData?.definition?.eng ?? ''}</p>
-  </noscript>
-</AppLayout>
-
-<script>
-  document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key === 's' || e.key === 'S') {
-      const url = new URL(window.location.href);
-      url.searchParams.set('view', url.searchParams.get('view') === 'sphere' ? 'detail' : 'sphere');
-      window.location.href = url.toString();
-    }
-  });
-</script>
+<AppLayout
+  title={`${term} — Concept`}
+  description={definition}
+  conceptTerm={term}
+  conceptDefinition={definition}
+/>

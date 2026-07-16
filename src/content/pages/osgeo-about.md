@@ -1,6 +1,0 @@
----
-title: "About OSGeo Lexicon"
-type: "page"
----
-
-<h2>OSGeo Lexicon</h2><p>The <strong>OSGeo Lexicon</strong> is a community-maintained glossary of geospatial terminology from the <a href="https://www.osgeo.org">Open Source Geospatial Foundation</a>. It covers GIS, remote sensing, cartography, spatial databases, and open geospatial standards.</p><h2>Content</h2><p>This dataset contains 444 concepts with English-language definitions.</p><h2>Source</h2><p>Community contributions via the OSGeo community. Definitions follow the Glossarist concept model aligned with ISO 10241-1, ISO 30042 (TBX), ISO 25964/SKOS, and ISO 12620.</p>
