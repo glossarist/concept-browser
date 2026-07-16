@@ -1,8 +1,11 @@
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
+import { resolve } from 'path';
+
+const cbContent = resolve(process.cwd(), '.cb-content');
 
 const datasets = defineCollection({
-  loader: glob({ pattern: '**/*.json', base: './src/content/datasets' }),
+  loader: glob({ pattern: '**/*.json', base: resolve(cbContent, 'datasets') }),
   schema: z.object({
     id: z.string(),
     title: z.string(),
@@ -25,7 +28,7 @@ const datasets = defineCollection({
 });
 
 const groups = defineCollection({
-  loader: glob({ pattern: '**/*.json', base: './src/content/groups' }),
+  loader: glob({ pattern: '**/*.json', base: resolve(cbContent, 'groups') }),
   schema: z.object({
     id: z.string(),
     label: z.string(),
@@ -38,7 +41,7 @@ const groups = defineCollection({
 });
 
 const concepts = defineCollection({
-  loader: glob({ pattern: '**/*.json', base: './src/content/concepts' }),
+  loader: glob({ pattern: '**/*.json', base: resolve(cbContent, 'concepts') }),
   schema: z.object({
     registerId: z.string(),
     conceptId: z.string(),
@@ -73,7 +76,7 @@ const concepts = defineCollection({
 });
 
 const pages = defineCollection({
-  loader: glob({ pattern: '**/*.{md,json}', base: './src/content/pages' }),
+  loader: glob({ pattern: '**/*.{md,json}', base: resolve(cbContent, 'pages') }),
   schema: z.object({
     title: z.string(),
     type: z.string().optional(),

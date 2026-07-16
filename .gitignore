@@ -9,10 +9,7 @@ public/routing.json
 site-config.yml
 site-configs.yml
 datasets.yml
-src/content/concepts/
-src/content/datasets/
-src/content/groups/
-src/content/pages/
+.cb-content/
 
 # Build/generated
 .astro/
