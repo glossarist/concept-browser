@@ -15,6 +15,7 @@ export async function getStaticPaths() {
   for (const ds of datasets) {
     paths.push({ params: { path: `dataset/${ds.data.id}/about` } });
     paths.push({ params: { path: `dataset/${ds.data.id}/stats` } });
+    paths.push({ params: { path: `dataset/${ds.data.id}/sources` } });
     for (const g of await getCollection('groups')) {
       paths.push({ params: { path: `group/${g.data.id}/about` } });
     }

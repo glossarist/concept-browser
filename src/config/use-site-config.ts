@@ -157,6 +157,9 @@ function synthesizeDatasetPages(features?: Record<string, unknown>, pages?: Page
   if (features?.stats !== false && !declaredRoutes.has('stats')) {
     result.push({ type: 'stats', route: 'stats', title: 'Statistics', icon: 'chart', datasetScoped: true });
   }
+  if (!declaredRoutes.has('sources')) {
+    result.push({ type: 'sources', route: 'sources', title: 'Sources', icon: 'database', datasetScoped: true });
+  }
   if (features?.about !== false && !declaredRoutes.has('about')) {
     result.push({ type: 'about', route: 'about', title: 'About', icon: 'info', datasetScoped: true });
   }

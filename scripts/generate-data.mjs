@@ -920,6 +920,9 @@ async function processDataset(dir, register, opts) {
 
   const dsRefMaps = { ...refMaps, register, designationLookup };
 
+  const sourceMap = new Map();
+  const relTypeCounts = {};
+
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     try {
@@ -953,6 +956,28 @@ async function processDataset(dir, register, opts) {
         groups: getGroups(conceptYaml),
         status: conceptYaml.eng?.entry_status || 'valid',
       });
+
+      const conceptSourceRefs = new Set();
+      const allSourceArrays = [
+        ...(conceptYaml._sources || []),
+        ...opts.languages.flatMap(l => conceptYaml[l]?.sources || []),
+      ];
+      for (const src of allSourceArrays) {
+        const ref = src.origin?.ref?.source || src.origin?.ref?.id || 'Unknown';
+        conceptSourceRefs.add(ref);
+        if (!sourceMap.has(ref)) {
+          sourceMap.set(ref, { ref, types: new Set(), conceptIds: [] });
+        }
+        if (src.type) sourceMap.get(ref).types.add(src.type);
+      }
+      for (const ref of conceptSourceRefs) {
+        sourceMap.get(ref)?.conceptIds.push(termid);
+      }
+
+      for (const r of conceptYaml._related || []) {
+        const type = r.type || 'unknown';
+        relTypeCounts[type] = (relTypeCounts[type] || 0) + 1;
+      }
 
       for (const lang of opts.languages) {
         const lc = conceptYaml[lang];
@@ -1072,6 +1097,23 @@ async function processDataset(dir, register, opts) {
     }
   }
 
+  const sourceStats = Array.from(sourceMap.values())
+    .map(s => ({
+      ref: s.ref,
+      types: Array.from(s.types),
+      conceptCount: s.conceptIds.length,
+      conceptIds: s.conceptIds,
+    }))
+    .sort((a, b) => b.conceptCount - a.conceptCount);
+  const totalRelationships = Object.values(relTypeCounts).reduce((a, b) => a + b, 0);
+
+  writeJson(path.join(DATA, register, 'stats.json'), {
+    sourceCount: sourceStats.length,
+    sources: sourceStats,
+    relationshipCount: totalRelationships,
+    relationshipTypes: relTypeCounts,
+  });
+
   const manifest = {
     id: register,
     datasetUri: opts.datasetUri,
@@ -1082,6 +1124,8 @@ async function processDataset(dir, register, opts) {
     baseUrl: `/data/${register}`,
     languages: opts.languages,
     conceptCount: concepts.length,
+    sourceCount: sourceStats.length,
+    relationshipCount: totalRelationships,
     conceptUrlTemplate: '{baseUrl}/concepts/{conceptId}.json',
     indexUrl: '{baseUrl}/index.json',
     contextUrl: 'https://glossarist.org/ns/context.jsonld',
