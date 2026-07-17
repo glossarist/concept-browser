@@ -20,6 +20,7 @@ export default defineConfig({
   base,
   output: 'static',
   publicDir: resolve(process.cwd(), 'public'),
+  outDir: resolve(process.cwd(), 'dist'),
   integrations: [
     vue({ appEntrypoint: '/src/islands/app-entry' }),
     sitemap(),
