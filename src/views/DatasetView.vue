@@ -331,6 +331,10 @@ function clearSection() {
         <router-link :to="{ name: 'about', params: { registerId } }" class="badge badge-purple hover:opacity-80 transition-opacity">
           {{ t('nav.about') }}
         </router-link>
+        <router-link v-if="manifest.sourceCount" :to="{ name: 'sources', params: { registerId } }" class="badge badge-gray hover:opacity-80 transition-opacity">
+          {{ manifest.sourceCount }} {{ t('dataset.sources') }}
+        </router-link>
+        <span v-if="manifest.relationshipCount" class="badge badge-yellow">{{ manifest.relationshipCount.toLocaleString() }} {{ t('dataset.relationships') }}</span>
       </div>
     </div>
 

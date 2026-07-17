@@ -136,7 +136,7 @@ const filteredGlobalPages = computed(() =>
 
 // Show only standard dataset pages (Concepts, Statistics, About)
 const filteredDatasetPages = computed(() =>
-  datasetPages.value.filter(p => ['', 'stats', 'about'].includes(p.route || ''))
+  datasetPages.value.filter(p => ['', 'stats', 'sources', 'about'].includes(p.route || ''))
 );
 
 const currentManifest = computed(() => store.manifests.get(currentDataset.value));

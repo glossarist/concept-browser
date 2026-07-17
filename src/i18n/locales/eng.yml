@@ -9,6 +9,7 @@ nav.ontology: Ontology
 nav.concepts: Concepts
 nav.stats: Statistics
 nav.about: About
+nav.sources: Sources
 nav.navigation: Navigation
 nav.datasets: Datasets
 
@@ -121,6 +122,8 @@ lang.termOnlyIn: Term only in
 # Dataset view
 dataset.concepts: concepts
 dataset.languages: languages
+dataset.sources: sources
+dataset.relationships: relationships
 dataset.filterPlaceholder: "Filter concepts... (press /)"
 dataset.of: of
 dataset.in: in
