@@ -21,6 +21,7 @@ import { easeInOutCubic, slerp, fibonacciSpherePosition, project, cardEdge, type
 import { UriRouter } from '../adapters/UriRouter';
 import { getPreferredTerm } from '../utils/concept-helpers';
 import { renderContent } from '../utils/content-renderer';
+import { hashSeed, expandParams, portSide, portPoint, idToUriGet } from '../utils/sphere-math';
 import { useI18n } from '../i18n';
 
 const { t, locale } = useI18n();
@@ -229,12 +230,6 @@ function updateNodeTerm(n: SNode) {
 
 /* ── Build internal graph from concept + edges (BFS) ────── */
 
-function hashSeed(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
 function buildGraph() {
   const focusUri = conceptUri(props.concept, props.registerId, props.manifest.uriBase);
   const focusId = props.concept?.id || props.registerId;
@@ -399,11 +394,6 @@ function buildGraph() {
 }
 
 /* Reverse lookup: URI → node id. Linear scan is fine for ≤36 nodes. */
-function idToUriGet(map: Map<string, string>, uri: string): string | undefined {
-  for (const [id, u] of map) if (u === uri) return id;
-  return undefined;
-}
-
 /* ── Custom forces (EXACT prototype replica) ────────────── */
 function sphereConstraint() {
   let nL: SNode[] = nodes;
@@ -443,15 +433,6 @@ function velocityClamp(maxV: number) {
    visual difference between tight (0) and loose (10) is dramatic.
    Link distance is chord distance on the unit sphere: 0.5 ≈ 29° (cards
    cluster near focus), 1.95 ≈ 154° (cards spread to back hemisphere). */
-function expandParams(v: number): { linkDist: number; linkStrength: number; repMin: number; repStrength: number } {
-  const t = Math.max(0, Math.min(10, v)) / 10;
-  return {
-    linkDist: 0.5 + t * 1.45,         /* 0.5 → 1.95 */
-    linkStrength: 0.08,
-    repMin: 0.55 + t * 0.40,           /* 0.55 → 0.95 — just prevents overlap */
-    repStrength: 0.05,
-  };
-}
 let linkDistance = expandParams(5).linkDist;
 let linkStrength = expandParams(5).linkStrength;
 let repulseMinDist = expandParams(5).repMin;
@@ -606,24 +587,9 @@ function onTick() {
 /* ── Edge drawing with 4-port card connections + type labels ─ */
 /* Determine which side of a card (top/bottom/left/right) an edge should
    connect to, based on the direction to the other endpoint. */
-function portSide(from: {x:number;y:number}, to: {x:number;y:number}): 'top'|'bottom'|'left'|'right' {
-  const dx = to.x - from.x, dy = to.y - from.y;
-  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? 'right' : 'left';
-  return dy > 0 ? 'bottom' : 'top';
-}
-
 /* Compute the connection point on a card's side, with an offset along
    that side so multiple edges to the same side don't stack on top of
    each other. `offset` is in [-1, 1] (0 = midpoint, ±1 = corners). */
-function portPoint(center: {x:number;y:number}, side: 'top'|'bottom'|'left'|'right', w: number, h: number, offset: number) {
-  switch (side) {
-    case 'right':  return { x: center.x + w/2, y: center.y + (h/2 - 6) * offset };
-    case 'left':   return { x: center.x - w/2, y: center.y + (h/2 - 6) * offset };
-    case 'bottom': return { x: center.x + (w/2 - 12) * offset, y: center.y + h/2 };
-    case 'top':    return { x: center.x + (w/2 - 12) * offset, y: center.y - h/2 };
-  }
-}
-
 function drawEdges(cx: number, cy: number) {
   const svg = edgesSvgRef.value; if (!svg) return;
   const w = cx * 2, h = cy * 2 / 0.46;
