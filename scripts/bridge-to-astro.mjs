@@ -1,3 +1,8 @@
+function buildConceptUri(uriBase, registerId, conceptId) {
+  return buildConceptUri(uriBase, registerId, conceptId);
+}
+
+
 /**
  * Data bridge: converts public/data/*.json into Astro content collections.
  *
@@ -77,7 +82,7 @@ for (const reg of registry) {
       const conceptEntry = {
         registerId: id,
         conceptId: concept.id,
-        uri: `${entry.uriBase || ''}/${id}/concept/${concept.id}`,
+        uri: buildConceptUri(entry.uriBase || '', id, concept.id),
         status: concept.status || 'valid',
         designations: concept.designations || {},
         eng: concept.eng || concept.designations?.eng || '',

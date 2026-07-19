@@ -168,7 +168,7 @@ async function resolveTerm(
   uriBase: string,
   factory: ReturnType<typeof getFactory>
 ): Promise<ResolvedTerm | null> {
-  const neighborUri = `${uriBase}/${n.register}/concept/${n.conceptId}`;
+  const neighborUri = UriRouter.buildConceptUri(uriBase, n.register, n.conceptId);
   const out: ResolvedTerm = { term: null };
 
   /* Strategy 1: graph engine */

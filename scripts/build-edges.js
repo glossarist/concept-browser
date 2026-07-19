@@ -1,3 +1,8 @@
+function buildConceptUri(uriBase, registerId, conceptId) {
+  return buildConceptUri(uriBase, registerId, conceptId);
+}
+
+
 /**
  * Pre-computes cross-reference and domain edges for each dataset.
  * Reads all concept JSON files, extracts structured references and
@@ -108,7 +113,7 @@ function extractRelated(concept, registerId, uriBase, urnMap) {
     const id = ref['gl:id'] || ref['id'];
     if (!source || !id) continue;
     const reg = urnMap.get(source) || source;
-    const target = `${uriBase}/${reg}/concept/${id}`;
+    const target = buildConceptUri(uriBase, reg, id);
     if (target === sourceUri) continue;
     edges.push({
       source: sourceUri,
@@ -164,7 +169,7 @@ function resolveConceptUri(ref, uriBase, urnMap) {
   const id = ref['gl:id'] || ref['id'];
   if (!source || !id) return null;
   const reg = urnMap.get(source) || source;
-  return `${uriBase}/${reg}/concept/${id}`;
+  return buildConceptUri(uriBase, reg, id);
 }
 
 const EXTRACTORS = [extractReferences, extractRelated, extractDomains];

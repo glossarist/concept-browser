@@ -4,6 +4,7 @@ import type { Concept, PartitiveHyperedge as GlsPartitiveHyperedge, RelatedConce
 import type { Manifest, GraphEdge, PartitiveHyperedge } from '../adapters/types';
 import { getFactory } from '../adapters/factory';
 import { conceptUri } from '../adapters/model-bridge';
+import { UriRouter } from '../adapters/UriRouter';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
 import { categorizeRelationship, relationshipLabel, INVERSE_RELATIONSHIPS } from '../utils/relationship-categories';
@@ -145,7 +146,7 @@ export function useConceptEdges(
     if (!target) return null;
     const m = store.manifests.get(target.registerId);
     if (!m) return null;
-    return `${m.uriBase}/${target.registerId}/concept/${target.conceptId}`;
+    return UriRouter.buildConceptUri(m.uriBase, target.registerId, target.conceptId);
   }
 
   function resolveRelatedRef(ref: { source: string | null; id: string | null } | null) {

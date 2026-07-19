@@ -80,7 +80,7 @@ export class GraphDataSource {
 
   extractEdges(concept: Concept): GraphEdge[] {
     const edges: GraphEdge[] = [];
-    const sourceUri = concept.uri || `${this.uriBase}/${this.registerId}/concept/${concept.id}`;
+    const sourceUri = concept.uri || UriRouter.buildConceptUri(this.uriBase, this.registerId, concept.id);
 
     for (const rc of concept.relatedConcepts) {
       const target = resolveRefTarget(rc, this.uriBase, this.registerId, this.urnMap);
@@ -120,7 +120,7 @@ export class GraphDataSource {
 
   extractDomainEdges(concept: Concept): GraphEdge[] {
     const edges: GraphEdge[] = [];
-    const sourceUri = concept.uri || `${this.uriBase}/${this.registerId}/concept/${concept.id}`;
+    const sourceUri = concept.uri || UriRouter.buildConceptUri(this.uriBase, this.registerId, concept.id);
 
     for (const lang of concept.languages) {
       const lc = concept.localization(lang);
