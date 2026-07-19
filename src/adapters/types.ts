@@ -148,6 +148,32 @@ export interface GraphEdge {
   lang?: string;
 }
 
+/**
+ * One-to-many partitive decomposition with optional plurality markers
+ * and enumeration completeness (open vs closed).
+ *
+ * Independent of {@link GraphEdge} (which stays binary). The UI renders
+ * hyperedges specially (rake visualisation, enumeration/marker badges).
+ *
+ * See concept-model/TODO.hyperedge/00-design-overview.md.
+ */
+export interface PartitiveHyperedge {
+  /** URI of the concept that owns this hyperedge (the source). */
+  source: string;
+  /** URI of the comprehensive (whole) concept — usually equals `source`. */
+  comprehensive: string;
+  /** URIs of the partitive concepts. At least one. */
+  parts: string[];
+  /** 'closed' (all parts encoded) or 'open' (partial). Defaults to 'closed'. */
+  enumeration: 'closed' | 'open';
+  /** Diagram notation flags. Empty array if none. */
+  markers: ('double' | 'dashed')[];
+  /** Optional human-readable label/note. */
+  label?: string;
+  /** Owning dataset id. */
+  register: string;
+}
+
 export interface GraphNode {
   uri: string;
   register: string;

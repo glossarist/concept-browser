@@ -1,7 +1,7 @@
 import { computed, type ComputedRef } from 'vue';
 import type { Router } from 'vue-router';
-import type { Concept, RelatedConcept } from 'glossarist';
-import type { Manifest, GraphEdge } from '../adapters/types';
+import type { Concept, PartitiveHyperedge as GlsPartitiveHyperedge, RelatedConcept } from 'glossarist';
+import type { Manifest, GraphEdge, PartitiveHyperedge } from '../adapters/types';
 import { getFactory } from '../adapters/factory';
 import { conceptUri } from '../adapters/model-bridge';
 import { useVocabularyStore } from '../stores/vocabulary';
@@ -114,6 +114,40 @@ export function useConceptEdges(
     return [...direct, ...derived];
   });
 
+  // Concept-level partitive hyperedges (one-to-many decompositions).
+  // Each hyperedge is resolved to concrete target URIs for display.
+  // Independent of binary `conceptRelated` — see TODO.hyperedge/00.
+  const conceptPartitiveHyperedges = computed<PartitiveHyperedge[]>(() => {
+    const source = conceptUriValue.value;
+    return (concept.value.partitiveHyperedges ?? [])
+      .map((he: GlsPartitiveHyperedge): PartitiveHyperedge | null => {
+        const comprehensive = resolveRefUri(he.comprehensive);
+        if (!comprehensive) return null;
+        const parts = he.parts
+          .map(resolveRefUri)
+          .filter((u): u is string => !!u && u !== source);
+        if (parts.length === 0) return null;
+        return {
+          source,
+          comprehensive,
+          parts,
+          enumeration: he.isOpen ? 'open' : 'closed',
+          markers: he.markers.filter((m): m is 'double' | 'dashed' => m === 'double' || m === 'dashed'),
+          label: he.content ?? undefined,
+          register: registerId.value,
+        };
+      })
+      .filter((he): he is PartitiveHyperedge => he !== null);
+  });
+
+  function resolveRefUri(ref: { source?: string | null; id?: string | null } | null): string | null {
+    const target = resolveRelatedRef(ref);
+    if (!target) return null;
+    const m = store.manifests.get(target.registerId);
+    if (!m) return null;
+    return `${m.uriBase}/${target.registerId}/concept/${target.conceptId}`;
+  }
+
   function resolveRelatedRef(ref: { source: string | null; id: string | null } | null) {
     return factory.resolveRelatedRef(ref, registerId.value);
   }
@@ -173,6 +207,7 @@ export function useConceptEdges(
     edgeBadgeColor,
     inverseEdgeType,
     conceptRelated,
+    conceptPartitiveHyperedges,
     resolveRelatedRef,
     getResolvedRef,
     relatedLabel,
