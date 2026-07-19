@@ -949,13 +949,60 @@ async function processDataset(dir, register, opts) {
 
   const dsRefMaps = { ...refMaps, register, designationLookup };
 
-  const sourceMap = new Map();
-  const relTypeCounts = {};
-  const partitiveHyperedgeStats = {
-    count: 0,
-    byEnumeration: { closed: 0, open: 0 },
-    byMarker: { double: 0, dashed: 0, none: 0 },
+  const stats = {
+    sourceMap: new Map(),
+    relTypeCounts: {},
+    partitiveHyperedges: { count: 0, byEnumeration: { closed: 0, open: 0 }, byMarker: { double: 0, dashed: 0, none: 0 } },
   };
+
+  const STATS_PROCESSORS = [
+    function collectSources(cy, termid, s) {
+      const refs = new Set();
+      const allSources = [
+        ...(cy._sources || []),
+        ...opts.languages.flatMap(l => cy[l]?.sources || []),
+      ];
+      for (const src of allSources) {
+        const ref = src.origin?.ref?.source || src.origin?.ref?.id || 'Unknown';
+        refs.add(ref);
+        if (!s.sourceMap.has(ref)) s.sourceMap.set(ref, { ref, types: new Set(), conceptIds: [] });
+        if (src.type) s.sourceMap.get(ref).types.add(src.type);
+      }
+      for (const ref of refs) s.sourceMap.get(ref)?.conceptIds.push(termid);
+    },
+    function countRelationships(cy, _termid, s) {
+      for (const r of cy._related || []) {
+        const type = r.type || 'unknown';
+        s.relTypeCounts[type] = (s.relTypeCounts[type] || 0) + 1;
+      }
+    },
+    function countHyperedges(cy, _termid, s) {
+      for (const he of cy._partitiveHyperedges || []) {
+        s.partitiveHyperedges.count += 1;
+        const e = he.enumeration || 'closed';
+        s.partitiveHyperedges.byEnumeration[e] = (s.partitiveHyperedges.byEnumeration[e] || 0) + 1;
+        const markers = he.markers || [];
+        if (markers.length === 0) {
+          s.partitiveHyperedges.byMarker.none += 1;
+        } else {
+          for (const m of markers) {
+            s.partitiveHyperedges.byMarker[m] = (s.partitiveHyperedges.byMarker[m] || 0) + 1;
+          }
+        }
+      }
+    },
+    function countLanguages(cy, _termid, _s) {
+      for (const lang of opts.languages) {
+        const lc = cy[lang];
+        if (lc) {
+          if (lc.terms?.length > 0) langTermCounts[lang] = (langTermCounts[lang] || 0) + 1;
+          if (lc.definition && (Array.isArray(lc.definition) ? lc.definition.some(d => d.content) : lc.definition)) {
+            langDefCounts[lang] = (langDefCounts[lang] || 0) + 1;
+          }
+        }
+      }
+    },
+  ];
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -967,21 +1014,17 @@ async function processDataset(dir, register, opts) {
       const jsonld = yamlToJsonLd(conceptYaml, register, dsRefMaps);
       writeJson(path.join(conceptsDir, `${termid}.json`), jsonld);
 
-      // Generate Turtle format
       const ttlContent = conceptJsonToTurtle(jsonld);
       fs.writeFileSync(path.join(conceptsDir, `${termid}.ttl`), ttlContent);
 
-      // Generate SKOS JSON-LD format
       const skosJsonLd = conceptJsonToSkosJsonLd(jsonld);
       fs.writeFileSync(path.join(conceptsDir, `${termid}.jsonld`), skosJsonLd);
 
-      // Generate TBX-XML format
       const tbxContent = conceptJsonToTbx(jsonld);
       if (tbxContent) {
         fs.writeFileSync(path.join(conceptsDir, `${termid}.tbx`), tbxContent);
       }
 
-      // Copy source YAML
       fs.copyFileSync(path.join(dir, file), path.join(conceptsDir, `${termid}.yaml`));
 
       concepts.push({
@@ -991,54 +1034,8 @@ async function processDataset(dir, register, opts) {
         status: conceptYaml.eng?.entry_status || 'valid',
       });
 
-      const conceptSourceRefs = new Set();
-      const allSourceArrays = [
-        ...(conceptYaml._sources || []),
-        ...opts.languages.flatMap(l => conceptYaml[l]?.sources || []),
-      ];
-      for (const src of allSourceArrays) {
-        const ref = src.origin?.ref?.source || src.origin?.ref?.id || 'Unknown';
-        conceptSourceRefs.add(ref);
-        if (!sourceMap.has(ref)) {
-          sourceMap.set(ref, { ref, types: new Set(), conceptIds: [] });
-        }
-        if (src.type) sourceMap.get(ref).types.add(src.type);
-      }
-      for (const ref of conceptSourceRefs) {
-        sourceMap.get(ref)?.conceptIds.push(termid);
-      }
-
-      for (const r of conceptYaml._related || []) {
-        const type = r.type || 'unknown';
-        relTypeCounts[type] = (relTypeCounts[type] || 0) + 1;
-      }
-
-      for (const he of conceptYaml._partitiveHyperedges || []) {
-        partitiveHyperedgeStats.count += 1;
-        const e = he.enumeration || 'closed';
-        partitiveHyperedgeStats.byEnumeration[e] =
-          (partitiveHyperedgeStats.byEnumeration[e] || 0) + 1;
-        const markers = he.markers || [];
-        if (markers.length === 0) {
-          partitiveHyperedgeStats.byMarker.none += 1;
-        } else {
-          for (const m of markers) {
-            partitiveHyperedgeStats.byMarker[m] =
-              (partitiveHyperedgeStats.byMarker[m] || 0) + 1;
-          }
-        }
-      }
-
-      for (const lang of opts.languages) {
-        const lc = conceptYaml[lang];
-        if (lc) {
-          if (lc.terms && lc.terms.length > 0) {
-            langTermCounts[lang] = (langTermCounts[lang] || 0) + 1;
-          }
-          if (lc.definition && (Array.isArray(lc.definition) ? lc.definition.some(d => d.content) : lc.definition)) {
-            langDefCounts[lang] = (langDefCounts[lang] || 0) + 1;
-          }
-        }
+      for (const processor of STATS_PROCESSORS) {
+        processor(conceptYaml, termid, stats);
       }
     } catch (e) {
       console.warn(`  Skipping ${file}: ${e.message}`);
@@ -1147,7 +1144,7 @@ async function processDataset(dir, register, opts) {
     }
   }
 
-  const sourceStats = Array.from(sourceMap.values())
+  const sourceStats = Array.from(stats.sourceMap.values())
     .map(s => ({
       ref: s.ref,
       types: Array.from(s.types),
@@ -1155,14 +1152,14 @@ async function processDataset(dir, register, opts) {
       conceptIds: s.conceptIds,
     }))
     .sort((a, b) => b.conceptCount - a.conceptCount);
-  const totalRelationships = Object.values(relTypeCounts).reduce((a, b) => a + b, 0);
+  const totalRelationships = Object.values(stats.relTypeCounts).reduce((a, b) => a + b, 0);
 
   writeJson(path.join(DATA, register, 'stats.json'), {
     sourceCount: sourceStats.length,
     sources: sourceStats,
     relationshipCount: totalRelationships,
-    relationshipTypes: relTypeCounts,
-    partitiveHyperedges: partitiveHyperedgeStats,
+    relationshipTypes: stats.relTypeCounts,
+    partitiveHyperedges: stats.partitiveHyperedges,
   });
 
   const manifest = {
