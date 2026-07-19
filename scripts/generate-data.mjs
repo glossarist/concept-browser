@@ -60,6 +60,7 @@ function loadConceptFile(filePath) {
 
     // Managed concept-level fields
     if (mc.related) result._related = mc.related;
+    if (mc.partitive_hyperedges) result._partitiveHyperedges = mc.partitive_hyperedges;
     if (mc.data.domains) result._domains = mc.data.domains;
     if (mc.dates) result._dates = mc.dates;
     if (mc.sources) result._sources = mc.sources;
@@ -242,15 +243,16 @@ function defsToJsonLd(defs) {
     .filter(d => d['gl:content']);
 }
 
-function refToJsonLd(ref) {
+function refToJsonLd(ref, typeName = 'gl:Ref') {
   if (!ref) return undefined;
-  const refObj = { '@type': 'gl:Ref' };
+  const refObj = { '@type': typeName };
   if (typeof ref === 'string') {
     refObj['gl:source'] = ref;
   } else {
     if (ref.source) refObj['gl:source'] = ref.source;
     if (ref.id) refObj['gl:id'] = ref.id;
     if (ref.version) refObj['gl:version'] = ref.version;
+    if (ref.text) refObj['gl:text'] = ref.text;
   }
   return refObj;
 }
@@ -672,6 +674,28 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
     });
   }
 
+  if (conceptYaml._partitiveHyperedges?.length > 0) {
+    doc['gl:partitiveHyperedges'] = conceptYaml._partitiveHyperedges.map(he => {
+      const out = { '@type': 'gl:PartitiveHyperedge' };
+      if (he.comprehensive) {
+        out['gl:comprehensive'] = refToJsonLd(he.comprehensive, 'gl:ConceptRef');
+      }
+      if (Array.isArray(he.parts) && he.parts.length > 0) {
+        out['gl:hasPart'] = he.parts.map(p => refToJsonLd(p, 'gl:ConceptRef'));
+      }
+      if (he.enumeration) {
+        out['gl:enumeration'] = he.enumeration;
+      }
+      if (Array.isArray(he.markers) && he.markers.length > 0) {
+        out['gl:hasPluralityMarker'] = [...he.markers];
+      }
+      if (he.content) {
+        out['gl:content'] = he.content;
+      }
+      return out;
+    });
+  }
+
   return doc;
 }
 
@@ -922,6 +946,11 @@ async function processDataset(dir, register, opts) {
 
   const sourceMap = new Map();
   const relTypeCounts = {};
+  const partitiveHyperedgeStats = {
+    count: 0,
+    byEnumeration: { closed: 0, open: 0 },
+    byMarker: { double: 0, dashed: 0, none: 0 },
+  };
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -977,6 +1006,22 @@ async function processDataset(dir, register, opts) {
       for (const r of conceptYaml._related || []) {
         const type = r.type || 'unknown';
         relTypeCounts[type] = (relTypeCounts[type] || 0) + 1;
+      }
+
+      for (const he of conceptYaml._partitiveHyperedges || []) {
+        partitiveHyperedgeStats.count += 1;
+        const e = he.enumeration || 'closed';
+        partitiveHyperedgeStats.byEnumeration[e] =
+          (partitiveHyperedgeStats.byEnumeration[e] || 0) + 1;
+        const markers = he.markers || [];
+        if (markers.length === 0) {
+          partitiveHyperedgeStats.byMarker.none += 1;
+        } else {
+          for (const m of markers) {
+            partitiveHyperedgeStats.byMarker[m] =
+              (partitiveHyperedgeStats.byMarker[m] || 0) + 1;
+          }
+        }
       }
 
       for (const lang of opts.languages) {
@@ -1112,6 +1157,7 @@ async function processDataset(dir, register, opts) {
     sources: sourceStats,
     relationshipCount: totalRelationships,
     relationshipTypes: relTypeCounts,
+    partitiveHyperedges: partitiveHyperedgeStats,
   });
 
   const manifest = {
