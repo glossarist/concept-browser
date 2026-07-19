@@ -101,6 +101,11 @@ export class UriRouter {
     return m ? { registerId: m[1], conceptId: m[2] } : null;
   }
 
+  /** Construct a canonical concept URI from components. */
+  static buildConceptUri(uriBase: string, registerId: string, conceptId: string): string {
+    return `${uriBase}/${registerId}/concept/${conceptId}`;
+  }
+
   /** Construct a canonical URI for a concept. */
   buildUri(registerId: string, conceptId: string): string {
     const info = this.registerMap.get(registerId);

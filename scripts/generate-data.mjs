@@ -14,6 +14,11 @@ import { buildVersionHistoryTurtle } from './lib/version-turtle.mjs';
 import { buildBibliographyTurtle } from './lib/bibliography-turtle.mjs';
 import { ttlLit } from './lib/turtle-escape.mjs';
 import { firstNonEmpty } from './lib/first-non-empty.mjs';
+function buildConceptUri(uriBase, registerId, conceptId) {
+  return buildConceptUri(uriBase, registerId, conceptId);
+}
+
+
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
@@ -99,14 +104,14 @@ async function writeDatasetRdf(register, manifest, concepts, refMaps, opts) {
   const datasetIri = `${uriBase}/${register}/`;
   const topConceptUris = concepts
     .slice(0, 32)
-    .map(c => `${uriBase}/${register}/concept/${c.id}`);
+    .map(c => buildConceptUri(uriBase, register, c.id));
 
   const sections = (manifest.sections ?? []).map(section => {
     const sectionId = section.id ?? section.slug ?? section.title;
     return {
       collectionIri: `${uriBase}/${register}/section/${sectionId}`,
       title: section.title ?? section.name ?? sectionId,
-      memberUris: (section.members ?? []).map(id => `${uriBase}/${register}/concept/${id}`),
+      memberUris: (section.members ?? []).map(id => buildConceptUri(uriBase, register, id)),
     };
   });
 
@@ -368,12 +373,12 @@ function buildPatternIndex(datasets, registerCache) {
 
 function resolveRefUri(term, refMaps) {
   const resolved = refMaps.patternIndex.resolve(term);
-  if (resolved) return `${refMaps.uriBase}/${resolved.datasetId}/concept/${resolved.conceptId}`;
+  if (resolved) return buildConceptUri(refMaps.uriBase, resolved.datasetId, resolved.conceptId);
 
   const ievMatch = term.match(/^IEV:(\d+[-\d]+)$/);
   if (ievMatch) {
     const dsId = refMaps.refPrefixMap['IEV'];
-    if (dsId) return `${refMaps.uriBase}/${dsId}/concept/${ievMatch[1]}`;
+    if (dsId) return buildConceptUri(refMaps.uriBase, dsId, ievMatch[1]);
   }
   return null;
 }
@@ -407,7 +412,7 @@ function resolveIevRef(display, term, refPrefixMap, uriBase) {
   if (!display.startsWith('IEV:')) return null;
   const datasetId = refPrefixMap['IEV'];
   if (!datasetId) return null;
-  return { id: `${uriBase}/${datasetId}/concept/${display.slice(4)}`, term };
+  return { id: buildConceptUri(uriBase, datasetId, display.slice(4)), term };
 }
 
 /**
@@ -416,7 +421,7 @@ function resolveIevRef(display, term, refPrefixMap, uriBase) {
 function resolvePatternRef(identifier, display, refPrefixMap, patternIndex, uriBase) {
   const r = patternIndex.resolve(identifier);
   if (!r) return null;
-  return { id: `${uriBase}/${r.datasetId}/concept/${r.conceptId}`, term: display };
+  return { id: buildConceptUri(uriBase, r.datasetId, r.conceptId), term: display };
 }
 
 /**
@@ -446,7 +451,7 @@ function handleCiteRef(parsed, allSources) {
 function handleNumeric(parsed, register, uriBase) {
   if (!register) return null;
   const term = parsed.label ?? parsed.id;
-  return { id: `${uriBase}/${register}/concept/${parsed.id}`, term };
+  return { id: buildConceptUri(uriBase, register, parsed.id), term };
 }
 
 /**
@@ -461,7 +466,7 @@ function handleDesignation(parsed, refMaps) {
   const display = parsed.label ?? designation;
   const conceptId = refMaps.designationLookup?.get(designation.toLowerCase());
   return {
-    id: `${refMaps.uriBase}/${register}/concept/${conceptId ?? designation}`,
+    id: buildConceptUri(refMaps.uriBase, register, conceptId ?? designation),
     term: display,
   };
 }
@@ -487,7 +492,7 @@ function handleUnresolved(body, refMaps) {
   // Same-dataset: {{conceptId, displayTerm}} where conceptId is numeric/X.Y
   const register = refMaps.register;
   if (register && (/^\d/.test(identifier) || /^[A-Z]\.\d/.test(identifier))) {
-    return { id: `${refMaps.uriBase}/${register}/concept/${identifier}`, term: display };
+    return { id: buildConceptUri(refMaps.uriBase, register, identifier), term: display };
   }
   return null;
 }
@@ -544,7 +549,7 @@ function extractInlineRefs(localizedData, refMaps, conceptSources = []) {
       const term = parsed.label ?? uri;
       const pattern = refMaps.patternIndex.resolve(uri);
       if (pattern) {
-        ref = { id: `${refMaps.uriBase}/${pattern.datasetId}/concept/${pattern.conceptId}`, term };
+        ref = { id: buildConceptUri(refMaps.uriBase, pattern.datasetId, pattern.conceptId), term };
       } else {
         ref = { id: uri, term };
       }
@@ -573,7 +578,7 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
   const base = refMaps.uriBase;
   const doc = {
     '@context': 'https://glossarist.org/ns/context.jsonld',
-    '@id': `${base}/${register}/concept/${termid}`,
+    '@id': buildConceptUri(base, register, termid),
     '@type': 'gl:Concept',
     'gl:identifier': termid,
   };
