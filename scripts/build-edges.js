@@ -1,5 +1,24 @@
 function buildConceptUri(uriBase, registerId, conceptId) {
-  return buildConceptUri(uriBase, registerId, conceptId);
+  return `${uriBase}/${registerId}/concept/${conceptId}`;
+}
+
+const VALID_MARKERS = new Set(['double', 'dashed']);
+
+function validateHyperedgeMarkers(markers) {
+  const out = [];
+  for (const m of markers) {
+    if (!VALID_MARKERS.has(m)) {
+      throw new Error(`Invalid partitive hyperedge marker: "${m}". Allowed: double, dashed`);
+    }
+    out.push(m);
+  }
+  return out;
+}
+
+function normalizeHyperedgeContent(content) {
+  if (content == null) return undefined;
+  if (typeof content === 'string') return { default: content };
+  return content;
 }
 
 
@@ -156,8 +175,8 @@ function extractPartitiveHyperedges(concept, registerId, uriBase, urnMap) {
       comprehensive,
       parts,
       enumeration: he['gl:enumeration'] || 'closed',
-      markers: (he['gl:hasPluralityMarker'] || []).filter(m => m === 'double' || m === 'dashed'),
-      label: he['gl:content'] || undefined,
+      markers: validateHyperedgeMarkers(he['gl:hasPluralityMarker'] || []),
+      label: normalizeHyperedgeContent(he['gl:content']),
       register: registerId,
     });
   }

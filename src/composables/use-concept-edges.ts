@@ -112,8 +112,37 @@ export function useConceptEdges(
           content: '',
         };
       });
-    return [...direct, ...derived];
+    return [...direct, ...derived].filter(edge => {
+      if (edge.type === 'broader_partitive' || edge.type === 'narrower_partitive') {
+        const heUris = conceptPartitiveHyperedges.value;
+        return !heUris.some(he => he.parts.includes(edge.ref as string) || he.comprehensive === edge.ref);
+      }
+      return true;
+    });
   });
+
+  const VALID_MARKERS = new Set(['double', 'dashed']);
+
+  function validateHyperedgeMarkers(markers: Iterable<string>): ('double' | 'dashed')[] {
+    const out: ('double' | 'dashed')[] = [];
+    for (const m of markers) {
+      if (!VALID_MARKERS.has(m)) {
+        throw new Error(`Invalid partitive hyperedge marker: "${m}". Allowed: double, dashed`);
+      }
+      out.push(m as 'double' | 'dashed');
+    }
+    return out;
+  }
+
+  function resolveLocalizedContent(content: unknown): string | undefined {
+    if (content == null) return undefined;
+    if (typeof content === 'string') return content;
+    if (typeof content === 'object' && content !== null) {
+      const obj = content as Record<string, string>;
+      return obj[registerId.value] ?? obj.default ?? obj.eng ?? Object.values(obj)[0];
+    }
+    return undefined;
+  }
 
   // Concept-level partitive hyperedges (one-to-many decompositions).
   // Each hyperedge is resolved to concrete target URIs for display.
@@ -133,8 +162,8 @@ export function useConceptEdges(
           comprehensive,
           parts,
           enumeration: he.isOpen ? 'open' : 'closed',
-          markers: he.markers.filter((m): m is 'double' | 'dashed' => m === 'double' || m === 'dashed'),
-          label: he.content ?? undefined,
+          markers: validateHyperedgeMarkers(he.markers),
+          label: resolveLocalizedContent(he.content),
           register: registerId.value,
         };
       })

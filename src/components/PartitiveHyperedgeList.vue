@@ -19,6 +19,7 @@ import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { getFactory } from '../adapters/factory';
 import { useI18n } from '../i18n';
+import { hyperedgeStyle, markerColor, enumerationLabel } from '../utils/hyperedge-styling';
 import { conceptIdFromUri } from '../utils/concept-helpers';
 
 const props = defineProps<{

@@ -28,14 +28,18 @@ function extractPartitiveHyperedges(
       .map(resolveConceptUri)
       .filter((p: string | null): p is string => !!p && p !== sourceUri);
     if (parts.length === 0) continue;
+    const rawMarkers = he['gl:hasPluralityMarker'] || [];
+    for (const m of rawMarkers) {
+      if (m !== 'double' && m !== 'dashed') {
+        throw new Error(`Invalid partitive hyperedge marker: "${m}". Allowed: double, dashed`);
+      }
+    }
     hyperedges.push({
       source: sourceUri,
       comprehensive,
       parts,
       enumeration: he['gl:enumeration'] || 'closed',
-      markers: (he['gl:hasPluralityMarker'] || []).filter(
-        (m: string) => m === 'double' || m === 'dashed',
-      ),
+      markers: rawMarkers as ('double' | 'dashed')[],
       label: he['gl:content'] || undefined,
       register: registerId,
     });
@@ -127,7 +131,7 @@ describe('extractPartitiveHyperedges', () => {
     expect(he.markers).toEqual(['double', 'dashed']);
   });
 
-  it('filters invalid marker values', () => {
+  it('throws on invalid marker values', () => {
     const concept = {
       '@id': sourceUri,
       'gl:partitiveHyperedges': [
@@ -138,8 +142,7 @@ describe('extractPartitiveHyperedges', () => {
         },
       ],
     };
-    const [he] = extractPartitiveHyperedges(concept, registerId, uriBase, urnMap);
-    expect(he.markers).toEqual(['double']);
+    expect(() => extractPartitiveHyperedges(concept, registerId, uriBase, urnMap)).toThrow(/Invalid.*marker.*dotted/);
   });
 
   it('skips a hyperedge whose comprehensive cannot be resolved', () => {
