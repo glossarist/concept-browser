@@ -287,7 +287,7 @@ function attachBridges(concept: Concept, localizations: Record<string, unknown>)
  * instances, since RelatedConcept.fromJSON only reads type/content/ref.
  */
 function attachRelatedBridges(
-  modelRelated: Array<{ type?: string | null; content?: string | null; ref?: any; related?: any[] }>,
+  modelRelated: Array<{ type?: string | null; content?: Record<string, string> | string | null; ref?: any; related?: any[] }>,
   rawRelated: unknown[],
 ): void {
   for (const rawRel of rawRelated) {

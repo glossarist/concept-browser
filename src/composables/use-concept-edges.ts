@@ -198,8 +198,15 @@ export function useConceptEdges(
     return resolvedRefs.value.get(key) ?? { target: resolveRelatedRef(ref) };
   }
 
-  function relatedLabel(dr: { content?: string | null; ref?: { source: string | null; id: string | null } | null }): string {
-    if (dr.content) return dr.content;
+  function relatedLabel(dr: { content?: Record<string, string> | string | null; ref?: { source: string | null; id: string | null } | null }): string {
+    if (dr.content) {
+      // Content is a localized hash { eng: "...", fra: "..." }.
+      // Legacy data may still carry a plain string; tolerate both.
+      const c = dr.content as Record<string, string> | string;
+      if (typeof c === 'string') return c;
+      const values = Object.values(c);
+      if (values.length > 0) return values[0];
+    }
     const resolved = dr.ref ? getResolvedRef(dr.ref).target : null;
     if (resolved) {
       const m = store.manifests.get(resolved.registerId);
