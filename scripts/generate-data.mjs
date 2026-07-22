@@ -15,7 +15,7 @@ import { buildBibliographyTurtle } from './lib/bibliography-turtle.mjs';
 import { ttlLit } from './lib/turtle-escape.mjs';
 import { firstNonEmpty } from './lib/first-non-empty.mjs';
 function buildConceptUri(uriBase, registerId, conceptId) {
-  return buildConceptUri(uriBase, registerId, conceptId);
+  return `${uriBase}/${registerId}/concept/${conceptId}`;
 }
 
 
@@ -695,7 +695,7 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
         out['gl:hasPluralityMarker'] = [...he.markers];
       }
       if (he.content) {
-        out['gl:content'] = he.content;
+        out['gl:content'] = typeof he.content === 'string' ? { default: he.content } : he.content;
       }
       return out;
     });

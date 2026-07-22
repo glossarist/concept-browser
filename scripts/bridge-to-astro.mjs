@@ -1,5 +1,5 @@
 function buildConceptUri(uriBase, registerId, conceptId) {
-  return buildConceptUri(uriBase, registerId, conceptId);
+  return `${uriBase}/${registerId}/concept/${conceptId}`;
 }
 
 
