@@ -114,10 +114,12 @@ export function useConceptEdges(
       });
     return [...direct, ...derived].filter(edge => {
       if (edge.type === 'broader_partitive' || edge.type === 'narrower_partitive') {
+        const refUri = resolveRefUri(edge.ref as { source: string | null; id: string | null } | null);
+        if (!refUri) return true;
         const rels = conceptPartitiveRelations.value;
         return !rels.some(rel =>
-          rel.comprehensive === edge.ref
-          || rel.partitives.some(m => m.uri === edge.ref),
+          rel.comprehensive === refUri
+          || rel.partitives.some(m => m.uri === refUri),
         );
       }
       return true;
@@ -164,10 +166,10 @@ export function useConceptEdges(
           register: registerId.value,
         };
       })
-      .filter((he): he is PartitiveRelation => he !== null);
+      .filter((he: PartitiveRelation | null): he is PartitiveRelation => he !== null);
   });
 
-  function resolveRefUri(ref: { source?: string | null; id?: string | null } | null): string | null {
+  function resolveRefUri(ref: { source: string | null; id: string | null } | null): string | null {
     const target = resolveRelatedRef(ref);
     if (!target) return null;
     const m = store.manifests.get(target.registerId);
