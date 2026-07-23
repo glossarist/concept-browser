@@ -12,7 +12,7 @@ These bridges in `src/adapters/model-bridge.ts` manually map fields between JSON
 | 4 | `relatedSourceId` | `RelatedConcept` | `WeakMap` | Pending upstream |
 | 5 | `relatedCitation` | `RelatedConcept` | `WeakMap` | Pending upstream |
 | 6 | `sourcedFrom` | `ConceptSource` | Inline attach | Pending upstream |
-| 7 | `partitiveHyperedges` | `ManagedConcept` | Computed | Pending upstream |
+| 7 | `partitiveRelations` | `ManagedConcept` | Computed | Pending upstream bump |
 
 ## Removal Criteria
 

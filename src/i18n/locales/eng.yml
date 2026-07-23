@@ -58,6 +58,10 @@ concept.example: Example
 concept.sources: Sources
 concept.designations: Designations
 concept.relations: Relations
+concept.partitiveRelations: Partitive relations
+partitive.relations: Partitive relations
+partitive.plurality.shared: shared type
+partitive.plurality.uncertain: uncertain
 concept.classification: Classification
 concept.domains: Domains
 concept.tags: Tags
