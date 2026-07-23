@@ -1,8 +1,14 @@
 <script setup lang="ts">
 /**
  * DatasetGroupRenderer — OCP dispatcher. Maps group.kind to the
- * appropriate sidebar renderer component. New kinds: add entry to
- * GROUP_RENDERERS + new component. Zero edits to existing code.
+ * appropriate sidebar renderer component.
+ *
+ * Adding a new kind: add an entry to GROUP_RENDERERS + create the new
+ * sidebar component. Zero edits to existing components or to
+ * AppSidebar.
+ *
+ * Forwards the `expanded` slot scoped per-entry so callers can render
+ * shared per-entry content (sub-pages, sections, etc.) regardless of kind.
  */
 import { computed } from 'vue';
 import { groupRendererFor } from '../../config/group-renderers';
@@ -28,5 +34,9 @@ const renderer = computed(() => groupRendererFor(resolveGroupKind({ kind: props.
 </script>
 
 <template>
-  <component :is="renderer" :entries="entries" :current-dataset="currentDataset" />
+  <component :is="renderer" :entries="entries" :current-dataset="currentDataset">
+    <template #expanded="slotProps">
+      <slot name="expanded" v-bind="slotProps" />
+    </template>
+  </component>
 </template>

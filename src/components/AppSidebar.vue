@@ -6,6 +6,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useDsStyle } from '../utils/dataset-style';
 import { useSiteConfig } from '../config/use-site-config';
 import NavIcon from './NavIcon.vue';
+import DatasetGroupRenderer from './groups/DatasetGroupRenderer.vue';
 import { useI18n, locale } from '../i18n';
 import type { SectionNode } from '../adapters/types';
 import { toSectionTree } from '../utils/section-tree';
@@ -284,61 +285,17 @@ const activeSectionId = computed(() => {
             <span class="text-[9px] uppercase tracking-wide text-ink-300 dark:text-ink-500 font-sans">{{ groupTypeMeta(group).label }}</span>
           </button>
 
-          <!-- Group entries -->
-          <div v-if="isGroupExpanded(group.id)" class="space-y-1" :class="group.label ? 'ml-1' : ''">
-            <!-- Per-entry rendering: button is kind-specific, expansion is shared (DRY/MECE) -->
-            <div
-              v-for="ds in group.entries"
-              :key="ds.id"
-              class="rounded-lg transition-all duration-150"
-              :class="currentDataset === ds.id ? 'bg-surface' : ''"
-            >
-              <!-- LINEAGE: compact timeline button -->
-              <button
-                v-if="group.kind === 'lineage'"
-                @click="goToDataset(ds.id)"
-                class="series-entry w-full text-left flex items-center gap-2 pl-6 pr-3 py-1.5 rounded-md text-sm border-l-2 transition-all duration-150"
-                :class="currentDataset === ds.id
-                  ? 'bg-amber-50/70 dark:bg-amber-400/10 border-l-[3px] text-ink-900 dark:text-ink-50 font-semibold'
-                  : 'border-transparent text-ink-600 dark:text-ink-300 hover:bg-ink-50 dark:hover:bg-ink-700/40 hover:text-ink-900 dark:hover:text-ink-50'"
-                :style="currentDataset === ds.id ? { borderLeftColor: 'var(--gold-accent, #B8935A)' } : {}"
-              >
-                <span class="flex-1 truncate text-[13.5px] font-medium leading-snug">{{ ds.ref || ds.title || ds.id }}</span>
-                <span
-                  v-if="ds.status && ds.status !== 'valid'"
-                  class="text-[9px] uppercase tracking-wide italic text-ink-400 dark:text-ink-400"
-                >{{ ds.status }}</span>
-                <span
-                  v-if="ds.isCurrent"
-                  class="current-star flex-shrink-0"
-                  title="Current edition"
-                >✦</span>
-              </button>
-
-              <!-- DEFAULT/OTHER: standard entry button -->
-              <button
-                v-else
-                @click="goToDataset(ds.id)"
-                class="w-full text-left px-3 py-2 rounded-lg text-sm border-l-2 flex items-start gap-2"
-                :class="[
-                  currentDataset === ds.id
-                    ? 'text-ink-800 dark:text-ink-50'
-                    : 'border-transparent text-ink-600 dark:text-ink-300 hover:bg-ink-50 dark:hover:bg-ink-700 hover:text-ink-800 dark:hover:text-ink-50'
-                ]"
-                :style="{ borderLeftColor: currentDataset === ds.id ? getColor(ds.id) : 'transparent' }"
-              >
-                <span class="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" :style="{ backgroundColor: getColor(ds.id) }"></span>
-                <div class="min-w-0 flex-1">
-                  <div class="font-medium truncate leading-snug">{{ localizedDatasetField(ds.id, 'title', ds.title) }}</div>
-                  <div v-if="ds.loaded" class="text-xs mt-0.5" :class="currentDataset === ds.id ? 'text-ink-400 dark:text-ink-300' : 'text-ink-300 dark:text-ink-400'">
-                    {{ ds.conceptCount.toLocaleString() }} {{ t('home.concepts').toLowerCase() }}
-                  </div>
-                </div>
-              </button>
-
-              <!-- SHARED expansion content: sub-pages + sections + provenance.
-                   Appears for the active dataset in ALL group kinds (DRY). -->
-              <div v-if="currentDataset === ds.id && (filteredDatasetPages.length || provenance.owner)" class="px-2 pb-2">
+          <!-- Group entries: dispatch to kind-specific renderer (OCP).
+               Shared expansion content lives in the `expanded` slot so
+               it stays identical across kinds (DRY/MECE). -->
+          <DatasetGroupRenderer
+            v-if="isGroupExpanded(group.id)"
+            :kind="group.kind"
+            :entries="group.entries"
+            :current-dataset="currentDataset"
+          >
+            <template #expanded="{ entry: ds, isCurrent }">
+              <div v-if="isCurrent && (filteredDatasetPages.length || provenance.owner)" class="px-2 pb-2">
                 <nav v-if="filteredDatasetPages.length" class="space-y-0.5 mt-1">
                   <router-link
                     v-for="page in filteredDatasetPages"
@@ -410,8 +367,8 @@ const activeSectionId = computed(() => {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </template>
+          </DatasetGroupRenderer>
         </div>
       </template>
 

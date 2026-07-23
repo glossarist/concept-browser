@@ -137,7 +137,12 @@ export const FORMAT_LABELS: Record<string, string> = {
 
 // === Pages ===
 
-export type PageType = 'page' | 'news' | 'contributors' | 'about' | 'stats' | 'custom';
+/**
+ * Page type tag. Any string is allowed — built-in tags are listed in
+ * `page-types.ts` PAGE_TYPES registry. Adding a new built-in type is
+ * a registry entry, not an edit to this union.
+ */
+export type PageType = string;
 
 export interface PageConfig {
   type: PageType;

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { computed } from 'vue';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useDsStyle } from '../utils/dataset-style';
 import { useDatasetLoader } from '../composables/use-dataset-loader';
+import { useDatasetStats } from '../composables/use-dataset-stats';
 import { langName, langLabel } from '../utils/lang';
 import { useI18n } from '../i18n';
 
@@ -11,6 +12,7 @@ const props = defineProps<{ registerId?: string }>();
 const store = useVocabularyStore();
 const { getColor } = useDsStyle();
 const { loading, localError, ensureLoaded, resolvedId } = useDatasetLoader(() => props.registerId);
+const { stats: statsData, reload: reloadStats } = useDatasetStats(resolvedId);
 const { t } = useI18n();
 
 const manifest = computed(() => store.manifests.get(resolvedId.value));
@@ -54,26 +56,6 @@ function coverageColor(ratio: number): string {
   return 'bg-red-400';
 }
 
-interface StatsData {
-  sourceCount: number;
-  sources: Array<{ ref: string; types: string[]; conceptCount: number }>;
-  relationshipCount: number;
-  relationshipTypes: Record<string, number>;
-}
-
-const statsData = ref<StatsData | null>(null);
-
-async function loadStats() {
-  if (!resolvedId.value) return;
-  const base = import.meta.env.BASE_URL;
-  try {
-    const resp = await fetch(`${base}data/${resolvedId.value}/stats.json`);
-    if (resp.ok) statsData.value = await resp.json();
-  } catch {}
-}
-
-watch(() => resolvedId.value, () => { loadStats(); }, { immediate: true });
-
 const relEntries = computed(() => {
   if (!statsData.value?.relationshipTypes) return [];
   return Object.entries(statsData.value.relationshipTypes)
@@ -91,6 +73,11 @@ function sourceTypeBadge(type: string): string {
   if (type === 'authoritative') return 'badge-green';
   if (type === 'lineage') return 'badge-yellow';
   return 'badge-gray';
+}
+
+async function reloadAll() {
+  await ensureLoaded();
+  reloadStats();
 }
 </script>
 
@@ -115,7 +102,7 @@ function sourceTypeBadge(type: string): string {
       <div class="card p-8 border-red-200 bg-red-50/50 text-center">
         <p class="text-red-700 font-medium mb-1">{{ t('stats.failedToLoad') }}</p>
         <p class="text-sm text-red-600/80 mb-4">{{ localError }}</p>
-        <button @click="ensureLoaded" class="btn-primary">{{ t('stats.retry') }}</button>
+        <button @click="reloadAll" class="btn-primary">{{ t('stats.retry') }}</button>
       </div>
     </template>
     <template v-else-if="manifest">

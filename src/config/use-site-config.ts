@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue';
 import type { PageConfig, SiteColors } from './types';
 import type { DatasetGroup } from './types';
+import { synthesizePages } from './page-types';
 import { locale } from '../i18n';
 
 export interface RuntimeSiteConfig {
@@ -128,43 +129,26 @@ function synthesizeGlobalPages(features?: Record<string, unknown>, pages?: PageC
   const declared = pages?.filter(p => !p.datasetScoped) ?? [];
   const declaredRoutes = new Set(declared.map(p => p.route));
 
-  const result: PageConfig[] = [
-    { type: 'custom', route: '', title: 'Home', icon: 'home' },
-  ];
-  if (features?.search !== false && !declaredRoutes.has('search')) {
-    result.push({ type: 'custom', route: 'search', title: 'Search', icon: 'search' });
-  }
-  if (features?.graph !== false && !declaredRoutes.has('graph')) {
-    result.push({ type: 'custom', route: 'graph', title: 'Graph', icon: 'graph' });
-  }
-  if (features?.ontology !== false && !declaredRoutes.has('ontology')) {
-    result.push({ type: 'custom', route: 'ontology', title: 'Ontology', icon: 'schema' });
-  }
-  if (features?.news && !declaredRoutes.has('news')) {
-    result.push({ type: 'news', route: 'news', title: 'News', icon: 'newspaper' });
-  }
+  const synthesized = synthesizePages('global', features, declaredRoutes)
+    .map(p => ({ type: p.type, route: p.route, title: p.title, icon: p.icon }));
 
-  return [...result, ...declared];
+  return [...synthesized, ...declared];
 }
 
 function synthesizeDatasetPages(features?: Record<string, unknown>, pages?: PageConfig[]): PageConfig[] {
   const declared = pages?.filter(p => p.datasetScoped) ?? [];
   const declaredRoutes = new Set(declared.map(p => p.route));
 
-  const result: PageConfig[] = [
-    { type: 'custom', route: '', title: 'Concepts', icon: 'list', datasetScoped: true },
-  ];
-  if (features?.stats !== false && !declaredRoutes.has('stats')) {
-    result.push({ type: 'stats', route: 'stats', title: 'Statistics', icon: 'chart', datasetScoped: true });
-  }
-  if (!declaredRoutes.has('sources')) {
-    result.push({ type: 'sources', route: 'sources', title: 'Sources', icon: 'database', datasetScoped: true });
-  }
-  if (features?.about !== false && !declaredRoutes.has('about')) {
-    result.push({ type: 'about', route: 'about', title: 'About', icon: 'info', datasetScoped: true });
-  }
+  const synthesized = synthesizePages('dataset', features, declaredRoutes)
+    .map(p => ({
+      type: p.type,
+      route: p.route,
+      title: p.title,
+      icon: p.icon,
+      datasetScoped: true as const,
+    }));
 
-  return [...result, ...declared];
+  return [...synthesized, ...declared];
 }
 
 export function useSiteConfig() {

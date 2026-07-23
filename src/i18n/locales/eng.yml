@@ -58,6 +58,8 @@ concept.example: Example
 concept.sources: Sources
 concept.designations: Designations
 concept.relations: Relations
+concept.compareWith: Compare with this edition
+concept.compareEditions: Compare editions
 concept.partitiveRelations: Partitive relations
 partitive.relations: Partitive relations
 partitive.plurality.shared: shared type

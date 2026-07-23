@@ -5,6 +5,7 @@ import { useVocabularyStore } from '../stores/vocabulary';
 import { useUiStore } from '../stores/ui';
 import { useDsStyle } from '../utils/dataset-style';
 import { useDatasetLoader } from '../composables/use-dataset-loader';
+import { useDatasetStats } from '../composables/use-dataset-stats';
 import { FORMAT_LABELS } from '../config/types';
 import { langName, langLabel, sortLanguages } from '../utils/lang';
 import ConceptCard from '../components/ConceptCard.vue';
@@ -21,6 +22,7 @@ const store = useVocabularyStore();
 const uiStore = useUiStore();
 const { getStyle } = useDsStyle();
 const { ensureLoaded, loading, localError } = useDatasetLoader(() => props.registerId);
+const { stats: datasetStats } = useDatasetStats(() => props.registerId);
 const { t } = useI18n();
 const { localizedDatasetField } = useSiteConfig();
 const route = useRoute();
@@ -331,10 +333,10 @@ function clearSection() {
         <router-link :to="{ name: 'about', params: { registerId } }" class="badge badge-purple hover:opacity-80 transition-opacity">
           {{ t('nav.about') }}
         </router-link>
-        <router-link v-if="manifest.sourceCount" :to="{ name: 'sources', params: { registerId } }" class="badge badge-gray hover:opacity-80 transition-opacity">
-          {{ manifest.sourceCount }} {{ t('dataset.sources') }}
+        <router-link v-if="datasetStats?.sourceCount" :to="{ name: 'sources', params: { registerId } }" class="badge badge-gray hover:opacity-80 transition-opacity">
+          {{ datasetStats.sourceCount }} {{ t('dataset.sources') }}
         </router-link>
-        <span v-if="manifest.relationshipCount" class="badge badge-yellow">{{ manifest.relationshipCount.toLocaleString() }} {{ t('dataset.relationships') }}</span>
+        <span v-if="datasetStats?.relationshipCount" class="badge badge-yellow">{{ datasetStats.relationshipCount.toLocaleString() }} {{ t('dataset.relationships') }}</span>
       </div>
     </div>
 
