@@ -149,29 +149,34 @@ export interface GraphEdge {
 }
 
 /**
- * One-to-many partitive decomposition with optional plurality markers
- * and enumeration completeness (open vs closed).
+ * One-to-many partitive decomposition (ISO 704 partitive relation).
  *
- * Independent of {@link GraphEdge} (which stays binary). The UI renders
- * hyperedges specially (rake visualisation, enumeration/marker badges).
+ * Connects a comprehensive concept to two or more partitive concepts
+ * which together constitute the comprehensive. Independent of binary
+ * {@link GraphEdge} (which stays pairwise).
  *
- * See concept-model/TODO.hyperedge/00-design-overview.md.
+ * v2 redesign: renamed from PartitiveHyperedge, restructured fields
+ * per ISO 704 / 1087-1 / 12620 alignment.
  */
-export interface PartitiveHyperedge {
-  /** URI of the concept that owns this hyperedge (the source). */
+export interface PartitiveRelation {
   source: string;
-  /** URI of the comprehensive (whole) concept — usually equals `source`. */
   comprehensive: string;
-  /** URIs of the partitive concepts. At least one. */
-  parts: string[];
-  /** 'closed' (all parts encoded) or 'open' (partial). Defaults to 'closed'. */
-  enumeration: 'closed' | 'open';
-  /** Diagram notation flags. Empty array if none. */
-  markers: ('double' | 'dashed')[];
-  /** Optional human-readable label/note. */
-  label?: string;
-  /** Owning dataset id. */
+  partitives: PartitiveMember[];
+  completeness: 'complete' | 'partial';
+  plurality: TypeSharedPlurality | null;
+  criterion?: Record<string, string>;
   register: string;
+}
+
+export interface PartitiveMember {
+  uri: string;
+  certainty: 'confirmed' | 'possible';
+}
+
+export interface TypeSharedPlurality {
+  isShared: boolean;
+  isUncertain: boolean;
+  sharedType?: string;
 }
 
 export interface GraphNode {

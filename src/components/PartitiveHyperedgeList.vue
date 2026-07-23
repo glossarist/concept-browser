@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * PartitiveHyperedgeList — renders one-to-many partitive decompositions
+ * PartitiveRelationList — renders one-to-many partitive decompositions
  * as grouped cards. Each hyperedge shows:
  *   - the comprehensive (whole) concept as the card header
  *   - the parts as indented children
@@ -14,7 +14,7 @@
  *
  * See concept-model/TODO.hyperedge/00-design-overview.md.
  */
-import type { PartitiveHyperedge, Manifest } from '../adapters/types';
+import type { PartitiveRelation, Manifest } from '../adapters/types';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { getFactory } from '../adapters/factory';
@@ -23,7 +23,7 @@ import { hyperedgeStyle, markerColor, enumerationLabel } from '../utils/hyperedg
 import { conceptIdFromUri } from '../utils/concept-helpers';
 
 const props = defineProps<{
-  hyperedges: PartitiveHyperedge[];
+  hyperedges: PartitiveRelation[];
   manifest: Manifest;
   registerId: string;
 }>();

@@ -65,7 +65,7 @@ function loadConceptFile(filePath) {
 
     // Managed concept-level fields
     if (mc.related) result._related = mc.related;
-    if (mc.partitive_hyperedges) result._partitiveHyperedges = mc.partitive_hyperedges;
+    if (mc.partitive_relations) result._partitiveRelations = mc.partitive_relations;
     if (mc.data.domains) result._domains = mc.data.domains;
     if (mc.dates) result._dates = mc.dates;
     if (mc.sources) result._sources = mc.sources;
@@ -679,20 +679,20 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
     });
   }
 
-  if (conceptYaml._partitiveHyperedges?.length > 0) {
-    doc['gl:partitiveHyperedges'] = conceptYaml._partitiveHyperedges.map(he => {
-      const out = { '@type': 'gl:PartitiveHyperedge' };
+  if (conceptYaml._partitiveRelations?.length > 0) {
+    doc['gl:partitiveRelations'] = conceptYaml._partitiveRelations.map(he => {
+      const out = { '@type': 'gl:PartitiveRelation' };
       if (he.comprehensive) {
         out['gl:comprehensive'] = refToJsonLd(he.comprehensive, 'gl:ConceptRef');
       }
       if (Array.isArray(he.parts) && he.parts.length > 0) {
-        out['gl:hasPart'] = he.parts.map(p => refToJsonLd(p, 'gl:ConceptRef'));
+        out['gl:hasPartitive'] = he.parts.map(p => refToJsonLd(p, 'gl:ConceptRef'));
       }
       if (he.enumeration) {
-        out['gl:enumeration'] = he.enumeration;
+        out['gl:completeness'] = he.enumeration;
       }
       if (Array.isArray(he.markers) && he.markers.length > 0) {
-        out['gl:hasPluralityMarker'] = [...he.markers];
+        out['gl:hasPlurality'] = [...he.markers];
       }
       if (he.content) {
         out['gl:content'] = typeof he.content === 'string' ? { default: he.content } : he.content;
@@ -952,7 +952,7 @@ async function processDataset(dir, register, opts) {
   const stats = {
     sourceMap: new Map(),
     relTypeCounts: {},
-    partitiveHyperedges: { count: 0, byEnumeration: { closed: 0, open: 0 }, byMarker: { double: 0, dashed: 0, none: 0 } },
+    partitiveRelations: { count: 0, byEnumeration: { closed: 0, open: 0 }, byMarker: { double: 0, dashed: 0, none: 0 } },
   };
 
   const STATS_PROCESSORS = [
@@ -977,16 +977,16 @@ async function processDataset(dir, register, opts) {
       }
     },
     function countHyperedges(cy, _termid, s) {
-      for (const he of cy._partitiveHyperedges || []) {
-        s.partitiveHyperedges.count += 1;
+      for (const he of cy._partitiveRelations || []) {
+        s.partitiveRelations.count += 1;
         const e = he.enumeration || 'closed';
-        s.partitiveHyperedges.byEnumeration[e] = (s.partitiveHyperedges.byEnumeration[e] || 0) + 1;
+        s.partitiveRelations.byEnumeration[e] = (s.partitiveRelations.byEnumeration[e] || 0) + 1;
         const markers = he.markers || [];
         if (markers.length === 0) {
-          s.partitiveHyperedges.byMarker.none += 1;
+          s.partitiveRelations.byMarker.none += 1;
         } else {
           for (const m of markers) {
-            s.partitiveHyperedges.byMarker[m] = (s.partitiveHyperedges.byMarker[m] || 0) + 1;
+            s.partitiveRelations.byMarker[m] = (s.partitiveRelations.byMarker[m] || 0) + 1;
           }
         }
       }
@@ -1159,7 +1159,7 @@ async function processDataset(dir, register, opts) {
     sources: sourceStats,
     relationshipCount: totalRelationships,
     relationshipTypes: stats.relTypeCounts,
-    partitiveHyperedges: stats.partitiveHyperedges,
+    partitiveRelations: stats.partitiveRelations,
   });
 
   const manifest = {

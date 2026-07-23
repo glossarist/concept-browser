@@ -4,7 +4,7 @@ function buildConceptUri(uriBase, registerId, conceptId) {
 
 const VALID_MARKERS = new Set(['double', 'dashed']);
 
-function validateHyperedgeMarkers(markers) {
+function validateRelationFields(markers) {
   const out = [];
   for (const m of markers) {
     if (!VALID_MARKERS.has(m)) {
@@ -146,7 +146,7 @@ function extractRelated(concept, registerId, uriBase, urnMap) {
 }
 
 /**
- * Extracts partitive hyperedges from a concept's gl:partitiveHyperedges
+ * Extracts partitive hyperedges from a concept's gl:partitiveRelations
  * array. Returns hyperedge objects (NOT binary GraphEdges) so the UI
  * can render them with their full set-based semantics: comprehensive +
  * parts together, enumeration completeness (open vs closed), and
@@ -155,16 +155,16 @@ function extractRelated(concept, registerId, uriBase, urnMap) {
  * Hyperedges are written to a separate hyperedges.json file, keeping
  * edges.json binary-only.
  */
-function extractPartitiveHyperedges(concept, registerId, uriBase, urnMap) {
+function extractPartitiveRelations(concept, registerId, uriBase, urnMap) {
   const hyperedges = [];
   const sourceUri = concept['@id'];
-  for (const he of concept['gl:partitiveHyperedges'] || []) {
+  for (const he of concept['gl:partitiveRelations'] || []) {
     const compRef = he['gl:comprehensive'];
     if (!compRef) continue;
     const comprehensive = resolveConceptUri(compRef, uriBase, urnMap);
     if (!comprehensive) continue;
 
-    const parts = (he['gl:hasPart'] || [])
+    const parts = (he['gl:hasPartitive'] || [])
       .map(p => resolveConceptUri(p, uriBase, urnMap))
       .filter(p => p && p !== sourceUri);
 
@@ -174,8 +174,8 @@ function extractPartitiveHyperedges(concept, registerId, uriBase, urnMap) {
       source: sourceUri,
       comprehensive,
       parts,
-      enumeration: he['gl:enumeration'] || 'closed',
-      markers: validateHyperedgeMarkers(he['gl:hasPluralityMarker'] || []),
+      enumeration: he['gl:completeness'] || 'closed',
+      markers: validateRelationFields(he['gl:hasPlurality'] || []),
       label: normalizeHyperedgeContent(he['gl:content']),
       register: registerId,
     });
@@ -220,7 +220,7 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest)
       const data = JSON.parse(readFileSync(join(conceptsDir, file), 'utf-8'));
       const edges = extractAllEdges(data, registerId, uriBase, urnMap);
       allEdges.push(...edges);
-      allHyperedges.push(...extractPartitiveHyperedges(data, registerId, uriBase, urnMap));
+      allHyperedges.push(...extractPartitiveRelations(data, registerId, uriBase, urnMap));
       allSourceRefs.push(...extractSourceRefs(data, registerId));
 
       for (const edge of edges) {
@@ -260,13 +260,13 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest)
 
   // Write hyperedges.json (parallel to edges.json) for one-to-many
   // partitive decompositions. See TODO.hyperedge/00-design-overview.md.
-  const hyperedgesOutput = {
+  const relationsOutput = {
     registerId,
-    hyperedgeCount: allHyperedges.length,
-    hyperedges: allHyperedges,
+    relationCount: allHyperedges.length,
+    relations: allHyperedges,
   };
-  const hyperedgesPath = join(datasetDir, 'hyperedges.json');
-  writeFileSync(hyperedgesPath, JSON.stringify(hyperedgesOutput));
+  const relationsPath = join(datasetDir, 'partitive_relations.json');
+  writeFileSync(relationsPath, JSON.stringify(relationsOutput));
   console.log(`  Written ${allHyperedges.length} hyperedges to hyperedges.json (${(JSON.stringify(hyperedgesOutput).length / 1024).toFixed(1)} KB)`);
 
   // Build domain-nodes.json from manifest sections (authoritative source)
