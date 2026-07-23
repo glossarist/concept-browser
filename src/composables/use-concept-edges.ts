@@ -1,7 +1,7 @@
 import { computed, type ComputedRef } from 'vue';
 import type { Router } from 'vue-router';
-import type { Concept, PartitiveHyperedge as GlsPartitiveHyperedge, RelatedConcept } from 'glossarist';
-import type { Manifest, GraphEdge, PartitiveHyperedge } from '../adapters/types';
+import type { Concept, PartitiveRelation as GlsPartitiveRelation, RelatedConcept } from 'glossarist';
+import type { Manifest, GraphEdge, PartitiveRelation, PartitiveMember, TypeSharedPlurality } from '../adapters/types';
 import { getFactory } from '../adapters/factory';
 import { conceptUri } from '../adapters/model-bridge';
 import { UriRouter } from '../adapters/UriRouter';
@@ -114,7 +114,7 @@ export function useConceptEdges(
       });
     return [...direct, ...derived].filter(edge => {
       if (edge.type === 'broader_partitive' || edge.type === 'narrower_partitive') {
-        const heUris = conceptPartitiveHyperedges.value;
+        const heUris = conceptPartitiveRelations.value;
         return !heUris.some(he => he.parts.includes(edge.ref as string) || he.comprehensive === edge.ref);
       }
       return true;
@@ -123,7 +123,7 @@ export function useConceptEdges(
 
   const VALID_MARKERS = new Set(['double', 'dashed']);
 
-  function validateHyperedgeMarkers(markers: Iterable<string>): ('double' | 'dashed')[] {
+  function validateRelationFields(markers: Iterable<string>): ('double' | 'dashed')[] {
     const out: ('double' | 'dashed')[] = [];
     for (const m of markers) {
       if (!VALID_MARKERS.has(m)) {
@@ -147,27 +147,43 @@ export function useConceptEdges(
   // Concept-level partitive hyperedges (one-to-many decompositions).
   // Each hyperedge is resolved to concrete target URIs for display.
   // Independent of binary `conceptRelated` — see TODO.hyperedge/00.
-  const conceptPartitiveHyperedges = computed<PartitiveHyperedge[]>(() => {
+  const conceptPartitiveRelations = computed<PartitiveRelation[]>(() => {
     const source = conceptUriValue.value;
-    return (concept.value.partitiveHyperedges ?? [])
-      .map((he: GlsPartitiveHyperedge): PartitiveHyperedge | null => {
+    const relations = (concept.value as any).partitiveRelations ?? (concept.value as any).partitiveHyperedges ?? [];
+    return relations
+      .map((he: any): PartitiveRelation | null => {
         const comprehensive = resolveRefUri(he.comprehensive);
         if (!comprehensive) return null;
-        const parts = he.parts
-          .map(resolveRefUri)
-          .filter((u): u is string => !!u && u !== source);
-        if (parts.length === 0) return null;
+        const rawPartitives = he.partitives ?? he.parts ?? [];
+        const partitives: PartitiveMember[] = rawPartitives
+          .map((p: any): PartitiveMember | null => {
+            const ref = p.ref ?? p;
+            const uri = resolveRefUri(ref);
+            if (!uri || uri === source) return null;
+            return { uri, certainty: p.certainty ?? 'confirmed' };
+          })
+          .filter((m: PartitiveMember | null): m is PartitiveMember => m !== null);
+        if (partitives.length === 0) return null;
+
+        const plurality: TypeSharedPlurality | null = he.plurality
+          ? {
+              isShared: he.plurality.isShared ?? he.plurality.is_shared ?? false,
+              isUncertain: he.plurality.isUncertain ?? he.plurality.is_uncertain ?? false,
+              sharedType: he.plurality.sharedType ?? he.plurality.shared_type,
+            }
+          : null;
+
         return {
           source,
           comprehensive,
-          parts,
-          enumeration: he.isOpen ? 'open' : 'closed',
-          markers: validateHyperedgeMarkers(he.markers),
-          label: resolveLocalizedContent(he.content),
+          partitives,
+          completeness: he.completeness === 'partial' || he.completeness === 'open' ? 'partial' : 'complete',
+          plurality,
+          criterion: he.criterion,
           register: registerId.value,
         };
       })
-      .filter((he): he is PartitiveHyperedge => he !== null);
+      .filter((he): he is PartitiveRelation => he !== null);
   });
 
   function resolveRefUri(ref: { source?: string | null; id?: string | null } | null): string | null {
@@ -244,7 +260,7 @@ export function useConceptEdges(
     edgeBadgeColor,
     inverseEdgeType,
     conceptRelated,
-    conceptPartitiveHyperedges,
+    conceptPartitiveRelations,
     resolveRelatedRef,
     getResolvedRef,
     relatedLabel,

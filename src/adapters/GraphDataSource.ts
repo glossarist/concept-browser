@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode, PartitiveHyperedge, SectionNode } from './types';
+import type { GraphEdge, GraphNode, PartitiveRelation, SectionNode } from './types';
 import type { Concept, RelatedConcept } from 'glossarist';
 import type { DatasetAdapter } from './DatasetAdapter';
 import { UriRouter } from './UriRouter';
@@ -58,11 +58,11 @@ export class GraphDataSource {
     return data.edges ?? [];
   }
 
-  async loadHyperedges(): Promise<PartitiveHyperedge[]> {
-    const resp = await fetch(`${this.baseUrl}/hyperedges.json`);
+  async loadPartitiveRelations(): Promise<PartitiveRelation[]> {
+    const resp = await fetch(`${this.baseUrl}/partitive_relations.json`);
     if (!resp.ok) return [];
     const data = await resp.json();
-    return data.hyperedges ?? [];
+    return data.relations ?? data.hyperedges ?? [];
   }
 
   async loadGraphNodes(): Promise<{ uriPrefix: string; nodes: [string, Record<string, string>, string][] }> {
