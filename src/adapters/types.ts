@@ -149,34 +149,39 @@ export interface GraphEdge {
 }
 
 /**
- * One-to-many partitive decomposition (ISO 704 partitive relation).
+ * Wire-shape projection of a PartitiveRelation — used by:
+ *   - build-edges.js output (partitive_relations.json)
+ *   - GraphDataSource (loads the wire file for tools/future consumers)
+ *   - use-concept-edges composable (projects the glossarist-js model
+ *     into this shape for display, resolving ConceptRef → URI)
  *
- * Connects a comprehensive concept to two or more partitive concepts
- * which together constitute the comprehensive. Independent of binary
- * {@link GraphEdge} (which stays pairwise).
+ * The glossarist-js `PartitiveRelation` class is the model SSOT
+ * (ConceptRef-based). This interface is the *resolved-for-display*
+ * shape — keep the two concerns separate.
  *
- * v2 redesign: renamed from PartitiveHyperedge, restructured fields
- * per ISO 704 / 1087-1 / 12620 alignment.
+ * Renamed from `PartitiveRelation` to avoid collision with the
+ * upstream model class. v2 shape per concept-model
+ * TODO.partitive-relation-v2.
  */
-export interface PartitiveRelation {
+export interface PartitiveRelationWire {
   source: string;
   comprehensive: string;
-  partitives: PartitiveMember[];
+  partitives: PartitiveMemberWire[];
   completeness: 'complete' | 'partial';
-  plurality: TypeSharedPlurality | null;
+  plurality: TypeSharedPluralityWire | null;
   criterion?: Record<string, string>;
   register: string;
 }
 
-export interface PartitiveMember {
+export interface PartitiveMemberWire {
   uri: string;
   certainty: 'confirmed' | 'possible';
 }
 
-export interface TypeSharedPlurality {
+export interface TypeSharedPluralityWire {
   isShared: boolean;
   isUncertain: boolean;
-  sharedType?: string;
+  sharedType?: string | null;
 }
 
 export interface GraphNode {

@@ -234,6 +234,37 @@ function extractAllEdges(concept, registerId, uriBase, urnMap) {
   return EXTRACTORS.flatMap(fn => fn(concept, registerId, uriBase, urnMap));
 }
 
+/**
+ * Per concept-model TODO.partitive-relation-v2 item 14:
+ * a PartitiveRelation A → {b, c, d} subsumes binary has_part edges
+ * for the same pairs. Warn (don't fail) when both encodings exist.
+ *
+ * Binary edge types considered partitive: has_part, is_part_of,
+ * broader_partitive, narrower_partitive.
+ */
+const BINARY_PARTITIVE_TYPES = new Set(['has_part', 'is_part_of', 'broader_partitive', 'narrower_partitive']);
+
+function warnBinaryPartitiveRedundancy(edges, relations, registerId) {
+  if (!relations?.length) return;
+  const partitivePairs = new Set();
+  for (const rel of relations) {
+    for (const member of rel.partitives ?? []) {
+      const memberUri = member.uri ?? member;
+      partitivePairs.add(`${rel.comprehensive}|${memberUri}`);
+      partitivePairs.add(`${memberUri}|${rel.comprehensive}`);
+    }
+  }
+  const redundant = edges.filter(e =>
+    BINARY_PARTITIVE_TYPES.has(e.type)
+    && partitivePairs.has(`${e.source}|${e.target}`),
+  );
+  if (redundant.length > 0) {
+    console.warn(
+      `  ⚠ ${registerId}: ${redundant.length} binary has_part/is_part_of edge(s) duplicate a PartitiveRelation member — prefer the PartitiveRelation encoding (concept-model TODO item 14).`,
+    );
+  }
+}
+
 // --- Build ---
 
 function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest) {
@@ -256,8 +287,10 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest)
     try {
       const data = JSON.parse(readFileSync(join(conceptsDir, file), 'utf-8'));
       const edges = extractAllEdges(data, registerId, uriBase, urnMap);
+      const relations = extractPartitiveRelations(data, registerId, uriBase, urnMap);
+      warnBinaryPartitiveRedundancy(edges, relations, registerId);
       allEdges.push(...edges);
-      allPartitiveRelations.push(...extractPartitiveRelations(data, registerId, uriBase, urnMap));
+      allPartitiveRelations.push(...relations);
       allSourceRefs.push(...extractSourceRefs(data, registerId));
 
       for (const edge of edges) {

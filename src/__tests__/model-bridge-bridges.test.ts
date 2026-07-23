@@ -135,8 +135,9 @@ describe('model-bridge — citation bridge round-trip', () => {
     const lc = concept.localization('eng')!;
     const rc = lc.related[0];
 
-    // All fields preserved through the bridge
-    expect(rc.content).toBe('entity');
+    // All fields preserved through the bridge (glossarist 0.4.20+
+    // normalizes content to a localized hash)
+    expect(rc.content).toEqual({ default: 'entity' });
     expect(getRelatedSourceId(rc)).toBe('vim-2.2');
 
     const citation = getRelatedCitation(rc)!;

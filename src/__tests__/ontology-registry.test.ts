@@ -3,12 +3,12 @@ import { ontology } from '../adapters/ontology-registry';
 
 describe('OntologyRegistry', () => {
   it('loads all 10 taxonomies', () => {
-    expect(ontology.getAll('conceptStatus').length).toBe(7);
+    expect(ontology.getAll('conceptStatus').length).toBe(8);
     expect(ontology.getAll('entryStatus').length).toBe(4);
     expect(ontology.getAll('normativeStatus').length).toBe(4);
     expect(ontology.getAll('sourceType').length).toBe(2);
     expect(ontology.getAll('sourceStatus').length).toBe(10);
-    expect(ontology.getAll('relationshipType').length).toBe(52);
+    expect(ontology.getAll('relationshipType').length).toBe(54);
     expect(ontology.getAll('designationType').length).toBe(5);
     expect(ontology.getAll('termType').length).toBe(24);
     expect(ontology.getAll('grammarGender').length).toBe(4);

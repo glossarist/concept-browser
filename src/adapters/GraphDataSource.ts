@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode, PartitiveRelation, SectionNode } from './types';
+import type { GraphEdge, GraphNode, PartitiveRelationWire, SectionNode } from './types';
 import type { Concept, RelatedConcept } from 'glossarist';
 import type { DatasetAdapter } from './DatasetAdapter';
 import { UriRouter } from './UriRouter';
@@ -30,6 +30,16 @@ function resolveRefTarget(rc: RelatedConcept, uriBase: string, registerId: strin
   return ref.source || '';
 }
 
+function contentLabel(content: unknown): string | undefined {
+  if (content == null) return undefined;
+  if (typeof content === 'string') return content;
+  if (typeof content === 'object' && content !== null) {
+    const obj = content as Record<string, string>;
+    return obj.default ?? obj.eng ?? Object.values(obj)[0];
+  }
+  return undefined;
+}
+
 export class GraphDataSource {
   constructor(private adapter: DatasetAdapter) {}
 
@@ -58,7 +68,7 @@ export class GraphDataSource {
     return data.edges ?? [];
   }
 
-  async loadPartitiveRelations(): Promise<PartitiveRelation[]> {
+  async loadPartitiveRelations(): Promise<PartitiveRelationWire[]> {
     const resp = await fetch(`${this.baseUrl}/partitive_relations.json`);
     if (!resp.ok) return [];
     const data = await resp.json();
@@ -90,7 +100,7 @@ export class GraphDataSource {
           source: sourceUri,
           target,
           type: rc.type || 'references',
-          label: rc.content || undefined,
+          label: contentLabel(rc.content),
           register: parsed?.registerId ?? this.registerId,
         });
       }
@@ -107,7 +117,7 @@ export class GraphDataSource {
             source: sourceUri,
             target,
             type: rc.type || 'references',
-            label: rc.content || undefined,
+            label: contentLabel(rc.content),
             register: parsed?.registerId ?? this.registerId,
             lang,
           });
