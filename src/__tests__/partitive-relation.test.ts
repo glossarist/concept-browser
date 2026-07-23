@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { PartitiveRelation } from '../adapters/types';
+import type { PartitiveRelationWire } from '../adapters/types';
 
 // Re-implements the extractor under test so we can test it in isolation
 // without spinning up the full build-edges.js pipeline. The production
@@ -9,8 +9,8 @@ function extractPartitiveRelations(
   registerId: string,
   uriBase: string,
   urnMap: Map<string, string>,
-): PartitiveRelation[] {
-  const relations: PartitiveRelation[] = [];
+): PartitiveRelationWire[] {
+  const relations: PartitiveRelationWire[] = [];
   const sourceUri = concept['@id'];
 
   const resolveConceptUri = (ref: any): string | null => {
@@ -65,7 +65,7 @@ function extractPartitiveRelations(
       comprehensive,
       partitives,
       completeness,
-      plurality: resolvePlurality(rel['gl:hasPlurality']) as PartitiveRelation['plurality'],
+      plurality: resolvePlurality(rel['gl:hasPlurality']) as PartitiveRelationWire['plurality'],
       criterion: rel['gl:criterion'],
       register: registerId,
     });

@@ -5,7 +5,7 @@ import {
   completenessLabel,
   certaintyLabel,
 } from '../utils/partitive-relation-styling';
-import type { TypeSharedPlurality } from '../adapters/types';
+import type { TypeSharedPluralityWire } from '../adapters/types';
 
 describe('partitive-relation-styling', () => {
   describe('partitiveRelationStyle', () => {
@@ -22,12 +22,12 @@ describe('partitive-relation-styling', () => {
     });
 
     it('uses blue badge class for isShared plurality', () => {
-      const p: TypeSharedPlurality = { isShared: true, isUncertain: false };
+      const p: TypeSharedPluralityWire = { isShared: true, isUncertain: false };
       expect(partitiveRelationStyle('complete', p, false).badgeClass).toBe('badge-blue');
     });
 
     it('uses yellow badge class when isShared + isUncertain', () => {
-      const p: TypeSharedPlurality = { isShared: true, isUncertain: true };
+      const p: TypeSharedPluralityWire = { isShared: true, isUncertain: true };
       expect(partitiveRelationStyle('complete', p, false).badgeClass).toBe('badge-yellow');
     });
 
@@ -38,19 +38,19 @@ describe('partitive-relation-styling', () => {
     });
 
     it('ignores plurality when isShared is false', () => {
-      const p: TypeSharedPlurality = { isShared: false, isUncertain: true };
+      const p: TypeSharedPluralityWire = { isShared: false, isUncertain: true };
       expect(partitiveRelationStyle('complete', p, false).badgeClass).toBe('badge-teal');
     });
   });
 
   describe('pluralityColor', () => {
     it('returns blue for isShared', () => {
-      const p: TypeSharedPlurality = { isShared: true, isUncertain: false };
+      const p: TypeSharedPluralityWire = { isShared: true, isUncertain: false };
       expect(pluralityColor(p, false)).toBe('#3b82f6');
     });
 
     it('returns amber when isUncertain', () => {
-      const p: TypeSharedPlurality = { isShared: true, isUncertain: true };
+      const p: TypeSharedPluralityWire = { isShared: true, isUncertain: true };
       expect(pluralityColor(p, false)).toBe('#f59e0b');
     });
 

@@ -60,7 +60,7 @@ describe('model-bridge — reference citation mapping via WeakMap bridges', () =
     const lc = concept.localization('eng')!;
     const related = lc.related;
     expect(related).toHaveLength(1);
-    expect(related[0].content).toBe('entity data type');
+    expect(related[0].content).toEqual({ default: 'entity data type' });
     expect(getRelatedSourceId(related[0])).toBe('iso-10303-2-def');
   });
 

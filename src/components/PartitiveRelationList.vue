@@ -13,7 +13,7 @@
  *
  * v2 shape per concept-model/TODO.partitive-relation-v2.
  */
-import type { PartitiveRelation, Manifest } from '../adapters/types';
+import type { PartitiveRelationWire, Manifest } from '../adapters/types';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { getFactory } from '../adapters/factory';
@@ -25,7 +25,7 @@ import {
 } from '../utils/partitive-relation-styling';
 
 const props = defineProps<{
-  relations: PartitiveRelation[];
+  relations: PartitiveRelationWire[];
   manifest: Manifest;
   registerId: string;
 }>();
@@ -67,7 +67,7 @@ function criterionText(criterion?: Record<string, string>): string | null {
     ?? null;
 }
 
-function pluralityBadge(plurality: NonNullable<PartitiveRelation['plurality']>): string {
+function pluralityBadge(plurality: NonNullable<PartitiveRelationWire['plurality']>): string {
   if (!plurality.isShared) return '';
   let label = t('partitive.plurality.shared') || 'shared type';
   if (plurality.isUncertain) {

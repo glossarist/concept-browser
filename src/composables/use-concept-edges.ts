@@ -1,7 +1,20 @@
 import { computed, type ComputedRef } from 'vue';
 import type { Router } from 'vue-router';
-import type { Concept, RelatedConcept } from 'glossarist';
-import type { Manifest, GraphEdge, PartitiveRelation, PartitiveMember, TypeSharedPlurality } from '../adapters/types';
+import type {
+  Concept,
+  RelatedConcept,
+  PartitiveRelation as GlsPartitiveRelation,
+  PartitiveMember as GlsPartitiveMember,
+  TypeSharedPlurality as GlsTypeSharedPlurality,
+  ConceptRef,
+} from 'glossarist';
+import type {
+  Manifest,
+  GraphEdge,
+  PartitiveRelationWire,
+  PartitiveMemberWire,
+  TypeSharedPluralityWire,
+} from '../adapters/types';
 import { getFactory } from '../adapters/factory';
 import { conceptUri } from '../adapters/model-bridge';
 import { UriRouter } from '../adapters/UriRouter';
@@ -127,47 +140,56 @@ export function useConceptEdges(
   });
 
   // Concept-level partitive relations (ISO 704 one-to-many decompositions).
-  // Each relation is resolved to concrete target URIs for display.
+  // Reads the glossarist-js native model (`concept.partitiveRelations`)
+  // and projects each relation into a URI-resolved wire shape for display.
   // Independent of binary `conceptRelated`.
   // v2 shape per concept-model/TODO.partitive-relation-v2.
-  const conceptPartitiveRelations = computed<PartitiveRelation[]>(() => {
+  const conceptPartitiveRelations = computed<PartitiveRelationWire[]>(() => {
     const source = conceptUriValue.value;
-    const relations = (concept.value as any).partitiveRelations ?? (concept.value as any).partitiveHyperedges ?? [];
+    const relations: readonly GlsPartitiveRelation[] = concept.value.partitiveRelations;
     return relations
-      .map((he: any): PartitiveRelation | null => {
-        const comprehensive = resolveRefUri(he.comprehensive);
+      .map((rel): PartitiveRelationWire | null => {
+        const comprehensive = resolveConceptRefUri(rel.comprehensive);
         if (!comprehensive) return null;
-        const rawPartitives = he.partitives ?? he.parts ?? [];
-        const partitives: PartitiveMember[] = rawPartitives
-          .map((p: any): PartitiveMember | null => {
-            const ref = p.ref ?? p;
-            const uri = resolveRefUri(ref);
+        const partitives: PartitiveMemberWire[] = rel.partitives
+          .map((m: GlsPartitiveMember): PartitiveMemberWire | null => {
+            const uri = resolveConceptRefUri(m.ref);
             if (!uri || uri === source) return null;
-            return { uri, certainty: p.certainty ?? 'confirmed' };
+            return { uri, certainty: m.certainty };
           })
-          .filter((m: PartitiveMember | null): m is PartitiveMember => m !== null);
+          .filter((m: PartitiveMemberWire | null): m is PartitiveMemberWire => m !== null);
         if (partitives.length === 0) return null;
-
-        const plurality: TypeSharedPlurality | null = he.plurality
-          ? {
-              isShared: he.plurality.isShared ?? he.plurality.is_shared ?? false,
-              isUncertain: he.plurality.isUncertain ?? he.plurality.is_uncertain ?? false,
-              sharedType: he.plurality.sharedType ?? he.plurality.shared_type,
-            }
-          : null;
 
         return {
           source,
           comprehensive,
           partitives,
-          completeness: he.completeness === 'partial' || he.completeness === 'open' ? 'partial' : 'complete',
-          plurality,
-          criterion: he.criterion,
+          completeness: rel.completeness,
+          plurality: projectPlurality(rel.plurality),
+          criterion: rel.criterion ?? undefined,
           register: registerId.value,
         };
       })
-      .filter((he: PartitiveRelation | null): he is PartitiveRelation => he !== null);
+      .filter((r: PartitiveRelationWire | null): r is PartitiveRelationWire => r !== null);
   });
+
+  function projectPlurality(p: GlsTypeSharedPlurality | null): TypeSharedPluralityWire | null {
+    if (!p) return null;
+    const sharedTypeRef: ConceptRef | null = p.sharedType;
+    const sharedType = sharedTypeRef
+      ? [sharedTypeRef.source, sharedTypeRef.id].filter(Boolean).join(':') || null
+      : null;
+    return {
+      isShared: p.isShared,
+      isUncertain: p.isUncertain,
+      sharedType,
+    };
+  }
+
+  function resolveConceptRefUri(ref: ConceptRef | null): string | null {
+    if (!ref) return null;
+    return resolveRefUri({ source: ref.source ?? null, id: ref.id ?? null });
+  }
 
   function resolveRefUri(ref: { source: string | null; id: string | null } | null): string | null {
     const target = resolveRelatedRef(ref);

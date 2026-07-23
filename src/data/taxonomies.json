@@ -45,6 +45,12 @@
         "iri": "gloss:status/retired",
         "prefLabel": "retired",
         "definition": "The concept has been retired from active use."
+      },
+      "external": {
+        "id": "external",
+        "iri": "gloss:status/external",
+        "prefLabel": "external",
+        "definition": "An external concept: referenced but not defined here. May be resolved later when another dataset is loaded (concept-model TODO.partitive-relation-v2 item 06)."
       }
     },
     "colors": {
@@ -54,7 +60,8 @@
       "not_valid": "bg-red-50 text-red-700",
       "invalid": "bg-red-50 text-red-700",
       "superseded": "bg-red-50 text-red-700",
-      "retired": "badge-gray"
+      "retired": "badge-gray",
+      "external": "bg-purple-50 text-purple-700"
     }
   },
   "entryStatus": {
@@ -263,6 +270,22 @@
         "definition": "This concept has been superseded by another concept.",
         "category": "lifecycle",
         "inverseOf": "supersedes"
+      },
+      "provides": {
+        "id": "provides",
+        "iri": "gloss:rel/provides",
+        "prefLabel": "provides",
+        "definition": "This concept provides substance for an external concept (one we reference but don't define). Direction: subject → external. Per concept-model TODO.partitive-relation-v2 item 07.",
+        "category": "lifecycle",
+        "inverseOf": "provided_by"
+      },
+      "provided_by": {
+        "id": "provided_by",
+        "iri": "gloss:rel/provided_by",
+        "prefLabel": "provided by",
+        "definition": "This external concept is provided by (fulfilled by) the object concept. Inverse of provides.",
+        "category": "lifecycle",
+        "inverseOf": "provides"
       },
       "compare": {
         "id": "compare",

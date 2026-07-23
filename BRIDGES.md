@@ -12,7 +12,12 @@ These bridges in `src/adapters/model-bridge.ts` manually map fields between JSON
 | 4 | `relatedSourceId` | `RelatedConcept` | `WeakMap` | Pending upstream |
 | 5 | `relatedCitation` | `RelatedConcept` | `WeakMap` | Pending upstream |
 | 6 | `sourcedFrom` | `ConceptSource` | Inline attach | Pending upstream |
-| 7 | `partitiveRelations` | `ManagedConcept` | Computed | Pending upstream bump |
+
+## Removed bridges
+
+| # | Field | Removed in | Reason |
+|---|-------|-----------|--------|
+| 7 | `partitiveRelations` | feat/partitive-v2-nativize | glossarist 0.4.20 ships native v2 model — `Concept.partitiveRelations` is the SSOT |
 
 ## Removal Criteria
 

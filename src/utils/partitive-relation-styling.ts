@@ -10,7 +10,7 @@
  * concept-model/TODO.partitive-relation-v2.
  */
 
-import type { TypeSharedPlurality } from '../adapters/types';
+import type { TypeSharedPluralityWire } from '../adapters/types';
 
 const BASE_LIGHT = '#0d9488';
 const BASE_DARK = '#2dd4bf';
@@ -27,7 +27,7 @@ export interface PartitiveRelationStyle {
 
 export function partitiveRelationStyle(
   completeness: 'complete' | 'partial',
-  plurality: TypeSharedPlurality | null,
+  plurality: TypeSharedPluralityWire | null,
   isDark: boolean,
 ): PartitiveRelationStyle {
   const base = isDark ? BASE_DARK : BASE_LIGHT;
@@ -45,7 +45,7 @@ export function partitiveRelationStyle(
 }
 
 export function pluralityColor(
-  plurality: TypeSharedPlurality,
+  plurality: TypeSharedPluralityWire,
   isDark: boolean,
 ): string {
   if (plurality.isUncertain) return isDark ? ACCENT_UNCERTAIN_DARK : ACCENT_UNCERTAIN_LIGHT;
