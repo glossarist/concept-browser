@@ -1,6 +1,6 @@
 import { computed, type ComputedRef } from 'vue';
 import type { Router } from 'vue-router';
-import type { Concept, PartitiveRelation as GlsPartitiveRelation, RelatedConcept } from 'glossarist';
+import type { Concept, RelatedConcept } from 'glossarist';
 import type { Manifest, GraphEdge, PartitiveRelation, PartitiveMember, TypeSharedPlurality } from '../adapters/types';
 import { getFactory } from '../adapters/factory';
 import { conceptUri } from '../adapters/model-bridge';
@@ -114,39 +114,20 @@ export function useConceptEdges(
       });
     return [...direct, ...derived].filter(edge => {
       if (edge.type === 'broader_partitive' || edge.type === 'narrower_partitive') {
-        const heUris = conceptPartitiveRelations.value;
-        return !heUris.some(he => he.parts.includes(edge.ref as string) || he.comprehensive === edge.ref);
+        const rels = conceptPartitiveRelations.value;
+        return !rels.some(rel =>
+          rel.comprehensive === edge.ref
+          || rel.partitives.some(m => m.uri === edge.ref),
+        );
       }
       return true;
     });
   });
 
-  const VALID_MARKERS = new Set(['double', 'dashed']);
-
-  function validateRelationFields(markers: Iterable<string>): ('double' | 'dashed')[] {
-    const out: ('double' | 'dashed')[] = [];
-    for (const m of markers) {
-      if (!VALID_MARKERS.has(m)) {
-        throw new Error(`Invalid partitive hyperedge marker: "${m}". Allowed: double, dashed`);
-      }
-      out.push(m as 'double' | 'dashed');
-    }
-    return out;
-  }
-
-  function resolveLocalizedContent(content: unknown): string | undefined {
-    if (content == null) return undefined;
-    if (typeof content === 'string') return content;
-    if (typeof content === 'object' && content !== null) {
-      const obj = content as Record<string, string>;
-      return obj[registerId.value] ?? obj.default ?? obj.eng ?? Object.values(obj)[0];
-    }
-    return undefined;
-  }
-
-  // Concept-level partitive hyperedges (one-to-many decompositions).
-  // Each hyperedge is resolved to concrete target URIs for display.
-  // Independent of binary `conceptRelated` — see TODO.hyperedge/00.
+  // Concept-level partitive relations (ISO 704 one-to-many decompositions).
+  // Each relation is resolved to concrete target URIs for display.
+  // Independent of binary `conceptRelated`.
+  // v2 shape per concept-model/TODO.partitive-relation-v2.
   const conceptPartitiveRelations = computed<PartitiveRelation[]>(() => {
     const source = conceptUriValue.value;
     const relations = (concept.value as any).partitiveRelations ?? (concept.value as any).partitiveHyperedges ?? [];

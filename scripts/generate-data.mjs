@@ -680,22 +680,44 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
   }
 
   if (conceptYaml._partitiveRelations?.length > 0) {
-    doc['gl:partitiveRelations'] = conceptYaml._partitiveRelations.map(he => {
+    doc['gl:partitiveRelations'] = conceptYaml._partitiveRelations.map(rel => {
       const out = { '@type': 'gl:PartitiveRelation' };
-      if (he.comprehensive) {
-        out['gl:comprehensive'] = refToJsonLd(he.comprehensive, 'gl:ConceptRef');
+      if (rel.comprehensive) {
+        out['gl:comprehensive'] = refToJsonLd(rel.comprehensive, 'gl:ConceptRef');
       }
-      if (Array.isArray(he.parts) && he.parts.length > 0) {
-        out['gl:hasPartitive'] = he.parts.map(p => refToJsonLd(p, 'gl:ConceptRef'));
+      if (Array.isArray(rel.partitives) && rel.partitives.length > 0) {
+        out['gl:hasPartitive'] = rel.partitives.map(member => {
+          const m = { '@type': 'gl:PartitiveMember' };
+          if (member.ref) {
+            m['gl:ref'] = refToJsonLd(member.ref, 'gl:ConceptRef');
+          } else {
+            m['gl:ref'] = refToJsonLd(member, 'gl:ConceptRef');
+          }
+          if (member.certainty) m['gl:certainty'] = member.certainty;
+          return m;
+        });
       }
-      if (he.enumeration) {
-        out['gl:completeness'] = he.enumeration;
+      if (rel.completeness) {
+        out['gl:completeness'] = rel.completeness;
       }
-      if (Array.isArray(he.markers) && he.markers.length > 0) {
-        out['gl:hasPlurality'] = [...he.markers];
+      if (rel.plurality) {
+        const pl = { '@type': 'gl:TypeSharedPlurality' };
+        pl['gl:isShared'] = rel.plurality.is_shared ?? rel.plurality.isShared ?? false;
+        if (rel.plurality.is_uncertain ?? rel.plurality.isUncertain) {
+          pl['gl:isUncertain'] = rel.plurality.is_uncertain ?? rel.plurality.isUncertain;
+        }
+        if (rel.plurality.shared_type ?? rel.plurality.sharedType) {
+          pl['gl:sharedType'] = refToJsonLd(
+            rel.plurality.shared_type ?? rel.plurality.sharedType,
+            'gl:ConceptRef',
+          );
+        }
+        out['gl:hasPlurality'] = pl;
       }
-      if (he.content) {
-        out['gl:content'] = typeof he.content === 'string' ? { default: he.content } : he.content;
+      if (rel.criterion) {
+        out['gl:criterion'] = typeof rel.criterion === 'string'
+          ? { default: rel.criterion }
+          : rel.criterion;
       }
       return out;
     });
@@ -952,7 +974,14 @@ async function processDataset(dir, register, opts) {
   const stats = {
     sourceMap: new Map(),
     relTypeCounts: {},
-    partitiveRelations: { count: 0, byEnumeration: { closed: 0, open: 0 }, byMarker: { double: 0, dashed: 0, none: 0 } },
+    partitiveRelations: {
+      count: 0,
+      byCompleteness: { complete: 0, partial: 0 },
+      byMemberCertainty: { confirmed: 0, possible: 0 },
+      withCriterion: 0,
+      withoutCriterion: 0,
+      withPlurality: 0,
+    },
   };
 
   const STATS_PROCESSORS = [
@@ -976,18 +1005,25 @@ async function processDataset(dir, register, opts) {
         s.relTypeCounts[type] = (s.relTypeCounts[type] || 0) + 1;
       }
     },
-    function countHyperedges(cy, _termid, s) {
-      for (const he of cy._partitiveRelations || []) {
+    function countPartitiveRelations(cy, _termid, s) {
+      for (const rel of cy._partitiveRelations || []) {
         s.partitiveRelations.count += 1;
-        const e = he.enumeration || 'closed';
-        s.partitiveRelations.byEnumeration[e] = (s.partitiveRelations.byEnumeration[e] || 0) + 1;
-        const markers = he.markers || [];
-        if (markers.length === 0) {
-          s.partitiveRelations.byMarker.none += 1;
+        const completeness = rel.completeness || 'complete';
+        s.partitiveRelations.byCompleteness[completeness] =
+          (s.partitiveRelations.byCompleteness[completeness] || 0) + 1;
+        const partitives = rel.partitives || [];
+        for (const member of partitives) {
+          const certainty = member.certainty || 'confirmed';
+          s.partitiveRelations.byMemberCertainty[certainty] =
+            (s.partitiveRelations.byMemberCertainty[certainty] || 0) + 1;
+        }
+        if (rel.criterion) {
+          s.partitiveRelations.withCriterion += 1;
         } else {
-          for (const m of markers) {
-            s.partitiveRelations.byMarker[m] = (s.partitiveRelations.byMarker[m] || 0) + 1;
-          }
+          s.partitiveRelations.withoutCriterion += 1;
+        }
+        if (rel.plurality) {
+          s.partitiveRelations.withPlurality += 1;
         }
       }
     },

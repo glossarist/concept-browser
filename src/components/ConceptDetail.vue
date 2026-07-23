@@ -27,6 +27,7 @@ import FormatDownloads from './FormatDownloads.vue';
 import ConceptEditionRail from './ConceptEditionRail.vue';
 import NonVerbalRepDisplay from './NonVerbalRepDisplay.vue';
 import NonVerbalList from './non-verbal/NonVerbalList.vue';
+import PartitiveRelationList from './PartitiveRelationList.vue';
 import CitationDisplay from './CitationDisplay.vue';
 import DesignationList from './DesignationList.vue';
 import { useI18n } from '../i18n';
@@ -72,6 +73,7 @@ const {
   edgeBadgeColor,
   inverseEdgeType,
   conceptRelated,
+  conceptPartitiveRelations,
   getResolvedRef,
   relatedLabel,
   navigateEdge,
@@ -560,6 +562,14 @@ const nonVerbalReps = computed(() => {
               </div>
             </Transition>
           </div>
+
+          <!-- Partitive relations — one-to-many decompositions (ISO 704) -->
+          <PartitiveRelationList
+            v-if="conceptPartitiveRelations.length"
+            :relations="conceptPartitiveRelations"
+            :manifest="manifest"
+            :register-id="registerId"
+          />
 
           <!-- Edition series — supersession chain across vocabulary editions -->
           <ConceptEditionRail
