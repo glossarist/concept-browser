@@ -28,6 +28,7 @@ import ConceptEditionRail from './ConceptEditionRail.vue';
 import NonVerbalRepDisplay from './NonVerbalRepDisplay.vue';
 import NonVerbalList from './non-verbal/NonVerbalList.vue';
 import PartitiveRelationList from './PartitiveRelationList.vue';
+import ConceptDiffModal from './ConceptDiffModal.vue';
 import CitationDisplay from './CitationDisplay.vue';
 import DesignationList from './DesignationList.vue';
 import { useI18n } from '../i18n';
@@ -81,6 +82,11 @@ const {
 } = useConceptEdges(conceptComputed, registerIdComputed, manifestComputed, edgesComputed, router);
 
 const hoveredEdgeDisplay = ref<{ designation: string; conceptId: string; tooltip: string } | null>(null);
+
+const diffTarget = ref<{ registerId: string; conceptId: string; label: string } | null>(null);
+function onCompareEdition(target: { registerId: string; conceptId: string; label: string }) {
+  diffTarget.value = target;
+}
 
 const uriCopied = ref(false);
 function copyUri() {
@@ -576,6 +582,19 @@ const nonVerbalReps = computed(() => {
             :concept-uri="conceptUri(props.concept, props.registerId, props.manifest.uriBase)"
             :register-id="registerId"
             :concept-id="conceptId"
+            @compare="onCompareEdition"
+          />
+
+          <!-- Edition diff modal — opened from the rail's compare buttons -->
+          <ConceptDiffModal
+            v-if="diffTarget"
+            :open="true"
+            :current-concept="concept"
+            :current-register-id="registerId"
+            :target-register-id="diffTarget.registerId"
+            :target-concept-id="diffTarget.conceptId"
+            :target-label="diffTarget.label"
+            @close="diffTarget = null"
           />
 
           <!-- Domains -->

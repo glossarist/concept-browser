@@ -23,6 +23,10 @@ const props = defineProps<{
   conceptId: string;
 }>();
 
+const emit = defineEmits<{
+  (e: 'compare', target: { registerId: string; conceptId: string; label: string }): void;
+}>();
+
 const store = useVocabularyStore();
 const router = useRouter();
 
@@ -148,6 +152,15 @@ function navigate(entry: EditionEntry) {
   });
 }
 
+function compare(entry: EditionEntry) {
+  if (entry.edgeType === 'self') return;
+  emit('compare', {
+    registerId: entry.member.id,
+    conceptId: entry.conceptId,
+    label: entry.member.ref || entry.member.id,
+  });
+}
+
 function edgeLabel(entry: EditionEntry): string {
   switch (entry.edgeType) {
     case 'supersedes':     return t('edge.supersedes');
@@ -163,49 +176,61 @@ function edgeLabel(entry: EditionEntry): string {
     <div class="mt-1 text-xs text-ink-400 italic">{{ series.title }}</div>
 
     <div class="mt-3 space-y-1">
-      <button
+      <div
         v-for="entry in editionChain"
         :key="entry.conceptUri"
-        type="button"
-        class="concept-link block w-full text-left rounded-md px-1.5 py-1.5 transition-colors"
+        class="rounded-md transition-colors group"
         :class="entry.edgeType === 'self'
           ? 'bg-blue-50 dark:bg-blue-900/20'
           : 'hover:bg-ink-50 dark:hover:bg-ink-700/40'"
-        :disabled="entry.edgeType === 'self'"
-        @click="navigate(entry)"
       >
-        <div class="flex items-center gap-1 mb-0.5">
-          <span
-            v-if="entry.isCurrentEdition"
-            class="badge text-[9px] flex-shrink-0"
-            :class="entry.edgeType === 'self' ? 'badge-blue' : 'badge-gray'"
-            style="background: rgba(184, 147, 90, 0.18); color: #8C6A3A; border: 1px solid rgba(184, 147, 90, 0.35);"
-            :title="t('concept.currentEdition')"
-          >✦ {{ t('concept.currentEdition') }}</span>
-          <span
-            v-if="entry.edgeType !== 'self'"
-            class="badge text-[9px] flex-shrink-0 badge-gray"
-          >{{ edgeLabel(entry) }}</span>
-          <span
-            v-if="entry.edgeType === 'self'"
-            class="badge text-[9px] flex-shrink-0 badge-blue"
-          >{{ t('concept.viewing') }}</span>
-        </div>
-        <div class="flex items-baseline gap-2">
-          <span class="font-mono text-xs text-ink-500 dark:text-ink-400 flex-shrink-0">
-            {{ entry.member.year ?? '—' }}
-          </span>
-          <span class="text-sm text-ink-700 dark:text-ink-200 leading-snug truncate">
-            {{ entry.member.ref }}
-          </span>
-        </div>
-        <div
-          v-if="entry.edgeType !== 'self' || entry.conceptId !== props.conceptId"
-          class="font-mono text-[10px] text-ink-300 dark:text-ink-500 mt-0.5 leading-tight"
+        <button
+          type="button"
+          class="concept-link block w-full text-left px-1.5 py-1.5"
+          :disabled="entry.edgeType === 'self'"
+          @click="navigate(entry)"
         >
-          {{ entry.member.id }} · {{ entry.conceptId }}
-        </div>
-      </button>
+          <div class="flex items-center gap-1 mb-0.5">
+            <span
+              v-if="entry.isCurrentEdition"
+              class="badge text-[9px] flex-shrink-0"
+              :class="entry.edgeType === 'self' ? 'badge-blue' : 'badge-gray'"
+              style="background: rgba(184, 147, 90, 0.18); color: #8C6A3A; border: 1px solid rgba(184, 147, 90, 0.35);"
+              :title="t('concept.currentEdition')"
+            >✦ {{ t('concept.currentEdition') }}</span>
+            <span
+              v-if="entry.edgeType !== 'self'"
+              class="badge text-[9px] flex-shrink-0 badge-gray"
+            >{{ edgeLabel(entry) }}</span>
+            <span
+              v-if="entry.edgeType === 'self'"
+              class="badge text-[9px] flex-shrink-0 badge-blue"
+            >{{ t('concept.viewing') }}</span>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span class="font-mono text-xs text-ink-500 dark:text-ink-400 flex-shrink-0">
+              {{ entry.member.year ?? '—' }}
+            </span>
+            <span class="text-sm text-ink-700 dark:text-ink-200 leading-snug truncate">
+              {{ entry.member.ref }}
+            </span>
+          </div>
+          <div
+            v-if="entry.edgeType !== 'self' || entry.conceptId !== props.conceptId"
+            class="font-mono text-[10px] text-ink-300 dark:text-ink-500 mt-0.5 leading-tight"
+          >
+            {{ entry.member.id }} · {{ entry.conceptId }}
+          </div>
+        </button>
+        <button
+          v-if="entry.edgeType !== 'self'"
+          type="button"
+          class="block w-full text-left px-1.5 pb-1.5 text-[10px] text-blue-600 dark:text-blue-400 hover:underline opacity-0 group-hover:opacity-100 transition-opacity"
+          @click="compare(entry)"
+        >
+          ⟷ {{ t('concept.compareWith') || 'Compare with this edition' }}
+        </button>
+      </div>
     </div>
 
     <div v-if="!hasChain" class="mt-3 pt-3 border-t border-ink-100/60 dark:border-ink-700/40">

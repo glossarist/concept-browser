@@ -1,13 +1,19 @@
 <script setup lang="ts">
 /**
- * DefaultGroupSidebar — flat list of dataset entries with expansion.
+ * DefaultGroupSidebar — flat list of dataset entries with expansion slot.
  * Used for topic, family, collection, and default group kinds.
- * Replaces the inline v-else template in AppSidebar.
+ * Invoked via DatasetGroupRenderer dispatch (OCP).
+ *
+ * Slot `expanded` receives `{ entry, isCurrent }` per entry so callers
+ * can render shared per-entry content (sub-pages, sections, etc.)
+ * without touching this component.
  */
 import { useRouter } from 'vue-router';
 import { useI18n } from '../../i18n';
+import { useDsStyle } from '../../utils/dataset-style';
+import { useSiteConfig } from '../../config/use-site-config';
 
-const props = defineProps<{
+defineProps<{
   entries: Array<{
     id: string;
     title: string;
@@ -19,9 +25,11 @@ const props = defineProps<{
 
 const router = useRouter();
 const { t } = useI18n();
+const { getColor } = useDsStyle();
+const { localizedDatasetField } = useSiteConfig();
 
-function navigate(id: string) {
-  if (id === props.currentDataset) return;
+function navigate(id: string, current: string) {
+  if (id === current) return;
   router.push({ name: 'dataset', params: { registerId: id } });
 }
 </script>
@@ -35,16 +43,25 @@ function navigate(id: string) {
   >
     <button
       type="button"
-      class="w-full text-left px-3 py-2 rounded-lg text-sm border-l-2"
+      class="w-full text-left px-3 py-2 rounded-lg text-sm border-l-2 flex items-start gap-2"
       :class="currentDataset === ds.id
         ? 'text-ink-800 dark:text-ink-50'
         : 'border-transparent text-ink-600 dark:text-ink-300 hover:bg-ink-50 dark:hover:bg-ink-700 hover:text-ink-800 dark:hover:text-ink-50'"
-      @click="navigate(ds.id)"
+      :style="{ borderLeftColor: currentDataset === ds.id ? getColor(ds.id) : 'transparent' }"
+      @click="navigate(ds.id, currentDataset)"
     >
-      <div class="font-medium truncate leading-snug">{{ ds.title }}</div>
-      <div v-if="ds.loaded" class="text-xs mt-0.5 text-ink-300 dark:text-ink-400">
-        {{ ds.conceptCount.toLocaleString() }} {{ t('home.concepts').toLowerCase() }}
+      <span class="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" :style="{ backgroundColor: getColor(ds.id) }"></span>
+      <div class="min-w-0 flex-1">
+        <div class="font-medium truncate leading-snug">{{ localizedDatasetField(ds.id, 'title', ds.title) }}</div>
+        <div
+          v-if="ds.loaded"
+          class="text-xs mt-0.5"
+          :class="currentDataset === ds.id ? 'text-ink-400 dark:text-ink-300' : 'text-ink-300 dark:text-ink-400'"
+        >
+          {{ ds.conceptCount.toLocaleString() }} {{ t('home.concepts').toLowerCase() }}
+        </div>
       </div>
     </button>
+    <slot name="expanded" :entry="ds" :is-current="currentDataset === ds.id" />
   </div>
 </template>
