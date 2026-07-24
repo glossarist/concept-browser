@@ -97,6 +97,41 @@ export function useConceptEdges(
     return edgeDisplayCache.value.get(uri) ?? { uri, conceptId: uri, designation: '', tooltip: uri, isLocal: false, badge: null };
   }
 
+  /**
+   * Resolve a concept's designation in the current UI locale.
+   * Fallback chain: locale → eng → any available.
+   *
+   * Sources tried in order:
+   *   1. BFS graph node (already loaded as a neighbor)
+   *   2. Dataset adapter index entry (every concept in the dataset)
+   *   3. conceptId as last-resort fallback
+   *
+   * Used by PartitiveRelationList (sidebar rake diagram) so the rake
+   * shows designations like 'system of quantities' instead of bare
+   * IDs like '1.3'.
+   */
+  function designationFor(uri: string): string {
+    const node = store.graph.getNode(uri);
+    if (node) {
+      const des = node.designations[locale.value]
+        || node.designations.eng
+        || Object.values(node.designations)[0];
+      if (des) return des;
+    }
+    const resolution = factory.resolve(uri);
+    if (resolution.type === 'internal') {
+      const adapter = store.datasets.get(resolution.registerId);
+      const entry = adapter?.getIndexEntry(resolution.conceptId);
+      if (entry) {
+        const des = entry.designations[locale.value]
+          || entry.designations.eng
+          || Object.values(entry.designations)[0];
+        if (des) return des;
+      }
+    }
+    return resolution.type === 'internal' ? resolution.conceptId : uri;
+  }
+
   function edgeBadgeColor(type: string, direction: 'out' | 'in'): string {
     if (type === 'supersedes' || type === 'superseded_by') {
       return direction === 'out' ? 'text-orange-700 bg-orange-50' : 'text-red-700 bg-red-50';
@@ -262,6 +297,7 @@ export function useConceptEdges(
     incomingEdges,
     edgeDisplayCache,
     getEdgeDisplay,
+    designationFor,
     edgeBadgeColor,
     inverseEdgeType,
     conceptRelated,

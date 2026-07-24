@@ -15,7 +15,7 @@ import type { PartitiveRelationWire, Manifest } from '../adapters/types';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { getFactory } from '../adapters/factory';
-import { useI18n } from '../i18n';
+import { useI18n, locale } from '../i18n';
 import {
   completenessLabel,
   certaintyLabel,
@@ -35,12 +35,26 @@ const store = useVocabularyStore();
 const factory = getFactory();
 const { t } = useI18n();
 
-function labelFor(uri: string): string {
-  const parsed = factory.resolve(uri);
-  if (parsed.type === 'internal') {
-    return parsed.conceptId || uri;
+function designationFor(uri: string): string {
+  const node = store.graph.getNode(uri);
+  if (node) {
+    const des = node.designations[locale.value]
+      || node.designations.eng
+      || Object.values(node.designations)[0];
+    if (des) return des;
   }
-  return uri;
+  const resolution = factory.resolve(uri);
+  if (resolution.type === 'internal') {
+    const adapter = store.datasets.get(resolution.registerId);
+    const entry = adapter?.getIndexEntry(resolution.conceptId);
+    if (entry) {
+      const des = entry.designations[locale.value]
+        || entry.designations.eng
+        || Object.values(entry.designations)[0];
+      if (des) return des;
+    }
+  }
+  return resolution.type === 'internal' ? resolution.conceptId : uri;
 }
 
 function navigate(uri: string) {
@@ -78,7 +92,7 @@ function pluralityBadge(plurality: NonNullable<PartitiveRelationWire['plurality'
 function labeledMembers(rel: PartitiveRelationWire): PartitiveMemberLabeled[] {
   return rel.partitives.map(m => ({
     uri: m.uri,
-    label: labelFor(m.uri),
+    label: designationFor(m.uri),
     certainty: m.certainty,
   }));
 }
@@ -110,7 +124,7 @@ function labeledMembers(rel: PartitiveRelationWire): PartitiveMemberLabeled[] {
           @click="navigate(rel.comprehensive)"
           class="ml-auto text-sm font-medium text-emerald-900 dark:text-emerald-100 hover:underline truncate"
         >
-          {{ labelFor(rel.comprehensive) }}
+          {{ designationFor(rel.comprehensive) }}
         </button>
       </div>
       <div
@@ -122,7 +136,7 @@ function labeledMembers(rel: PartitiveRelationWire): PartitiveMemberLabeled[] {
       <!-- Rake diagram (ISO 704 partitive-relation convention) -->
       <div class="px-3 py-3 overflow-x-auto">
         <PartitiveRelationDiagram
-          :comprehensive-label="labelFor(rel.comprehensive)"
+          :comprehensive-label="designationFor(rel.comprehensive)"
           :partitives="labeledMembers(rel)"
           :completeness="rel.completeness"
           :plurality="rel.plurality"

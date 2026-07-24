@@ -166,4 +166,83 @@ describe('PartitiveRelationDiagram — ISO 704 rake rendering', () => {
       expect(w.emitted('navigate')).toBeTruthy();
     });
   });
+
+  describe('designation-aware sizing', () => {
+    it('uses MIN_NODE_W when labels are short', () => {
+      const w = mount(PartitiveRelationDiagram, {
+        props: {
+          comprehensiveLabel: '1.3',
+          partitives: members(2),
+          completeness: 'complete',
+          plurality: null,
+        },
+      });
+      const svg = w.find('svg');
+      // Short labels → MIN_NODE_W=110, total = 2*110 + 16 + 40 = 276
+      const viewBox = svg.attributes('viewBox') || '';
+      const width = Number(viewBox.split(' ')[2]);
+      expect(width).toBeLessThan(300);
+    });
+
+    it('grows nodes for long designations', () => {
+      const longMembers: PartitiveMemberLabeled[] = [
+        { uri: 'u1', label: 'system of quantities', certainty: 'confirmed' },
+        { uri: 'u2', label: 'International System of Units', certainty: 'confirmed' },
+        { uri: 'u3', label: 'base quantity dimension', certainty: 'confirmed' },
+      ];
+      const w = mount(PartitiveRelationDiagram, {
+        props: {
+          comprehensiveLabel: 'coordinate system of quantities',
+          partitives: longMembers,
+          completeness: 'complete',
+          plurality: null,
+        },
+      });
+      const svg = w.find('svg');
+      const viewBox = svg.attributes('viewBox') || '';
+      const width = Number(viewBox.split(' ')[2]);
+      // Each node wider than MIN_NODE_W → total > 3*110 = 330
+      expect(width).toBeGreaterThan(330);
+      // Capped: node width ≤ MAX_NODE_W=220 → total ≤ 3*220 + 2*16 + 40 = 732
+      expect(width).toBeLessThanOrEqual(732);
+    });
+
+    it('wraps long labels to 2 lines via tspan when needed', () => {
+      const longLabel = 'International System of Quantities and Units';
+      const w = mount(PartitiveRelationDiagram, {
+        props: {
+          comprehensiveLabel: longLabel,
+          partitives: [
+            { uri: 'u1', label: 'short', certainty: 'confirmed' },
+            { uri: 'u2', label: 'short', certainty: 'confirmed' },
+          ],
+          completeness: 'complete',
+          plurality: null,
+        },
+      });
+      // The comprehensive text should have ≥ 2 tspans (wrapped)
+      const texts = w.findAll('text');
+      const compText = texts[0]; // first text is the comprehensive
+      const tspans = compText.findAll('tspan');
+      expect(tspans.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('renders the designation (not the conceptId) as the label', () => {
+      const w = mount(PartitiveRelationDiagram, {
+        props: {
+          comprehensiveLabel: 'system of quantities',
+          partitives: [
+            { uri: 'u1', label: 'base quantity', certainty: 'confirmed' },
+            { uri: 'u2', label: 'derived quantity', certainty: 'confirmed' },
+          ],
+          completeness: 'complete',
+          plurality: null,
+        },
+      });
+      const allText = w.findAll('text').map(t => t.text());
+      expect(allText).toContain('system of quantities');
+      expect(allText).toContain('base quantity');
+      expect(allText).toContain('derived quantity');
+    });
+  });
 });

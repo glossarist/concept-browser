@@ -25,7 +25,7 @@ import { hashSeed, expandParams, portSide, portPoint, idToUriGet } from '../util
 import { useI18n } from '../i18n';
 
 const { t, locale } = useI18n();
-import type { Concept, Manifest, GraphEdge } from '../adapters/types';
+import type { Concept, Manifest, GraphEdge, PartitiveRelationWire } from '../adapters/types';
 import { conceptUri } from '../adapters/model-bridge';
 
 const props = defineProps<{
@@ -33,6 +33,7 @@ const props = defineProps<{
   manifest: Manifest;
   registerId: string;
   edges: GraphEdge[];
+  partitiveRelations?: PartitiveRelationWire[];
 }>();
 
 const emit = defineEmits<{
@@ -390,6 +391,38 @@ function buildGraph() {
 
   nodes = Array.from(nodeMap.values());
   links = resultLinks;
+
+  /* Ensure every PartitiveRelation member is present in the graph
+     so the rake bundle can render. The comprehensive is normally the
+     focus; partitives may need to be added as depth-1 neighbors. */
+  for (const rel of props.partitiveRelations ?? []) {
+    const compParsed = UriRouter.parseUri(rel.comprehensive);
+    if (!compParsed) continue;
+    const compNodeId = `${compParsed.registerId}/${compParsed.conceptId}`;
+    if (!nodeMap.has(compNodeId)) continue;
+
+    for (const member of rel.partitives) {
+      const parsed = UriRouter.parseUri(member.uri);
+      if (!parsed) continue;
+      const nid = `${parsed.registerId}/${parsed.conceptId}`;
+      if (nodeMap.has(nid)) continue;
+      if (nodeMap.size >= MAX_NODES) break;
+      const pos = fibonacciSpherePosition(1, nodeMap.size, MAX_NODES, hashSeed(parsed.conceptId));
+      nodeMap.set(nid, {
+        id: nid,
+        term: parsed.conceptId,
+        ref: parsed.registerId,
+        register: parsed.registerId,
+        conceptId: parsed.conceptId,
+        depth: 1,
+        x: pos.x, y: pos.y, z: pos.z,
+        vx: 0, vy: 0, vz: 0,
+      });
+      idToUri.set(nid, member.uri);
+      nodes = Array.from(nodeMap.values());
+    }
+  }
+
   graphVersion.value++;
 }
 
@@ -711,6 +744,108 @@ function drawEdges(cx: number, cy: number) {
     label.setAttribute('font-weight', '600');
     label.textContent = labelText;
     svg.appendChild(label);
+  }
+
+  drawRakeBundles(svg, pos, cx, cy);
+}
+
+/**
+ * Render PartitiveRelations as ISO 704 rake bundles in the sphere.
+ *
+ * In 3D space the literal "right-angle bracket" rake doesn't apply,
+ * so we use a bundle of N curves fanning out from the comprehensive,
+ * all sharing visual styling. The bundle communicates "these N edges
+ * are ONE relation", not N independent pairwise links.
+ *
+ * ISO 704 line conventions applied:
+ *   - default                              : single solid curve per member
+ *   - plurality.isShared && !isUncertain   : two parallel solid curves (close-set)
+ *   - plurality.isShared && isUncertain    : one solid + one dashed curve
+ *   - per-member certainty: 'possible'     : the member's curve is dashed
+ *                                            (regardless of plurality)
+ *
+ * A diamond marker at the comprehensive end signals the hyperedge origin.
+ */
+function drawRakeBundles(
+  svg: SVGSVGElement,
+  pos: Map<string, {x: number; y: number}>,
+  _cx: number,
+  _cy: number,
+) {
+  for (const rel of props.partitiveRelations ?? []) {
+    const compParsed = UriRouter.parseUri(rel.comprehensive);
+    if (!compParsed) continue;
+    const compNodeId = `${compParsed.registerId}/${compParsed.conceptId}`;
+    const compPos = pos.get(compNodeId);
+    if (!compPos) continue;
+
+    const memberPositions = rel.partitives
+      .map(member => {
+        const parsed = UriRouter.parseUri(member.uri);
+        if (!parsed) return null;
+        const nid = `${parsed.registerId}/${parsed.conceptId}`;
+        const p = pos.get(nid);
+        return p ? { member, pos: p } : null;
+      })
+      .filter((x): x is { member: { uri: string; certainty: 'confirmed' | 'possible' }; pos: {x: number; y: number} } => x !== null);
+
+    if (memberPositions.length === 0) continue;
+
+    const color = uiStore.isDark ? '#2dd4bf' : '#0d9488'; // teal — matches sidebar rake
+    const DOUBLE_GAP = 4;
+    const DASH = '4 3';
+    const isShared = !!rel.plurality?.isShared;
+    const isUncertain = !!rel.plurality?.isUncertain;
+    const drawDouble = isShared;
+    const secondDashed = isUncertain;
+
+    for (const { member, pos: pPos } of memberPositions) {
+      const dx = pPos.x - compPos.x;
+      const dy = pPos.y - compPos.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const px = -dy / len; // perpendicular unit
+      const py = dx / len;
+
+      const drawLine = (offset: number, dashed: boolean) => {
+        const ax = compPos.x + px * offset;
+        const ay = compPos.y + py * offset;
+        const bx = pPos.x + px * offset;
+        const by = pPos.y + py * offset;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        // Quadratic bezier toward a control point biased outward from the focus
+        // to suggest the "rake handle" shape.
+        const mx = (ax + bx) / 2;
+        const my = (ay + by) / 2;
+        const ctrlLen = len * 0.15;
+        path.setAttribute('d', `M ${ax} ${ay} Q ${mx + px * ctrlLen} ${my + py * ctrlLen} ${bx} ${by}`);
+        path.setAttribute('stroke', color);
+        path.setAttribute('stroke-width', '1.5');
+        path.setAttribute('opacity', member.certainty === 'possible' ? '0.45' : '0.8');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-linecap', 'round');
+        if (dashed || member.certainty === 'possible') {
+          path.setAttribute('stroke-dasharray', DASH);
+        }
+        svg.appendChild(path);
+      };
+
+      drawLine(0, false);
+      if (drawDouble) {
+        drawLine(DOUBLE_GAP, secondDashed);
+        drawLine(-DOUBLE_GAP, secondDashed);
+      }
+    }
+
+    /* Diamond marker at comprehensive end — signals "rake origin" */
+    const diamond = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const dsize = 5;
+    diamond.setAttribute('d',
+      `M ${compPos.x} ${compPos.y - dsize} L ${compPos.x + dsize} ${compPos.y} L ${compPos.x} ${compPos.y + dsize} L ${compPos.x - dsize} ${compPos.y} Z`);
+    diamond.setAttribute('fill', color);
+    diamond.setAttribute('opacity', '0.85');
+    diamond.setAttribute('stroke', uiStore.isDark ? '#0a1f1c' : '#ffffff');
+    diamond.setAttribute('stroke-width', '1');
+    svg.appendChild(diamond);
   }
 }
 
