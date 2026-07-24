@@ -3,7 +3,7 @@ import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router';
 import { vMath } from './directives/v-math';
-import './style.css';
+import './styles/tailwind.css';
 
 const app = createApp(App);
 app.use(createPinia());

@@ -492,7 +492,7 @@
 
 /* Section labels brighter in dark mode */
 .dark .section-label {
-  color: theme('colors.ink.300') !important;
+  color: var(--color-ink-300) !important;
 }
 
 /* Scrollbar hide utility */
