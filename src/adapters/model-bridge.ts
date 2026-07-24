@@ -164,6 +164,25 @@ interface JsonLdLocalizedConcept {
   'gl:reviewDecisionNotes'?: string;
 }
 
+interface JsonLdPartitiveMember {
+  'gl:ref'?: JsonLdRef;
+  'gl:certainty'?: string;
+}
+
+interface JsonLdTypeSharedPlurality {
+  'gl:isShared'?: boolean;
+  'gl:isUncertain'?: boolean;
+  'gl:sharedType'?: JsonLdRef;
+}
+
+interface JsonLdPartitiveRelation {
+  'gl:comprehensive'?: JsonLdRef;
+  'gl:hasPartitive'?: JsonLdPartitiveMember[];
+  'gl:completeness'?: string;
+  'gl:hasPlurality'?: JsonLdTypeSharedPlurality;
+  'gl:criterion'?: Record<string, string> | string;
+}
+
 interface JsonLdConcept {
   '@type'?: string;
   '@id'?: string;
@@ -171,6 +190,7 @@ interface JsonLdConcept {
   'gl:term'?: string;
   'gl:localizedConcept'?: Record<string, JsonLdLocalizedConcept>;
   'gl:related'?: JsonLdRelated[];
+  'gl:partitiveRelations'?: JsonLdPartitiveRelation[];
   'gl:tags'?: string[];
   'gl:figureRef'?: unknown[];
   'gl:tableRef'?: unknown[];
@@ -563,6 +583,51 @@ function mapLocalizedFromJsonLd(lc: JsonLdLocalizedConcept): Record<string, unkn
   return data;
 }
 
+function mapPartitiveRelationFromJsonLd(r: JsonLdPartitiveRelation): Record<string, unknown> | null {
+  const comprehensive = r['gl:comprehensive'] ? mapRefFromJsonLd(r['gl:comprehensive']) : null;
+  if (!comprehensive) return null;
+
+  const partitives = (r['gl:hasPartitive'] ?? [])
+    .map((m): Record<string, unknown> | null => {
+      const ref = m['gl:ref'] ? mapRefFromJsonLd(m['gl:ref']) : null;
+      if (!ref) return null;
+      const out: Record<string, unknown> = { ref };
+      if (m['gl:certainty']) out.certainty = m['gl:certainty'];
+      return out;
+    })
+    .filter((m): m is Record<string, unknown> => m !== null);
+
+  // ISO 704 requires ≥2 partitives. Skip malformed relations rather
+  // than letting the constructor throw and break the whole concept.
+  if (partitives.length < 2) return null;
+
+  const out: Record<string, unknown> = {
+    comprehensive,
+    partitives,
+  };
+
+  if (r['gl:completeness']) out.completeness = r['gl:completeness'];
+
+  const plurality = r['gl:hasPlurality'];
+  if (plurality && typeof plurality['gl:isShared'] === 'boolean') {
+    const p: Record<string, unknown> = { isShared: plurality['gl:isShared'] };
+    if (typeof plurality['gl:isUncertain'] === 'boolean') {
+      p.isUncertain = plurality['gl:isUncertain'];
+    }
+    const sharedType = plurality['gl:sharedType'] ? mapRefFromJsonLd(plurality['gl:sharedType']) : null;
+    if (sharedType) p.sharedType = sharedType;
+    out.plurality = p;
+  }
+
+  if (r['gl:criterion']) {
+    out.criterion = typeof r['gl:criterion'] === 'string'
+      ? { default: r['gl:criterion'] }
+      : r['gl:criterion'];
+  }
+
+  return out;
+}
+
 function conceptFromJsonLd(doc: JsonLdConcept): Concept {
   const id = String(doc['gl:identifier'] ?? doc['@id']?.split('/').pop() ?? '');
   const localizations: Record<string, unknown> = {};
@@ -575,6 +640,9 @@ function conceptFromJsonLd(doc: JsonLdConcept): Concept {
   }
 
   const related = (doc['gl:related'] ?? []).map(mapRelatedFromJsonLd);
+  const partitiveRelations = (doc['gl:partitiveRelations'] ?? [])
+    .map(mapPartitiveRelationFromJsonLd)
+    .filter((r): r is Record<string, unknown> => r !== null);
   const tags = Array.isArray(doc['gl:tags']) ? [...doc['gl:tags']] : [];
 
   const concept = Concept.fromJSON({
@@ -583,6 +651,7 @@ function conceptFromJsonLd(doc: JsonLdConcept): Concept {
     uri: doc['@id'] ?? null,
     localizations,
     related,
+    partitive_relations: partitiveRelations,
     tags,
     figures: normalizeEntityRefs(doc['gl:figureRef']),
     tables: normalizeEntityRefs(doc['gl:tableRef']),

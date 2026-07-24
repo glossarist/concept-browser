@@ -1,17 +1,15 @@
 <script setup lang="ts">
 /**
  * PartitiveRelationList — renders one-to-many partitive decompositions
- * as grouped cards. Each relation shows:
- *   - the comprehensive (whole) concept as the card header
- *   - each partitive member as an indented child with a certainty badge
+ * as ISO 704 rake diagrams. Each relation shows:
  *   - completeness badge (complete / partial)
  *   - plurality badge (shared / uncertain / sharedType) when present
- *   - criterion as italic text under the title
+ *   - criterion as italic text under the header
+ *   - the rake diagram itself (PartitiveRelationDiagram)
  *
- * Independent of RelationshipList.vue, which renders binary edges.
- * Both consume the same stores but render in separate sections.
- *
- * v2 shape per concept-model/TODO.partitive-relation-v2.
+ * The diagram is the primary renderer. Badges in the header communicate
+ * the metadata that the diagram's line styles also encode (so users who
+ * can't perceive the visual difference still get the info).
  */
 import type { PartitiveRelationWire, Manifest } from '../adapters/types';
 import { useRouter } from 'vue-router';
@@ -19,19 +17,17 @@ import { useVocabularyStore } from '../stores/vocabulary';
 import { getFactory } from '../adapters/factory';
 import { useI18n } from '../i18n';
 import {
-  partitiveRelationStyle,
   completenessLabel,
   certaintyLabel,
 } from '../utils/partitive-relation-styling';
+import PartitiveRelationDiagram, {
+  type PartitiveMemberLabeled,
+} from './PartitiveRelationDiagram.vue';
 
 const props = defineProps<{
   relations: PartitiveRelationWire[];
   manifest: Manifest;
   registerId: string;
-}>();
-
-const emit = defineEmits<{
-  (e: 'navigate', registerId: string, conceptId: string): void;
 }>();
 
 const router = useRouter();
@@ -78,6 +74,14 @@ function pluralityBadge(plurality: NonNullable<PartitiveRelationWire['plurality'
   }
   return label;
 }
+
+function labeledMembers(rel: PartitiveRelationWire): PartitiveMemberLabeled[] {
+  return rel.partitives.map(m => ({
+    uri: m.uri,
+    label: labelFor(m.uri),
+    certainty: m.certainty,
+  }));
+}
 </script>
 
 <template>
@@ -115,25 +119,17 @@ function pluralityBadge(plurality: NonNullable<PartitiveRelationWire['plurality'
       >
         {{ criterionText(rel.criterion) }}
       </div>
-      <ul class="divide-y divide-emerald-100 dark:divide-emerald-900/30">
-        <li v-for="(member, j) in rel.partitives" :key="j">
-          <button
-            @click="navigate(member.uri)"
-            class="block w-full text-left px-3 py-1.5 text-sm hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-900 dark:text-emerald-100"
-            :class="{ 'opacity-60': member.certainty === 'possible' }"
-          >
-            <span class="text-emerald-600 dark:text-emerald-400 mr-2">└</span>
-            {{ labelFor(member.uri) }}
-            <span
-              v-if="member.certainty === 'possible'"
-              class="ml-2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 uppercase"
-              :title="'plurality uncertain (ISO 704 broken line)'"
-            >
-              {{ certaintyLabel(member.certainty) }}
-            </span>
-          </button>
-        </li>
-      </ul>
+      <!-- Rake diagram (ISO 704 partitive-relation convention) -->
+      <div class="px-3 py-3 overflow-x-auto">
+        <PartitiveRelationDiagram
+          :comprehensive-label="labelFor(rel.comprehensive)"
+          :partitives="labeledMembers(rel)"
+          :completeness="rel.completeness"
+          :plurality="rel.plurality"
+          :criterion="null"
+          @navigate="navigate"
+        />
+      </div>
     </div>
   </div>
 </template>
