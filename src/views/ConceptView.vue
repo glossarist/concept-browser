@@ -3,6 +3,8 @@ import { computed, watch, ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { conceptUri } from '../adapters/model-bridge';
+import { UriRouter } from '../adapters/UriRouter';
+import type { PartitiveRelationWire, PartitiveMemberWire } from '../adapters/types';
 import ConceptDetail from '../components/ConceptDetail.vue';
 import RelationSphere from '../components/RelationSphere.vue';
 import ShortcutsModal from '../components/ShortcutsModal.vue';
@@ -58,6 +60,55 @@ const manifest = computed(() => store.currentManifest);
 const edges = computed(() => store.conceptEdges);
 const activeRegisterId = computed(() => sphereFocusPayload.value?.registerId ?? props.registerId);
 const adjacent = ref({ prev: null as string | null, next: null as string | null });
+
+/**
+ * Project concept.partitiveRelations (glossarist-js v2 model) into the
+ * URI-resolved wire shape the sphere consumes. Mirrors the projection
+ * in use-concept-edges.ts but inline here so the sphere can render rake
+ * bundles without a full composable setup.
+ */
+const partitiveRelationsForSphere = computed<PartitiveRelationWire[]>(() => {
+  const c = concept.value;
+  const m = manifest.value;
+  if (!c || !m) return [];
+  const sourceUri = conceptUri(c, activeRegisterId.value, m.uriBase);
+  const out: PartitiveRelationWire[] = [];
+  for (const rel of c.partitiveRelations ?? []) {
+    const compRef = rel.comprehensive;
+    const compTarget = store.manifests.get(activeRegisterId.value)
+      ? UriRouter.buildConceptUri(m.uriBase, activeRegisterId.value, compRef.id ?? '')
+      : null;
+    if (!compRef.id || !compTarget) continue;
+    const partitives: PartitiveMemberWire[] = rel.partitives
+      .map(member => {
+        const ref = member.ref;
+        if (!ref?.id) return null;
+        const targetRegister = store.manifests.has(activeRegisterId.value)
+          ? activeRegisterId.value
+          : activeRegisterId.value;
+        const uri = UriRouter.buildConceptUri(m.uriBase, targetRegister, ref.id);
+        if (uri === sourceUri) return null;
+        return { uri, certainty: member.certainty };
+      })
+      .filter((x): x is PartitiveMemberWire => x !== null);
+    if (partitives.length === 0) continue;
+    out.push({
+      source: sourceUri,
+      comprehensive: compTarget,
+      partitives,
+      completeness: rel.completeness,
+      plurality: rel.plurality
+        ? {
+            isShared: rel.plurality.isShared,
+            isUncertain: rel.plurality.isUncertain,
+            sharedType: null,
+          }
+        : null,
+      register: activeRegisterId.value,
+    });
+  }
+  return out;
+});
 const viewMode = ref<'detail' | 'sphere'>(
   router.currentRoute.value.query.view === 'sphere' ? 'sphere' : 'detail'
 );
@@ -280,6 +331,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
           :manifest="manifest"
           :register-id="activeRegisterId"
           :edges="edges"
+          :partitive-relations="partitiveRelationsForSphere"
           @navigate="onSphereNavigate"
         />
         <!-- Detail mode -->
