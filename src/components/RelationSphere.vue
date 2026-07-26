@@ -630,8 +630,10 @@ function drawEdges(cx: number, cy: number) {
   svg.setAttribute('height', String(h));
   svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
   svg.setAttribute('preserveAspectRatio', 'none');
-  /* Remove only path + text + rect (edges), keep defs (markers) */
-  svg.querySelectorAll('path:not(defs path), text.edge-label, rect.edge-label-bg').forEach(el => el.remove());
+  /* Remove only path + text + rect (edges), keep defs (markers).
+     Also remove <line> elements (rake-bundle segments) and <circle>
+     (rake junction markers). */
+  svg.querySelectorAll('path:not(defs path), line.rake-seg, circle.rake-junction, text.edge-label, rect.edge-label-bg').forEach(el => el.remove());
   if (!svg.querySelector('defs')) ensureMarkers(svg);
 
   /* Compute visible node positions */
@@ -750,19 +752,36 @@ function drawEdges(cx: number, cy: number) {
 }
 
 /**
- * Render PartitiveRelations as ISO 704 rake bundles in the sphere.
+ * Render PartitiveRelations as ISO 704 rake/bracket bundles in the sphere.
  *
- * In 3D space the literal "right-angle bracket" rake doesn't apply,
- * so we use a bundle of N curves fanning out from the comprehensive,
- * all sharing visual styling. The bundle communicates "these N edges
- * are ONE relation", not N independent pairwise links.
+ * Each relation renders as a real bracket:
  *
- * ISO 704 line conventions applied:
- *   - default                              : single solid curve per member
- *   - plurality.isShared && !isUncertain   : two parallel solid curves (close-set)
- *   - plurality.isShared && isUncertain    : one solid + one dashed curve
- *   - per-member certainty: 'possible'     : the member's curve is dashed
- *                                            (regardless of plurality)
+ *     [comprehensive]
+ *            |
+ *            |          ← single stem (vertical/radial)
+ *            |
+ *        +---•---+      ← spine midpoint (junction)
+ *        |   |   |
+ *        |   |   |      ← N branches from spine midpoint
+ *      [p1] [p2] [p3]      (one per partitive)
+ *
+ * In 3D the bracket's "vertical" direction is along the line from
+ * comprehensive to the centroid of partitives. The branches fan out
+ * from the spine midpoint to each partitive. Right angles are not
+ * enforceable in a force-directed layout; instead we use a single
+ * shared junction point so the eye reads "ONE relation, N branches".
+ *
+ * ISO 704 line conventions applied (each segment: stem + spine + branches):
+ *   - default                              : single solid line
+ *   - plurality.isShared && !isUncertain   : two parallel solid lines
+ *                                            (close-set; offset ±DOUBLE_GAP/2)
+ *   - plurality.isShared && isUncertain    : one solid + one dashed line
+ *
+ * Per-member certainty:
+ *   - confirmed : branch is solid (with the plurality style above)
+ *   - possible  : branch is dashed + reduced opacity (overrides plurality
+ *                 on that branch only; the stem + spine keep the relation
+ *                 style)
  *
  * A diamond marker at the comprehensive end signals the hyperedge origin.
  */
@@ -772,6 +791,10 @@ function drawRakeBundles(
   _cx: number,
   _cy: number,
 ) {
+  const color = uiStore.isDark ? '#2dd4bf' : '#0d9488';
+  const DOUBLE_GAP = 4;
+  const DASH = '4 3';
+
   for (const rel of props.partitiveRelations ?? []) {
     const compParsed = UriRouter.parseUri(rel.comprehensive);
     if (!compParsed) continue;
@@ -791,58 +814,111 @@ function drawRakeBundles(
 
     if (memberPositions.length === 0) continue;
 
-    const color = uiStore.isDark ? '#2dd4bf' : '#0d9488'; // teal — matches sidebar rake
-    const DOUBLE_GAP = 4;
-    const DASH = '4 3';
+    // Spine midpoint = centroid of comprehensive + all partitives.
+    // This is the junction where the stem meets the branches.
+    const cx_part = (compPos.x + memberPositions.reduce((s, m) => s + m.pos.x, 0)) / (memberPositions.length + 1);
+    const cy_part = (compPos.y + memberPositions.reduce((s, m) => s + m.pos.y, 0)) / (memberPositions.length + 1);
+
     const isShared = !!rel.plurality?.isShared;
     const isUncertain = !!rel.plurality?.isUncertain;
-    const drawDouble = isShared;
-    const secondDashed = isUncertain;
 
-    for (const { member, pos: pPos } of memberPositions) {
-      const dx = pPos.x - compPos.x;
-      const dy = pPos.y - compPos.y;
-      const len = Math.hypot(dx, dy) || 1;
-      const px = -dy / len; // perpendicular unit
-      const py = dx / len;
-
-      const drawLine = (offset: number, dashed: boolean) => {
-        const ax = compPos.x + px * offset;
-        const ay = compPos.y + py * offset;
-        const bx = pPos.x + px * offset;
-        const by = pPos.y + py * offset;
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        // Quadratic bezier toward a control point biased outward from the focus
-        // to suggest the "rake handle" shape.
-        const mx = (ax + bx) / 2;
-        const my = (ay + by) / 2;
-        const ctrlLen = len * 0.15;
-        path.setAttribute('d', `M ${ax} ${ay} Q ${mx + px * ctrlLen} ${my + py * ctrlLen} ${bx} ${by}`);
-        path.setAttribute('stroke', color);
-        path.setAttribute('stroke-width', '1.5');
-        path.setAttribute('opacity', member.certainty === 'possible' ? '0.45' : '0.8');
-        path.setAttribute('fill', 'none');
-        path.setAttribute('stroke-linecap', 'round');
-        if (dashed || member.certainty === 'possible') {
-          path.setAttribute('stroke-dasharray', DASH);
-        }
-        svg.appendChild(path);
-      };
-
-      drawLine(0, false);
-      if (drawDouble) {
-        drawLine(DOUBLE_GAP, secondDashed);
-        drawLine(-DOUBLE_GAP, secondDashed);
+    /**
+     * Draw a single straight line segment with optional parallel offset
+     * and dash style. Used for both stem and branches.
+     */
+    const drawSegment = (
+      ax: number, ay: number, bx: number, by: number,
+      opts: { offset?: number; dashed?: boolean; opacity?: number } = {},
+    ) => {
+      const offset = opts.offset ?? 0;
+      const dashed = opts.dashed ?? false;
+      const opacity = opts.opacity ?? 0.85;
+      if (offset === 0) {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('class', 'rake-seg');
+        line.setAttribute('x1', String(ax));
+        line.setAttribute('y1', String(ay));
+        line.setAttribute('x2', String(bx));
+        line.setAttribute('y2', String(by));
+        line.setAttribute('stroke', color);
+        line.setAttribute('stroke-width', '1.6');
+        line.setAttribute('opacity', String(opacity));
+        line.setAttribute('stroke-linecap', 'round');
+        if (dashed) line.setAttribute('stroke-dasharray', DASH);
+        svg.appendChild(line);
+      } else {
+        // Compute perpendicular unit vector for parallel offset
+        const dx = bx - ax, dy = by - ay;
+        const len = Math.hypot(dx, dy) || 1;
+        const px = -dy / len, py = dx / len;
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('class', 'rake-seg');
+        line.setAttribute('x1', String(ax + px * offset));
+        line.setAttribute('y1', String(ay + py * offset));
+        line.setAttribute('x2', String(bx + px * offset));
+        line.setAttribute('y2', String(by + py * offset));
+        line.setAttribute('stroke', color);
+        line.setAttribute('stroke-width', '1.6');
+        line.setAttribute('opacity', String(opacity));
+        line.setAttribute('stroke-linecap', 'round');
+        if (dashed) line.setAttribute('stroke-dasharray', DASH);
+        svg.appendChild(line);
       }
+    };
+
+    /**
+     * Draw a segment with the relation's plurality style:
+     * single solid (default), double solid (isShared),
+     * or solid + dashed (isShared + isUncertain).
+     */
+    const drawSegmentWithPlurality = (
+      ax: number, ay: number, bx: number, by: number,
+      opts: { opacity?: number; perMemberPossible?: boolean } = {},
+    ) => {
+      const opacity = opts.opacity ?? 0.85;
+      if (!isShared) {
+        drawSegment(ax, ay, bx, by, { opacity, dashed: opts.perMemberPossible });
+      } else {
+        // Close-set double: two parallel lines offset ±DOUBLE_GAP/2
+        drawSegment(ax, ay, bx, by, { offset: -DOUBLE_GAP / 2, opacity });
+        drawSegment(ax, ay, bx, by, {
+          offset: DOUBLE_GAP / 2,
+          opacity,
+          dashed: isUncertain || opts.perMemberPossible,
+        });
+      }
+    };
+
+    // 1. Stem: comprehensive → spine midpoint
+    drawSegmentWithPlurality(compPos.x, compPos.y, cx_part, cy_part);
+
+    // 2. Branches: spine midpoint → each partitive
+    for (const { member, pos: pPos } of memberPositions) {
+      drawSegmentWithPlurality(cx_part, cy_part, pPos.x, pPos.y, {
+        opacity: member.certainty === 'possible' ? 0.45 : 0.85,
+        perMemberPossible: member.certainty === 'possible',
+      });
     }
 
-    /* Diamond marker at comprehensive end — signals "rake origin" */
+    // 3. Junction marker at spine midpoint (small filled circle)
+    const junction = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    junction.setAttribute('class', 'rake-junction');
+    junction.setAttribute('cx', String(cx_part));
+    junction.setAttribute('cy', String(cy_part));
+    junction.setAttribute('r', '3');
+    junction.setAttribute('fill', color);
+    junction.setAttribute('opacity', '0.85');
+    junction.setAttribute('stroke', uiStore.isDark ? '#0a1f1c' : '#ffffff');
+    junction.setAttribute('stroke-width', '1');
+    svg.appendChild(junction);
+
+    // 4. Diamond marker at comprehensive end (hyperedge origin signal)
     const diamond = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     const dsize = 5;
     diamond.setAttribute('d',
       `M ${compPos.x} ${compPos.y - dsize} L ${compPos.x + dsize} ${compPos.y} L ${compPos.x} ${compPos.y + dsize} L ${compPos.x - dsize} ${compPos.y} Z`);
     diamond.setAttribute('fill', color);
-    diamond.setAttribute('opacity', '0.85');
+    diamond.setAttribute('opacity', '0.9');
     diamond.setAttribute('stroke', uiStore.isDark ? '#0a1f1c' : '#ffffff');
     diamond.setAttribute('stroke-width', '1');
     svg.appendChild(diamond);
