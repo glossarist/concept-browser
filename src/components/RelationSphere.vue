@@ -537,11 +537,19 @@ function linkForce() {
     if (links.length === 0) return;
     const target = linkDistance;
     const strength = linkStrength;
+    /* Read muted sets each tick so toggleType/toggleRegister take effect
+       immediately on the next simulation step. */
+    const mutedT = mutedTypes.value;
+    const mutedR = mutedRegisters.value;
     for (const link of links) {
+      if (mutedT.has(link.type)) continue;
       const ai = idToIdx.get(link.source);
       const bi = idToIdx.get(link.target);
       if (ai === undefined || bi === undefined) continue;
       const a = nL[ai], b = nL[bi];
+      /* Skip edges involving a muted register (unless the node is the focus) */
+      if (a.depth !== 0 && mutedR.has(a.register)) continue;
+      if (b.depth !== 0 && mutedR.has(b.register)) continue;
       const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
       const d2 = dx*dx + dy*dy + dz*dz;
       if (d2 < 1e-6) continue;
@@ -752,38 +760,41 @@ function drawEdges(cx: number, cy: number) {
 }
 
 /**
- * Render PartitiveRelations as ISO 704 rake/bracket bundles in the sphere.
+ * Render PartitiveRelations as ISO 704 right-angle rake brackets.
  *
- * Each relation renders as a real bracket:
+ * Each relation renders as a true bracket with 90° angles:
  *
- *     [comprehensive]
- *            |
- *            |          ← single stem (vertical/radial)
- *            |
- *        +---•---+      ← spine midpoint (junction)
- *        |   |   |
- *        |   |   |      ← N branches from spine midpoint
- *      [p1] [p2] [p3]      (one per partitive)
+ *       [comprehensive]
+ *              │
+ *              │          ← stem (along stem-axis)
+ *              │
+ *   ┌──────────●──────────┐   ← spine (perpendicular to stem-axis; right angle at junction)
+ *   │          │          │
+ *   │          │          │   ← drops (parallel to stem-axis; right angle at each tooth)
+ * [p1]       [p2]       [p3]
  *
- * In 3D the bracket's "vertical" direction is along the line from
- * comprehensive to the centroid of partitives. The branches fan out
- * from the spine midpoint to each partitive. Right angles are not
- * enforceable in a force-directed layout; instead we use a single
- * shared junction point so the eye reads "ONE relation, N branches".
+ * Geometry:
+ *   1. stem-axis = direction from comprehensive to centroid of partitives
+ *   2. spine-axis = perpendicular to stem-axis
+ *   3. spine-center = point along stem-axis at SPINE_FRACTION (60%) from comp
+ *   4. For each partitive Pi:
+ *        - Project Pi onto spine-axis → tooth position
+ *        - Drop goes from tooth straight to Pi (parallel to stem-axis by construction)
  *
- * ISO 704 line conventions applied (each segment: stem + spine + branches):
- *   - default                              : single solid line
- *   - plurality.isShared && !isUncertain   : two parallel solid lines
- *                                            (close-set; offset ±DOUBLE_GAP/2)
- *   - plurality.isShared && isUncertain    : one solid + one dashed line
+ * All bends are exactly 90° because tooth_i is the foot of perpendicular
+ * from Pi to the spine line.
  *
- * Per-member certainty:
- *   - confirmed : branch is solid (with the plurality style above)
- *   - possible  : branch is dashed + reduced opacity (overrides plurality
- *                 on that branch only; the stem + spine keep the relation
- *                 style)
+ * ISO 704 line conventions:
+ *   - default                            : single solid line per segment
+ *   - plurality.isShared && !isUncertain : TWO parallel solid lines (close-set)
+ *   - plurality.isShared && isUncertain  : one solid + one dashed line
+ *   - completeness === 'partial'         : spine extends past last tooth
+ *                                           (continued backline — "more exist")
  *
- * A diamond marker at the comprehensive end signals the hyperedge origin.
+ * Per-member certainty 'possible' → that drop is dashed + reduced opacity
+ * (stem and spine keep relation style).
+ *
+ * Diamond marker at the comprehensive end signals the hyperedge origin.
  */
 function drawRakeBundles(
   svg: SVGSVGElement,
@@ -791,9 +802,12 @@ function drawRakeBundles(
   _cx: number,
   _cy: number,
 ) {
+  if (mutedTypes.value.has('__partitive__')) return;
   const color = uiStore.isDark ? '#2dd4bf' : '#0d9488';
   const DOUBLE_GAP = 4;
   const DASH = '4 3';
+  const SPINE_FRACTION = 0.55;       // spine sits 55% from comp toward centroid
+  const PARTIAL_TAIL = 28;           // px extension for completeness: 'partial'
 
   for (const rel of props.partitiveRelations ?? []) {
     const compParsed = UriRouter.parseUri(rel.comprehensive);
@@ -814,17 +828,51 @@ function drawRakeBundles(
 
     if (memberPositions.length === 0) continue;
 
-    // Spine midpoint = centroid of comprehensive + all partitives.
-    // This is the junction where the stem meets the branches.
-    const cx_part = (compPos.x + memberPositions.reduce((s, m) => s + m.pos.x, 0)) / (memberPositions.length + 1);
-    const cy_part = (compPos.y + memberPositions.reduce((s, m) => s + m.pos.y, 0)) / (memberPositions.length + 1);
+    // 1. Compute stem-axis (comp → centroid of partitives) and spine-axis (perpendicular)
+    const centroidX = memberPositions.reduce((s, m) => s + m.pos.x, 0) / memberPositions.length;
+    const centroidY = memberPositions.reduce((s, m) => s + m.pos.y, 0) / memberPositions.length;
+    const stemDx = centroidX - compPos.x;
+    const stemDy = centroidY - compPos.y;
+    const stemLen = Math.hypot(stemDx, stemDy) || 1;
+    const stemDirX = stemDx / stemLen;     // unit vector along stem
+    const stemDirY = stemDy / stemLen;
+    const spineDirX = -stemDirY;            // perpendicular = spine direction
+    const spineDirY = stemDirX;
+
+    // 2. Spine center: along stem-axis at SPINE_FRACTION from comp
+    const spineCx = compPos.x + stemDirX * stemLen * SPINE_FRACTION;
+    const spineCy = compPos.y + stemDirY * stemLen * SPINE_FRACTION;
+
+    // 3. Tooth positions = projection of each partitive onto spine line
+    const teeth = memberPositions.map(({ member, pos: pPos }) => {
+      const vx = pPos.x - spineCx;
+      const vy = pPos.y - spineCy;
+      const along = vx * spineDirX + vy * spineDirY;
+      const toothX = spineCx + spineDirX * along;
+      const toothY = spineCy + spineDirY * along;
+      return { member, partitivePos: pPos, toothX, toothY, along };
+    });
+
+    // 4. Spine extents (leftmost to rightmost tooth along spine-axis)
+    let minAlong = teeth[0].along;
+    let maxAlong = teeth[0].along;
+    for (const t of teeth) {
+      if (t.along < minAlong) minAlong = t.along;
+      if (t.along > maxAlong) maxAlong = t.along;
+    }
+    // For completeness: 'partial', extend past last tooth (continued backline)
+    if (rel.completeness === 'partial') maxAlong += PARTIAL_TAIL;
+    const spineStartX = spineCx + spineDirX * minAlong;
+    const spineStartY = spineCy + spineDirY * minAlong;
+    const spineEndX = spineCx + spineDirX * maxAlong;
+    const spineEndY = spineCy + spineDirY * maxAlong;
 
     const isShared = !!rel.plurality?.isShared;
     const isUncertain = !!rel.plurality?.isUncertain;
 
     /**
-     * Draw a single straight line segment with optional parallel offset
-     * and dash style. Used for both stem and branches.
+     * Draw a single straight segment with optional parallel offset
+     * (used to render the close-set double line) and dash style.
      */
     const drawSegment = (
       ax: number, ay: number, bx: number, by: number,
@@ -833,42 +881,27 @@ function drawRakeBundles(
       const offset = opts.offset ?? 0;
       const dashed = opts.dashed ?? false;
       const opacity = opts.opacity ?? 0.85;
-      if (offset === 0) {
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('class', 'rake-seg');
-        line.setAttribute('x1', String(ax));
-        line.setAttribute('y1', String(ay));
-        line.setAttribute('x2', String(bx));
-        line.setAttribute('y2', String(by));
-        line.setAttribute('stroke', color);
-        line.setAttribute('stroke-width', '1.6');
-        line.setAttribute('opacity', String(opacity));
-        line.setAttribute('stroke-linecap', 'round');
-        if (dashed) line.setAttribute('stroke-dasharray', DASH);
-        svg.appendChild(line);
-      } else {
-        // Compute perpendicular unit vector for parallel offset
-        const dx = bx - ax, dy = by - ay;
-        const len = Math.hypot(dx, dy) || 1;
-        const px = -dy / len, py = dx / len;
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('class', 'rake-seg');
-        line.setAttribute('x1', String(ax + px * offset));
-        line.setAttribute('y1', String(ay + py * offset));
-        line.setAttribute('x2', String(bx + px * offset));
-        line.setAttribute('y2', String(by + py * offset));
-        line.setAttribute('stroke', color);
-        line.setAttribute('stroke-width', '1.6');
-        line.setAttribute('opacity', String(opacity));
-        line.setAttribute('stroke-linecap', 'round');
-        if (dashed) line.setAttribute('stroke-dasharray', DASH);
-        svg.appendChild(line);
-      }
+      const dx = bx - ax, dy = by - ay;
+      const len = Math.hypot(dx, dy) || 1;
+      // Perpendicular to THIS segment (not the spine-axis) for parallel offset
+      const px = -dy / len, py = dx / len;
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('class', 'rake-seg');
+      line.setAttribute('x1', String(ax + px * offset));
+      line.setAttribute('y1', String(ay + py * offset));
+      line.setAttribute('x2', String(bx + px * offset));
+      line.setAttribute('y2', String(by + py * offset));
+      line.setAttribute('stroke', color);
+      line.setAttribute('stroke-width', '1.6');
+      line.setAttribute('opacity', String(opacity));
+      line.setAttribute('stroke-linecap', 'square');   // sharp corners at right angles
+      if (dashed) line.setAttribute('stroke-dasharray', DASH);
+      svg.appendChild(line);
     };
 
     /**
-     * Draw a segment with the relation's plurality style:
-     * single solid (default), double solid (isShared),
+     * Draw a segment with the relation's plurality style.
+     * Single solid (default), double solid (isShared),
      * or solid + dashed (isShared + isUncertain).
      */
     const drawSegmentWithPlurality = (
@@ -879,7 +912,6 @@ function drawRakeBundles(
       if (!isShared) {
         drawSegment(ax, ay, bx, by, { opacity, dashed: opts.perMemberPossible });
       } else {
-        // Close-set double: two parallel lines offset ±DOUBLE_GAP/2
         drawSegment(ax, ay, bx, by, { offset: -DOUBLE_GAP / 2, opacity });
         drawSegment(ax, ay, bx, by, {
           offset: DOUBLE_GAP / 2,
@@ -889,30 +921,36 @@ function drawRakeBundles(
       }
     };
 
-    // 1. Stem: comprehensive → spine midpoint
-    drawSegmentWithPlurality(compPos.x, compPos.y, cx_part, cy_part);
+    // 5. Stem: comp → spine center (along stem-axis)
+    drawSegmentWithPlurality(compPos.x, compPos.y, spineCx, spineCy);
 
-    // 2. Branches: spine midpoint → each partitive
-    for (const { member, pos: pPos } of memberPositions) {
-      drawSegmentWithPlurality(cx_part, cy_part, pPos.x, pPos.y, {
-        opacity: member.certainty === 'possible' ? 0.45 : 0.85,
-        perMemberPossible: member.certainty === 'possible',
+    // 6. Spine: leftmost tooth → rightmost tooth (along spine-axis)
+    //     (skip if only one tooth — no horizontal extent)
+    if (Math.abs(maxAlong - minAlong) > 1) {
+      drawSegmentWithPlurality(spineStartX, spineStartY, spineEndX, spineEndY);
+    }
+
+    // 7. Drops: tooth → partitive (parallel to stem-axis by construction)
+    for (const tooth of teeth) {
+      drawSegmentWithPlurality(tooth.toothX, tooth.toothY, tooth.partitivePos.x, tooth.partitivePos.y, {
+        opacity: tooth.member.certainty === 'possible' ? 0.5 : 0.85,
+        perMemberPossible: tooth.member.certainty === 'possible',
       });
     }
 
-    // 3. Junction marker at spine midpoint (small filled circle)
+    // 8. Junction marker at spine center (the right-angle corner)
     const junction = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     junction.setAttribute('class', 'rake-junction');
-    junction.setAttribute('cx', String(cx_part));
-    junction.setAttribute('cy', String(cy_part));
-    junction.setAttribute('r', '3');
+    junction.setAttribute('cx', String(spineCx));
+    junction.setAttribute('cy', String(spineCy));
+    junction.setAttribute('r', '2.5');
     junction.setAttribute('fill', color);
-    junction.setAttribute('opacity', '0.85');
+    junction.setAttribute('opacity', '0.9');
     junction.setAttribute('stroke', uiStore.isDark ? '#0a1f1c' : '#ffffff');
     junction.setAttribute('stroke-width', '1');
     svg.appendChild(junction);
 
-    // 4. Diamond marker at comprehensive end (hyperedge origin signal)
+    // 9. Diamond marker at comprehensive end (hyperedge origin)
     const diamond = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     const dsize = 5;
     diamond.setAttribute('d',
@@ -1249,6 +1287,8 @@ watch(() => [props.concept?.id, props.registerId] as const, ([newId, newReg]) =>
 /* ── Legend — grouped by relation TYPE (not category) ───── */
 const legendItems = computed(() => {
   graphVersion.value;  /* reactive dependency */
+  uiStore.isDark;       /* re-evaluate when dark mode toggles (color depends on it) */
+  mutedTypes.value;     /* re-evaluate when mute set changes */
   const typeMap = new Map<string, { type: string; label: string; color: string; count: number }>();
   for (const link of links) {
     /* Per-type color (with override) so e.g. 'see' and 'references' differ */
@@ -1260,6 +1300,18 @@ const legendItems = computed(() => {
       typeMap.set(key, { type: key, label, color, count: 0 });
     }
     typeMap.get(key)!.count++;
+  }
+  /* Synthetic entry for PartitiveRelations (hyperedge rake bundles).
+     These don't appear in `links` (they're rendered separately), so we
+     inject a legend entry when any are present. */
+  const partitiveCount = props.partitiveRelations?.length ?? 0;
+  if (partitiveCount > 0) {
+    typeMap.set('__partitive__', {
+      type: '__partitive__',
+      label: 'partitive relation',
+      color: uiStore.isDark ? '#2dd4bf' : '#0d9488',
+      count: partitiveCount,
+    });
   }
   return Array.from(typeMap.values()).sort((a, b) => b.count - a.count);
 });
@@ -1285,6 +1337,9 @@ function toggleRegister(reg: string) {
   renderDOM();
   const c = canvasRef.value;
   if (c) drawEdges(c.clientWidth / 2, c.clientHeight * 0.46);
+  /* Re-heat the simulation so nodes "feel" the freed/hidden edges and
+     drift to a new equilibrium instead of staying frozen. */
+  if (sim) sim.alpha(0.5).restart();
 }
 
 async function changeDegree(d: 1 | 2 | 3) {
@@ -1402,6 +1457,10 @@ function toggleType(type: string) {
   mutedTypes.value = n;
   const c = canvasRef.value;
   if (c) drawEdges(c.clientWidth / 2, c.clientHeight * 0.46);
+  /* Re-heat the simulation so nodes drift to a new equilibrium with
+     the freed/hidden edges. The link force reads mutedTypes each tick,
+     so toggling effectively "removes" the edge from the force calc. */
+  if (sim) sim.alpha(0.5).restart();
 }
 
 function isTypeMuted(type: string): boolean {
@@ -1574,9 +1633,12 @@ defineExpose({ navigate });
           <div class="sp-section-label">{{ t('sphere.relationTypes') }}</div>
           <div class="sp-legend-grid">
             <button v-for="item in legendItems" :key="item.type" class="sp-legend-item"
-              :class="{ muted: isTypeMuted(item.type) }" @click="toggleType(item.type)"
+              :class="{ muted: isTypeMuted(item.type), 'is-partitive': item.type === '__partitive__' }"
+              @click="toggleType(item.type)"
               :title="item.type">
-              <span class="sp-swatch" :style="{ background: isTypeMuted(item.type) ? '#b8b9cc' : item.color }"></span>
+              <span v-if="item.type === '__partitive__'" class="sp-swatch sp-swatch-rake"
+                :style="{ '--rake-color': isTypeMuted(item.type) ? '#b8b9cc' : item.color }"></span>
+              <span v-else class="sp-swatch" :style="{ background: isTypeMuted(item.type) ? '#b8b9cc' : item.color }"></span>
               <span>{{ item.label }}</span>
               <span class="sp-count">{{ item.count }}</span>
             </button>
@@ -1825,6 +1887,26 @@ defineExpose({ navigate });
 .sp-legend-item:hover { background: var(--rule); }
 .sp-legend-item.muted { opacity: 0.35; }
 .sp-swatch { width: 18px; height: 2px; flex-shrink: 0; border-radius: 1px; }
+/* Rake swatch — small bracket icon signaling a PartitiveRelation hyperedge
+   (not a single binary edge). Two parallel solid lines (close-set double)
+   with a perpendicular stem, evoking the ISO 704 rake convention. */
+.sp-swatch-rake {
+  width: 18px; height: 10px; position: relative; background: transparent !important;
+  border-radius: 0;
+}
+.sp-swatch-rake::before,
+.sp-swatch-rake::after {
+  content: ''; position: absolute; background: var(--rake-color, #0d9488);
+}
+.sp-swatch-rake::before {
+  /* horizontal spine (close-set double line) */
+  left: 4px; right: 0; top: 3px; height: 1.5px;
+  box-shadow: 0 3px 0 var(--rake-color, #0d9488);
+}
+.sp-swatch-rake::after {
+  /* vertical stem from top of swatch to spine */
+  left: 4px; width: 1.5px; top: 0; height: 4px;
+}
 .sp-count { margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
 
 .sp-preview {
