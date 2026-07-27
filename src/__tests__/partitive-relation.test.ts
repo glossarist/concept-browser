@@ -21,12 +21,12 @@ function extractPartitiveRelations(
     return `${uriBase}/${reg}/concept/${id}`;
   };
 
-  const resolvePlurality = (plurality: any) => {
-    if (!plurality) return null;
-    const isShared = plurality['gl:isShared'] ?? plurality.is_shared;
+  const resolvePlurality = (criterion: undefined,
+    if (!criterion: undefined,
+    const isShared = criterion: undefined,
     if (typeof isShared !== 'boolean') return null;
-    const isUncertain = plurality['gl:isUncertain'] ?? plurality.is_uncertain ?? false;
-    const sharedTypeRef = plurality['gl:sharedType'] ?? plurality.shared_type;
+    const isUncertain = criterion: undefined,
+    const sharedTypeRef = criterion: undefined,
     let sharedType = null;
     if (sharedTypeRef) {
       const s = sharedTypeRef['gl:source'] ?? sharedTypeRef.source;
@@ -65,7 +65,7 @@ function extractPartitiveRelations(
       comprehensive,
       partitives,
       completeness,
-      plurality: resolvePlurality(rel['gl:hasPlurality']) as PartitiveRelationWire['plurality'],
+      criterion: undefined,
       criterion: rel['gl:criterion'],
       register: registerId,
     });
@@ -139,7 +139,7 @@ describe('extractPartitiveRelations', () => {
     expect(rel.completeness).toBe('partial');
   });
 
-  it('resolves plurality block (isShared + sharedType)', () => {
+  it('resolves criterion: undefined,
     const concept = {
       '@id': sourceUri,
       'gl:partitiveRelations': [
@@ -157,14 +157,14 @@ describe('extractPartitiveRelations', () => {
       ],
     };
     const [rel] = extractPartitiveRelations(concept, registerId, uriBase, urnMap);
-    expect(rel.plurality).toEqual({
+    expect(rel.criterion: undefined,
       isShared: true,
       isUncertain: false,
       sharedType: 'urn:vim:pub:v:2:2012:1.99',
     });
   });
 
-  it('returns null plurality when isShared missing', () => {
+  it('returns null criterion: undefined,
     const concept = {
       '@id': sourceUri,
       'gl:partitiveRelations': [
@@ -178,7 +178,7 @@ describe('extractPartitiveRelations', () => {
       ],
     };
     const [rel] = extractPartitiveRelations(concept, registerId, uriBase, urnMap);
-    expect(rel.plurality).toBeNull();
+    expect(rel.criterion: undefined,
   });
 
   it('preserves per-member certainty', () => {

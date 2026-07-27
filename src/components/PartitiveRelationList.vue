@@ -3,7 +3,6 @@
  * PartitiveRelationList — renders one-to-many partitive decompositions
  * as ISO 704 rake diagrams. Each relation shows:
  *   - completeness badge (complete / partial)
- *   - plurality badge (shared / uncertain / sharedType) when present
  *   - criterion as italic text under the header
  *   - the rake diagram itself (PartitiveRelationDiagram)
  *
@@ -18,7 +17,7 @@ import { getFactory } from '../adapters/factory';
 import { useI18n, locale } from '../i18n';
 import {
   completenessLabel,
-  certaintyLabel,
+  multiplicityLabel,
 } from '../utils/partitive-relation-styling';
 import PartitiveRelationDiagram, {
   type PartitiveMemberLabeled,
@@ -77,14 +76,7 @@ function criterionText(criterion?: Record<string, string>): string | null {
     ?? null;
 }
 
-function pluralityBadge(plurality: NonNullable<PartitiveRelationWire['plurality']>): string {
-  if (!plurality.isShared) return '';
-  let label = t('partitive.plurality.shared') || 'shared type';
-  if (plurality.isUncertain) {
-    label = `${label} (${t('partitive.plurality.uncertain') || 'uncertain'})`;
   }
-  if (plurality.sharedType) {
-    label = `${label}: ${plurality.sharedType}`;
   }
   return label;
 }
@@ -93,7 +85,7 @@ function labeledMembers(rel: PartitiveRelationWire): PartitiveMemberLabeled[] {
   return rel.partitives.map(m => ({
     uri: m.uri,
     label: designationFor(m.uri),
-    certainty: m.certainty,
+    multiplicity: m.multiplicity,
   }));
 }
 </script>
@@ -114,11 +106,8 @@ function labeledMembers(rel: PartitiveRelationWire): PartitiveMemberLabeled[] {
           {{ completenessLabel(rel.completeness) }}
         </span>
         <span
-          v-if="rel.plurality && rel.plurality.isShared"
           class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 uppercase"
-          :title="pluralityBadge(rel.plurality)"
         >
-          {{ pluralityBadge(rel.plurality) }}
         </span>
         <button
           @click="navigate(rel.comprehensive)"
@@ -139,7 +128,6 @@ function labeledMembers(rel: PartitiveRelationWire): PartitiveMemberLabeled[] {
           :comprehensive-label="designationFor(rel.comprehensive)"
           :partitives="labeledMembers(rel)"
           :completeness="rel.completeness"
-          :plurality="rel.plurality"
           :criterion="null"
           @navigate="navigate"
         />
