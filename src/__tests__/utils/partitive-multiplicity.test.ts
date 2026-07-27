@@ -18,7 +18,7 @@ describe('partitive-multiplicity registry', () => {
       'optional',
       'compulsory_multiple',
       'optional_multiple',
-      'at_least_one',
+      'compulsory_at_least_one',
     ]);
   });
 
@@ -46,15 +46,15 @@ describe('partitive-multiplicity registry', () => {
     });
   });
 
-  it('at_least_one: 2 lines, mixed (one solid + one dashed)', () => {
-    expect(multiplicityDefinition('at_least_one')).toEqual({
+  it('compulsory_at_least_one: 2 lines, mixed (one solid + one dashed)', () => {
+    expect(multiplicityDefinition('compulsory_at_least_one')).toEqual({
       lines: 2, pattern: 'mixed', label: 'At least one',
     });
   });
 
   it('isPartitiveMultiplicity narrows known values', () => {
     expect(isPartitiveMultiplicity('compulsory')).toBe(true);
-    expect(isPartitiveMultiplicity('at_least_one')).toBe(true);
+    expect(isPartitiveMultiplicity('compulsory_at_least_one')).toBe(true);
     expect(isPartitiveMultiplicity('unknown')).toBe(false);
     expect(isPartitiveMultiplicity(null)).toBe(false);
     expect(isPartitiveMultiplicity(42)).toBe(false);
@@ -82,8 +82,8 @@ describe('rakeStrokeStyle', () => {
     { name: 'compulsory_multiple / delimiting',     multiplicity: 'compulsory_multiple', isDelimiting: true,  expected: { lineCount: 2, primaryDashed: false, secondaryDashed: false, strokeWidth: DELIMITING_STROKE_WIDTH } },
     { name: 'optional_multiple / non-delimiting',   multiplicity: 'optional_multiple',   isDelimiting: false, expected: { lineCount: 2, primaryDashed: true,  secondaryDashed: true,  strokeWidth: NORMAL_STROKE_WIDTH } },
     { name: 'optional_multiple / delimiting',       multiplicity: 'optional_multiple',   isDelimiting: true,  expected: { lineCount: 2, primaryDashed: true,  secondaryDashed: true,  strokeWidth: DELIMITING_STROKE_WIDTH } },
-    { name: 'at_least_one / non-delimiting',        multiplicity: 'at_least_one',        isDelimiting: false, expected: { lineCount: 2, primaryDashed: false, secondaryDashed: true,  strokeWidth: NORMAL_STROKE_WIDTH } },
-    { name: 'at_least_one / delimiting',            multiplicity: 'at_least_one',        isDelimiting: true,  expected: { lineCount: 2, primaryDashed: false, secondaryDashed: true,  strokeWidth: DELIMITING_STROKE_WIDTH } },
+    { name: 'compulsory_at_least_one / non-delimiting',        multiplicity: 'compulsory_at_least_one',        isDelimiting: false, expected: { lineCount: 2, primaryDashed: false, secondaryDashed: true,  strokeWidth: NORMAL_STROKE_WIDTH } },
+    { name: 'compulsory_at_least_one / delimiting',            multiplicity: 'compulsory_at_least_one',        isDelimiting: true,  expected: { lineCount: 2, primaryDashed: false, secondaryDashed: true,  strokeWidth: DELIMITING_STROKE_WIDTH } },
   ];
 
   for (const c of cases) {

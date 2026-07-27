@@ -34,12 +34,12 @@ function extractPartitiveRelations(
         const isDelimiting = member['gl:isDelimiting'] === true;
         if (!isValidMultiplicity(multiplicity)) {
           throw new Error(
-            `Invalid partitive member multiplicity: "${multiplicity}". Allowed: compulsory, optional, compulsory_multiple, optional_multiple, at_least_one`,
+            `Invalid partitive member multiplicity: "${multiplicity}". Allowed: compulsory, optional, compulsory_multiple, optional_multiple, compulsory_at_least_one`,
           );
         }
         return { uri, multiplicity, isDelimiting };
       })
-      .filter((p: any): p is { uri: string; multiplicity: 'compulsory' | 'optional' | 'compulsory_multiple' | 'optional_multiple' | 'at_least_one'; isDelimiting: boolean } => p !== null);
+      .filter((p: any): p is { uri: string; multiplicity: 'compulsory' | 'optional' | 'compulsory_multiple' | 'optional_multiple' | 'compulsory_at_least_one'; isDelimiting: boolean } => p !== null);
 
     if (partitives.length === 0) continue;
 
@@ -61,8 +61,8 @@ function extractPartitiveRelations(
   return relations;
 }
 
-function isValidMultiplicity(value: unknown): value is 'compulsory' | 'optional' | 'compulsory_multiple' | 'optional_multiple' | 'at_least_one' {
-  return ['compulsory', 'optional', 'compulsory_multiple', 'optional_multiple', 'at_least_one'].includes(value as string);
+function isValidMultiplicity(value: unknown): value is 'compulsory' | 'optional' | 'compulsory_multiple' | 'optional_multiple' | 'compulsory_at_least_one' {
+  return ['compulsory', 'optional', 'compulsory_multiple', 'optional_multiple', 'compulsory_at_least_one'].includes(value as string);
 }
 
 describe('extractPartitiveRelations', () => {
@@ -139,7 +139,7 @@ describe('extractPartitiveRelations', () => {
             { 'gl:ref': { 'gl:source': 'urn:vim:pub:v:2:2012', 'gl:id': '1.4' } },
             { 'gl:ref': { 'gl:source': 'urn:vim:pub:v:2:2012', 'gl:id': '1.5' }, 'gl:multiplicity': 'optional' },
             { 'gl:ref': { 'gl:source': 'urn:vim:pub:v:2:2012', 'gl:id': '1.6' }, 'gl:multiplicity': 'compulsory_multiple' },
-            { 'gl:ref': { 'gl:source': 'urn:vim:pub:v:2:2012', 'gl:id': '1.7' }, 'gl:multiplicity': 'at_least_one', 'gl:isDelimiting': true },
+            { 'gl:ref': { 'gl:source': 'urn:vim:pub:v:2:2012', 'gl:id': '1.7' }, 'gl:multiplicity': 'compulsory_at_least_one', 'gl:isDelimiting': true },
           ],
         },
       ],
@@ -149,7 +149,7 @@ describe('extractPartitiveRelations', () => {
       { uri: `${uriBase}/${registerId}/concept/1.4`, multiplicity: 'compulsory', isDelimiting: false },
       { uri: `${uriBase}/${registerId}/concept/1.5`, multiplicity: 'optional', isDelimiting: false },
       { uri: `${uriBase}/${registerId}/concept/1.6`, multiplicity: 'compulsory_multiple', isDelimiting: false },
-      { uri: `${uriBase}/${registerId}/concept/1.7`, multiplicity: 'at_least_one', isDelimiting: true },
+      { uri: `${uriBase}/${registerId}/concept/1.7`, multiplicity: 'compulsory_at_least_one', isDelimiting: true },
     ]);
   });
 
