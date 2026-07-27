@@ -166,20 +166,18 @@ interface JsonLdLocalizedConcept {
 
 interface JsonLdPartitiveMember {
   'gl:ref'?: JsonLdRef;
+  /** ISO 704:2022 v3 field (native in glossarist 0.4.24). */
+  'gl:multiplicity'?: string;
+  /** ISO 704:2022 v3 field (native in glossarist 0.4.24). */
+  'gl:isDelimiting'?: boolean;
+  /** Legacy v2 field — still read for backward compat with older datasets. */
   'gl:certainty'?: string;
-}
-
-interface JsonLdTypeSharedPlurality {
-  'gl:isShared'?: boolean;
-  'gl:isUncertain'?: boolean;
-  'gl:sharedType'?: JsonLdRef;
 }
 
 interface JsonLdPartitiveRelation {
   'gl:comprehensive'?: JsonLdRef;
   'gl:hasPartitive'?: JsonLdPartitiveMember[];
   'gl:completeness'?: string;
-  'gl:hasPlurality'?: JsonLdTypeSharedPlurality;
   'gl:criterion'?: Record<string, string> | string;
 }
 
@@ -592,7 +590,16 @@ function mapPartitiveRelationFromJsonLd(r: JsonLdPartitiveRelation): Record<stri
       const ref = m['gl:ref'] ? mapRefFromJsonLd(m['gl:ref']) : null;
       if (!ref) return null;
       const out: Record<string, unknown> = { ref };
-      if (m['gl:certainty']) out.certainty = m['gl:certainty'];
+      // ISO 704:2022 multiplicity + is_delimiting (v3). Fall back to
+      // legacy gl:certainty for backward compat.
+      if (m['gl:multiplicity']) {
+        out.multiplicity = m['gl:multiplicity'];
+      } else if (m['gl:certainty']) {
+        out.multiplicity = m['gl:certainty'] === 'possible' ? 'optional' : 'compulsory';
+      }
+      if (m['gl:isDelimiting'] === true) {
+        out.is_delimiting = true;
+      }
       return out;
     })
     .filter((m): m is Record<string, unknown> => m !== null);
@@ -607,17 +614,6 @@ function mapPartitiveRelationFromJsonLd(r: JsonLdPartitiveRelation): Record<stri
   };
 
   if (r['gl:completeness']) out.completeness = r['gl:completeness'];
-
-  const plurality = r['gl:hasPlurality'];
-  if (plurality && typeof plurality['gl:isShared'] === 'boolean') {
-    const p: Record<string, unknown> = { isShared: plurality['gl:isShared'] };
-    if (typeof plurality['gl:isUncertain'] === 'boolean') {
-      p.isUncertain = plurality['gl:isUncertain'];
-    }
-    const sharedType = plurality['gl:sharedType'] ? mapRefFromJsonLd(plurality['gl:sharedType']) : null;
-    if (sharedType) p.sharedType = sharedType;
-    out.plurality = p;
-  }
 
   if (r['gl:criterion']) {
     out.criterion = typeof r['gl:criterion'] === 'string'

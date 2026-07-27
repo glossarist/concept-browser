@@ -17,6 +17,7 @@
 // block when upstream PRs the d.ts changes.
 
 import type { ConceptSource, Citation, GlossaristModel } from 'glossarist';
+import type { PartitiveMultiplicity } from '../../utils/partitive-multiplicity';
 
 declare module 'glossarist' {
   class RegistrableModel extends GlossaristModel {
@@ -168,29 +169,42 @@ declare module 'glossarist' {
     static fromJSON(data: Record<string, unknown>): TypeSharedPlurality;
   }
 
-  class PartitiveMember extends GlossaristModel {
-    constructor(data?: { ref?: ConceptRef; certainty?: MemberCertainty });
+  interface Concept {
+    readonly partitiveRelations: PartitiveRelation[];
+  }
+
+  // ── v3 PartitiveRelation (glossarist 0.4.24 — ISO 704:2022 multiplicity + delimiting) ─
+  // Re-exposed here so callers importing from the top-level `glossarist`
+  // entry get the v3-augmented shape, not the stale d.ts type.
+  export class PartitiveMember extends GlossaristModel {
+    constructor(data?: {
+      ref?: ConceptRef;
+      multiplicity?: PartitiveMultiplicity;
+      is_delimiting?: boolean;
+    });
     readonly ref: ConceptRef;
-    readonly certainty: MemberCertainty;
+    readonly multiplicity: PartitiveMultiplicity;
+    readonly is_delimiting: boolean;
     readonly isConfirmed: boolean;
     readonly isPossible: boolean;
-    toJSON(): { ref: ReturnType<ConceptRef['toJSON']>; certainty?: MemberCertainty };
+    readonly isCompulsory: boolean;
+    readonly isOptional: boolean;
+    get isDelimiting(): boolean;
+    toJSON(): { ref: ReturnType<ConceptRef['toJSON']>; multiplicity?: PartitiveMultiplicity; is_delimiting?: boolean };
     static fromJSON(data: Record<string, unknown>): PartitiveMember;
     static identityOf(value: unknown): string;
   }
 
-  class PartitiveRelation extends GlossaristModel {
+  export class PartitiveRelation extends GlossaristModel {
     constructor(data?: {
       comprehensive?: ConceptRef;
       partitives?: PartitiveMember[];
       completeness?: Completeness;
-      plurality?: TypeSharedPlurality;
       criterion?: Record<string, string> | string;
     });
     readonly comprehensive: ConceptRef;
     readonly partitives: PartitiveMember[];
     readonly completeness: Completeness;
-    readonly plurality: TypeSharedPlurality | null;
     readonly criterion: Record<string, string> | null;
     readonly isComplete: boolean;
     readonly isPartial: boolean;
@@ -201,15 +215,10 @@ declare module 'glossarist' {
       comprehensive: ReturnType<ConceptRef['toJSON']>;
       partitives: ReturnType<PartitiveMember['toJSON']>[];
       completeness: Completeness;
-      plurality?: ReturnType<TypeSharedPlurality['toJSON']>;
       criterion?: Record<string, string>;
     };
     static fromJSON(data: Record<string, unknown>): PartitiveRelation;
     static identityOf(value: unknown): string;
-  }
-
-  interface Concept {
-    readonly partitiveRelations: PartitiveRelation[];
   }
 }
 
@@ -246,13 +255,23 @@ declare module 'glossarist/models' {
     static fromJSON(data: Record<string, unknown>): TypeSharedPlurality;
   }
 
+  // ── v2 PartitiveRelation (glossarist 0.4.24 — ISO 704:2022 multiplicity + delimiting) ─
+
   export class PartitiveMember extends GlossaristModel {
-    constructor(data?: { ref?: ConceptRef; certainty?: MemberCertainty });
+    constructor(data?: {
+      ref?: ConceptRef;
+      multiplicity?: PartitiveMultiplicity;
+      is_delimiting?: boolean;
+    });
     readonly ref: ConceptRef;
-    readonly certainty: MemberCertainty;
+    readonly multiplicity: PartitiveMultiplicity;
+    readonly is_delimiting: boolean;
     readonly isConfirmed: boolean;
     readonly isPossible: boolean;
-    toJSON(): { ref: ReturnType<ConceptRef['toJSON']>; certainty?: MemberCertainty };
+    readonly isCompulsory: boolean;
+    readonly isOptional: boolean;
+    get isDelimiting(): boolean;
+    toJSON(): { ref: ReturnType<ConceptRef['toJSON']>; multiplicity?: PartitiveMultiplicity; is_delimiting?: boolean };
     static fromJSON(data: Record<string, unknown>): PartitiveMember;
     static identityOf(value: unknown): string;
   }
@@ -262,13 +281,11 @@ declare module 'glossarist/models' {
       comprehensive?: ConceptRef;
       partitives?: PartitiveMember[];
       completeness?: Completeness;
-      plurality?: TypeSharedPlurality;
       criterion?: Record<string, string> | string;
     });
     readonly comprehensive: ConceptRef;
     readonly partitives: PartitiveMember[];
     readonly completeness: Completeness;
-    readonly plurality: TypeSharedPlurality | null;
     readonly criterion: Record<string, string> | null;
     readonly isComplete: boolean;
     readonly isPartial: boolean;
@@ -279,7 +296,6 @@ declare module 'glossarist/models' {
       comprehensive: ReturnType<ConceptRef['toJSON']>;
       partitives: ReturnType<PartitiveMember['toJSON']>[];
       completeness: Completeness;
-      plurality?: ReturnType<TypeSharedPlurality['toJSON']>;
       criterion?: Record<string, string>;
     };
     static fromJSON(data: Record<string, unknown>): PartitiveRelation;
