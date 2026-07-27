@@ -4,6 +4,13 @@ function buildConceptUri(uriBase, registerId, conceptId) {
 
 const VALID_COMPLETENESS = new Set(['complete', 'partial']);
 const VALID_CERTAINTY = new Set(['confirmed', 'possible']);
+const VALID_MULTIPLICITY = new Set([
+  'compulsory',
+  'optional',
+  'compulsory_multiple',
+  'optional_multiple',
+  'compulsory_at_least_one',
+]);
 
 function validateCompleteness(value) {
   if (value == null) return 'complete';
@@ -15,14 +22,40 @@ function validateCompleteness(value) {
   return value;
 }
 
-function validateCertainty(value) {
-  if (value == null) return 'confirmed';
-  if (!VALID_CERTAINTY.has(value)) {
-    throw new Error(
-      `Invalid partitive member certainty: "${value}". Allowed: confirmed, possible`,
-    );
+/**
+ * Resolve a partitive member's multiplicity from JSON-LD.
+ *
+ * Reads gl:multiplicity first (v3 wire shape, ISO 704:2022). Falls back
+ * to migrating from gl:certainty (v2 wire shape) for one release cycle
+ * until upstream emits multiplicity natively.
+ *
+ *   confirmed → compulsory
+ *   possible  → optional
+ */
+function resolveMultiplicity(member) {
+  const m = member['gl:multiplicity'] ?? member.multiplicity;
+  if (m != null) {
+    if (!VALID_MULTIPLICITY.has(m)) {
+      throw new Error(
+        `Invalid partitive member multiplicity: "${m}". Allowed: ${[...VALID_MULTIPLICITY].join(', ')}`,
+      );
+    }
+    return m;
   }
-  return value;
+  const certainty = member['gl:certainty'] ?? member.certainty;
+  if (certainty != null) {
+    if (!VALID_CERTAINTY.has(certainty)) {
+      throw new Error(
+        `Invalid partitive member certainty: "${certainty}". Allowed: confirmed, possible`,
+      );
+    }
+    return certainty === 'possible' ? 'optional' : 'compulsory';
+  }
+  return 'compulsory';
+}
+
+function resolveIsDelimiting(member) {
+  return member['gl:isDelimiting'] === true || member.isDelimiting === true;
 }
 
 function normalizeLocalizedString(content) {
@@ -183,41 +216,24 @@ function extractPartitiveRelations(concept, registerId, uriBase, urnMap) {
         if (!uri || uri === sourceUri) return null;
         return {
           uri,
-          certainty: validateCertainty(p['gl:certainty']),
+          multiplicity: resolveMultiplicity(p),
+          isDelimiting: resolveIsDelimiting(p),
         };
       })
       .filter(p => p !== null);
 
     if (partitives.length === 0) continue;
 
-    const plurality = resolvePlurality(rel['gl:hasPlurality']);
-
     relations.push({
       source: sourceUri,
       comprehensive,
       partitives,
       completeness: validateCompleteness(rel['gl:completeness']),
-      plurality,
       criterion: normalizeLocalizedString(rel['gl:criterion']),
       register: registerId,
     });
   }
   return relations;
-}
-
-function resolvePlurality(plurality) {
-  if (!plurality) return null;
-  const isShared = plurality['gl:isShared'] ?? plurality.is_shared;
-  if (typeof isShared !== 'boolean') return null;
-  const isUncertain = plurality['gl:isUncertain'] ?? plurality.is_uncertain ?? false;
-  const sharedTypeRef = plurality['gl:sharedType'] ?? plurality.shared_type;
-  let sharedType = null;
-  if (sharedTypeRef) {
-    const source = sharedTypeRef['gl:source'] ?? sharedTypeRef.source;
-    const id = sharedTypeRef['gl:id'] ?? sharedTypeRef.id;
-    if (source && id) sharedType = `${source}:${id}`;
-  }
-  return { isShared, isUncertain, sharedType };
 }
 
 function resolveConceptUri(ref, uriBase, urnMap) {

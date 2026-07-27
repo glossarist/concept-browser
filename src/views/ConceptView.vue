@@ -5,11 +5,8 @@ import { useVocabularyStore } from '../stores/vocabulary';
 import { conceptUri } from '../adapters/model-bridge';
 import { UriRouter } from '../adapters/UriRouter';
 import type { PartitiveRelationWire, PartitiveMemberWire } from '../adapters/types';
-import {
-  isPartitiveMultiplicity,
-  multiplicityFromCertainty,
-  type PartitiveMultiplicity,
-} from '../utils/partitive-multiplicity';
+import type { PartitiveMember } from 'glossarist/models';
+import type { PartitiveMultiplicity } from '../utils/partitive-multiplicity';
 import ConceptDetail from '../components/ConceptDetail.vue';
 import RelationSphere from '../components/RelationSphere.vue';
 import ShortcutsModal from '../components/ShortcutsModal.vue';
@@ -90,16 +87,8 @@ const partitiveRelationsForSphere = computed<PartitiveRelationWire[]>(() => {
         if (!ref?.id) return null;
         const uri = UriRouter.buildConceptUri(m.uriBase, activeRegisterId.value, ref.id);
         if (uri === sourceUri) return null;
-        const rawMultiplicity = (member as unknown as { multiplicity?: unknown }).multiplicity;
-        const multiplicity: PartitiveMultiplicity =
-          typeof rawMultiplicity === 'string' && isPartitiveMultiplicity(rawMultiplicity)
-            ? rawMultiplicity
-            : multiplicityFromCertainty(
-                (member as unknown as { certainty?: 'confirmed' | 'possible' | null }).certainty ?? null,
-              );
-        const isDelimiting =
-          (member as unknown as { is_delimiting?: unknown }).is_delimiting === true
-          || (member as unknown as { isDelimiting?: unknown }).isDelimiting === true;
+        const multiplicity: PartitiveMultiplicity = member.multiplicity;
+        const isDelimiting = member.isDelimiting;
         return { uri, multiplicity, isDelimiting };
       })
       .filter((x): x is PartitiveMemberWire => x !== null);

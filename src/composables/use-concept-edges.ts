@@ -1,12 +1,13 @@
 import { computed, type ComputedRef } from 'vue';
 import type { Router } from 'vue-router';
+// glossarist 0.4.24's top-level d.ts is incomplete for v3 model fields
+// (multiplicity + is_delimiting). Import the v3-augmented types from
+// glossarist/models (extended by src/adapters/non-verbal/glossarist-augment.d.ts).
+import type { Concept, RelatedConcept, ConceptRef } from 'glossarist';
 import type {
-  Concept,
-  RelatedConcept,
   PartitiveRelation as GlsPartitiveRelation,
   PartitiveMember as GlsPartitiveMember,
-  ConceptRef,
-} from 'glossarist';
+} from 'glossarist/models';
 import type {
   Manifest,
   GraphEdge,
@@ -14,11 +15,6 @@ import type {
   PartitiveMemberWire,
 } from '../adapters/types';
 import { getFactory } from '../adapters/factory';
-import {
-  isPartitiveMultiplicity,
-  multiplicityFromCertainty,
-  type PartitiveMultiplicity,
-} from '../utils/partitive-multiplicity';
 import { conceptUri } from '../adapters/model-bridge';
 import { UriRouter } from '../adapters/UriRouter';
 import { useVocabularyStore } from '../stores/vocabulary';
@@ -27,6 +23,7 @@ import { categorizeRelationship, relationshipLabel, INVERSE_RELATIONSHIPS } from
 import { langLabel } from '../utils/lang';
 import { escapeAttr } from '../utils/escape';
 import { useI18n } from '../i18n';
+import type { PartitiveMultiplicity } from '../utils/partitive-multiplicity';
 
 export interface EdgeDisplay {
   uri: string;
@@ -195,7 +192,7 @@ export function useConceptEdges(
             if (!uri || uri === source) return null;
             return {
               uri,
-              multiplicity: resolveMultiplicity(m),
+              multiplicity: readMultiplicity(m),
               isDelimiting: readIsDelimiting(m),
             };
           })
@@ -219,29 +216,14 @@ export function useConceptEdges(
     return resolveRefUri({ source: ref.source ?? null, id: ref.id ?? null });
   }
 
-  /**
-   * Resolve a partitive member's multiplicity.
-   *
-   * glossarist 0.4.20 carries `certainty: 'confirmed' | 'possible'`. The
-   * new ISO 704:2022 model uses `multiplicity` (5 values). Read the new
-   * field if present; otherwise migrate from certainty. Once glossarist
-   * publishes native multiplicity, the migration branch can go.
-   */
-  function resolveMultiplicity(m: GlsPartitiveMember): PartitiveMultiplicity {
-    const raw = (m as unknown as { multiplicity?: unknown }).multiplicity;
-    if (typeof raw === 'string' && isPartitiveMultiplicity(raw)) return raw;
-    const certainty = (m as unknown as { certainty?: 'confirmed' | 'possible' | null }).certainty ?? null;
-    return multiplicityFromCertainty(certainty);
+  // glossarist 0.4.24 carries multiplicity + is_delimiting natively on
+  // PartitiveMember. Read them directly — no migration adapter needed.
+  function readMultiplicity(m: GlsPartitiveMember): PartitiveMultiplicity {
+    return m.multiplicity;
   }
 
-  /**
-   * Read is_delimiting off the model. glossarist 0.4.20 doesn't carry it;
-   * default false until upstream publishes the field.
-   */
   function readIsDelimiting(m: GlsPartitiveMember): boolean {
-    const raw = (m as unknown as { is_delimiting?: unknown; isDelimiting?: unknown }).is_delimiting
-      ?? (m as unknown as { isDelimiting?: unknown }).isDelimiting;
-    return raw === true;
+    return m.is_delimiting;
   }
 
   function resolveRefUri(ref: { source: string | null; id: string | null } | null): string | null {

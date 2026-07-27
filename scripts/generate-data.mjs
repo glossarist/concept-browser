@@ -14,6 +14,23 @@ import { buildVersionHistoryTurtle } from './lib/version-turtle.mjs';
 import { buildBibliographyTurtle } from './lib/bibliography-turtle.mjs';
 import { ttlLit } from './lib/turtle-escape.mjs';
 import { firstNonEmpty } from './lib/first-non-empty.mjs';
+
+// Legacy v2 → v3 migration helper: derive a gl:certainty value from the
+// new ISO 704:2022 multiplicity so consumers that still read certainty
+// keep working during the one-release-cycle deprecation window.
+const CERTAINTY_FROM_MULTIPLICITY = {
+  compulsory: 'confirmed',
+  optional: 'possible',
+  compulsory_multiple: 'confirmed',
+  optional_multiple: 'possible',
+  compulsory_at_least_one: 'confirmed',
+};
+function multiplicityToCertainty(multiplicity) {
+  return multiplicity in CERTAINTY_FROM_MULTIPLICITY
+    ? CERTAINTY_FROM_MULTIPLICITY[multiplicity]
+    : null;
+}
+
 function buildConceptUri(uriBase, registerId, conceptId) {
   return `${uriBase}/${registerId}/concept/${conceptId}`;
 }
@@ -693,7 +710,18 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
           } else {
             m['gl:ref'] = refToJsonLd(member, 'gl:ConceptRef');
           }
-          if (member.certainty) m['gl:certainty'] = member.certainty;
+          // ISO 704:2022 multiplicity + is_delimiting (v3 wire shape).
+          // Emit both new and legacy fields for one release cycle so
+          // consumers that still read gl:certainty keep working.
+          if (member.multiplicity) m['gl:multiplicity'] = member.multiplicity;
+          if (member.is_delimiting === true || member.isDelimiting === true) {
+            m['gl:isDelimiting'] = true;
+          }
+          // Legacy gl:certainty — derived from multiplicity when not set
+          // explicitly. Remove after consumers migrate to multiplicity.
+          const legacyCertainty = member.certainty
+            ?? multiplicityToCertainty(member.multiplicity);
+          if (legacyCertainty) m['gl:certainty'] = legacyCertainty;
           return m;
         });
       }
@@ -977,7 +1005,14 @@ async function processDataset(dir, register, opts) {
     partitiveRelations: {
       count: 0,
       byCompleteness: { complete: 0, partial: 0 },
-      byMemberCertainty: { confirmed: 0, possible: 0 },
+      byMemberMultiplicity: {
+        compulsory: 0,
+        optional: 0,
+        compulsory_multiple: 0,
+        optional_multiple: 0,
+        compulsory_at_least_one: 0,
+      },
+      delimitingMembers: 0,
       withCriterion: 0,
       withoutCriterion: 0,
       withPlurality: 0,
@@ -1013,9 +1048,14 @@ async function processDataset(dir, register, opts) {
           (s.partitiveRelations.byCompleteness[completeness] || 0) + 1;
         const partitives = rel.partitives || [];
         for (const member of partitives) {
-          const certainty = member.certainty || 'confirmed';
-          s.partitiveRelations.byMemberCertainty[certainty] =
-            (s.partitiveRelations.byMemberCertainty[certainty] || 0) + 1;
+          // Prefer multiplicity; fall back to legacy certainty for one release.
+          const multiplicity = member.multiplicity
+            ?? (member.certainty === 'possible' ? 'optional' : 'compulsory');
+          s.partitiveRelations.byMemberMultiplicity[multiplicity] =
+            (s.partitiveRelations.byMemberMultiplicity[multiplicity] || 0) + 1;
+          if (member.is_delimiting === true || member.isDelimiting === true) {
+            s.partitiveRelations.delimitingMembers += 1;
+          }
         }
         if (rel.criterion) {
           s.partitiveRelations.withCriterion += 1;
