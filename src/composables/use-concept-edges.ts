@@ -5,7 +5,6 @@ import type {
   RelatedConcept,
   PartitiveRelation as GlsPartitiveRelation,
   PartitiveMember as GlsPartitiveMember,
-  TypeSharedPlurality as GlsTypeSharedPlurality,
   ConceptRef,
 } from 'glossarist';
 import type {
@@ -13,7 +12,6 @@ import type {
   GraphEdge,
   PartitiveRelationWire,
   PartitiveMemberWire,
-  TypeSharedPluralityWire,
 } from '../adapters/types';
 import { getFactory } from '../adapters/factory';
 import { conceptUri } from '../adapters/model-bridge';
@@ -190,7 +188,11 @@ export function useConceptEdges(
           .map((m: GlsPartitiveMember): PartitiveMemberWire | null => {
             const uri = resolveConceptRefUri(m.ref);
             if (!uri || uri === source) return null;
-            return { uri, certainty: m.certainty };
+            return {
+              uri,
+              multiplicity: m.multiplicity ?? 'compulsory',
+              isDelimiting: m.is_delimiting === true,
+            };
           })
           .filter((m: PartitiveMemberWire | null): m is PartitiveMemberWire => m !== null);
         if (partitives.length === 0) return null;
@@ -200,26 +202,12 @@ export function useConceptEdges(
           comprehensive,
           partitives,
           completeness: rel.completeness,
-          plurality: projectPlurality(rel.plurality),
           criterion: rel.criterion ?? undefined,
           register: registerId.value,
         };
       })
       .filter((r: PartitiveRelationWire | null): r is PartitiveRelationWire => r !== null);
   });
-
-  function projectPlurality(p: GlsTypeSharedPlurality | null): TypeSharedPluralityWire | null {
-    if (!p) return null;
-    const sharedTypeRef: ConceptRef | null = p.sharedType;
-    const sharedType = sharedTypeRef
-      ? [sharedTypeRef.source, sharedTypeRef.id].filter(Boolean).join(':') || null
-      : null;
-    return {
-      isShared: p.isShared,
-      isUncertain: p.isUncertain,
-      sharedType,
-    };
-  }
 
   function resolveConceptRefUri(ref: ConceptRef | null): string | null {
     if (!ref) return null;

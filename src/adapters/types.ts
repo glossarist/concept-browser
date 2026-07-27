@@ -168,20 +168,14 @@ export interface PartitiveRelationWire {
   comprehensive: string;
   partitives: PartitiveMemberWire[];
   completeness: 'complete' | 'partial';
-  plurality: TypeSharedPluralityWire | null;
   criterion?: Record<string, string>;
   register: string;
 }
 
 export interface PartitiveMemberWire {
   uri: string;
-  certainty: 'confirmed' | 'possible';
-}
-
-export interface TypeSharedPluralityWire {
-  isShared: boolean;
-  isUncertain: boolean;
-  sharedType?: string | null;
+  multiplicity: 'compulsory' | 'optional' | 'compulsory_multiple' | 'optional_multiple' | 'at_least_one';
+  isDelimiting: boolean;
 }
 
 export interface GraphNode {

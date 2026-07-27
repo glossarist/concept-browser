@@ -27,7 +27,6 @@
  * designations ('system of quantities') instead of bare IDs ('1.3').
  */
 import { computed } from 'vue';
-import type { TypeSharedPluralityWire } from '../adapters/types';
 
 export interface PartitiveMemberLabeled {
   uri: string;
@@ -39,7 +38,6 @@ const props = withDefaults(defineProps<{
   comprehensiveLabel: string;
   partitives: PartitiveMemberLabeled[];
   completeness: 'complete' | 'partial';
-  plurality: TypeSharedPluralityWire | null;
   criterion?: string | null;
 }>(), {
   criterion: null,
