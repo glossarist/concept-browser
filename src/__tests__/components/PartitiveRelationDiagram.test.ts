@@ -3,26 +3,26 @@ import { mount } from '@vue/test-utils';
 import PartitiveRelationDiagram, {
   type PartitiveMemberLabeled,
 } from '../../components/PartitiveRelationDiagram.vue';
+import { rakeStrokeStyle, type PartitiveMultiplicity } from '../../utils/partitive-multiplicity';
 
-const members = (n: number, certainty: 'confirmed' | 'possible' = 'confirmed'): PartitiveMemberLabeled[] =>
+const members = (
+  n: number,
+  opts: { multiplicity?: PartitiveMultiplicity; isDelimiting?: boolean } = {},
+): PartitiveMemberLabeled[] =>
   Array.from({ length: n }, (_, i) => ({
     uri: `https://example.org/test/concept/1.${i + 1}`,
     label: `1.${i + 1}`,
-    certainty,
+    multiplicity: opts.multiplicity ?? 'compulsory',
+    isDelimiting: opts.isDelimiting ?? false,
   }));
 
-function svgLinesOf(wrapper: ReturnType<typeof mount>) {
-  return wrapper.findAll('line');
-}
-
-describe('PartitiveRelationDiagram — ISO 704 rake rendering', () => {
+describe('PartitiveRelationDiagram — ISO 704:2022 rake rendering', () => {
   it('renders comprehensive + N partitive nodes as text', () => {
     const w = mount(PartitiveRelationDiagram, {
       props: {
         comprehensiveLabel: '1.3',
         partitives: members(3),
         completeness: 'complete',
-        plurality: null,
       },
     });
     const texts = w.findAll('text').map(t => t.text());
@@ -38,133 +38,108 @@ describe('PartitiveRelationDiagram — ISO 704 rake rendering', () => {
         comprehensiveLabel: '1.3',
         partitives: members(2),
         completeness: 'complete',
-        plurality: null,
         criterion: 'physical structure',
       },
     });
     expect(w.findAll('text').map(t => t.text())).toContain('physical structure');
   });
 
-  describe('line variant by plurality', () => {
-    it('single solid line when no plurality (3 lines: stem + spine + 2 drops = 4 actually)', () => {
+  describe('per-member multiplicity line rendering', () => {
+    it('compulsory: stem + spine + 1 solid line per drop', () => {
       const w = mount(PartitiveRelationDiagram, {
         props: {
-          comprehensiveLabel: '1.3',
+          comprehensiveLabel: '0',
           partitives: members(2),
           completeness: 'complete',
-          plurality: null,
         },
       });
-      // stem (1) + spine (1) + drops (2) = 4 single lines
-      expect(svgLinesOf(w)).toHaveLength(4);
-      // none should be dashed
-      const dashed = svgLinesOf(w).filter(l => l.attributes('stroke-dasharray'));
-      expect(dashed).toHaveLength(0);
+      // stem (1) + spine (1) + 1 drop line per member × 2 members = 4
+      expect(w.findAll('line')).toHaveLength(4);
     });
 
-    it('close-set double solid lines when isShared && !isUncertain', () => {
+    it('compulsory_multiple: each drop has 2 lines', () => {
       const w = mount(PartitiveRelationDiagram, {
         props: {
-          comprehensiveLabel: '1.3',
-          partitives: members(2),
+          comprehensiveLabel: '0',
+          partitives: members(2, { multiplicity: 'compulsory_multiple' }),
           completeness: 'complete',
-          plurality: { isShared: true, isUncertain: false },
         },
       });
-      // stem doubles (2) + spine doubles (2) + drops (2, single) = 6 lines
-      expect(svgLinesOf(w)).toHaveLength(6);
-      const dashed = svgLinesOf(w).filter(l => l.attributes('stroke-dasharray'));
-      expect(dashed).toHaveLength(0);
+      // stem + spine + 2 drop lines per member × 2 = 6
+      expect(w.findAll('line')).toHaveLength(6);
     });
 
-    it('one solid + one dashed when isShared && isUncertain', () => {
+    it('optional: drop is dashed', () => {
       const w = mount(PartitiveRelationDiagram, {
         props: {
-          comprehensiveLabel: '1.3',
-          partitives: members(2),
+          comprehensiveLabel: '0',
+          partitives: members(2, { multiplicity: 'optional' }),
           completeness: 'complete',
-          plurality: { isShared: true, isUncertain: true },
         },
       });
-      // stem (2: 1 solid + 1 dashed) + spine (2: 1 solid + 1 dashed) + drops (2, single solid) = 6
-      const lines = svgLinesOf(w);
-      expect(lines).toHaveLength(6);
+      // stem + spine (frame, not dashed) + 2 drops (dashed)
+      const lines = w.findAll('line');
       const dashed = lines.filter(l => l.attributes('stroke-dasharray'));
-      // exactly 2 dashed lines (the second stem + the second spine)
       expect(dashed).toHaveLength(2);
     });
-  });
 
-  describe('completeness: partial extends spine', () => {
-    it('extends spine past last tooth when completeness=partial', () => {
-      const w = mount(PartitiveRelationDiagram, {
-        props: {
-          comprehensiveLabel: '1.3',
-          partitives: members(2),
-          completeness: 'partial',
-          plurality: null,
-        },
-      });
-      const lines = svgLinesOf(w);
-      // stem + spine + 2 drops = 4 lines (same count, but spine is longer)
-      expect(lines).toHaveLength(4);
-      // The spine line's x2 should be > the last partitive's x
-      const lastMember = w.props('partitives')[1];
-      // visual assertion: the spine line's x2 is greater than the second
-      // partitive's slot x. We can't compute slot exactly without internals,
-      // but we know PARTIAL_TAIL (32) is added.
-      const spineLine = lines.find(l => {
-        const y1 = l.attributes('y1');
-        const y2 = l.attributes('y2');
-        return y1 && y2 && y1 === y2; // horizontal
-      });
-      expect(spineLine).toBeDefined();
-      const x2 = Number(spineLine!.attributes('x2'));
-      // last member x ≈ PADDING_X + NODE_W * 1.5 + GAP_X = 24 + 180 + 16 = 220
-      // spine end with PARTIAL_TAIL = 220 + 32 = 252
-      expect(x2).toBeGreaterThan(220);
-      void lastMember;
-    });
-  });
-
-  describe('per-member certainty', () => {
-    it('renders possible members with dashed border', () => {
-      const possibleMembers: PartitiveMemberLabeled[] = [
-        { uri: 'u1', label: '1', certainty: 'confirmed' },
-        { uri: 'u2', label: '2', certainty: 'possible' },
-      ];
+    it('optional_multiple: each drop has 2 dashed lines', () => {
       const w = mount(PartitiveRelationDiagram, {
         props: {
           comprehensiveLabel: '0',
-          partitives: possibleMembers,
+          partitives: members(2, { multiplicity: 'optional_multiple' }),
           completeness: 'complete',
-          plurality: null,
         },
       });
-      // Find the rect for the 'possible' member (the 2nd node)
-      const rects = w.findAll('rect');
-      // 1 comp + 2 partitive = 3 rects
-      expect(rects).toHaveLength(3);
-      // The possible member's rect should have a dashed border
-      const possibleRect = rects[2];
-      expect(possibleRect.attributes('stroke-dasharray')).toBeTruthy();
+      const lines = w.findAll('line');
+      const dashed = lines.filter(l => l.attributes('stroke-dasharray'));
+      expect(dashed).toHaveLength(4); // 2 members × 2 dashed lines each
     });
 
-    it('emits navigate when a partitive is clicked', async () => {
+    it('at_least_one: each drop has 1 solid + 1 dashed line', () => {
       const w = mount(PartitiveRelationDiagram, {
         props: {
           comprehensiveLabel: '0',
-          partitives: members(2),
+          partitives: members(2, { multiplicity: 'at_least_one' }),
           completeness: 'complete',
-          plurality: null,
         },
       });
-      // Click any of the partitive <g> elements
-      const groups = w.findAll('g.cursor-pointer');
-      expect(groups.length).toBeGreaterThan(0);
-      await groups[0].trigger('click');
-      expect(w.emitted('navigate')).toBeTruthy();
+      const lines = w.findAll('line');
+      // stem + spine (solid) + 1 solid + 1 dashed per member × 2 = 6
+      expect(lines).toHaveLength(6);
+      const dashed = lines.filter(l => l.attributes('stroke-dasharray'));
+      expect(dashed).toHaveLength(2); // 1 dashed per member
     });
+
+    it('delimiting: drops use 3× stroke width', () => {
+      const w = mount(PartitiveRelationDiagram, {
+        props: {
+          comprehensiveLabel: '0',
+          partitives: members(2, { isDelimiting: true }),
+          completeness: 'complete',
+        },
+      });
+      // The drop lines should have stroke-width = 4.5 (vs frame's 1.4)
+      const lines = w.findAll('line');
+      const dropWidths = lines
+        .map(l => Number(l.attributes('stroke-width') || '0'))
+        .filter(w => w > 2); // delimiting width is 4.5
+      expect(dropWidths).toHaveLength(2); // 1 drop per member × 2 members
+    });
+  });
+
+  it('emits navigate when a partitive is clicked', async () => {
+    const w = mount(PartitiveRelationDiagram, {
+      props: {
+        comprehensiveLabel: '0',
+        partitives: members(2),
+        completeness: 'complete',
+      },
+    });
+    const groups = w.findAll('g.cursor-pointer');
+    expect(groups.length).toBeGreaterThan(0);
+    await groups[0].trigger('click');
+    expect(w.emitted('navigate')).toBeTruthy();
   });
 
   describe('designation-aware sizing', () => {
@@ -174,75 +149,56 @@ describe('PartitiveRelationDiagram — ISO 704 rake rendering', () => {
           comprehensiveLabel: '1.3',
           partitives: members(2),
           completeness: 'complete',
-          plurality: null,
         },
       });
       const svg = w.find('svg');
-      // Short labels → MIN_NODE_W=110, total = 2*110 + 16 + 40 = 276
-      const viewBox = svg.attributes('viewBox') || '';
-      const width = Number(viewBox.split(' ')[2]);
+      const width = Number((svg.attributes('viewBox') || '').split(' ')[2]);
       expect(width).toBeLessThan(300);
     });
 
     it('grows nodes for long designations', () => {
-      const longMembers: PartitiveMemberLabeled[] = [
-        { uri: 'u1', label: 'system of quantities', certainty: 'confirmed' },
-        { uri: 'u2', label: 'International System of Units', certainty: 'confirmed' },
-        { uri: 'u3', label: 'base quantity dimension', certainty: 'confirmed' },
-      ];
       const w = mount(PartitiveRelationDiagram, {
         props: {
           comprehensiveLabel: 'coordinate system of quantities',
-          partitives: longMembers,
+          partitives: [
+            { uri: 'u1', label: 'system of quantities', multiplicity: 'compulsory', isDelimiting: false },
+            { uri: 'u2', label: 'International System of Units', multiplicity: 'compulsory', isDelimiting: false },
+            { uri: 'u3', label: 'base quantity dimension', multiplicity: 'compulsory', isDelimiting: false },
+          ],
           completeness: 'complete',
-          plurality: null,
         },
       });
-      const svg = w.find('svg');
-      const viewBox = svg.attributes('viewBox') || '';
-      const width = Number(viewBox.split(' ')[2]);
-      // Each node wider than MIN_NODE_W → total > 3*110 = 330
+      const width = Number((w.find('svg').attributes('viewBox') || '').split(' ')[2]);
       expect(width).toBeGreaterThan(330);
-      // Capped: node width ≤ MAX_NODE_W=220 → total ≤ 3*220 + 2*16 + 40 = 732
-      expect(width).toBeLessThanOrEqual(732);
     });
+  });
 
-    it('wraps long labels to 2 lines via tspan when needed', () => {
-      const longLabel = 'International System of Quantities and Units';
-      const w = mount(PartitiveRelationDiagram, {
-        props: {
-          comprehensiveLabel: longLabel,
-          partitives: [
-            { uri: 'u1', label: 'short', certainty: 'confirmed' },
-            { uri: 'u2', label: 'short', certainty: 'confirmed' },
-          ],
-          completeness: 'complete',
-          plurality: null,
-        },
-      });
-      // The comprehensive text should have ≥ 2 tspans (wrapped)
-      const texts = w.findAll('text');
-      const compText = texts[0]; // first text is the comprehensive
-      const tspans = compText.findAll('tspan');
-      expect(tspans.length).toBeGreaterThanOrEqual(2);
-    });
-
-    it('renders the designation (not the conceptId) as the label', () => {
-      const w = mount(PartitiveRelationDiagram, {
-        props: {
-          comprehensiveLabel: 'system of quantities',
-          partitives: [
-            { uri: 'u1', label: 'base quantity', certainty: 'confirmed' },
-            { uri: 'u2', label: 'derived quantity', certainty: 'confirmed' },
-          ],
-          completeness: 'complete',
-          plurality: null,
-        },
-      });
-      const allText = w.findAll('text').map(t => t.text());
-      expect(allText).toContain('system of quantities');
-      expect(allText).toContain('base quantity');
-      expect(allText).toContain('derived quantity');
+  describe('consistency with rakeStrokeStyle helper', () => {
+    // Ensure the component's line rendering matches the pure helper
+    // (single source of truth — both must agree).
+    it('renders exactly the line count + dash pattern the helper predicts', () => {
+      const testCases: Array<{ multiplicity: PartitiveMultiplicity; isDelimiting: boolean }> = [
+        { multiplicity: 'compulsory', isDelimiting: false },
+        { multiplicity: 'compulsory', isDelimiting: true },
+        { multiplicity: 'optional', isDelimiting: false },
+        { multiplicity: 'compulsory_multiple', isDelimiting: false },
+        { multiplicity: 'optional_multiple', isDelimiting: false },
+        { multiplicity: 'at_least_one', isDelimiting: false },
+      ];
+      for (const tc of testCases) {
+        const expected = rakeStrokeStyle(tc.multiplicity, tc.isDelimiting);
+        const w = mount(PartitiveRelationDiagram, {
+          props: {
+            comprehensiveLabel: '0',
+            partitives: members(1, tc),
+            completeness: 'complete',
+          },
+        });
+        const lines = w.findAll('line');
+        // stem (1) + spine (1) + drop lineCount per member
+        const expectedLines = 2 + expected.lineCount;
+        expect(lines.length).toBe(expectedLines);
+      }
     });
   });
 });

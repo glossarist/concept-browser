@@ -1,23 +1,28 @@
 /**
- * Partitive relation styling — colors for one-to-many decompositions.
+ * Partitive relation styling — colors and labels for one-to-many
+ * partitive decompositions.
  *
  * Independent of relationship-categories.ts (which handles binary edges).
- * Partitive relations have their own visual language:
- *   - completeness (complete/partial) affects opacity
- *   - plurality (type-shared, uncertain) adds accent badges
+ * The visual encoding for PartitiveRelation comes from two orthogonal
+ * axes per ISO 704:2022:
  *
- * v2 redesign: replaces v1 hyperedge-styling.ts per
- * concept-model/TODO.partitive-relation-v2.
+ *   1. completeness (complete / partial) — relation-level metadata,
+ *      affects overall opacity. Partial relations have a continued
+ *      backline ("more exist but aren't shown").
+ *   2. multiplicity + is_delimiting (per-member) — see
+ *      partitive-multiplicity.ts for the registry + rakeStrokeStyle().
+ *
+ * This module owns:
+ *   - relation-level color/badge (completeness-driven)
+ *   - human-readable labels for badges
+ *
+ * It does NOT encode multiplicity visuals — those live in
+ * partitive-multiplicity.ts (separated so renderers can consume the
+ * pure rakeStrokeStyle() helper without pulling badge strings).
  */
-
-import type { TypeSharedPluralityWire } from '../adapters/types';
 
 const BASE_LIGHT = '#0d9488';
 const BASE_DARK = '#2dd4bf';
-const ACCENT_SHARED_LIGHT = '#3b82f6';
-const ACCENT_SHARED_DARK = '#60a5fa';
-const ACCENT_UNCERTAIN_LIGHT = '#f59e0b';
-const ACCENT_UNCERTAIN_DARK = '#fbbf24';
 
 export interface PartitiveRelationStyle {
   color: string;
@@ -25,38 +30,24 @@ export interface PartitiveRelationStyle {
   opacity: number;
 }
 
+/**
+ * Relation-level style (color + opacity) driven by completeness.
+ *
+ * Per-member multiplicity + delimiting rendering is via
+ * `rakeStrokeStyle()` from partitive-multiplicity.ts, not here —
+ * this helper is for the relation's overall frame + header badges.
+ */
 export function partitiveRelationStyle(
   completeness: 'complete' | 'partial',
-  plurality: TypeSharedPluralityWire | null,
   isDark: boolean,
 ): PartitiveRelationStyle {
-  const base = isDark ? BASE_DARK : BASE_LIGHT;
-  const opacity = completeness === 'partial' ? 0.6 : 1.0;
-
-  let badgeClass = 'badge-teal';
-  if (plurality?.isShared) {
-    badgeClass = 'badge-blue';
-    if (plurality.isUncertain) {
-      badgeClass = 'badge-yellow';
-    }
-  }
-
-  return { color: base, badgeClass, opacity };
-}
-
-export function pluralityColor(
-  plurality: TypeSharedPluralityWire,
-  isDark: boolean,
-): string {
-  if (plurality.isUncertain) return isDark ? ACCENT_UNCERTAIN_DARK : ACCENT_UNCERTAIN_LIGHT;
-  if (plurality.isShared) return isDark ? ACCENT_SHARED_DARK : ACCENT_SHARED_LIGHT;
-  return isDark ? BASE_DARK : BASE_LIGHT;
+  return {
+    color: isDark ? BASE_DARK : BASE_LIGHT,
+    badgeClass: 'badge-teal',
+    opacity: completeness === 'partial' ? 0.6 : 1.0,
+  };
 }
 
 export function completenessLabel(completeness: 'complete' | 'partial'): string {
   return completeness === 'partial' ? 'Partial' : 'Complete';
-}
-
-export function certaintyLabel(certainty: 'confirmed' | 'possible'): string {
-  return certainty === 'possible' ? 'Possible' : 'Confirmed';
 }

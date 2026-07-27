@@ -5,6 +5,11 @@ import { useVocabularyStore } from '../stores/vocabulary';
 import { conceptUri } from '../adapters/model-bridge';
 import { UriRouter } from '../adapters/UriRouter';
 import type { PartitiveRelationWire, PartitiveMemberWire } from '../adapters/types';
+import {
+  isPartitiveMultiplicity,
+  multiplicityFromCertainty,
+  type PartitiveMultiplicity,
+} from '../utils/partitive-multiplicity';
 import ConceptDetail from '../components/ConceptDetail.vue';
 import RelationSphere from '../components/RelationSphere.vue';
 import ShortcutsModal from '../components/ShortcutsModal.vue';
@@ -80,15 +85,22 @@ const partitiveRelationsForSphere = computed<PartitiveRelationWire[]>(() => {
       : null;
     if (!compRef.id || !compTarget) continue;
     const partitives: PartitiveMemberWire[] = rel.partitives
-      .map(member => {
+      .map((member): PartitiveMemberWire | null => {
         const ref = member.ref;
         if (!ref?.id) return null;
-        const targetRegister = store.manifests.has(activeRegisterId.value)
-          ? activeRegisterId.value
-          : activeRegisterId.value;
-        const uri = UriRouter.buildConceptUri(m.uriBase, targetRegister, ref.id);
+        const uri = UriRouter.buildConceptUri(m.uriBase, activeRegisterId.value, ref.id);
         if (uri === sourceUri) return null;
-        return { uri, certainty: member.certainty };
+        const rawMultiplicity = (member as unknown as { multiplicity?: unknown }).multiplicity;
+        const multiplicity: PartitiveMultiplicity =
+          typeof rawMultiplicity === 'string' && isPartitiveMultiplicity(rawMultiplicity)
+            ? rawMultiplicity
+            : multiplicityFromCertainty(
+                (member as unknown as { certainty?: 'confirmed' | 'possible' | null }).certainty ?? null,
+              );
+        const isDelimiting =
+          (member as unknown as { is_delimiting?: unknown }).is_delimiting === true
+          || (member as unknown as { isDelimiting?: unknown }).isDelimiting === true;
+        return { uri, multiplicity, isDelimiting };
       })
       .filter((x): x is PartitiveMemberWire => x !== null);
     if (partitives.length === 0) continue;
@@ -97,13 +109,6 @@ const partitiveRelationsForSphere = computed<PartitiveRelationWire[]>(() => {
       comprehensive: compTarget,
       partitives,
       completeness: rel.completeness,
-      plurality: rel.plurality
-        ? {
-            isShared: rel.plurality.isShared,
-            isUncertain: rel.plurality.isUncertain,
-            sharedType: null,
-          }
-        : null,
       register: activeRegisterId.value,
     });
   }

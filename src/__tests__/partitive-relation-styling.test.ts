@@ -1,56 +1,30 @@
 import { describe, it, expect } from 'vitest';
 import {
   partitiveRelationStyle,
-  pluralityColor,
   completenessLabel,
-  certaintyLabel,
 } from '../utils/partitive-relation-styling';
 
 describe('partitive-relation-styling', () => {
-  describe('partitiveRelationStyle', () => {
+  describe('partitiveRelationStyle (relation-level frame)', () => {
+    it('returns teal color in light mode', () => {
+      expect(partitiveRelationStyle('complete', false).color).toBe('#0d9488');
+    });
+
+    it('returns teal color in dark mode', () => {
+      expect(partitiveRelationStyle('complete', true).color).toBe('#2dd4bf');
+    });
+
     it('returns full opacity for complete', () => {
-      expect(partitiveRelationStyle('complete', null, false).opacity).toBe(1.0);
+      expect(partitiveRelationStyle('complete', false).opacity).toBe(1.0);
     });
 
     it('returns reduced opacity for partial', () => {
-      expect(partitiveRelationStyle('partial', null, false).opacity).toBe(0.6);
+      expect(partitiveRelationStyle('partial', false).opacity).toBe(0.6);
     });
 
-    it('uses teal badge class for complete with no plurality', () => {
-      expect(partitiveRelationStyle('complete', null, false).badgeClass).toBe('badge-teal');
-    });
-
-    it('uses blue badge class for isShared plurality', () => {
-      expect(partitiveRelationStyle('complete', p, false).badgeClass).toBe('badge-blue');
-    });
-
-    it('uses yellow badge class when isShared + isUncertain', () => {
-      expect(partitiveRelationStyle('complete', p, false).badgeClass).toBe('badge-yellow');
-    });
-
-    it('returns different colors in dark mode', () => {
-      const light = partitiveRelationStyle('complete', null, false);
-      const dark = partitiveRelationStyle('complete', null, true);
-      expect(light.color).not.toBe(dark.color);
-    });
-
-    it('ignores plurality when isShared is false', () => {
-      expect(partitiveRelationStyle('complete', p, false).badgeClass).toBe('badge-teal');
-    });
-  });
-
-  describe('pluralityColor', () => {
-    it('returns blue for isShared', () => {
-      expect(pluralityColor(p, false)).toBe('#3b82f6');
-    });
-
-    it('returns amber when isUncertain', () => {
-      expect(pluralityColor(p, false)).toBe('#f59e0b');
-    });
-
-    it('returns dark-mode variants', () => {
-      expect(pluralityColor({ isShared: true, isUncertain: false }, true)).toBe('#60a5fa');
-      expect(pluralityColor({ isShared: true, isUncertain: true }, true)).toBe('#fbbf24');
+    it('uses teal badge class regardless of completeness', () => {
+      expect(partitiveRelationStyle('complete', false).badgeClass).toBe('badge-teal');
+      expect(partitiveRelationStyle('partial', false).badgeClass).toBe('badge-teal');
     });
   });
 
@@ -61,16 +35,6 @@ describe('partitive-relation-styling', () => {
 
     it('labels partial', () => {
       expect(completenessLabel('partial')).toBe('Partial');
-    });
-  });
-
-  describe('certaintyLabel', () => {
-    it('labels confirmed', () => {
-      expect(certaintyLabel('confirmed')).toBe('Confirmed');
-    });
-
-    it('labels possible', () => {
-      expect(certaintyLabel('possible')).toBe('Possible');
     });
   });
 });
