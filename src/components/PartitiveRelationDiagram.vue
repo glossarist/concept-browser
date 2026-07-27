@@ -1,37 +1,54 @@
 <script setup lang="ts">
 /**
  * PartitiveRelationDiagram — renders a single PartitiveRelation as an
- * ISO 704 rake/bracket diagram in SVG.
+ * ISO 704:2022 rake/bracket diagram in SVG.
  *
- * Layout (looking top-down):
+ * Layout:
  *
  *            [comprehensive]
  *                   │
- *                   │   ← vertical stem
- *   ┌───────────────┴───────────────┐   ← horizontal spine
+ *                   │   ← stem (always single solid — relation frame)
+ *   ┌───────────────┴───────────────┐   ← spine (always single solid — relation frame)
  *   │               │               │
- *   │               │               │   ← perpendicular drops
+ *   │               │               │   ← drops (per-member multiplicity + delimiting)
  * [part1]        [part2]        [part3]
  *
- * Line conventions per ISO 704:
- *   - default                              : single solid line
- *   - plurality.isShared && !isUncertain   : close-set DOUBLE solid lines
- *                                            on stem + spine (drops stay single)
- *   - plurality.isShared && isUncertain    : one solid + one DASHED line
- *   - completeness === 'partial'           : spine extends past the last
- *                                            tooth (continued backline)
+ * Per ISO 704:2022, each drop's line style encodes its multiplicity +
+ * is_delimiting (see utils/partitive-multiplicity.ts for the registry):
+ *
+ *   multiplicity         is_delimiting  visual
+ *   -------------------  --------------  --------------------------------
+ *   compulsory           false           1 solid  @ 1.5px
+ *   compulsory           true            1 solid  @ 4.5px (bold, 3× width)
+ *   optional             false           1 dashed @ 1.5px
+ *   optional             true            1 dashed @ 4.5px
+ *   compulsory_multiple  false           2 solid  @ 1.5px
+ *   compulsory_multiple  true            2 solid  @ 4.5px
+ *   optional_multiple    false           2 dashed @ 1.5px
+ *   optional_multiple    true            2 dashed @ 4.5px
+ *   at_least_one         false           1 solid + 1 dashed @ 1.5px
+ *   at_least_one         true            1 solid + 1 dashed @ 4.5px
+ *
+ * completeness === 'partial'  : spine extends past the last tooth
+ *                               (continued backline — "more exist but
+ *                               not shown")
  *
  * Node sizing is designation-aware: the longest label drives the node
  * width (clamped to [MIN_NODE_W, MAX_NODE_W]); labels that don't fit
- * wrap to a second line via tspan. This lets the rake show actual
- * designations ('system of quantities') instead of bare IDs ('1.3').
+ * wrap to a second line via tspan.
  */
 import { computed } from 'vue';
+import {
+  rakeStrokeStyle,
+  type PartitiveMultiplicity,
+  type RakeStrokeStyle,
+} from '../utils/partitive-multiplicity';
 
 export interface PartitiveMemberLabeled {
   uri: string;
   label: string;
-  certainty: 'confirmed' | 'possible';
+  multiplicity: PartitiveMultiplicity;
+  isDelimiting: boolean;
 }
 
 const props = withDefaults(defineProps<{
@@ -39,6 +56,8 @@ const props = withDefaults(defineProps<{
   partitives: PartitiveMemberLabeled[];
   completeness: 'complete' | 'partial';
   criterion?: string | null;
+  /** Optional per-member tooltip string. */
+  memberTooltip?: (m: { multiplicity: PartitiveMultiplicity; isDelimiting: boolean }) => string;
 }>(), {
   criterion: null,
 });
@@ -57,29 +76,19 @@ const SPINE_TO_NODE = 32;
 const GAP_X = 16;
 const PADDING_X = 20;
 const PADDING_Y = 14;
-const DOUBLE_GAP = 3;
+const DOUBLE_GAP = 3;             // gap between the two lines of a close-set double
 const PARTIAL_TAIL = 32;
 const DASH_PATTERN = '4 3';
-const CHAR_W = 6.2;            // approx for 11px sans-serif
-const NODE_TEXT_PAD = 16;      // horizontal padding inside node rect
-
-type LineVariant = 'single' | 'double-solid' | 'solid-plus-dashed';
-
-const lineVariant = computed<LineVariant>(() => {
-  if (!props.plurality?.isShared) return 'single';
-  return props.plurality.isUncertain ? 'solid-plus-dashed' : 'double-solid';
-});
+const CHAR_W = 6.2;               // approx for 11px sans-serif
+const NODE_TEXT_PAD = 16;
+const FRAME_STROKE_WIDTH = 1.4;   // stem + spine use this width always
 
 /** Estimated pixel width of a string at 11px sans-serif. */
 function estimateTextWidth(text: string): number {
   return text.length * CHAR_W;
 }
 
-/**
- * Wrap a label to at most 2 lines, breaking on word boundaries.
- * If a single word exceeds the limit, it stays on its own line and
- * gets truncated with an ellipsis.
- */
+/** Wrap a label to at most 2 lines, breaking on word boundaries. */
 function wrapLabel(text: string, maxCharsPerLine: number): string[] {
   if (text.length <= maxCharsPerLine) return [text];
   const words = text.split(/\s+/);
@@ -87,7 +96,6 @@ function wrapLabel(text: string, maxCharsPerLine: number): string[] {
   let current = '';
   for (const w of words) {
     if (w.length > maxCharsPerLine) {
-      // word itself too long — flush current, push truncated word
       if (current) { lines.push(current); current = ''; }
       lines.push(w.slice(0, Math.max(1, maxCharsPerLine - 1)) + '…');
       continue;
@@ -130,7 +138,12 @@ const layout = computed(() => {
   const partitiveSlots = props.partitives.map((member, i) => {
     const x = PADDING_X + nodeW / 2 + i * (nodeW + GAP_X);
     const labelLines = wrapped[i + 1]; // index 0 is comprehensive
-    return { member, x, labelLines };
+    return {
+      member,
+      x,
+      labelLines,
+      style: rakeStrokeStyle(member.multiplicity, member.isDelimiting),
+    };
   });
 
   const leftX = partitiveSlots[0]?.x ?? centerX;
@@ -155,18 +168,37 @@ const layout = computed(() => {
   };
 });
 
-function strokeAttr(variant: LineVariant, opacity = 1, override?: 'dash') {
-  const useDash = override === 'dash' || variant === 'solid-plus-dashed';
+/**
+ * Build SVG stroke attributes for the relation frame (stem + spine).
+ *
+ * The frame is structural — always a single solid line at standard
+ * width. Per-member multiplicity + delimiting are encoded on the drops
+ * only (MECE: frame vs drops).
+ */
+const frameStrokeAttrs = computed(() => ({
+  stroke: 'currentColor',
+  'stroke-width': FRAME_STROKE_WIDTH,
+}));
+
+/**
+ * Build SVG stroke attributes for one of a drop's parallel lines.
+ * The drop may have 1 or 2 parallel lines per its multiplicity.
+ */
+function dropStrokeAttrs(style: RakeStrokeStyle, dashed: boolean, opacity = 1) {
   return {
     stroke: 'currentColor',
-    'stroke-width': 1.4,
+    'stroke-width': style.strokeWidth,
     opacity,
-    ...(useDash ? { 'stroke-dasharray': DASH_PATTERN } : {}),
+    ...(dashed ? { 'stroke-dasharray': DASH_PATTERN } : {}),
   };
 }
 
 function emitNav(uri: string) {
   emit('navigate', uri);
+}
+
+function tooltipFor(member: PartitiveMemberLabeled): string | undefined {
+  return props.memberTooltip?.({ multiplicity: member.multiplicity, isDelimiting: member.isDelimiting });
 }
 </script>
 
@@ -210,71 +242,53 @@ function emitNav(uri: string) {
       class="text-[9px] italic fill-emerald-800 dark:fill-emerald-200/80"
     >{{ criterion }}</text>
 
-    <!-- Stem (vertical from comprehensive to spine) -->
+    <!-- Stem: comprehensive → spine (single solid frame) -->
     <line
-      v-if="lineVariant === 'single'"
       :x1="layout.centerX" :y1="layout.compY + layout.nodeH / 2"
       :x2="layout.centerX" :y2="layout.spineY"
-      v-bind="strokeAttr('single')"
+      v-bind="frameStrokeAttrs"
     />
-    <template v-else>
-      <line
-        :x1="layout.centerX - DOUBLE_GAP / 2" :y1="layout.compY + layout.nodeH / 2"
-        :x2="layout.centerX - DOUBLE_GAP / 2" :y2="layout.spineY"
-        v-bind="strokeAttr('double-solid')"
-      />
-      <line
-        :x1="layout.centerX + DOUBLE_GAP / 2" :y1="layout.compY + layout.nodeH / 2"
-        :x2="layout.centerX + DOUBLE_GAP / 2" :y2="layout.spineY"
-        v-bind="strokeAttr(lineVariant, 1, lineVariant === 'solid-plus-dashed' ? 'dash' : undefined)"
-      />
-    </template>
 
-    <!-- Spine (horizontal, from leftmost tooth to rightmost tooth or extended) -->
+    <!-- Spine: leftmost tooth → rightmost tooth (single solid frame;
+         extended for completeness: 'partial') -->
     <line
-      v-if="lineVariant === 'single'"
       :x1="layout.leftX" :y1="layout.spineY"
       :x2="layout.spineEndX" :y2="layout.spineY"
-      v-bind="strokeAttr('single')"
+      v-bind="frameStrokeAttrs"
     />
-    <template v-else>
-      <line
-        :x1="layout.leftX" :y1="layout.spineY - DOUBLE_GAP / 2"
-        :x2="layout.spineEndX" :y2="layout.spineY - DOUBLE_GAP / 2"
-        v-bind="strokeAttr('double-solid')"
-      />
-      <line
-        :x1="layout.leftX" :y1="layout.spineY + DOUBLE_GAP / 2"
-        :x2="layout.spineEndX" :y2="layout.spineY + DOUBLE_GAP / 2"
-        v-bind="strokeAttr(lineVariant, 1, lineVariant === 'solid-plus-dashed' ? 'dash' : undefined)"
-      />
-    </template>
 
     <!-- Drops + partitive nodes -->
     <g v-for="(slot, i) in layout.partitiveSlots" :key="i">
+      <!-- Primary drop line -->
       <line
         :x1="slot.x" :y1="layout.spineY"
         :x2="slot.x" :y2="layout.partY - layout.nodeH / 2"
-        v-bind="strokeAttr('single', slot.member.certainty === 'possible' ? 0.5 : 1, slot.member.certainty === 'possible' ? 'dash' : undefined)"
+        v-bind="dropStrokeAttrs(slot.style, slot.style.primaryDashed)"
       />
-      <g class="cursor-pointer" @click="emitNav(slot.member.uri)">
+      <!-- Secondary drop line (only for lineCount === 2; e.g. *_multiple, at_least_one) -->
+      <line
+        v-if="slot.style.lineCount === 2"
+        :x1="slot.x + DOUBLE_GAP" :y1="layout.spineY"
+        :x2="slot.x + DOUBLE_GAP" :y2="layout.partY - layout.nodeH / 2"
+        v-bind="dropStrokeAttrs(slot.style, slot.style.secondaryDashed)"
+      />
+      <g class="cursor-pointer" :title="tooltipFor(slot.member)" @click="emitNav(slot.member.uri)">
         <rect
           :x="slot.x - layout.nodeW / 2"
           :y="layout.partY - layout.nodeH / 2"
           :width="layout.nodeW"
           :height="layout.nodeH"
           rx="6"
-          :class="slot.member.certainty === 'possible'
-            ? 'fill-emerald-50/60 dark:fill-emerald-900/20 stroke-current'
+          :class="slot.style.strokeWidth > 2
+            ? 'fill-emerald-100 dark:fill-emerald-900/50 stroke-current'
             : 'fill-emerald-50 dark:fill-emerald-900/30 stroke-current'"
-          :stroke-dasharray="slot.member.certainty === 'possible' ? DASH_PATTERN : undefined"
-          stroke-width="1.2"
+          :stroke-width="slot.style.strokeWidth > 2 ? 2.4 : 1.2"
         />
         <text
           :x="slot.x"
           text-anchor="middle"
-          :class="slot.member.certainty === 'possible'
-            ? 'text-[11px] fill-emerald-700/70 dark:fill-emerald-200/60 italic'
+          :class="slot.style.strokeWidth > 2
+            ? 'text-[11px] fill-emerald-900 dark:fill-emerald-50 font-medium'
             : 'text-[11px] fill-emerald-900 dark:fill-emerald-100'"
         >
           <tspan

@@ -26,6 +26,7 @@ import { useI18n } from '../i18n';
 
 const { t, locale } = useI18n();
 import type { Concept, Manifest, GraphEdge, PartitiveRelationWire } from '../adapters/types';
+import { rakeStrokeStyle, type PartitiveMultiplicity } from '../utils/partitive-multiplicity';
 import { conceptUri } from '../adapters/model-bridge';
 
 const props = defineProps<{
@@ -760,41 +761,33 @@ function drawEdges(cx: number, cy: number) {
 }
 
 /**
- * Render PartitiveRelations as ISO 704 right-angle rake brackets.
+ * Render PartitiveRelations as ISO 704:2022 rake brackets in the sphere.
  *
- * Each relation renders as a true bracket with 90° angles:
+ * Each relation renders as a right-angle bracket with stem + spine + drops
+ * (geometry described in detail above). Stem and spine are the structural
+ * frame — always single solid at FRAME_STROKE_WIDTH.
  *
- *       [comprehensive]
- *              │
- *              │          ← stem (along stem-axis)
- *              │
- *   ┌──────────●──────────┐   ← spine (perpendicular to stem-axis; right angle at junction)
- *   │          │          │
- *   │          │          │   ← drops (parallel to stem-axis; right angle at each tooth)
- * [p1]       [p2]       [p3]
+ * Per-member multiplicity + is_delimiting is encoded on each DROP via
+ * rakeStrokeStyle() (see utils/partitive-multiplicity.ts):
  *
- * Geometry:
- *   1. stem-axis = direction from comprehensive to centroid of partitives
- *   2. spine-axis = perpendicular to stem-axis
- *   3. spine-center = point along stem-axis at SPINE_FRACTION (60%) from comp
- *   4. For each partitive Pi:
- *        - Project Pi onto spine-axis → tooth position
- *        - Drop goes from tooth straight to Pi (parallel to stem-axis by construction)
+ *   multiplicity         is_delimiting  drop visual
+ *   -------------------  --------------  --------------------------------
+ *   compulsory           false           1 solid  @ 1.5px
+ *   compulsory           true            1 solid  @ 4.5px (3× bold)
+ *   optional             false           1 dashed @ 1.5px
+ *   optional             true            1 dashed @ 4.5px
+ *   compulsory_multiple  false           2 solid  @ 1.5px
+ *   compulsory_multiple  true            2 solid  @ 4.5px
+ *   optional_multiple    false           2 dashed @ 1.5px
+ *   optional_multiple    true            2 dashed @ 4.5px
+ *   at_least_one         false           1 solid + 1 dashed @ 1.5px
+ *   at_least_one         true            1 solid + 1 dashed @ 4.5px
  *
- * All bends are exactly 90° because tooth_i is the foot of perpendicular
- * from Pi to the spine line.
- *
- * ISO 704 line conventions:
- *   - default                            : single solid line per segment
- *   - plurality.isShared && !isUncertain : TWO parallel solid lines (close-set)
- *   - plurality.isShared && isUncertain  : one solid + one dashed line
- *   - completeness === 'partial'         : spine extends past last tooth
- *                                           (continued backline — "more exist")
- *
- * Per-member certainty 'possible' → that drop is dashed + reduced opacity
- * (stem and spine keep relation style).
+ * completeness === 'partial'  : spine extends past last tooth (continued
+ *                               backline — "more exist but not shown")
  *
  * Diamond marker at the comprehensive end signals the hyperedge origin.
+ * Junction marker at the spine midpoint signals the right-angle corner.
  */
 function drawRakeBundles(
   svg: SVGSVGElement,
@@ -806,6 +799,7 @@ function drawRakeBundles(
   const color = uiStore.isDark ? '#2dd4bf' : '#0d9488';
   const DOUBLE_GAP = 4;
   const DASH = '4 3';
+  const FRAME_STROKE_WIDTH = 1.4;
   const SPINE_FRACTION = 0.55;       // spine sits 55% from comp toward centroid
   const PARTIAL_TAIL = 28;           // px extension for completeness: 'partial'
 
@@ -824,7 +818,7 @@ function drawRakeBundles(
         const p = pos.get(nid);
         return p ? { member, pos: p } : null;
       })
-      .filter((x): x is { member: { uri: string; certainty: 'confirmed' | 'possible' }; pos: {x: number; y: number} } => x !== null);
+      .filter((x): x is { member: { uri: string; multiplicity: PartitiveMultiplicity; isDelimiting: boolean }; pos: {x: number; y: number} } => x !== null);
 
     if (memberPositions.length === 0) continue;
 
@@ -850,7 +844,14 @@ function drawRakeBundles(
       const along = vx * spineDirX + vy * spineDirY;
       const toothX = spineCx + spineDirX * along;
       const toothY = spineCy + spineDirY * along;
-      return { member, partitivePos: pPos, toothX, toothY, along };
+      return {
+        member,
+        partitivePos: pPos,
+        toothX,
+        toothY,
+        along,
+        style: rakeStrokeStyle(member.multiplicity, member.isDelimiting),
+      };
     });
 
     // 4. Spine extents (leftmost to rightmost tooth along spine-axis)
@@ -867,23 +868,22 @@ function drawRakeBundles(
     const spineEndX = spineCx + spineDirX * maxAlong;
     const spineEndY = spineCy + spineDirY * maxAlong;
 
-    const isShared = !!rel.plurality?.isShared;
-    const isUncertain = !!rel.plurality?.isUncertain;
-
     /**
-     * Draw a single straight segment with optional parallel offset
-     * (used to render the close-set double line) and dash style.
+     * Draw a single straight segment.
+     *
+     * Stem + spine use FRAME_STROKE_WIDTH (single solid frame).
+     * Drops use the per-member multiplicity + delimiting style from
+     * rakeStrokeStyle().
      */
     const drawSegment = (
       ax: number, ay: number, bx: number, by: number,
-      opts: { offset?: number; dashed?: boolean; opacity?: number } = {},
+      opts: { width: number; dashed?: boolean; offset?: number; opacity?: number },
     ) => {
+      const opacity = opts.opacity ?? 0.85;
       const offset = opts.offset ?? 0;
       const dashed = opts.dashed ?? false;
-      const opacity = opts.opacity ?? 0.85;
       const dx = bx - ax, dy = by - ay;
       const len = Math.hypot(dx, dy) || 1;
-      // Perpendicular to THIS segment (not the spine-axis) for parallel offset
       const px = -dy / len, py = dx / len;
       const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       line.setAttribute('class', 'rake-seg');
@@ -892,50 +892,35 @@ function drawRakeBundles(
       line.setAttribute('x2', String(bx + px * offset));
       line.setAttribute('y2', String(by + py * offset));
       line.setAttribute('stroke', color);
-      line.setAttribute('stroke-width', '1.6');
+      line.setAttribute('stroke-width', String(opts.width));
       line.setAttribute('opacity', String(opacity));
-      line.setAttribute('stroke-linecap', 'square');   // sharp corners at right angles
+      line.setAttribute('stroke-linecap', 'square');
       if (dashed) line.setAttribute('stroke-dasharray', DASH);
       svg.appendChild(line);
     };
 
-    /**
-     * Draw a segment with the relation's plurality style.
-     * Single solid (default), double solid (isShared),
-     * or solid + dashed (isShared + isUncertain).
-     */
-    const drawSegmentWithPlurality = (
-      ax: number, ay: number, bx: number, by: number,
-      opts: { opacity?: number; perMemberPossible?: boolean } = {},
-    ) => {
-      const opacity = opts.opacity ?? 0.85;
-      if (!isShared) {
-        drawSegment(ax, ay, bx, by, { opacity, dashed: opts.perMemberPossible });
-      } else {
-        drawSegment(ax, ay, bx, by, { offset: -DOUBLE_GAP / 2, opacity });
-        drawSegment(ax, ay, bx, by, {
-          offset: DOUBLE_GAP / 2,
-          opacity,
-          dashed: isUncertain || opts.perMemberPossible,
-        });
-      }
-    };
+    // 5. Stem: comp → spine center (frame — single solid)
+    drawSegment(compPos.x, compPos.y, spineCx, spineCy, { width: FRAME_STROKE_WIDTH });
 
-    // 5. Stem: comp → spine center (along stem-axis)
-    drawSegmentWithPlurality(compPos.x, compPos.y, spineCx, spineCy);
-
-    // 6. Spine: leftmost tooth → rightmost tooth (along spine-axis)
-    //     (skip if only one tooth — no horizontal extent)
+    // 6. Spine: leftmost tooth → rightmost tooth (frame — single solid)
     if (Math.abs(maxAlong - minAlong) > 1) {
-      drawSegmentWithPlurality(spineStartX, spineStartY, spineEndX, spineEndY);
+      drawSegment(spineStartX, spineStartY, spineEndX, spineEndY, { width: FRAME_STROKE_WIDTH });
     }
 
-    // 7. Drops: tooth → partitive (parallel to stem-axis by construction)
+    // 7. Drops: tooth → partitive (per-member multiplicity + delimiting)
+    //    Draw 1 or 2 parallel lines per the style.
     for (const tooth of teeth) {
-      drawSegmentWithPlurality(tooth.toothX, tooth.toothY, tooth.partitivePos.x, tooth.partitivePos.y, {
-        opacity: tooth.member.certainty === 'possible' ? 0.5 : 0.85,
-        perMemberPossible: tooth.member.certainty === 'possible',
+      drawSegment(tooth.toothX, tooth.toothY, tooth.partitivePos.x, tooth.partitivePos.y, {
+        width: tooth.style.strokeWidth,
+        dashed: tooth.style.primaryDashed,
       });
+      if (tooth.style.lineCount === 2) {
+        drawSegment(tooth.toothX, tooth.toothY, tooth.partitivePos.x, tooth.partitivePos.y, {
+          width: tooth.style.strokeWidth,
+          dashed: tooth.style.secondaryDashed,
+          offset: DOUBLE_GAP,
+        });
+      }
     }
 
     // 8. Junction marker at spine center (the right-angle corner)

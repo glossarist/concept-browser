@@ -14,6 +14,11 @@ import type {
   PartitiveMemberWire,
 } from '../adapters/types';
 import { getFactory } from '../adapters/factory';
+import {
+  isPartitiveMultiplicity,
+  multiplicityFromCertainty,
+  type PartitiveMultiplicity,
+} from '../utils/partitive-multiplicity';
 import { conceptUri } from '../adapters/model-bridge';
 import { UriRouter } from '../adapters/UriRouter';
 import { useVocabularyStore } from '../stores/vocabulary';
@@ -190,8 +195,8 @@ export function useConceptEdges(
             if (!uri || uri === source) return null;
             return {
               uri,
-              multiplicity: m.multiplicity ?? 'compulsory',
-              isDelimiting: m.is_delimiting === true,
+              multiplicity: resolveMultiplicity(m),
+              isDelimiting: readIsDelimiting(m),
             };
           })
           .filter((m: PartitiveMemberWire | null): m is PartitiveMemberWire => m !== null);
@@ -212,6 +217,31 @@ export function useConceptEdges(
   function resolveConceptRefUri(ref: ConceptRef | null): string | null {
     if (!ref) return null;
     return resolveRefUri({ source: ref.source ?? null, id: ref.id ?? null });
+  }
+
+  /**
+   * Resolve a partitive member's multiplicity.
+   *
+   * glossarist 0.4.20 carries `certainty: 'confirmed' | 'possible'`. The
+   * new ISO 704:2022 model uses `multiplicity` (5 values). Read the new
+   * field if present; otherwise migrate from certainty. Once glossarist
+   * publishes native multiplicity, the migration branch can go.
+   */
+  function resolveMultiplicity(m: GlsPartitiveMember): PartitiveMultiplicity {
+    const raw = (m as unknown as { multiplicity?: unknown }).multiplicity;
+    if (typeof raw === 'string' && isPartitiveMultiplicity(raw)) return raw;
+    const certainty = (m as unknown as { certainty?: 'confirmed' | 'possible' | null }).certainty ?? null;
+    return multiplicityFromCertainty(certainty);
+  }
+
+  /**
+   * Read is_delimiting off the model. glossarist 0.4.20 doesn't carry it;
+   * default false until upstream publishes the field.
+   */
+  function readIsDelimiting(m: GlsPartitiveMember): boolean {
+    const raw = (m as unknown as { is_delimiting?: unknown; isDelimiting?: unknown }).is_delimiting
+      ?? (m as unknown as { isDelimiting?: unknown }).isDelimiting;
+    return raw === true;
   }
 
   function resolveRefUri(ref: { source: string | null; id: string | null } | null): string | null {

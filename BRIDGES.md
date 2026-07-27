@@ -19,6 +19,13 @@ These bridges in `src/adapters/model-bridge.ts` manually map fields between JSON
 |---|-------|-----------|--------|
 | 7 | `partitiveRelations` | feat/partitive-v2-nativize | glossarist 0.4.20 ships native v2 model — `Concept.partitiveRelations` is the SSOT |
 
+## Active migrations (NOT bridges — these are documented adaptations between glossarist versions)
+
+| Field | Why | Remove when |
+|-------|-----|-------------|
+| `certainty: 'confirmed' \| 'possible'` → `multiplicity` | glossarist 0.4.20 uses `certainty`; ISO 704:2022 specifies `multiplicity` (5 values). `multiplicityFromCertainty()` in `src/utils/partitive-multiplicity.ts` performs the mapping until glossarist publishes native multiplicity. | glossarist publishes native multiplicity field |
+| `is_delimiting` | glossarist 0.4.20 doesn't carry `isDelimiting`; default false until upstream publishes it. | glossarist publishes native `is_delimiting` |
+
 ## Removal Criteria
 
 A bridge can be removed when:
