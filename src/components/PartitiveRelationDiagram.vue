@@ -26,8 +26,8 @@
  *   compulsory_multiple  true            2 solid  @ 4.5px
  *   optional_multiple    false           2 dashed @ 1.5px
  *   optional_multiple    true            2 dashed @ 4.5px
- *   at_least_one         false           1 solid + 1 dashed @ 1.5px
- *   at_least_one         true            1 solid + 1 dashed @ 4.5px
+ *   compulsory_at_least_one         false           1 solid + 1 dashed @ 1.5px
+ *   compulsory_at_least_one         true            1 solid + 1 dashed @ 4.5px
  *
  * completeness === 'partial'  : spine extends past the last tooth
  *                               (continued backline — "more exist but
@@ -265,7 +265,7 @@ function tooltipFor(member: PartitiveMemberLabeled): string | undefined {
         :x2="slot.x" :y2="layout.partY - layout.nodeH / 2"
         v-bind="dropStrokeAttrs(slot.style, slot.style.primaryDashed)"
       />
-      <!-- Secondary drop line (only for lineCount === 2; e.g. *_multiple, at_least_one) -->
+      <!-- Secondary drop line (only for lineCount === 2; e.g. *_multiple, compulsory_at_least_one) -->
       <line
         v-if="slot.style.lineCount === 2"
         :x1="slot.x + DOUBLE_GAP" :y1="layout.spineY"

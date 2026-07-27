@@ -6,7 +6,7 @@
  *   - optional            : zero or one
  *   - compulsory_multiple : two or more, required
  *   - optional_multiple   : zero or more
- *   - at_least_one        : one or more (required, count unknown)
+ *   - compulsory_at_least_one        : one or more (required, count unknown)
  *
  * Delimiting (boolean) is orthogonal — a delimiting part behaves like a
  * delimiting characteristic in generic relations: it distinguishes the
@@ -23,7 +23,7 @@ export const PARTITIVE_MULTIPLICITY = {
   optional:             { lines: 1, pattern: 'dashed',  label: 'Optional' },
   compulsory_multiple:  { lines: 2, pattern: 'solid',  label: 'Compulsory multiple' },
   optional_multiple:    { lines: 2, pattern: 'dashed',  label: 'Optional multiple' },
-  at_least_one:         { lines: 2, pattern: 'mixed',   label: 'At least one' },
+  compulsory_at_least_one:         { lines: 2, pattern: 'mixed',   label: 'At least one' },
 } as const;
 
 export type PartitiveMultiplicity = keyof typeof PARTITIVE_MULTIPLICITY;

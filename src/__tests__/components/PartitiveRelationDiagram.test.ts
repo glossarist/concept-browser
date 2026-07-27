@@ -96,11 +96,11 @@ describe('PartitiveRelationDiagram — ISO 704:2022 rake rendering', () => {
       expect(dashed).toHaveLength(4); // 2 members × 2 dashed lines each
     });
 
-    it('at_least_one: each drop has 1 solid + 1 dashed line', () => {
+    it('compulsory_at_least_one: each drop has 1 solid + 1 dashed line', () => {
       const w = mount(PartitiveRelationDiagram, {
         props: {
           comprehensiveLabel: '0',
-          partitives: members(2, { multiplicity: 'at_least_one' }),
+          partitives: members(2, { multiplicity: 'compulsory_at_least_one' }),
           completeness: 'complete',
         },
       });
@@ -183,7 +183,7 @@ describe('PartitiveRelationDiagram — ISO 704:2022 rake rendering', () => {
         { multiplicity: 'optional', isDelimiting: false },
         { multiplicity: 'compulsory_multiple', isDelimiting: false },
         { multiplicity: 'optional_multiple', isDelimiting: false },
-        { multiplicity: 'at_least_one', isDelimiting: false },
+        { multiplicity: 'compulsory_at_least_one', isDelimiting: false },
       ];
       for (const tc of testCases) {
         const expected = rakeStrokeStyle(tc.multiplicity, tc.isDelimiting);

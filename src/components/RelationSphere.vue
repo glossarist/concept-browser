@@ -780,8 +780,8 @@ function drawEdges(cx: number, cy: number) {
  *   compulsory_multiple  true            2 solid  @ 4.5px
  *   optional_multiple    false           2 dashed @ 1.5px
  *   optional_multiple    true            2 dashed @ 4.5px
- *   at_least_one         false           1 solid + 1 dashed @ 1.5px
- *   at_least_one         true            1 solid + 1 dashed @ 4.5px
+ *   compulsory_at_least_one         false           1 solid + 1 dashed @ 1.5px
+ *   compulsory_at_least_one         true            1 solid + 1 dashed @ 4.5px
  *
  * completeness === 'partial'  : spine extends past last tooth (continued
  *                               backline — "more exist but not shown")

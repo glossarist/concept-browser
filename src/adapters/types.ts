@@ -174,7 +174,7 @@ export interface PartitiveRelationWire {
 
 export interface PartitiveMemberWire {
   uri: string;
-  multiplicity: 'compulsory' | 'optional' | 'compulsory_multiple' | 'optional_multiple' | 'at_least_one';
+  multiplicity: 'compulsory' | 'optional' | 'compulsory_multiple' | 'optional_multiple' | 'compulsory_at_least_one';
   isDelimiting: boolean;
 }
 
