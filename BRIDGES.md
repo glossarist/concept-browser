@@ -1,6 +1,6 @@
 # Model Bridge Tracking
 
-These bridges in `src/adapters/model-bridge.ts` manually map fields between JSON-LD wire format and glossarist-js model instances. Each bridge must be removed when glossarist-js publishes native support for the field.
+Bridges in `src/adapters/model-bridge.ts` manually map fields between JSON-LD wire format and glossarist-js model instances. Each bridge must be removed when glossarist-js publishes native support for the field.
 
 ## Active Bridges
 
@@ -18,13 +18,13 @@ These bridges in `src/adapters/model-bridge.ts` manually map fields between JSON
 | # | Field | Removed in | Reason |
 |---|-------|-----------|--------|
 | 7 | `partitiveRelations` | feat/partitive-v2-nativize | glossarist 0.4.20 ships native v2 model — `Concept.partitiveRelations` is the SSOT |
+| 8 | `presence × count` reverse-map into `multiplicity` | v0.7.87 | glossarist 0.4.26 publishes MECE-native `PartitiveMember` with `presence`, `count`, `is_delimiting` fields. `multiplicity` is gone; ISO 704 names are derived via `multiplicityFromPair(presence, count)` from `glossarist/models`. |
 
-## Active migrations (NOT bridges — these are documented adaptations between glossarist versions)
+## Active migrations (NOT bridges — documented adaptations between glossarist versions)
 
 | Field | Why | Remove when |
 |-------|-----|-------------|
-| `presence × count` (MECE 2-axis) ↔ legacy `multiplicity` | glossarist 0.4.25 still uses the 5-value `multiplicity` enum. ISO 704:2022 + the MECE refactor split it into two orthogonal axes (`presence` × `count`). The bridge reverse-maps MECE axes → legacy `multiplicity` at JSON-LD ingestion; consumers split `model.multiplicity` back into axes via `splitLegacyMultiplicity()`. | glossarist publishes native `presence` + `count` fields (PR `glossarist/glossarist-js` MECE-native refactor) |
-| `is_delimiting` | glossarist 0.4.25 carries `is_delimiting` natively. The bridge still writes it because the model ignores `presence`/`count` keys; once glossarist-js publishes MECE, this row can be folded into the row above. | glossarist-js MECE refactor merged |
+| `gl:multiplicity` / `gl:certainty` (legacy wire) → MECE `presence` + `count` | Older JSON-LD wire files in `public/data/` may still emit `gl:multiplicity` or the pre-multiplicity `gl:certainty`. The bridge reads those and projects them into the MECE axes before constructing the glossarist model. New YAML and new JSON-LD emit `gl:presence` + `gl:count` directly. | All published datasets migrate to the v3 JSON-LD wire (`gl:presence` + `gl:count`); bridge row can then be deleted. |
 
 ## Removal Criteria
 
@@ -45,11 +45,11 @@ A bridge can be removed when:
 
 ## MECE Refactor State
 
-The MECE (Mutually Exclusive, Collectively Exhaustive) refactor of partitive multiplicity is in flight across the four repos. Status as of 2026-07-28:
+The MECE (Mutually Exclusive, Collectively Exhaustive) refactor of partitive multiplicity is **complete** across all four repos as of 2026-07-28:
 
 | Repo | Status | Notes |
 |------|--------|-------|
-| `concept-model` (LUTAML models, JSON Schema, SHACL) | ✅ Schema done; SHACL adds vacuous-combo rejection in this PR | `models/concepts/PartitiveMember.lutaml` carries `presence` + `count` + `is_delimiting` orthogonally |
-| `glossarist-js` | ✅ Model refactored (uncommitted cleanup in working tree); published 0.4.25 still uses legacy 5-value `multiplicity` | When published with MECE native, drop the legacy reverse-map row in this file |
+| `concept-model` (LUTAML models, JSON Schema, SHACL) | ✅ Schema done; SHACL adds vacuous-combo rejection | `models/concepts/PartitiveMember.lutaml` carries `presence` + `count` + `is_delimiting` orthogonally |
+| `glossarist-js` | ✅ MECE-native model published as 0.4.26 | `PartitiveMember` exposes `presence`, `count`, `is_delimiting` directly; `multiplicityFromPair(presence, count)` derives the 5 ISO 704 names |
 | `glossarist-ruby` | ✅ Model carries `presence` + `count` + `is_delimiting` (commit `9342aef`) | — |
-| `concept-browser` | ✅ Local types + components refactored to 2-axis; bridge reverse-maps so it works against published glossarist 0.4.25 | Once glossarist-js publishes MECE-native, replace bridge reverse-map + consumer `splitLegacyMultiplicity()` with direct field reads |
+| `concept-browser` | ✅ Re-exports `PartitivePresence` / `PartitiveCount` types from glossarist-js; consumers read `member.presence` / `member.count` / `member.is_delimiting` directly | — |

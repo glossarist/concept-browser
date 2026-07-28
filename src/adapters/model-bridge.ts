@@ -26,6 +26,10 @@ import {
   ConceptRef,
 } from 'glossarist';
 import {
+  isPartitivePresence,
+  isPartitiveCount,
+} from '../utils/partitive-multiplicity';
+import {
   LetterSymbol,
   GrammarInfo,
   Pronunciation,
@@ -594,29 +598,22 @@ function mapPartitiveRelationFromJsonLd(r: JsonLdPartitiveRelation): Record<stri
       const ref = m['gl:ref'] ? mapRefFromJsonLd(m['gl:ref']) : null;
       if (!ref) return null;
       const out: Record<string, unknown> = { ref };
-      // ISO 704:2022 MECE: read presence + count directly if present.
+      // ISO 704:2022 MECE: prefer presence × count from JSON-LD. Fall back
+      // to migrating the legacy one-string `multiplicity` or v2 `certainty`
+      // so data in transit from older glossarist versions still loads.
       const presence = m['gl:presence'];
       const count = m['gl:count'];
-      let multiplicity: string | undefined;
-      if (presence && count) {
+      if (isPartitivePresence(presence) && isPartitiveCount(count)) {
         out.presence = presence;
         out.count = count;
-        multiplicity = axesToLegacyMultiplicity(presence, count);
       } else {
-        // Legacy migration: split old one-string multiplicity or v2 certainty.
         const raw = m['gl:multiplicity'] ?? splitLegacyCertainty(m['gl:certainty']);
         if (raw) {
           const parts = splitMultiplicity(raw);
           out.presence = parts.presence;
           out.count = parts.count;
-          multiplicity = raw;
         }
       }
-      // glossarist 0.4.24's PartitiveMember only stores `multiplicity` —
-      // write it so the model can carry the data. Consumers read the
-      // MECE axes via `splitLegacyMultiplicity(model.multiplicity)`.
-      // Remove when glossarist-js ships MECE-native fields.
-      if (multiplicity) out.multiplicity = multiplicity;
       if (m['gl:isDelimiting'] === true) out.is_delimiting = true;
       return out;
     })
@@ -648,9 +645,9 @@ function splitLegacyCertainty(certainty: string | undefined): string | null {
   return certainty === 'possible' ? 'optional' : 'compulsory';
 }
 
-/** Split old one-string multiplicity into MECE presence + count axes. */
-function splitMultiplicity(m: string): { presence: string; count: string } {
-  const LEGACY_MAP: Record<string, { presence: string; count: string }> = {
+/** Split the legacy one-string multiplicity into MECE presence × count. */
+function splitMultiplicity(m: string): { presence: 'required' | 'optional'; count: 'exactly_one' | 'at_least_one' | 'multiple' } {
+  const LEGACY_MAP: Record<string, { presence: 'required' | 'optional'; count: 'exactly_one' | 'at_least_one' | 'multiple' }> = {
     compulsory:               { presence: 'required', count: 'exactly_one' },
     optional:                 { presence: 'optional', count: 'exactly_one' },
     compulsory_multiple:      { presence: 'required', count: 'multiple' },
@@ -658,24 +655,6 @@ function splitMultiplicity(m: string): { presence: string; count: string } {
     compulsory_at_least_one:  { presence: 'required', count: 'at_least_one' },
   };
   return LEGACY_MAP[m] ?? { presence: 'required', count: 'exactly_one' };
-}
-
-/**
- * Reverse-map MECE presence + count back to the legacy 5-value
- * multiplicity string. Used only to round-trip data through the
- * glossarist 0.4.24 model, which still uses the single-string field.
- */
-function axesToLegacyMultiplicity(presence: string, count: string): string {
-  const REVERSE_MAP: Record<string, string> = {
-    'required:exactly_one':  'compulsory',
-    'optional:exactly_one':  'optional',
-    'required:multiple':     'compulsory_multiple',
-    'optional:multiple':     'optional_multiple',
-    'required:at_least_one': 'compulsory_at_least_one',
-    // optional + at_least_one has no legacy equivalent — collapse to optional_multiple
-    'optional:at_least_one': 'optional_multiple',
-  };
-  return REVERSE_MAP[`${presence}:${count}`] ?? 'compulsory';
 }
 
 function conceptFromJsonLd(doc: JsonLdConcept): Concept {

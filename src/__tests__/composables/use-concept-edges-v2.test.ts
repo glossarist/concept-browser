@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
-// glossarist 0.4.24's top-level d.ts doesn't re-export the v3
+// glossarist-js 0.4.26's top-level d.ts doesn't re-export the MECE
 // PartitiveRelation/PartitiveMember classes; import from glossarist/models
-// (which our local augmentation extends) so the types are correct.
-import type { PartitiveRelation, PartitiveMember, ConceptRef } from 'glossarist/models';
+// (extended by our local augmentation) so the types are correct.
+import type {
+  PartitiveRelation,
+  PartitiveMember,
+  ConceptRef,
+} from 'glossarist/models';
 import {
   PartitiveRelation as PartitiveRelationModel,
   PartitiveMember as PartitiveMemberModel,
@@ -10,12 +14,12 @@ import {
 } from 'glossarist/models';
 
 /**
- * Verifies glossarist-js 0.4.24's native v3 PartitiveRelation model
- * (ISO 704:2022 multiplicity + is_delimiting).
+ * Verifies glossarist-js 0.4.26's MECE-native PartitiveRelation model
+ * (ISO 704:2022 presence × count + is_delimiting).
  *
- * The concept-browser now consumes this directly (no migration adapter,
- * no `as any` bridge). These specs lock in the contract so an upstream
- * regression is caught here.
+ * The concept-browser consumes these fields directly (no migration
+ * bridge). These specs pin the runtime contract so a regression in
+ * upstream is caught here.
  */
 
 function makeRef(source: string, id: string): ConceptRef {
@@ -25,16 +29,17 @@ function makeRef(source: string, id: string): ConceptRef {
 function makePartitive(
   source: string,
   id: string,
-  multiplicity?: 'compulsory' | 'optional' | 'compulsory_multiple' | 'optional_multiple' | 'compulsory_at_least_one',
-  isDelimiting?: boolean,
+  fields: { presence?: 'required' | 'optional'; count?: 'exactly_one' | 'at_least_one' | 'multiple'; isDelimiting?: boolean } = {},
 ): PartitiveMember {
   const data: {
     ref: ConceptRef;
-    multiplicity?: typeof multiplicity;
+    presence?: 'required' | 'optional';
+    count?: 'exactly_one' | 'at_least_one' | 'multiple';
     is_delimiting?: boolean;
   } = { ref: makeRef(source, id) };
-  if (multiplicity) data.multiplicity = multiplicity;
-  if (isDelimiting) data.is_delimiting = isDelimiting;
+  if (fields.presence) data.presence = fields.presence;
+  if (fields.count) data.count = fields.count;
+  if (fields.isDelimiting) data.is_delimiting = fields.isDelimiting;
   return PartitiveMemberModel.fromJSON(data as unknown as Record<string, unknown>) as PartitiveMember;
 }
 
@@ -47,18 +52,35 @@ function makeRelation(opts: {
   return PartitiveRelationModel.fromJSON(opts as unknown as Record<string, unknown>) as PartitiveRelation;
 }
 
-describe('useConceptEdges — native v3 PartitiveRelation (glossarist 0.4.24)', () => {
-  describe('PartitiveMember (ISO 704:2022 multiplicity + delimiting)', () => {
-    it('multiplicity defaults to compulsory when omitted', () => {
+describe('useConceptEdges — MECE PartitiveRelation (glossarist 0.4.26)', () => {
+  describe('PartitiveMember (ISO 704:2022 presence × count + delimiting)', () => {
+    it('presence defaults to required, count defaults to exactly_one', () => {
       const m = makePartitive('test', '1.1');
-      expect(m.multiplicity).toBe('compulsory');
-      expect(m.isCompulsory).toBe(true);
+      expect(m.presence).toBe('required');
+      expect(m.isRequired).toBe(true);
+      expect(m.isOptional).toBe(false);
     });
 
-    it('multiplicity is preserved when set to optional', () => {
-      const m = makePartitive('test', '1.1', 'optional');
-      expect(m.multiplicity).toBe('optional');
+    it('count defaults to exactly_one', () => {
+      const m = makePartitive('test', '1.1');
+      expect(m.count).toBe('exactly_one');
+    });
+
+    it('presence=optional is preserved', () => {
+      const m = makePartitive('test', '1.1', { presence: 'optional' });
+      expect(m.presence).toBe('optional');
       expect(m.isOptional).toBe(true);
+      expect(m.isRequired).toBe(false);
+    });
+
+    it('count=multiple is preserved', () => {
+      const m = makePartitive('test', '1.1', { count: 'multiple' });
+      expect(m.count).toBe('multiple');
+    });
+
+    it('count=at_least_one is preserved', () => {
+      const m = makePartitive('test', '1.1', { count: 'at_least_one' });
+      expect(m.count).toBe('at_least_one');
     });
 
     it('is_delimiting defaults to false', () => {
@@ -68,19 +90,20 @@ describe('useConceptEdges — native v3 PartitiveRelation (glossarist 0.4.24)', 
     });
 
     it('is_delimiting is preserved when set to true', () => {
-      const m = makePartitive('test', '1.1', 'compulsory', true);
+      const m = makePartitive('test', '1.1', { isDelimiting: true });
       expect(m.is_delimiting).toBe(true);
+      expect(m.isDelimiting).toBe(true);
     });
 
-    it('multiplicity + is_delimiting are orthogonal axes', () => {
-      const m = makePartitive('test', '1.1', 'compulsory_multiple', true);
-      expect(m.multiplicity).toBe('compulsory_multiple');
-      expect(m.is_delimiting).toBe(true);
+    it('rejects the vacuous (presence=optional, count=at_least_one)', () => {
+      expect(() =>
+        makePartitive('test', '1.1', { presence: 'optional', count: 'at_least_one' }),
+      ).toThrow(/collapses to optional \+ multiple/);
     });
   });
 
   describe('PartitiveRelation', () => {
-    it('accepts 2 compulsory members with completeness=complete', () => {
+    it('accepts 2 members with default axes', () => {
       const r = makeRelation({
         comprehensive: makeRef('test', '1.3'),
         partitives: [makePartitive('test', '1.4'), makePartitive('test', '1.5')],
@@ -101,21 +124,6 @@ describe('useConceptEdges — native v3 PartitiveRelation (glossarist 0.4.24)', 
       expect(r.isPartial).toBe(true);
     });
 
-    it('member with compulsory_multiple has isCompulsory false', () => {
-      const m = makePartitive('test', '1.4', 'compulsory_multiple');
-      expect(m.isCompulsory).toBe(false);
-      expect(m.multiplicity).not.toBe('compulsory');
-    });
-
-    it('all compulsory-single members have isCompulsory true', () => {
-      const r = makeRelation({
-        comprehensive: makeRef('test', '1.3'),
-        partitives: [makePartitive('test', '1.4'), makePartitive('test', '1.5')],
-      });
-      expect(r.partitives[0].isCompulsory).toBe(true);
-      expect(r.partitives[1].isCompulsory).toBe(true);
-    });
-
     it('isCoordinate true when ≥2 partitives', () => {
       const r = makeRelation({
         comprehensive: makeRef('test', '1.3'),
@@ -131,27 +139,26 @@ describe('useConceptEdges — native v3 PartitiveRelation (glossarist 0.4.24)', 
       })).toThrow(/≥2 partitives/);
     });
 
-    it('round-trips through toJSON with v3 fields', () => {
+    it('round-trips through toJSON with MECE fields', () => {
       const r = makeRelation({
         comprehensive: makeRef('test', '1.3'),
         partitives: [
-          makePartitive('test', '1.4', 'compulsory', false),
-          makePartitive('test', '1.5', 'compulsory_multiple', true),
+          makePartitive('test', '1.4', { presence: 'required', count: 'multiple' }),
+          makePartitive('test', '1.5', { presence: 'optional', isDelimiting: true }),
         ],
         completeness: 'partial',
         criterion: { eng: 'physical structure' },
       });
       const json = r.toJSON() as {
         comprehensive: unknown;
-        partitives: Array<{ multiplicity?: string; is_delimiting?: boolean; ref: unknown }>;
+        partitives: Array<{ presence?: string; count?: string; is_delimiting?: boolean; ref: unknown }>;
         completeness: string;
         criterion?: Record<string, string>;
       };
       expect(json.comprehensive).toBeDefined();
       expect(json.partitives).toHaveLength(2);
-      // compulsory is the default multiplicity — not emitted in toJSON
-      expect(json.partitives[0].multiplicity).toBeUndefined();
-      expect(json.partitives[1].multiplicity).toBe('compulsory_multiple');
+      expect(json.partitives[0].count).toBe('multiple');
+      expect(json.partitives[1].presence).toBe('optional');
       expect(json.partitives[1].is_delimiting).toBe(true);
       expect(json.completeness).toBe('partial');
       expect(json.criterion).toEqual({ eng: 'physical structure' });

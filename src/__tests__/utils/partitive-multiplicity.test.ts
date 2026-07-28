@@ -1,28 +1,30 @@
 /**
  * MECE refactor of partitive-multiplicity (ISO 704:2022).
  *
- * Two orthogonal axes: presence × count, plus isDelimiting.
- * Visual derivation lives in rakeStrokeStyle — the test pins its
- * truth table so future rendering edits stay aligned with the spec.
+ * Types + enums come from glossarist-js (the SSOT for the model).
+ * The render-ready stroke style is the only browser-specific concern;
+ * its truth table is pinned here so future rendering edits stay
+ * aligned with the spec.
  */
 import { describe, it, expect } from 'vitest';
 import {
-  PRESENCE_VALUES,
-  COUNT_VALUES,
+  PARTITIVE_PRESENCE,
+  PARTITIVE_COUNT,
   isPartitivePresence,
   isPartitiveCount,
   presenceLabel,
   countLabel,
   rakeStrokeStyle,
+  partitiveMultiplicityName,
   NORMAL_STROKE_WIDTH,
   DELIMITING_STROKE_WIDTH,
   type PartitivePresence,
   type PartitiveCount,
 } from '../../utils/partitive-multiplicity';
 
-describe('presence axis', () => {
+describe('presence axis (re-exported from glossarist)', () => {
   it('has exactly 2 values: required, optional', () => {
-    expect([...PRESENCE_VALUES]).toEqual(['required', 'optional']);
+    expect([...PARTITIVE_PRESENCE.VALUES]).toEqual(['required', 'optional']);
   });
 
   it('isPartitivePresence narrows known values', () => {
@@ -39,9 +41,9 @@ describe('presence axis', () => {
   });
 });
 
-describe('count axis', () => {
+describe('count axis (re-exported from glossarist)', () => {
   it('has exactly 3 values: exactly_one, at_least_one, multiple', () => {
-    expect([...COUNT_VALUES]).toEqual(['exactly_one', 'at_least_one', 'multiple']);
+    expect([...PARTITIVE_COUNT.VALUES]).toEqual(['exactly_one', 'at_least_one', 'multiple']);
   });
 
   it('isPartitiveCount narrows known values', () => {
@@ -56,6 +58,21 @@ describe('count axis', () => {
     expect(countLabel('exactly_one')).toBe('Exactly one');
     expect(countLabel('at_least_one')).toBe('At least one');
     expect(countLabel('multiple')).toBe('Multiple');
+  });
+});
+
+describe('partitiveMultiplicityName (glossarist SSOT)', () => {
+  it('maps the 5 valid combinations to ISO 704 names', () => {
+    expect(partitiveMultiplicityName('required', 'exactly_one')).toBe('compulsory');
+    expect(partitiveMultiplicityName('optional', 'exactly_one')).toBe('optional');
+    expect(partitiveMultiplicityName('required', 'multiple')).toBe('compulsory_multiple');
+    expect(partitiveMultiplicityName('optional', 'multiple')).toBe('optional_multiple');
+    expect(partitiveMultiplicityName('required', 'at_least_one')).toBe('compulsory_at_least_one');
+  });
+
+  it('rejects the vacuous (optional, at_least_one) combination', () => {
+    expect(() => partitiveMultiplicityName('optional', 'at_least_one'))
+      .toThrow(/collapses to optional \+ multiple/);
   });
 });
 

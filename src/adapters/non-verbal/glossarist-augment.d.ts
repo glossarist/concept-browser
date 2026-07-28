@@ -1,4 +1,4 @@
-// Local module augmentation for glossarist 0.4.2.
+// Local module augmentation for glossarist 0.4.26.
 //
 // Upstream's published src/models/index.d.ts declares ZERO classes for the
 // non-verbal hierarchy (Figure, Table, Formula, FigureImage, NonVerbalEntity,
@@ -9,15 +9,15 @@
 //
 // This file declares the runtime shape so consumer code can be type-checked.
 // DELETE this file when upstream ships proper declarations — tracked by
-// PR glossarist/glossarist-js#31 (targets v0.4.3+).
+// PR glossarist/glossarist-js#31.
 //
-// v2 PartitiveRelation block (below) tracks glossarist 0.4.20 — the runtime
-// exports PartitiveRelation/PartitiveMember/TypeSharedPlurality from
-// src/models/index.js, but the d.ts has not been updated. Remove the v2
-// block when upstream PRs the d.ts changes.
+// v2 PartitiveRelation block (below) tracks glossarist 0.4.26 — the runtime
+// exports PartitiveRelation/PartitiveMember from src/models/index.js, but
+// the d.ts has not been updated. Remove the v2 block when upstream PRs the
+// d.ts changes.
 
 import type { ConceptSource, Citation, GlossaristModel } from 'glossarist';
-import type { PartitiveMultiplicity } from '../../utils/partitive-multiplicity';
+import type { PartitivePresence, PartitiveCount } from '../../utils/partitive-multiplicity';
 
 declare module 'glossarist' {
   class RegistrableModel extends GlossaristModel {
@@ -137,8 +137,9 @@ declare module 'glossarist' {
     static fromJSON(data: Record<string, unknown>): BibliographyData;
   }
 
-  // ── v2 PartitiveRelation (glossarist 0.4.20) ────────────────────────────
+  // ── PartitiveRelation (glossarist 0.4.26 — MECE presence × count) ─
   // Runtime exports these from src/models/index.js; d.ts is stale.
+  // (Tracked by PR glossarist/glossarist-js#31.)
 
   type Completeness = 'complete' | 'partial';
   const COMPLETENESS: { readonly COMPLETE: 'complete'; readonly PARTIAL: 'partial' };
@@ -146,51 +147,49 @@ declare module 'glossarist' {
   const DEFAULT_COMPLETENESS: Completeness;
   function isValidCompleteness(value: unknown): value is Completeness;
 
-  type MemberCertainty = 'confirmed' | 'possible';
-  const MEMBER_CERTAINTY: { readonly CONFIRMED: 'confirmed'; readonly POSSIBLE: 'possible' };
-  const MEMBER_CERTAINTY_VALUES: readonly MemberCertainty[];
-  const DEFAULT_MEMBER_CERTAINTY: MemberCertainty;
-  function isValidMemberCertainty(value: unknown): value is MemberCertainty;
+  const PARTITIVE_PRESENCE: { readonly REQUIRED: 'required'; readonly OPTIONAL: 'optional' } & { readonly VALUES: readonly ['required', 'optional'] };
+  type PartitivePresence = (typeof PARTITIVE_PRESENCE.VALUES)[number];
+  const PARTITIVE_PRESENCE_VALUES: readonly PartitivePresence[];
+  const DEFAULT_PRESENCE: PartitivePresence;
+  function isValidPresence(value: unknown): value is PartitivePresence;
 
-  class TypeSharedPlurality extends GlossaristModel {
-    constructor(data?: {
-      isShared?: boolean;
-      is_shared?: boolean;
-      isUncertain?: boolean;
-      is_uncertain?: boolean;
-      sharedType?: ConceptRef;
-      shared_type?: ConceptRef;
-    });
-    readonly isShared: boolean;
-    readonly isUncertain: boolean;
-    readonly sharedType: ConceptRef | null;
-    hasSharedType(): boolean;
-    toJSON(): { is_shared: boolean; is_uncertain?: boolean; shared_type?: ReturnType<ConceptRef['toJSON']> };
-    static fromJSON(data: Record<string, unknown>): TypeSharedPlurality;
-  }
+  const PARTITIVE_COUNT: { readonly EXACTLY_ONE: 'exactly_one'; readonly AT_LEAST_ONE: 'at_least_one'; readonly MULTIPLE: 'multiple' } & { readonly VALUES: readonly ['exactly_one', 'at_least_one', 'multiple'] };
+  type PartitiveCount = (typeof PARTITIVE_COUNT.VALUES)[number];
+  const PARTITIVE_COUNT_VALUES: readonly PartitiveCount[];
+  const DEFAULT_COUNT: PartitiveCount;
+  function isValidCount(value: unknown): value is PartitiveCount;
+
+  type Multiplicity =
+    | 'compulsory' | 'optional' | 'compulsory_multiple'
+    | 'optional_multiple' | 'compulsory_at_least_one';
+  const MULTIPLICITY: Record<string, Multiplicity>;
+  const MULTIPLICITY_VALUES: readonly Multiplicity[];
+  const DEFAULT_MULTIPLICITY: Multiplicity;
+  function isValidMultiplicity(value: unknown): value is Multiplicity;
+  function multiplicityFromPair(presence: PartitivePresence, count: PartitiveCount): Multiplicity;
+  function pairFromMultiplicity(name: Multiplicity): { presence: PartitivePresence; count: PartitiveCount };
 
   interface Concept {
     readonly partitiveRelations: PartitiveRelation[];
   }
 
-  // ── v3 PartitiveRelation (glossarist 0.4.24 — ISO 704:2022 multiplicity + delimiting) ─
   // Re-exposed here so callers importing from the top-level `glossarist`
-  // entry get the v3-augmented shape, not the stale d.ts type.
+  // entry get the MECE-augmented shape, not the stale d.ts type.
   export class PartitiveMember extends GlossaristModel {
     constructor(data?: {
       ref?: ConceptRef;
-      multiplicity?: PartitiveMultiplicity;
+      presence?: PartitivePresence;
+      count?: PartitiveCount;
       is_delimiting?: boolean;
     });
     readonly ref: ConceptRef;
-    readonly multiplicity: PartitiveMultiplicity;
+    readonly presence: PartitivePresence;
+    readonly count: PartitiveCount;
     readonly is_delimiting: boolean;
-    readonly isConfirmed: boolean;
-    readonly isPossible: boolean;
-    readonly isCompulsory: boolean;
+    readonly isRequired: boolean;
     readonly isOptional: boolean;
     get isDelimiting(): boolean;
-    toJSON(): { ref: ReturnType<ConceptRef['toJSON']>; multiplicity?: PartitiveMultiplicity; is_delimiting?: boolean };
+    toJSON(): { ref: ReturnType<ConceptRef['toJSON']>; presence?: PartitivePresence; count?: PartitiveCount; is_delimiting?: boolean };
     static fromJSON(data: Record<string, unknown>): PartitiveMember;
     static identityOf(value: unknown): string;
   }
@@ -232,11 +231,27 @@ declare module 'glossarist/models' {
   export const DEFAULT_COMPLETENESS: Completeness;
   export function isValidCompleteness(value: unknown): value is Completeness;
 
-  export type MemberCertainty = 'confirmed' | 'possible';
-  export const MEMBER_CERTAINTY: { readonly CONFIRMED: 'confirmed'; readonly POSSIBLE: 'possible' };
-  export const MEMBER_CERTAINTY_VALUES: readonly MemberCertainty[];
-  export const DEFAULT_MEMBER_CERTAINTY: MemberCertainty;
-  export function isValidMemberCertainty(value: unknown): value is MemberCertainty;
+  export const PARTITIVE_PRESENCE: { readonly REQUIRED: 'required'; readonly OPTIONAL: 'optional' } & { readonly VALUES: readonly ['required', 'optional'] };
+  export type PartitivePresence = (typeof PARTITIVE_PRESENCE.VALUES)[number];
+  export const PARTITIVE_PRESENCE_VALUES: readonly PartitivePresence[];
+  export const DEFAULT_PRESENCE: PartitivePresence;
+  export function isValidPresence(value: unknown): value is PartitivePresence;
+
+  export const PARTITIVE_COUNT: { readonly EXACTLY_ONE: 'exactly_one'; readonly AT_LEAST_ONE: 'at_least_one'; readonly MULTIPLE: 'multiple' } & { readonly VALUES: readonly ['exactly_one', 'at_least_one', 'multiple'] };
+  export type PartitiveCount = (typeof PARTITIVE_COUNT.VALUES)[number];
+  export const PARTITIVE_COUNT_VALUES: readonly PartitiveCount[];
+  export const DEFAULT_COUNT: PartitiveCount;
+  export function isValidCount(value: unknown): value is PartitiveCount;
+
+  export type Multiplicity =
+    | 'compulsory' | 'optional' | 'compulsory_multiple'
+    | 'optional_multiple' | 'compulsory_at_least_one';
+  export const MULTIPLICITY: Record<string, Multiplicity>;
+  export const MULTIPLICITY_VALUES: readonly Multiplicity[];
+  export const DEFAULT_MULTIPLICITY: Multiplicity;
+  export function isValidMultiplicity(value: unknown): value is Multiplicity;
+  export function multiplicityFromPair(presence: PartitivePresence, count: PartitiveCount): Multiplicity;
+  export function pairFromMultiplicity(name: Multiplicity): { presence: PartitivePresence; count: PartitiveCount };
 
   export class TypeSharedPlurality extends GlossaristModel {
     constructor(data?: {
@@ -255,23 +270,23 @@ declare module 'glossarist/models' {
     static fromJSON(data: Record<string, unknown>): TypeSharedPlurality;
   }
 
-  // ── v2 PartitiveRelation (glossarist 0.4.24 — ISO 704:2022 multiplicity + delimiting) ─
+  // ── PartitiveRelation (glossarist 0.4.26 — MECE presence × count) ─
 
   export class PartitiveMember extends GlossaristModel {
     constructor(data?: {
       ref?: ConceptRef;
-      multiplicity?: PartitiveMultiplicity;
+      presence?: PartitivePresence;
+      count?: PartitiveCount;
       is_delimiting?: boolean;
     });
     readonly ref: ConceptRef;
-    readonly multiplicity: PartitiveMultiplicity;
+    readonly presence: PartitivePresence;
+    readonly count: PartitiveCount;
     readonly is_delimiting: boolean;
-    readonly isConfirmed: boolean;
-    readonly isPossible: boolean;
-    readonly isCompulsory: boolean;
+    readonly isRequired: boolean;
     readonly isOptional: boolean;
     get isDelimiting(): boolean;
-    toJSON(): { ref: ReturnType<ConceptRef['toJSON']>; multiplicity?: PartitiveMultiplicity; is_delimiting?: boolean };
+    toJSON(): { ref: ReturnType<ConceptRef['toJSON']>; presence?: PartitivePresence; count?: PartitiveCount; is_delimiting?: boolean };
     static fromJSON(data: Record<string, unknown>): PartitiveMember;
     static identityOf(value: unknown): string;
   }
