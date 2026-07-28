@@ -40,14 +40,16 @@
 import { computed } from 'vue';
 import {
   rakeStrokeStyle,
-  type PartitiveMultiplicity,
+  type PartitivePresence,
+  type PartitiveCount,
   type RakeStrokeStyle,
 } from '../utils/partitive-multiplicity';
 
 export interface PartitiveMemberLabeled {
   uri: string;
   label: string;
-  multiplicity: PartitiveMultiplicity;
+  presence: PartitivePresence;
+  count: PartitiveCount;
   isDelimiting: boolean;
 }
 
@@ -57,7 +59,7 @@ const props = withDefaults(defineProps<{
   completeness: 'complete' | 'partial';
   criterion?: string | null;
   /** Optional per-member tooltip string. */
-  memberTooltip?: (m: { multiplicity: PartitiveMultiplicity; isDelimiting: boolean }) => string;
+  memberTooltip?: (m: { presence: PartitivePresence; count: PartitiveCount; isDelimiting: boolean }) => string;
 }>(), {
   criterion: null,
 });
@@ -142,7 +144,7 @@ const layout = computed(() => {
       member,
       x,
       labelLines,
-      style: rakeStrokeStyle(member.multiplicity, member.isDelimiting),
+      style: rakeStrokeStyle(member.presence, member.count, member.isDelimiting),
     };
   });
 
@@ -198,7 +200,7 @@ function emitNav(uri: string) {
 }
 
 function tooltipFor(member: PartitiveMemberLabeled): string | undefined {
-  return props.memberTooltip?.({ multiplicity: member.multiplicity, isDelimiting: member.isDelimiting });
+  return props.memberTooltip?.({ presence: member.presence, count: member.count, isDelimiting: member.isDelimiting });
 }
 </script>
 

@@ -1,106 +1,130 @@
 /**
- * ISO 704:2022 §5.5.4.2 — partitive multiplicity + delimiting model.
+ * ISO 704:2022 §5.5.4.2 — partitive multiplicity model (MECE).
  *
- * Multiplicity (5 values) encodes part-count semantics:
- *   - compulsory          : exactly one, required
- *   - optional            : zero or one
- *   - compulsory_multiple : two or more, required
- *   - optional_multiple   : zero or more
- *   - compulsory_at_least_one        : one or more (required, count unknown)
+ * Two independent axes:
  *
- * Delimiting (boolean) is orthogonal — a delimiting part behaves like a
- * delimiting characteristic in generic relations: it distinguishes the
- * comprehensive concept from coordinate concepts. Visual encoding:
- * 3× stroke width (4.5 px vs 1.5 px).
+ *   presence: 'required' | 'optional'
+ *     Is this part always present?
  *
- * Adding a new multiplicity value = add one entry to PARTITIVE_MULTIPLICITY.
- * Renderers consume RakeStrokeStyle via rakeStrokeStyle(); never inspect
- * the raw multiplicity string. OCP + MECE + DRY.
+ *   count: 'exactly_one' | 'at_least_one' | 'multiple'
+ *     How many instances?
+ *
+ * 6 combinations, 5 visually distinct (optional + at_least_one
+ * collapses to 2-dashed = same as optional + multiple).
+ *
+ * Adding a new count value (e.g. 'exactly_three') is one entry —
+ * no enum explosion, no switch edits.
  */
 
-export const PARTITIVE_MULTIPLICITY = {
-  compulsory:           { lines: 1, pattern: 'solid',  label: 'Compulsory' },
-  optional:             { lines: 1, pattern: 'dashed',  label: 'Optional' },
-  compulsory_multiple:  { lines: 2, pattern: 'solid',  label: 'Compulsory multiple' },
-  optional_multiple:    { lines: 2, pattern: 'dashed',  label: 'Optional multiple' },
-  compulsory_at_least_one:         { lines: 2, pattern: 'mixed',   label: 'At least one' },
-} as const;
+// ── Two independent axes ─────────────────────────────────────────────
 
-export type PartitiveMultiplicity = keyof typeof PARTITIVE_MULTIPLICITY;
+export const PRESENCE_VALUES = ['required', 'optional'] as const;
+export type PartitivePresence = (typeof PRESENCE_VALUES)[number];
 
-export const PARTITIVE_MULTIPLICITY_VALUES: readonly PartitiveMultiplicity[] =
-  Object.keys(PARTITIVE_MULTIPLICITY) as PartitiveMultiplicity[];
+export const COUNT_VALUES = ['exactly_one', 'at_least_one', 'multiple'] as const;
+export type PartitiveCount = (typeof COUNT_VALUES)[number];
 
-export function isPartitiveMultiplicity(value: unknown): value is PartitiveMultiplicity {
-  return typeof value === 'string' && value in PARTITIVE_MULTIPLICITY;
+export function isPartitivePresence(v: unknown): v is PartitivePresence {
+  return v === 'required' || v === 'optional';
+}
+export function isPartitiveCount(v: unknown): v is PartitiveCount {
+  return v === 'exactly_one' || v === 'at_least_one' || v === 'multiple';
 }
 
-export type LinePattern = 'solid' | 'dashed' | 'mixed';
+/**
+ * Legacy 5-value multiplicity enum (pre-MECE). glossarist 0.4.24's
+ * PartitiveMember still uses this internally. The bridge migrates
+ * legacy ↔ MECE via LEGACY_MULTIPLICITY_TO_AXES.
+ *
+ * DEPRECATED — remove when glossarist-js ships MECE-native fields.
+ */
+export const LEGACY_MULTIPLICITY_VALUES = [
+  'compulsory',
+  'optional',
+  'compulsory_multiple',
+  'optional_multiple',
+  'compulsory_at_least_one',
+] as const;
+export type PartitiveMultiplicity = (typeof LEGACY_MULTIPLICITY_VALUES)[number];
 
-export interface MultiplicityDefinition {
-  /** Number of parallel lines used to render the multiplicity. */
-  readonly lines: 1 | 2;
-  /** Dash pattern: solid, dashed, or mixed (one solid + one dashed). */
-  readonly pattern: LinePattern;
-  /** Human-readable label for legends and badges. */
-  readonly label: string;
+export const LEGACY_MULTIPLICITY_TO_AXES: Record<
+  PartitiveMultiplicity,
+  { presence: PartitivePresence; count: PartitiveCount }
+> = {
+  compulsory:               { presence: 'required', count: 'exactly_one' },
+  optional:                 { presence: 'optional', count: 'exactly_one' },
+  compulsory_multiple:      { presence: 'required', count: 'multiple' },
+  optional_multiple:        { presence: 'optional', count: 'multiple' },
+  compulsory_at_least_one:  { presence: 'required', count: 'at_least_one' },
+};
+
+export function isPartitiveMultiplicity(v: unknown): v is PartitiveMultiplicity {
+  return typeof v === 'string'
+    && (LEGACY_MULTIPLICITY_VALUES as readonly string[]).includes(v);
 }
 
-export function multiplicityDefinition(m: PartitiveMultiplicity): MultiplicityDefinition {
-  return PARTITIVE_MULTIPLICITY[m];
+/**
+ * Split a legacy 5-value multiplicity into the MECE 2-axis model.
+ * Returns required/exactly_one for unknown values (safest default).
+ */
+export function splitLegacyMultiplicity(
+  m: PartitiveMultiplicity,
+): { presence: PartitivePresence; count: PartitiveCount } {
+  return LEGACY_MULTIPLICITY_TO_AXES[m] ?? { presence: 'required', count: 'exactly_one' };
 }
 
-// ── RakeStrokeStyle — the render-ready form consumed by all renderers ────
+// ── Render-ready stroke style (derived from the two axes) ────────────
 
 export interface RakeStrokeStyle {
-  /** 1 or 2 parallel lines. */
   readonly lineCount: 1 | 2;
-  /** Primary (always-present) line dash. */
   readonly primaryDashed: boolean;
-  /** Secondary line dash (only meaningful when lineCount === 2). */
   readonly secondaryDashed: boolean;
-  /** Stroke width in px. 1.5 normal, 4.5 (3×) when is_delimiting. */
   readonly strokeWidth: number;
 }
 
 export const NORMAL_STROKE_WIDTH = 1.5;
-export const DELIMITING_STROKE_WIDTH = 4.5;   // 3× normal per ISO 704
+export const DELIMITING_STROKE_WIDTH = 4.5;
 
 /**
- * Compute the render-ready stroke style for a partitive member.
+ * Compute the render-ready stroke style.
  *
- * Pure function — same inputs always yield the same RakeStrokeStyle.
- * Consumed by both the sidebar rake diagram (PartitiveRelationDiagram)
- * and the sphere rake bundles (RelationSphere.drawRakeBundles).
+ * Pure function — consumed by both the sidebar rake diagram
+ * (PartitiveRelationDiagram) and the sphere rake bundles
+ * (RelationSphere.drawRakeBundles).
+ *
+ * Derivation:
+ *   presence=required  → primary line is solid
+ *   presence=optional  → primary line is dashed
+ *   count=exactly_one  → 1 line
+ *   count=multiple     → 2 lines, both same style as primary
+ *   count=at_least_one → 2 lines: primary + dashed ("possibly more")
  */
 export function rakeStrokeStyle(
-  multiplicity: PartitiveMultiplicity,
+  presence: PartitivePresence,
+  count: PartitiveCount,
   isDelimiting: boolean,
 ): RakeStrokeStyle {
-  const def = PARTITIVE_MULTIPLICITY[multiplicity];
-  return {
-    lineCount: def.lines,
-    primaryDashed: def.pattern === 'dashed',
-    secondaryDashed: def.pattern === 'dashed' || def.pattern === 'mixed',
-    strokeWidth: isDelimiting ? DELIMITING_STROKE_WIDTH : NORMAL_STROKE_WIDTH,
-  };
+  const primaryDashed = presence === 'optional';
+  const width = isDelimiting ? DELIMITING_STROKE_WIDTH : NORMAL_STROKE_WIDTH;
+
+  if (count === 'exactly_one') {
+    return { lineCount: 1, primaryDashed, secondaryDashed: false, strokeWidth: width };
+  }
+  // multiple or at_least_one
+  const secondaryDashed = count === 'at_least_one' ? true : primaryDashed;
+  return { lineCount: 2, primaryDashed, secondaryDashed, strokeWidth: width };
 }
 
-// ── Migration from glossarist 0.4.20 certainty → ISO 704 multiplicity ────
+// ── Human-readable labels ────────────────────────────────────────────
 
-/**
- * glossarist 0.4.20 carries per-member `certainty: 'confirmed' | 'possible'`
- * (a v0.4 abstraction that conflated "this member exists" with "we're sure
- * about it"). ISO 704:2022 replaces that with the multiplicity enum.
- *
- * Until glossarist publishes native multiplicity support, this helper maps
- * the legacy field to the closest ISO 704 multiplicity:
- *   - confirmed → compulsory
- *   - possible  → optional
- *
- * Once glossarist publishes multiplicity natively, the bridge can read
- * it directly and this helper can be deleted.
- */
-export function multiplicityFromCertainty(certainty: 'confirmed' | 'possible' | null | undefined): PartitiveMultiplicity {
-  return certainty === 'possible' ? 'optional' : 'compulsory';
+export function presenceLabel(p: PartitivePresence): string {
+  return p === 'optional' ? 'Optional' : 'Required';
+}
+
+export function countLabel(c: PartitiveCount): string {
+  switch (c) {
+    case 'exactly_one': return 'Exactly one';
+    case 'at_least_one': return 'At least one';
+    case 'multiple': return 'Multiple';
+  }
 }

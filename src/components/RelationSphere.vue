@@ -25,8 +25,8 @@ import { hashSeed, expandParams, portSide, portPoint, idToUriGet } from '../util
 import { useI18n } from '../i18n';
 
 const { t, locale } = useI18n();
-import type { Concept, Manifest, GraphEdge, PartitiveRelationWire } from '../adapters/types';
-import { rakeStrokeStyle, type PartitiveMultiplicity } from '../utils/partitive-multiplicity';
+import type { Concept, Manifest, GraphEdge, PartitiveRelationWire, PartitiveMemberWire } from '../adapters/types';
+import { rakeStrokeStyle } from '../utils/partitive-multiplicity';
 import { conceptUri } from '../adapters/model-bridge';
 
 const props = defineProps<{
@@ -818,7 +818,7 @@ function drawRakeBundles(
         const p = pos.get(nid);
         return p ? { member, pos: p } : null;
       })
-      .filter((x): x is { member: { uri: string; multiplicity: PartitiveMultiplicity; isDelimiting: boolean }; pos: {x: number; y: number} } => x !== null);
+      .filter((x): x is { member: PartitiveMemberWire; pos: {x: number; y: number} } => x !== null);
 
     if (memberPositions.length === 0) continue;
 
@@ -850,7 +850,7 @@ function drawRakeBundles(
         toothX,
         toothY,
         along,
-        style: rakeStrokeStyle(member.multiplicity, member.isDelimiting),
+        style: rakeStrokeStyle(member.presence, member.count, member.isDelimiting),
       };
     });
 

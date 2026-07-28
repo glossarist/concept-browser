@@ -19,7 +19,7 @@ import { useVocabularyStore } from '../stores/vocabulary';
 import { getFactory } from '../adapters/factory';
 import { useI18n, locale } from '../i18n';
 import { completenessLabel } from '../utils/partitive-relation-styling';
-import { multiplicityDefinition } from '../utils/partitive-multiplicity';
+import { presenceLabel, countLabel } from '../utils/partitive-multiplicity';
 import PartitiveRelationDiagram, {
   type PartitiveMemberLabeled,
 } from './PartitiveRelationDiagram.vue';
@@ -85,15 +85,16 @@ function labeledMembers(rel: PartitiveRelationWire): PartitiveMemberLabeled[] {
   return rel.partitives.map(m => ({
     uri: m.uri,
     label: designationFor(m.uri),
-    multiplicity: m.multiplicity,
+    presence: m.presence,
+    count: m.count,
     isDelimiting: m.isDelimiting,
   }));
 }
 
 /** Tooltip text for a member, shown on hover. */
-function memberTooltip(m: { multiplicity: string; isDelimiting: boolean }): string {
-  const def = multiplicityDefinition(m.multiplicity as Parameters<typeof multiplicityDefinition>[0]);
-  return m.isDelimiting ? `Delimiting ${def.label.toLowerCase()}` : def.label;
+function memberTooltip(m: { presence: 'required' | 'optional'; count: 'exactly_one' | 'at_least_one' | 'multiple'; isDelimiting: boolean }): string {
+  const label = `${presenceLabel(m.presence)} · ${countLabel(m.count).toLowerCase()}`;
+  return m.isDelimiting ? `Delimiting · ${label}` : label;
 }
 </script>
 
