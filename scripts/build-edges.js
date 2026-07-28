@@ -3,14 +3,6 @@ function buildConceptUri(uriBase, registerId, conceptId) {
 }
 
 const VALID_COMPLETENESS = new Set(['complete', 'partial']);
-const VALID_CERTAINTY = new Set(['confirmed', 'possible']);
-const VALID_MULTIPLICITY = new Set([
-  'compulsory',
-  'optional',
-  'compulsory_multiple',
-  'optional_multiple',
-  'compulsory_at_least_one',
-]);
 
 function validateCompleteness(value) {
   if (value == null) return 'complete';
@@ -32,26 +24,40 @@ function validateCompleteness(value) {
  *   confirmed → compulsory
  *   possible  → optional
  */
-function resolveMultiplicity(member) {
+const VALID_PRESENCE = new Set(['required', 'optional']);
+const VALID_COUNT = new Set(['exactly_one', 'at_least_one', 'multiple']);
+const LEGACY_MULTIPLICITY_MAP = {
+  compulsory:               { presence: 'required', count: 'exactly_one' },
+  optional:                 { presence: 'optional', count: 'exactly_one' },
+  compulsory_multiple:      { presence: 'required', count: 'multiple' },
+  optional_multiple:        { presence: 'optional', count: 'multiple' },
+  compulsory_at_least_one:  { presence: 'required', count: 'at_least_one' },
+};
+
+function resolvePresence(member) {
+  const p = member['gl:presence'] ?? member.presence;
+  if (p != null) {
+    if (!VALID_PRESENCE.has(p)) throw new Error(`Invalid presence: "${p}"`);
+    return p;
+  }
+  return migrateMultiplicity(member).presence;
+}
+
+function resolveCount(member) {
+  const c = member['gl:count'] ?? member.count;
+  if (c != null) {
+    if (!VALID_COUNT.has(c)) throw new Error(`Invalid count: "${c}"`);
+    return c;
+  }
+  return migrateMultiplicity(member).count;
+}
+
+function migrateMultiplicity(member) {
   const m = member['gl:multiplicity'] ?? member.multiplicity;
-  if (m != null) {
-    if (!VALID_MULTIPLICITY.has(m)) {
-      throw new Error(
-        `Invalid partitive member multiplicity: "${m}". Allowed: ${[...VALID_MULTIPLICITY].join(', ')}`,
-      );
-    }
-    return m;
-  }
+  if (m && LEGACY_MULTIPLICITY_MAP[m]) return LEGACY_MULTIPLICITY_MAP[m];
   const certainty = member['gl:certainty'] ?? member.certainty;
-  if (certainty != null) {
-    if (!VALID_CERTAINTY.has(certainty)) {
-      throw new Error(
-        `Invalid partitive member certainty: "${certainty}". Allowed: confirmed, possible`,
-      );
-    }
-    return certainty === 'possible' ? 'optional' : 'compulsory';
-  }
-  return 'compulsory';
+  if (certainty === 'possible') return { presence: 'optional', count: 'exactly_one' };
+  return { presence: 'required', count: 'exactly_one' };
 }
 
 function resolveIsDelimiting(member) {
@@ -216,7 +222,8 @@ function extractPartitiveRelations(concept, registerId, uriBase, urnMap) {
         if (!uri || uri === sourceUri) return null;
         return {
           uri,
-          multiplicity: resolveMultiplicity(p),
+          presence: resolvePresence(p),
+          count: resolveCount(p),
           isDelimiting: resolveIsDelimiting(p),
         };
       })

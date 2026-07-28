@@ -166,11 +166,15 @@ interface JsonLdLocalizedConcept {
 
 interface JsonLdPartitiveMember {
   'gl:ref'?: JsonLdRef;
-  /** ISO 704:2022 v3 field (native in glossarist 0.4.24). */
-  'gl:multiplicity'?: string;
-  /** ISO 704:2022 v3 field (native in glossarist 0.4.24). */
+  /** ISO 704:2022 MECE: presence (required | optional) */
+  'gl:presence'?: string;
+  /** ISO 704:2022 MECE: count (exactly_one | at_least_one | multiple) */
+  'gl:count'?: string;
+  /** ISO 704:2022: delimiting part (3× stroke width in diagrams) */
   'gl:isDelimiting'?: boolean;
-  /** Legacy v2 field — still read for backward compat with older datasets. */
+  /** Legacy v3 field — one-string multiplicity, split into presence+count */
+  'gl:multiplicity'?: string;
+  /** Legacy v2 field — migrated to presence+count */
   'gl:certainty'?: string;
 }
 
@@ -590,16 +594,30 @@ function mapPartitiveRelationFromJsonLd(r: JsonLdPartitiveRelation): Record<stri
       const ref = m['gl:ref'] ? mapRefFromJsonLd(m['gl:ref']) : null;
       if (!ref) return null;
       const out: Record<string, unknown> = { ref };
-      // ISO 704:2022 multiplicity + is_delimiting (v3). Fall back to
-      // legacy gl:certainty for backward compat.
-      if (m['gl:multiplicity']) {
-        out.multiplicity = m['gl:multiplicity'];
-      } else if (m['gl:certainty']) {
-        out.multiplicity = m['gl:certainty'] === 'possible' ? 'optional' : 'compulsory';
+      // ISO 704:2022 MECE: read presence + count directly if present.
+      const presence = m['gl:presence'];
+      const count = m['gl:count'];
+      let multiplicity: string | undefined;
+      if (presence && count) {
+        out.presence = presence;
+        out.count = count;
+        multiplicity = axesToLegacyMultiplicity(presence, count);
+      } else {
+        // Legacy migration: split old one-string multiplicity or v2 certainty.
+        const raw = m['gl:multiplicity'] ?? splitLegacyCertainty(m['gl:certainty']);
+        if (raw) {
+          const parts = splitMultiplicity(raw);
+          out.presence = parts.presence;
+          out.count = parts.count;
+          multiplicity = raw;
+        }
       }
-      if (m['gl:isDelimiting'] === true) {
-        out.is_delimiting = true;
-      }
+      // glossarist 0.4.24's PartitiveMember only stores `multiplicity` —
+      // write it so the model can carry the data. Consumers read the
+      // MECE axes via `splitLegacyMultiplicity(model.multiplicity)`.
+      // Remove when glossarist-js ships MECE-native fields.
+      if (multiplicity) out.multiplicity = multiplicity;
+      if (m['gl:isDelimiting'] === true) out.is_delimiting = true;
       return out;
     })
     .filter((m): m is Record<string, unknown> => m !== null);
@@ -622,6 +640,42 @@ function mapPartitiveRelationFromJsonLd(r: JsonLdPartitiveRelation): Record<stri
   }
 
   return out;
+}
+
+/** Migrate legacy v2 certainty → old v3 multiplicity string. */
+function splitLegacyCertainty(certainty: string | undefined): string | null {
+  if (!certainty) return null;
+  return certainty === 'possible' ? 'optional' : 'compulsory';
+}
+
+/** Split old one-string multiplicity into MECE presence + count axes. */
+function splitMultiplicity(m: string): { presence: string; count: string } {
+  const LEGACY_MAP: Record<string, { presence: string; count: string }> = {
+    compulsory:               { presence: 'required', count: 'exactly_one' },
+    optional:                 { presence: 'optional', count: 'exactly_one' },
+    compulsory_multiple:      { presence: 'required', count: 'multiple' },
+    optional_multiple:        { presence: 'optional', count: 'multiple' },
+    compulsory_at_least_one:  { presence: 'required', count: 'at_least_one' },
+  };
+  return LEGACY_MAP[m] ?? { presence: 'required', count: 'exactly_one' };
+}
+
+/**
+ * Reverse-map MECE presence + count back to the legacy 5-value
+ * multiplicity string. Used only to round-trip data through the
+ * glossarist 0.4.24 model, which still uses the single-string field.
+ */
+function axesToLegacyMultiplicity(presence: string, count: string): string {
+  const REVERSE_MAP: Record<string, string> = {
+    'required:exactly_one':  'compulsory',
+    'optional:exactly_one':  'optional',
+    'required:multiple':     'compulsory_multiple',
+    'optional:multiple':     'optional_multiple',
+    'required:at_least_one': 'compulsory_at_least_one',
+    // optional + at_least_one has no legacy equivalent — collapse to optional_multiple
+    'optional:at_least_one': 'optional_multiple',
+  };
+  return REVERSE_MAP[`${presence}:${count}`] ?? 'compulsory';
 }
 
 function conceptFromJsonLd(doc: JsonLdConcept): Concept {

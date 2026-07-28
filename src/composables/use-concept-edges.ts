@@ -23,7 +23,7 @@ import { categorizeRelationship, relationshipLabel, INVERSE_RELATIONSHIPS } from
 import { langLabel } from '../utils/lang';
 import { escapeAttr } from '../utils/escape';
 import { useI18n } from '../i18n';
-import type { PartitiveMultiplicity } from '../utils/partitive-multiplicity';
+import { splitLegacyMultiplicity, type PartitivePresence, type PartitiveCount } from '../utils/partitive-multiplicity';
 
 export interface EdgeDisplay {
   uri: string;
@@ -192,7 +192,8 @@ export function useConceptEdges(
             if (!uri || uri === source) return null;
             return {
               uri,
-              multiplicity: readMultiplicity(m),
+              presence: readPresence(m),
+              count: readCount(m),
               isDelimiting: readIsDelimiting(m),
             };
           })
@@ -216,10 +217,20 @@ export function useConceptEdges(
     return resolveRefUri({ source: ref.source ?? null, id: ref.id ?? null });
   }
 
-  // glossarist 0.4.24 carries multiplicity + is_delimiting natively on
-  // PartitiveMember. Read them directly — no migration adapter needed.
-  function readMultiplicity(m: GlsPartitiveMember): PartitiveMultiplicity {
-    return m.multiplicity;
+  // Read presence + count from the glossarist model.
+  // glossarist 0.4.24 only carries the legacy 5-value `multiplicity`
+  // string — split it back into the MECE 2-axis model here. Once
+  // glossarist-js ships MECE-native fields, replace with direct reads.
+  function readPresence(m: GlsPartitiveMember): PartitivePresence {
+    const p = (m as any).presence;
+    if (p === 'required' || p === 'optional') return p;
+    return splitLegacyMultiplicity(m.multiplicity).presence;
+  }
+
+  function readCount(m: GlsPartitiveMember): PartitiveCount {
+    const c = (m as any).count;
+    if (c === 'exactly_one' || c === 'at_least_one' || c === 'multiple') return c;
+    return splitLegacyMultiplicity(m.multiplicity).count;
   }
 
   function readIsDelimiting(m: GlsPartitiveMember): boolean {

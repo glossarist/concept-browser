@@ -3,20 +3,25 @@ import { mount } from '@vue/test-utils';
 import PartitiveRelationDiagram, {
   type PartitiveMemberLabeled,
 } from '../../components/PartitiveRelationDiagram.vue';
-import { rakeStrokeStyle, type PartitiveMultiplicity } from '../../utils/partitive-multiplicity';
+import {
+  rakeStrokeStyle,
+  type PartitivePresence,
+  type PartitiveCount,
+} from '../../utils/partitive-multiplicity';
 
 const members = (
   n: number,
-  opts: { multiplicity?: PartitiveMultiplicity; isDelimiting?: boolean } = {},
+  opts: { presence?: PartitivePresence; count?: PartitiveCount; isDelimiting?: boolean } = {},
 ): PartitiveMemberLabeled[] =>
   Array.from({ length: n }, (_, i) => ({
     uri: `https://example.org/test/concept/1.${i + 1}`,
     label: `1.${i + 1}`,
-    multiplicity: opts.multiplicity ?? 'compulsory',
+    presence: opts.presence ?? 'required',
+    count: opts.count ?? 'exactly_one',
     isDelimiting: opts.isDelimiting ?? false,
   }));
 
-describe('PartitiveRelationDiagram — ISO 704:2022 rake rendering', () => {
+describe('PartitiveRelationDiagram — ISO 704:2022 rake rendering (MECE)', () => {
   it('renders comprehensive + N partitive nodes as text', () => {
     const w = mount(PartitiveRelationDiagram, {
       props: {
@@ -44,8 +49,8 @@ describe('PartitiveRelationDiagram — ISO 704:2022 rake rendering', () => {
     expect(w.findAll('text').map(t => t.text())).toContain('physical structure');
   });
 
-  describe('per-member multiplicity line rendering', () => {
-    it('compulsory: stem + spine + 1 solid line per drop', () => {
+  describe('per-member line rendering (presence × count × isDelimiting)', () => {
+    it('required/exactly_one: stem + spine + 1 solid line per drop', () => {
       const w = mount(PartitiveRelationDiagram, {
         props: {
           comprehensiveLabel: '0',
@@ -57,11 +62,11 @@ describe('PartitiveRelationDiagram — ISO 704:2022 rake rendering', () => {
       expect(w.findAll('line')).toHaveLength(4);
     });
 
-    it('compulsory_multiple: each drop has 2 lines', () => {
+    it('required/multiple: each drop has 2 solid lines', () => {
       const w = mount(PartitiveRelationDiagram, {
         props: {
           comprehensiveLabel: '0',
-          partitives: members(2, { multiplicity: 'compulsory_multiple' }),
+          partitives: members(2, { count: 'multiple' }),
           completeness: 'complete',
         },
       });
@@ -69,11 +74,11 @@ describe('PartitiveRelationDiagram — ISO 704:2022 rake rendering', () => {
       expect(w.findAll('line')).toHaveLength(6);
     });
 
-    it('optional: drop is dashed', () => {
+    it('optional/exactly_one: drop is dashed', () => {
       const w = mount(PartitiveRelationDiagram, {
         props: {
           comprehensiveLabel: '0',
-          partitives: members(2, { multiplicity: 'optional' }),
+          partitives: members(2, { presence: 'optional' }),
           completeness: 'complete',
         },
       });
@@ -83,11 +88,11 @@ describe('PartitiveRelationDiagram — ISO 704:2022 rake rendering', () => {
       expect(dashed).toHaveLength(2);
     });
 
-    it('optional_multiple: each drop has 2 dashed lines', () => {
+    it('optional/multiple: each drop has 2 dashed lines', () => {
       const w = mount(PartitiveRelationDiagram, {
         props: {
           comprehensiveLabel: '0',
-          partitives: members(2, { multiplicity: 'optional_multiple' }),
+          partitives: members(2, { presence: 'optional', count: 'multiple' }),
           completeness: 'complete',
         },
       });
@@ -96,11 +101,11 @@ describe('PartitiveRelationDiagram — ISO 704:2022 rake rendering', () => {
       expect(dashed).toHaveLength(4); // 2 members × 2 dashed lines each
     });
 
-    it('compulsory_at_least_one: each drop has 1 solid + 1 dashed line', () => {
+    it('required/at_least_one: each drop has 1 solid + 1 dashed line', () => {
       const w = mount(PartitiveRelationDiagram, {
         props: {
           comprehensiveLabel: '0',
-          partitives: members(2, { multiplicity: 'compulsory_at_least_one' }),
+          partitives: members(2, { count: 'at_least_one' }),
           completeness: 'complete',
         },
       });
@@ -161,9 +166,9 @@ describe('PartitiveRelationDiagram — ISO 704:2022 rake rendering', () => {
         props: {
           comprehensiveLabel: 'coordinate system of quantities',
           partitives: [
-            { uri: 'u1', label: 'system of quantities', multiplicity: 'compulsory', isDelimiting: false },
-            { uri: 'u2', label: 'International System of Units', multiplicity: 'compulsory', isDelimiting: false },
-            { uri: 'u3', label: 'base quantity dimension', multiplicity: 'compulsory', isDelimiting: false },
+            { uri: 'u1', label: 'system of quantities', presence: 'required', count: 'exactly_one', isDelimiting: false },
+            { uri: 'u2', label: 'International System of Units', presence: 'required', count: 'exactly_one', isDelimiting: false },
+            { uri: 'u3', label: 'base quantity dimension', presence: 'required', count: 'exactly_one', isDelimiting: false },
           ],
           completeness: 'complete',
         },
@@ -173,20 +178,21 @@ describe('PartitiveRelationDiagram — ISO 704:2022 rake rendering', () => {
     });
   });
 
-  describe('consistency with rakeStrokeStyle helper', () => {
+  describe('consistency with rakeStrokeStyle helper (MECE truth table)', () => {
     // Ensure the component's line rendering matches the pure helper
     // (single source of truth — both must agree).
-    it('renders exactly the line count + dash pattern the helper predicts', () => {
-      const testCases: Array<{ multiplicity: PartitiveMultiplicity; isDelimiting: boolean }> = [
-        { multiplicity: 'compulsory', isDelimiting: false },
-        { multiplicity: 'compulsory', isDelimiting: true },
-        { multiplicity: 'optional', isDelimiting: false },
-        { multiplicity: 'compulsory_multiple', isDelimiting: false },
-        { multiplicity: 'optional_multiple', isDelimiting: false },
-        { multiplicity: 'compulsory_at_least_one', isDelimiting: false },
-      ];
-      for (const tc of testCases) {
-        const expected = rakeStrokeStyle(tc.multiplicity, tc.isDelimiting);
+    const testCases: Array<{ presence: PartitivePresence; count: PartitiveCount; isDelimiting: boolean }> = [
+      { presence: 'required', count: 'exactly_one', isDelimiting: false },
+      { presence: 'required', count: 'exactly_one', isDelimiting: true },
+      { presence: 'optional', count: 'exactly_one', isDelimiting: false },
+      { presence: 'required', count: 'multiple', isDelimiting: false },
+      { presence: 'optional', count: 'multiple', isDelimiting: false },
+      { presence: 'required', count: 'at_least_one', isDelimiting: false },
+      { presence: 'optional', count: 'at_least_one', isDelimiting: false },
+    ];
+    for (const tc of testCases) {
+      it(`${tc.presence} × ${tc.count}${tc.isDelimiting ? ' / delimiting' : ''}`, () => {
+        const expected = rakeStrokeStyle(tc.presence, tc.count, tc.isDelimiting);
         const w = mount(PartitiveRelationDiagram, {
           props: {
             comprehensiveLabel: '0',
@@ -198,7 +204,7 @@ describe('PartitiveRelationDiagram — ISO 704:2022 rake rendering', () => {
         // stem (1) + spine (1) + drop lineCount per member
         const expectedLines = 2 + expected.lineCount;
         expect(lines.length).toBe(expectedLines);
-      }
-    });
+      });
+    }
   });
 });

@@ -15,20 +15,27 @@ import { buildBibliographyTurtle } from './lib/bibliography-turtle.mjs';
 import { ttlLit } from './lib/turtle-escape.mjs';
 import { firstNonEmpty } from './lib/first-non-empty.mjs';
 
-// Legacy v2 → v3 migration helper: derive a gl:certainty value from the
-// new ISO 704:2022 multiplicity so consumers that still read certainty
-// keep working during the one-release-cycle deprecation window.
-const CERTAINTY_FROM_MULTIPLICITY = {
-  compulsory: 'confirmed',
-  optional: 'possible',
-  compulsory_multiple: 'confirmed',
-  optional_multiple: 'possible',
-  compulsory_at_least_one: 'confirmed',
+// MECE partitive multiplicity: 2 independent axes (ISO 704:2022).
+//   presence × count
+// Legacy 5-value `multiplicity` and 2-value `certainty` map into the
+// 2-axis model — keep emitting them for one release cycle so consumers
+// that still read the legacy fields keep working.
+const LEGACY_MULTIPLICITY_MAP = {
+  compulsory:               { presence: 'required', count: 'exactly_one' },
+  optional:                 { presence: 'optional', count: 'exactly_one' },
+  compulsory_multiple:      { presence: 'required', count: 'multiple' },
+  optional_multiple:        { presence: 'optional', count: 'multiple' },
+  compulsory_at_least_one:  { presence: 'required', count: 'at_least_one' },
 };
-function multiplicityToCertainty(multiplicity) {
-  return multiplicity in CERTAINTY_FROM_MULTIPLICITY
-    ? CERTAINTY_FROM_MULTIPLICITY[multiplicity]
-    : null;
+const LEGACY_CERTAINTY_FROM_AXIS = {
+  required: 'confirmed',
+  optional: 'possible',
+};
+
+function splitMultiplicity(multiplicity) {
+  return multiplicity in LEGACY_MULTIPLICITY_MAP
+    ? LEGACY_MULTIPLICITY_MAP[multiplicity]
+    : { presence: 'required', count: 'exactly_one' };
 }
 
 function buildConceptUri(uriBase, registerId, conceptId) {
@@ -710,17 +717,27 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
           } else {
             m['gl:ref'] = refToJsonLd(member, 'gl:ConceptRef');
           }
-          // ISO 704:2022 multiplicity + is_delimiting (v3 wire shape).
-          // Emit both new and legacy fields for one release cycle so
-          // consumers that still read gl:certainty keep working.
-          if (member.multiplicity) m['gl:multiplicity'] = member.multiplicity;
+          // ISO 704:2022 MECE axes: presence × count.
+          // Prefer explicit YAML values; fall back to migrating from the
+          // legacy 5-value `multiplicity` enum for one release cycle.
+          const presence = member.presence
+            ?? splitMultiplicity(member.multiplicity ?? '').presence;
+          const count = member.count
+            ?? splitMultiplicity(member.multiplicity ?? '').count;
+
+          m['gl:presence'] = presence;
+          m['gl:count'] = count;
+
           if (member.is_delimiting === true || member.isDelimiting === true) {
             m['gl:isDelimiting'] = true;
           }
-          // Legacy gl:certainty — derived from multiplicity when not set
-          // explicitly. Remove after consumers migrate to multiplicity.
+
+          // Legacy gl:multiplicity + gl:certainty — emitted for one
+          // release cycle. Remove after downstream consumers migrate to
+          // presence + count.
+          if (member.multiplicity) m['gl:multiplicity'] = member.multiplicity;
           const legacyCertainty = member.certainty
-            ?? multiplicityToCertainty(member.multiplicity);
+            ?? LEGACY_CERTAINTY_FROM_AXIS[presence];
           if (legacyCertainty) m['gl:certainty'] = legacyCertainty;
           return m;
         });
@@ -1005,13 +1022,8 @@ async function processDataset(dir, register, opts) {
     partitiveRelations: {
       count: 0,
       byCompleteness: { complete: 0, partial: 0 },
-      byMemberMultiplicity: {
-        compulsory: 0,
-        optional: 0,
-        compulsory_multiple: 0,
-        optional_multiple: 0,
-        compulsory_at_least_one: 0,
-      },
+      byPresence: { required: 0, optional: 0 },
+      byCount: { exactly_one: 0, at_least_one: 0, multiple: 0 },
       delimitingMembers: 0,
       withCriterion: 0,
       withoutCriterion: 0,
@@ -1048,11 +1060,13 @@ async function processDataset(dir, register, opts) {
           (s.partitiveRelations.byCompleteness[completeness] || 0) + 1;
         const partitives = rel.partitives || [];
         for (const member of partitives) {
-          // Prefer multiplicity; fall back to legacy certainty for one release.
-          const multiplicity = member.multiplicity
-            ?? (member.certainty === 'possible' ? 'optional' : 'compulsory');
-          s.partitiveRelations.byMemberMultiplicity[multiplicity] =
-            (s.partitiveRelations.byMemberMultiplicity[multiplicity] || 0) + 1;
+          const axes = splitMultiplicity(member.multiplicity ?? '');
+          const presence = member.presence ?? axes.presence;
+          const count = member.count ?? axes.count;
+          s.partitiveRelations.byPresence[presence] =
+            (s.partitiveRelations.byPresence[presence] || 0) + 1;
+          s.partitiveRelations.byCount[count] =
+            (s.partitiveRelations.byCount[count] || 0) + 1;
           if (member.is_delimiting === true || member.isDelimiting === true) {
             s.partitiveRelations.delimitingMembers += 1;
           }
