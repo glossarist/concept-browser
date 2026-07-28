@@ -10,70 +10,38 @@
  *     How many instances?
  *
  * 6 combinations, 5 visually distinct (optional + at_least_one
- * collapses to 2-dashed = same as optional + multiple).
+ * collapses to 2-dashed = same as optional + multiple) and the
+ * invalid combo (optional, at_least_one) is rejected at construction
+ * by glossarist-js.
  *
- * Adding a new count value (e.g. 'exactly_three') is one entry —
- * no enum explosion, no switch edits.
+ * Types are re-exported from glossarist-js — the model is the SSOT.
+ * The render-ready `rakeStrokeStyle(presence, count, isDelimiting)`
+ * helper is purely a browser-rendering concern; everything else
+ * (presence, count, is_delimiting fields, MULTIPLICITY name lookup via
+ * multiplicityFromPair, validity via isValidPresence / isValidCount)
+ * comes from `glossarist/models`.
  */
 
-// ── Two independent axes ─────────────────────────────────────────────
+import {
+  PARTITIVE_PRESENCE,
+  PARTITIVE_COUNT,
+  multiplicityFromPair,
+  isValidPresence,
+  isValidCount,
+  type PartitivePresence,
+  type PartitiveCount,
+} from 'glossarist/models';
 
-export const PRESENCE_VALUES = ['required', 'optional'] as const;
-export type PartitivePresence = (typeof PRESENCE_VALUES)[number];
+// ── Two independent axes (re-exported SSOT) ────────────────────────────
 
-export const COUNT_VALUES = ['exactly_one', 'at_least_one', 'multiple'] as const;
-export type PartitiveCount = (typeof COUNT_VALUES)[number];
+export { PARTITIVE_PRESENCE, PARTITIVE_COUNT };
+export type { PartitivePresence, PartitiveCount };
+export { isValidPresence as isPartitivePresence, isValidCount as isPartitiveCount };
 
-export function isPartitivePresence(v: unknown): v is PartitivePresence {
-  return v === 'required' || v === 'optional';
-}
-export function isPartitiveCount(v: unknown): v is PartitiveCount {
-  return v === 'exactly_one' || v === 'at_least_one' || v === 'multiple';
-}
+/** ISO 704 name for a (presence, count) pair. Throws on invalid combos. */
+export const partitiveMultiplicityName = multiplicityFromPair;
 
-/**
- * Legacy 5-value multiplicity enum (pre-MECE). glossarist 0.4.24's
- * PartitiveMember still uses this internally. The bridge migrates
- * legacy ↔ MECE via LEGACY_MULTIPLICITY_TO_AXES.
- *
- * DEPRECATED — remove when glossarist-js ships MECE-native fields.
- */
-export const LEGACY_MULTIPLICITY_VALUES = [
-  'compulsory',
-  'optional',
-  'compulsory_multiple',
-  'optional_multiple',
-  'compulsory_at_least_one',
-] as const;
-export type PartitiveMultiplicity = (typeof LEGACY_MULTIPLICITY_VALUES)[number];
-
-export const LEGACY_MULTIPLICITY_TO_AXES: Record<
-  PartitiveMultiplicity,
-  { presence: PartitivePresence; count: PartitiveCount }
-> = {
-  compulsory:               { presence: 'required', count: 'exactly_one' },
-  optional:                 { presence: 'optional', count: 'exactly_one' },
-  compulsory_multiple:      { presence: 'required', count: 'multiple' },
-  optional_multiple:        { presence: 'optional', count: 'multiple' },
-  compulsory_at_least_one:  { presence: 'required', count: 'at_least_one' },
-};
-
-export function isPartitiveMultiplicity(v: unknown): v is PartitiveMultiplicity {
-  return typeof v === 'string'
-    && (LEGACY_MULTIPLICITY_VALUES as readonly string[]).includes(v);
-}
-
-/**
- * Split a legacy 5-value multiplicity into the MECE 2-axis model.
- * Returns required/exactly_one for unknown values (safest default).
- */
-export function splitLegacyMultiplicity(
-  m: PartitiveMultiplicity,
-): { presence: PartitivePresence; count: PartitiveCount } {
-  return LEGACY_MULTIPLICITY_TO_AXES[m] ?? { presence: 'required', count: 'exactly_one' };
-}
-
-// ── Render-ready stroke style (derived from the two axes) ────────────
+// ── Render-ready stroke style (rendering-only concern) ─────────────────
 
 export interface RakeStrokeStyle {
   readonly lineCount: 1 | 2;
@@ -115,7 +83,7 @@ export function rakeStrokeStyle(
   return { lineCount: 2, primaryDashed, secondaryDashed, strokeWidth: width };
 }
 
-// ── Human-readable labels ────────────────────────────────────────────
+// ── Human-readable labels (UI concern) ────────────────────────────────
 
 export function presenceLabel(p: PartitivePresence): string {
   return p === 'optional' ? 'Optional' : 'Required';
@@ -126,5 +94,6 @@ export function countLabel(c: PartitiveCount): string {
     case 'exactly_one': return 'Exactly one';
     case 'at_least_one': return 'At least one';
     case 'multiple': return 'Multiple';
+    default: return '';
   }
 }

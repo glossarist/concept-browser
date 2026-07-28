@@ -6,7 +6,7 @@ import { conceptUri } from '../adapters/model-bridge';
 import { UriRouter } from '../adapters/UriRouter';
 import type { PartitiveRelationWire, PartitiveMemberWire } from '../adapters/types';
 import type { PartitiveMember } from 'glossarist/models';
-import { splitLegacyMultiplicity, type PartitivePresence, type PartitiveCount } from '../utils/partitive-multiplicity';
+import type { PartitivePresence, PartitiveCount } from '../utils/partitive-multiplicity';
 import ConceptDetail from '../components/ConceptDetail.vue';
 import RelationSphere from '../components/RelationSphere.vue';
 import ShortcutsModal from '../components/ShortcutsModal.vue';
@@ -87,14 +87,8 @@ const partitiveRelationsForSphere = computed<PartitiveRelationWire[]>(() => {
         if (!ref?.id) return null;
         const uri = UriRouter.buildConceptUri(m.uriBase, activeRegisterId.value, ref.id);
         if (uri === sourceUri) return null;
-        // glossarist 0.4.24 only exposes the legacy 5-value multiplicity
-        // string. Split it into MECE 2-axis for display. Remove when
-        // glossarist-js ships presence + count natively.
-        const axes = splitLegacyMultiplicity(
-          ((member as any).multiplicity ?? 'compulsory') as any,
-        );
-        const presence: PartitivePresence = (member as any).presence ?? axes.presence;
-        const count: PartitiveCount = (member as any).count ?? axes.count;
+        const presence: PartitivePresence = member.presence;
+        const count: PartitiveCount = member.count;
         const isDelimiting = member.isDelimiting;
         return { uri, presence, count, isDelimiting };
       })

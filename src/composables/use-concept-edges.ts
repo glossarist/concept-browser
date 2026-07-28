@@ -1,8 +1,8 @@
 import { computed, type ComputedRef } from 'vue';
 import type { Router } from 'vue-router';
-// glossarist 0.4.24's top-level d.ts is incomplete for v3 model fields
-// (multiplicity + is_delimiting). Import the v3-augmented types from
-// glossarist/models (extended by src/adapters/non-verbal/glossarist-augment.d.ts).
+// glossarist-js's top-level d.ts is incomplete for v3 model fields.
+// Import the MECE-augmented types from glossarist/models (extended by
+// src/adapters/non-verbal/glossarist-augment.d.ts).
 import type { Concept, RelatedConcept, ConceptRef } from 'glossarist';
 import type {
   PartitiveRelation as GlsPartitiveRelation,
@@ -23,7 +23,7 @@ import { categorizeRelationship, relationshipLabel, INVERSE_RELATIONSHIPS } from
 import { langLabel } from '../utils/lang';
 import { escapeAttr } from '../utils/escape';
 import { useI18n } from '../i18n';
-import { splitLegacyMultiplicity, type PartitivePresence, type PartitiveCount } from '../utils/partitive-multiplicity';
+import { type PartitivePresence, type PartitiveCount } from '../utils/partitive-multiplicity';
 
 export interface EdgeDisplay {
   uri: string;
@@ -217,24 +217,18 @@ export function useConceptEdges(
     return resolveRefUri({ source: ref.source ?? null, id: ref.id ?? null });
   }
 
-  // Read presence + count from the glossarist model.
-  // glossarist 0.4.24 only carries the legacy 5-value `multiplicity`
-  // string — split it back into the MECE 2-axis model here. Once
-  // glossarist-js ships MECE-native fields, replace with direct reads.
+  // Read presence + count directly from the glossarist-js model
+  // (MECE native, since glossarist 0.4.26).
   function readPresence(m: GlsPartitiveMember): PartitivePresence {
-    const p = (m as any).presence;
-    if (p === 'required' || p === 'optional') return p;
-    return splitLegacyMultiplicity(m.multiplicity).presence;
+    return m.presence;
   }
 
   function readCount(m: GlsPartitiveMember): PartitiveCount {
-    const c = (m as any).count;
-    if (c === 'exactly_one' || c === 'at_least_one' || c === 'multiple') return c;
-    return splitLegacyMultiplicity(m.multiplicity).count;
+    return m.count;
   }
 
   function readIsDelimiting(m: GlsPartitiveMember): boolean {
-    return m.is_delimiting;
+    return m.is_delimiting === true;
   }
 
   function resolveRefUri(ref: { source: string | null; id: string | null } | null): string | null {
