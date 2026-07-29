@@ -29,6 +29,7 @@ import {
   isPartitivePresence,
   isPartitiveCount,
 } from '../utils/partitive-multiplicity';
+import { GL } from './wire-keys';
 import {
   LetterSymbol,
   GrammarInfo,
@@ -210,7 +211,7 @@ function attachRelatedBridges(
 // ── Detection ─────────────────────────────────────────────────────────────
 
 function isJsonLd(doc: Record<string, unknown>): boolean {
-  return '@type' in doc && 'gl:localizedConcept' in doc;
+  return '@type' in doc && GL.LOCALIZED_CONCEPT in doc;
 }
 
 // ── JSON-LD → Glossarist native mapping ───────────────────────────────────
@@ -225,58 +226,62 @@ function mapDesignationFromJsonLd(d: JsonLdDesignation): Record<string, unknown>
   else if (rawType.includes('Symbol')) result.type = 'symbol';
   else result.type = 'expression';
 
-  result.designation = d['gl:term'] ?? '';
-  result.normative_status = d['gl:normativeStatus'] ?? null;
+  result.designation = d[GL.TERM] ?? '';
+  result.normative_status = d[GL.NORMATIVE_STATUS] ?? null;
 
-  if (d['gl:absent'] != null) result.absent = d['gl:absent'];
-  if (d['gl:fieldOfApplication']) result.field_of_application = d['gl:fieldOfApplication'];
-  if (d['gl:usageInfo']) result.usage_info = d['gl:usageInfo'];
-  if (d['gl:geographicalArea']) result.geographical_area = d['gl:geographicalArea'];
-  if (d['gl:language']) result.language = d['gl:language'];
-  if (d['gl:script']) result.script = d['gl:script'];
-  if (d['gl:system']) result.system = d['gl:system'];
-  if (d['gl:international'] != null) result.international = d['gl:international'];
-  if (d['gl:termType']) result.term_type = d['gl:termType'];
+  if (d[GL.ABSENT] != null) result.absent = d[GL.ABSENT];
+  if (d[GL.FIELD_OF_APPLICATION]) result.field_of_application = d[GL.FIELD_OF_APPLICATION];
+  if (d[GL.USAGE_INFO]) result.usage_info = d[GL.USAGE_INFO];
+  if (d[GL.GEOGRAPHICAL_AREA]) result.geographical_area = d[GL.GEOGRAPHICAL_AREA];
+  if (d[GL.LANGUAGE]) result.language = d[GL.LANGUAGE];
+  if (d[GL.SCRIPT]) result.script = d[GL.SCRIPT];
+  if (d[GL.SYSTEM]) result.system = d[GL.SYSTEM];
+  if (d[GL.INTERNATIONAL] != null) result.international = d[GL.INTERNATIONAL];
+  if (d[GL.TERM_TYPE]) result.term_type = d[GL.TERM_TYPE];
 
-  if (d['gl:pronunciation']?.length) {
-    result.pronunciation = d['gl:pronunciation'].map(p => ({
-      content: p['gl:content'] ?? null,
-      language: p['gl:language'] ?? null,
-      script: p['gl:script'] ?? null,
-      system: p['gl:system'] ?? null,
-      country: p['gl:country'] ?? null,
+  const pronunciation = d[GL.PRONUNCIATION];
+  if (pronunciation?.length) {
+    result.pronunciation = pronunciation.map(p => ({
+      content: p[GL.CONTENT] ?? null,
+      language: p[GL.LANGUAGE] ?? null,
+      script: p[GL.SCRIPT] ?? null,
+      system: p[GL.SYSTEM] ?? null,
+      country: p[GL.COUNTRY] ?? null,
     }));
   }
 
-  if (d['gl:source']?.length) {
-    result.sources = d['gl:source'].map(mapSourceFromJsonLd);
+  const sources = d[GL.SOURCE];
+  if (sources?.length) {
+    result.sources = sources.map(mapSourceFromJsonLd);
   }
 
-  if (d['gl:related']?.length) {
-    result.related = d['gl:related'].map(r => {
-      const relType = r['gl:relationshipType'] ?? 'references';
-      if (DESIGNATION_REL_TYPES.has(relType) && r['gl:target']) {
-        return { type: relType, target: r['gl:target'] };
+  const related = d[GL.RELATED];
+  if (related?.length) {
+    result.related = related.map(r => {
+      const relType = r[GL.RELATIONSHIP_TYPE] ?? 'references';
+      if (DESIGNATION_REL_TYPES.has(relType) && r[GL.TARGET]) {
+        return { type: relType, target: r[GL.TARGET] };
       }
       return mapRelatedFromJsonLd(r);
     });
   }
 
-  if (d['gl:prefix'] != null) result.prefix = d['gl:prefix'];
-  if (d['gl:gender']) {
-    result.grammar_info = [{ gender: d['gl:gender'] }];
+  if (d[GL.PREFIX] != null) result.prefix = d[GL.PREFIX];
+  if (d[GL.GENDER]) {
+    result.grammar_info = [{ gender: d[GL.GENDER] }];
   }
-  if (d['gl:grammarInfo']?.length) {
-    result.grammar_info = d['gl:grammarInfo'].map(gi => ({
-      gender: gi['gl:gender'] ?? null,
-      number: gi['gl:number'] ?? null,
-      part_of_speech: gi['gl:partOfSpeech'] ?? null,
-      noun: gi['gl:noun'] ?? false,
-      verb: gi['gl:verb'] ?? false,
-      adj: gi['gl:adj'] ?? false,
-      adverb: gi['gl:adverb'] ?? false,
-      preposition: gi['gl:preposition'] ?? false,
-      participle: gi['gl:participle'] ?? false,
+  const grammarInfo = d[GL.GRAMMAR_INFO];
+  if (grammarInfo?.length) {
+    result.grammar_info = grammarInfo.map(gi => ({
+      gender: gi[GL.GENDER] ?? null,
+      number: gi[GL.NUMBER] ?? null,
+      part_of_speech: gi[GL.PART_OF_SPEECH] ?? null,
+      noun: gi[GL.NOUN] ?? false,
+      verb: gi[GL.VERB] ?? false,
+      adj: gi[GL.ADJ] ?? false,
+      adverb: gi[GL.ADVERB] ?? false,
+      preposition: gi[GL.PREPOSITION] ?? false,
+      participle: gi[GL.PARTICIPLE] ?? false,
     }));
   }
 
@@ -288,10 +293,10 @@ function mapRefFromJsonLd(rawRef: JsonLdRef | string | undefined): Record<string
   if (typeof rawRef === 'string') return { source: rawRef };
   const refObj: Record<string, unknown> = {};
   // gl:-prefixed keys take precedence over unprefixed keys
-  refObj.source = rawRef['gl:source'] ?? rawRef.source;
-  refObj.id = rawRef['gl:id'] ?? rawRef.id;
-  refObj.version = rawRef['gl:version'] ?? rawRef.version;
-  if (rawRef['gl:text']) refObj.text = rawRef['gl:text'];
+  refObj.source = rawRef[GL.SOURCE] ?? rawRef.source;
+  refObj.id = rawRef[GL.LOCAL_ID] ?? rawRef.id;
+  refObj.version = rawRef[GL.VERSION] ?? rawRef.version;
+  if (rawRef[GL.TEXT]) refObj.text = rawRef[GL.TEXT];
   return (refObj.source ?? refObj.id ?? refObj.version ?? refObj.text) != null
     ? refObj : null;
 }
@@ -304,46 +309,50 @@ function mapRefFromJsonLd(rawRef: JsonLdRef | string | undefined): Record<string
 function mapLocalityFromJsonLd(rawLoc: JsonLdLocality | undefined): Record<string, unknown> | null {
   if (!rawLoc) return null;
   const locObj: Record<string, unknown> = {};
-  locObj.type = rawLoc['gl:localityType'] ?? rawLoc.type;
-  locObj.reference_from = rawLoc['gl:referenceFrom'] ?? rawLoc.reference_from;
-  locObj.reference_to = rawLoc['gl:referenceTo'] ?? rawLoc.reference_to;
+  locObj.type = rawLoc[GL.LOCALITY_TYPE] ?? rawLoc.type;
+  locObj.reference_from = rawLoc[GL.REFERENCE_FROM] ?? rawLoc.reference_from;
+  locObj.reference_to = rawLoc[GL.REFERENCE_TO] ?? rawLoc.reference_to;
   return (locObj.type ?? locObj.reference_from ?? locObj.reference_to) != null
     ? locObj : null;
 }
 
 function mapDetailedDefinitionFromJsonLd(d: any): Record<string, unknown> {
-  const result: Record<string, unknown> = { content: d['gl:content'] ?? '' };
-  if (d['gl:examples']?.length) {
-    result.examples = d['gl:examples'].map(mapDetailedDefinitionFromJsonLd);
+  const result: Record<string, unknown> = { content: d[GL.CONTENT] ?? '' };
+  if (d[GL.EXAMPLES]?.length) {
+    result.examples = d[GL.EXAMPLES].map(mapDetailedDefinitionFromJsonLd);
   }
   return result;
 }
 
 function mapOriginFromJsonLd(o: JsonLdOrigin): Record<string, unknown> {
   const origin: Record<string, unknown> = {};
-  const ref = mapRefFromJsonLd(o['gl:ref']);
+  const ref = mapRefFromJsonLd(o[GL.REF]);
   if (ref) origin.ref = ref;
-  const loc = mapLocalityFromJsonLd(o['gl:locality']);
+  const loc = mapLocalityFromJsonLd(o[GL.LOCALITY]);
   if (loc) origin.locality = loc;
-  if (o['gl:link']) origin.link = o['gl:link'];
-  if (o['gl:id']) origin.id = o['gl:id'];
-  if (o['gl:version']) origin.version = o['gl:version'];
-  if (o['gl:source']) origin.source = o['gl:source'];
+  if (o[GL.LINK]) origin.link = o[GL.LINK];
+  if (o[GL.LOCAL_ID]) origin.id = o[GL.LOCAL_ID];
+  if (o[GL.VERSION]) origin.version = o[GL.VERSION];
+  if (o[GL.SOURCE]) origin.source = o[GL.SOURCE];
   return origin;
 }
 
 function mapSourceFromJsonLd(s: JsonLdSource): Record<string, unknown> {
   const result: Record<string, unknown> = {};
-  if (s['gl:id']) result.id = s['gl:id'];
-  if (s['gl:sourceType']) result.type = s['gl:sourceType'];
-  if (s['gl:sourceStatus']) result.status = s['gl:sourceStatus'];
-  if (s['gl:modification']) result.modification = s['gl:modification'];
+  // Note: JsonLdSource uses GL.LOCAL_ID for the source's local id, which is
+  // distinct from JSON-LD's '@id' (the concept IRI). Keep this as a
+  // literal — adding a wire-key for an isolated one-off would be noise.
+  if (s[GL.LOCAL_ID]) result.id = s[GL.LOCAL_ID];
+  if (s[GL.SOURCE_TYPE]) result.type = s[GL.SOURCE_TYPE];
+  if (s[GL.SOURCE_STATUS]) result.status = s[GL.SOURCE_STATUS];
+  if (s[GL.MODIFICATION]) result.modification = s[GL.MODIFICATION];
 
-  if (s['gl:origin']) {
-    result.origin = mapOriginFromJsonLd(s['gl:origin']);
+  const origin = s[GL.ORIGIN];
+  if (origin) {
+    result.origin = mapOriginFromJsonLd(origin);
   }
 
-  const sf = s['gl:sourcedFrom'] ?? s['gl:sourced_from'];
+  const sf = s[GL.SOURCED_FROM] ?? s[GL.SOURCED_FROM_ALT];
   if (sf?.length) {
     result.sourced_from = sf.map(item => mapOriginFromJsonLd(item));
   }
@@ -354,12 +363,12 @@ function mapSourceFromJsonLd(s: JsonLdSource): Record<string, unknown> {
 function mapRelatedFromJsonLd(r: JsonLdRelated): Record<string, unknown> {
   const result: Record<string, unknown> = { type: 'references' };
 
-  if (r['gl:relationshipType']) {
-    result.type = r['gl:relationshipType'];
+  if (r[GL.RELATIONSHIP_TYPE]) {
+    result.type = r[GL.RELATIONSHIP_TYPE];
   }
 
-  if (r['gl:ref']) {
-    const ref = mapRefFromJsonLd(r['gl:ref']);
+  if (r[GL.REF]) {
+    const ref = mapRefFromJsonLd(r[GL.REF]);
     if (ref) result.ref = ref;
   }
 
@@ -370,20 +379,21 @@ function mapRelatedFromJsonLd(r: JsonLdRelated): Record<string, unknown> {
       ? { source: uri.split('/').slice(-3, -2)[0] || '', id: idMatch[1] }
       : { source: uri, id: null };
   }
-  if (r['gl:term']) result.content = r['gl:term'];
+  if (r[GL.TERM]) result.content = r[GL.TERM];
 
   // Bridged fields — stored in raw dict, extracted by attachBridges()
-  if (r['gl:sourceId']) result.sourceId = r['gl:sourceId'];
-  if (r['gl:citation']) {
-    const c = r['gl:citation'];
+  if (r[GL.SOURCE_ID]) result.sourceId = r[GL.SOURCE_ID];
+  const rawCitation = r[GL.CITATION];
+  if (rawCitation) {
+    const c = rawCitation;
     const citation: Record<string, unknown> = {};
-    if (c['gl:ref']) {
-      const cr = mapRefFromJsonLd(c['gl:ref']);
+    if (c[GL.REF]) {
+      const cr = mapRefFromJsonLd(c[GL.REF]);
       if (cr) citation.ref = cr;
     }
-    const loc = mapLocalityFromJsonLd(c['gl:locality']);
+    const loc = mapLocalityFromJsonLd(c[GL.LOCALITY]);
     if (loc) citation.locality = loc;
-    if (c['gl:link']) citation.link = c['gl:link'];
+    if (c[GL.LINK]) citation.link = c[GL.LINK];
     if (Object.keys(citation).length > 0) result.citation = citation;
   }
 
@@ -393,87 +403,95 @@ function mapRelatedFromJsonLd(r: JsonLdRelated): Record<string, unknown> {
 function mapLocalizedFromJsonLd(lc: JsonLdLocalizedConcept): Record<string, unknown> {
   const data: Record<string, unknown> = {};
 
-  if (lc['gl:languageCode']) data.language_code = lc['gl:languageCode'];
-  if (lc['gl:entryStatus']) data.entry_status = lc['gl:entryStatus'];
-  if (lc['gl:classification']) data.classification = lc['gl:classification'];
-  if (lc['gl:reviewType']) data.review_type = lc['gl:reviewType'];
-  if (lc['gl:domain']) data.domain = lc['gl:domain'];
-  if (lc['gl:release']) data.release = lc['gl:release'];
-  if (lc['gl:lineageSourceSimilarity'] != null) data.lineage_source_similarity = lc['gl:lineageSourceSimilarity'];
-  if (lc['gl:script']) data.script = lc['gl:script'];
-  if (lc['gl:system']) data.system = lc['gl:system'];
+  if (lc[GL.LANGUAGE_CODE]) data.language_code = lc[GL.LANGUAGE_CODE];
+  if (lc[GL.ENTRY_STATUS]) data.entry_status = lc[GL.ENTRY_STATUS];
+  if (lc[GL.CLASSIFICATION]) data.classification = lc[GL.CLASSIFICATION];
+  if (lc[GL.REVIEW_TYPE]) data.review_type = lc[GL.REVIEW_TYPE];
+  if (lc[GL.DOMAIN]) data.domain = lc[GL.DOMAIN];
+  if (lc[GL.RELEASE]) data.release = lc[GL.RELEASE];
+  if (lc[GL.LINEAGE_SOURCE_SIMILARITY] != null) data.lineage_source_similarity = lc[GL.LINEAGE_SOURCE_SIMILARITY];
+  if (lc[GL.SCRIPT]) data.script = lc[GL.SCRIPT];
+  if (lc[GL.SYSTEM]) data.system = lc[GL.SYSTEM];
 
-  if (lc['gl:designation']?.length) {
-    data.terms = lc['gl:designation'].map(mapDesignationFromJsonLd);
+  const designation = lc[GL.DESIGNATION];
+  if (designation?.length) {
+    data.terms = designation.map(mapDesignationFromJsonLd);
   }
 
-  if (lc['gl:definition']?.length) {
-    data.definition = lc['gl:definition'].map(mapDetailedDefinitionFromJsonLd);
+  const definition = lc[GL.DEFINITION];
+  if (definition?.length) {
+    data.definition = definition.map(mapDetailedDefinitionFromJsonLd);
   }
 
-  if (lc['gl:notes']?.length) {
-    data.notes = lc['gl:notes'].map(mapDetailedDefinitionFromJsonLd);
+  const notes = lc[GL.NOTES];
+  if (notes?.length) {
+    data.notes = notes.map(mapDetailedDefinitionFromJsonLd);
   }
 
-  if (lc['gl:annotations']?.length) {
-    data.annotations = lc['gl:annotations'].map(mapDetailedDefinitionFromJsonLd);
+  const annotations = lc[GL.ANNOTATIONS];
+  if (annotations?.length) {
+    data.annotations = annotations.map(mapDetailedDefinitionFromJsonLd);
   }
 
-  if (lc['gl:examples']?.length) {
-    data.examples = lc['gl:examples'].map(mapDetailedDefinitionFromJsonLd);
+  const examples = lc[GL.EXAMPLES];
+  if (examples?.length) {
+    data.examples = examples.map(mapDetailedDefinitionFromJsonLd);
   }
 
-  if (lc['gl:source']?.length) {
-    data.sources = lc['gl:source'].map(mapSourceFromJsonLd);
+  const lcSources = lc[GL.SOURCE];
+  if (lcSources?.length) {
+    data.sources = lcSources.map(mapSourceFromJsonLd);
   }
 
-  if (lc['gl:dates']?.length) {
-    data.dates = lc['gl:dates'].map(d => ({
-      date: d['gl:date'] ?? null,
-      type: d['gl:dateType'] ?? null,
+  const dates = lc[GL.DATES];
+  if (dates?.length) {
+    data.dates = dates.map(d => ({
+      date: d[GL.DATE] ?? null,
+      type: d[GL.DATE_TYPE] ?? null,
     }));
   }
 
-  if (lc['gl:references']?.length) {
-    data.related = lc['gl:references'].map(mapRelatedFromJsonLd);
+  const lcReferences = lc[GL.REFERENCES];
+  if (lcReferences?.length) {
+    data.related = lcReferences.map(mapRelatedFromJsonLd);
   }
 
-  if (lc['gl:reviewDate']) data.review_date = lc['gl:reviewDate'];
-  if (lc['gl:reviewDecisionDate']) data.review_decision_date = lc['gl:reviewDecisionDate'];
-  if (lc['gl:reviewDecisionEvent']) data.review_decision_event = lc['gl:reviewDecisionEvent'];
-  if (lc['gl:reviewStatus']) data.review_status = lc['gl:reviewStatus'];
-  if (lc['gl:reviewDecision']) data.review_decision = lc['gl:reviewDecision'];
-  if (lc['gl:reviewDecisionNotes']) data.review_decision_notes = lc['gl:reviewDecisionNotes'];
+  if (lc[GL.REVIEW_DATE]) data.review_date = lc[GL.REVIEW_DATE];
+  if (lc[GL.REVIEW_DECISION_DATE]) data.review_decision_date = lc[GL.REVIEW_DECISION_DATE];
+  if (lc[GL.REVIEW_DECISION_EVENT]) data.review_decision_event = lc[GL.REVIEW_DECISION_EVENT];
+  if (lc[GL.REVIEW_STATUS]) data.review_status = lc[GL.REVIEW_STATUS];
+  if (lc[GL.REVIEW_DECISION]) data.review_decision = lc[GL.REVIEW_DECISION];
+  if (lc[GL.REVIEW_DECISION_NOTES]) data.review_decision_notes = lc[GL.REVIEW_DECISION_NOTES];
 
   return data;
 }
 
 function mapPartitiveRelationFromJsonLd(r: JsonLdPartitiveRelation): Record<string, unknown> | null {
-  const comprehensive = r['gl:comprehensive'] ? mapRefFromJsonLd(r['gl:comprehensive']) : null;
+  const comprehensive = r[GL.COMPREHENSIVE] ? mapRefFromJsonLd(r[GL.COMPREHENSIVE]) : null;
   if (!comprehensive) return null;
 
-  const partitives = (r['gl:hasPartitive'] ?? [])
+  const partitives = (r[GL.HAS_PARTITIVE] ?? [])
     .map((m): Record<string, unknown> | null => {
-      const ref = m['gl:ref'] ? mapRefFromJsonLd(m['gl:ref']) : null;
+      const ref = m[GL.REF] ? mapRefFromJsonLd(m[GL.REF]) : null;
       if (!ref) return null;
       const out: Record<string, unknown> = { ref };
       // ISO 704:2022 MECE: prefer presence × count from JSON-LD. Fall back
       // to migrating the legacy one-string `multiplicity` or v2 `certainty`
       // so data in transit from older glossarist versions still loads.
-      const presence = m['gl:presence'];
-      const count = m['gl:count'];
+      const presence = m[GL.PRESENCE];
+      const count = m[GL.COUNT];
       if (isPartitivePresence(presence) && isPartitiveCount(count)) {
         out.presence = presence;
         out.count = count;
       } else {
-        const raw = m['gl:multiplicity'] ?? splitLegacyCertainty(m['gl:certainty']);
+        const raw = m[GL.MULTIPLICITY] ?? splitLegacyCertainty(m[GL.CERTAINTY]);
         if (raw) {
           const parts = splitMultiplicity(raw);
           out.presence = parts.presence;
           out.count = parts.count;
         }
       }
-      if (m['gl:isDelimiting'] === true) out.is_delimiting = true;
+      if (m[GL.IS_DELIMITING] === true) out.is_delimiting = true;
       return out;
     })
     .filter((m): m is Record<string, unknown> => m !== null);
@@ -487,12 +505,12 @@ function mapPartitiveRelationFromJsonLd(r: JsonLdPartitiveRelation): Record<stri
     partitives,
   };
 
-  if (r['gl:completeness']) out.completeness = r['gl:completeness'];
+  if (r[GL.COMPLETENESS]) out.completeness = r[GL.COMPLETENESS];
 
-  if (r['gl:criterion']) {
-    out.criterion = typeof r['gl:criterion'] === 'string'
-      ? { default: r['gl:criterion'] }
-      : r['gl:criterion'];
+  if (r[GL.CRITERION]) {
+    out.criterion = typeof r[GL.CRITERION] === 'string'
+      ? { default: r[GL.CRITERION] }
+      : r[GL.CRITERION];
   }
 
   return out;
@@ -517,33 +535,34 @@ function splitMultiplicity(m: string): { presence: 'required' | 'optional'; coun
 }
 
 function conceptFromJsonLd(doc: JsonLdConcept): Concept {
-  const id = String(doc['gl:identifier'] ?? doc['@id']?.split('/').pop() ?? '');
+  const id = String(doc[GL.IDENTIFIER] ?? doc['@id']?.split('/').pop() ?? '');
   const localizations: Record<string, unknown> = {};
 
-  const rawLc = doc['gl:localizedConcept'] ?? {};
+  const rawLc = doc[GL.LOCALIZED_CONCEPT] ?? {};
   for (const [lang, lc] of Object.entries(rawLc)) {
     if (lc && typeof lc === 'object') {
       localizations[lang] = mapLocalizedFromJsonLd(lc);
     }
   }
 
-  const related = (doc['gl:related'] ?? []).map(mapRelatedFromJsonLd);
-  const partitiveRelations = (doc['gl:partitiveRelations'] ?? [])
+  const related = (doc[GL.RELATED] ?? []).map(mapRelatedFromJsonLd);
+  const partitiveRelations = (doc[GL.PARTITIVE_RELATIONS] ?? [])
     .map(mapPartitiveRelationFromJsonLd)
     .filter((r): r is Record<string, unknown> => r !== null);
-  const tags = Array.isArray(doc['gl:tags']) ? [...doc['gl:tags']] : [];
+  const tagsArr = doc[GL.TAGS];
+  const tags = Array.isArray(tagsArr) ? [...tagsArr] : [];
 
   const concept = Concept.fromJSON({
     id,
-    term: doc['gl:term'] ?? null,
+    term: doc[GL.TERM] ?? null,
     uri: doc['@id'] ?? null,
     localizations,
     related,
     partitive_relations: partitiveRelations,
     tags,
-    figures: normalizeEntityRefs(doc['gl:figureRef']),
-    tables: normalizeEntityRefs(doc['gl:tableRef']),
-    formulas: normalizeEntityRefs(doc['gl:formulaRef']),
+    figures: normalizeEntityRefs(doc[GL.FIGURE_REF]),
+    tables: normalizeEntityRefs(doc[GL.TABLE_REF]),
+    formulas: normalizeEntityRefs(doc[GL.FORMULA_REF]),
     status: null,
   });
 
@@ -581,11 +600,8 @@ function normalizeOneEntityRef(entry: unknown): Record<string, string> | null {
   const entityId = (atId ? lastPathSegment(atId) : null) ?? explicitRef;
   if (!entityId) return null;
   const out: Record<string, string> = { ref: entityId };
-  const display = typeof obj['gl:display'] === 'string' ? obj['gl:display']
-    : typeof obj['gloss:display'] === 'string' ? obj['gloss:display']
-    : typeof obj.display === 'string' ? obj.display
-    : null;
-  if (display) out.display = display;
+  const displayRaw = obj[GL.DISPLAY] ?? obj['gloss:display'] ?? obj.display;
+  if (typeof displayRaw === 'string') out.display = displayRaw;
   return out;
 }
 
