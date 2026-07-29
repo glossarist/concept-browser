@@ -43,165 +43,24 @@ import type { ConceptSummary } from './types';
 import { ConceptIdentity } from './concept-identity';
 
 // ── JSON-LD wire-format types ─────────────────────────────────────────────
+// Extracted to model-bridge/jsonld-types.ts for scannability.
 
-interface JsonLdContent {
-  'gl:content'?: string;
-}
-
-interface JsonLdDate {
-  'gl:date'?: string;
-  'gl:dateType'?: string;
-}
-
-interface JsonLdPronunciation {
-  'gl:content'?: string;
-  'gl:language'?: string;
-  'gl:script'?: string;
-  'gl:system'?: string;
-  'gl:country'?: string;
-}
-
-interface JsonLdGrammarInfo {
-  'gl:gender'?: string;
-  'gl:number'?: string;
-  'gl:partOfSpeech'?: string;
-  'gl:noun'?: boolean;
-  'gl:verb'?: boolean;
-  'gl:adj'?: boolean;
-  'gl:adverb'?: boolean;
-  'gl:preposition'?: boolean;
-  'gl:participle'?: boolean;
-}
-
-interface JsonLdRef {
-  'gl:source'?: string;
-  'gl:id'?: string;
-  'gl:version'?: string;
-  'gl:text'?: string;
-  source?: string;
-  id?: string;
-  version?: string;
-}
-
-interface JsonLdLocality {
-  'gl:localityType'?: string;
-  'gl:referenceFrom'?: string;
-  'gl:referenceTo'?: string;
-  type?: string;
-  reference_from?: string;
-  reference_to?: string;
-}
-
-interface JsonLdOrigin {
-  'gl:ref'?: string | JsonLdRef;
-  'gl:locality'?: JsonLdLocality;
-  'gl:link'?: string;
-  'gl:id'?: string;
-  'gl:version'?: string;
-  'gl:source'?: string;
-}
-
-interface JsonLdSource {
-  'gl:id'?: string;
-  'gl:sourceType'?: string;
-  'gl:sourceStatus'?: string;
-  'gl:modification'?: string;
-  'gl:origin'?: JsonLdOrigin;
-  'gl:sourcedFrom'?: JsonLdOrigin[];
-  'gl:sourced_from'?: JsonLdOrigin[];
-}
-
-interface JsonLdRelated {
-  'gl:relationshipType'?: string;
-  'gl:ref'?: JsonLdRef;
-  '@id'?: string;
-  'gl:term'?: string;
-  'gl:target'?: string;
-  'gl:sourceId'?: string;
-  'gl:citation'?: JsonLdOrigin;
-}
-
-interface JsonLdDesignation {
-  '@type'?: string;
-  'gl:term'?: string;
-  'gl:normativeStatus'?: string;
-  'gl:absent'?: unknown;
-  'gl:fieldOfApplication'?: string;
-  'gl:usageInfo'?: string;
-  'gl:geographicalArea'?: string;
-  'gl:language'?: string;
-  'gl:script'?: string;
-  'gl:system'?: string;
-  'gl:international'?: boolean;
-  'gl:termType'?: string;
-  'gl:pronunciation'?: JsonLdPronunciation[];
-  'gl:source'?: JsonLdSource[];
-  'gl:related'?: JsonLdRelated[];
-  'gl:prefix'?: string;
-  'gl:gender'?: string;
-  'gl:grammarInfo'?: JsonLdGrammarInfo[];
-}
-
-interface JsonLdLocalizedConcept {
-  'gl:languageCode'?: string;
-  'gl:entryStatus'?: string;
-  'gl:classification'?: string;
-  'gl:reviewType'?: string;
-  'gl:domain'?: string;
-  'gl:release'?: string;
-  'gl:lineageSourceSimilarity'?: number;
-  'gl:script'?: string;
-  'gl:system'?: string;
-  'gl:designation'?: JsonLdDesignation[];
-  'gl:definition'?: JsonLdContent[];
-  'gl:notes'?: JsonLdContent[];
-  'gl:annotations'?: JsonLdContent[];
-  'gl:examples'?: JsonLdContent[];
-  'gl:source'?: JsonLdSource[];
-  'gl:dates'?: JsonLdDate[];
-  'gl:references'?: JsonLdRelated[];
-  'gl:reviewDate'?: string;
-  'gl:reviewDecisionDate'?: string;
-  'gl:reviewDecisionEvent'?: string;
-  'gl:reviewStatus'?: string;
-  'gl:reviewDecision'?: string;
-  'gl:reviewDecisionNotes'?: string;
-}
-
-interface JsonLdPartitiveMember {
-  'gl:ref'?: JsonLdRef;
-  /** ISO 704:2022 MECE: presence (required | optional) */
-  'gl:presence'?: string;
-  /** ISO 704:2022 MECE: count (exactly_one | at_least_one | multiple) */
-  'gl:count'?: string;
-  /** ISO 704:2022: delimiting part (3× stroke width in diagrams) */
-  'gl:isDelimiting'?: boolean;
-  /** Legacy v3 field — one-string multiplicity, split into presence+count */
-  'gl:multiplicity'?: string;
-  /** Legacy v2 field — migrated to presence+count */
-  'gl:certainty'?: string;
-}
-
-interface JsonLdPartitiveRelation {
-  'gl:comprehensive'?: JsonLdRef;
-  'gl:hasPartitive'?: JsonLdPartitiveMember[];
-  'gl:completeness'?: string;
-  'gl:criterion'?: Record<string, string> | string;
-}
-
-interface JsonLdConcept {
-  '@type'?: string;
-  '@id'?: string;
-  'gl:identifier'?: string | number;
-  'gl:term'?: string;
-  'gl:localizedConcept'?: Record<string, JsonLdLocalizedConcept>;
-  'gl:related'?: JsonLdRelated[];
-  'gl:partitiveRelations'?: JsonLdPartitiveRelation[];
-  'gl:tags'?: string[];
-  'gl:figureRef'?: unknown[];
-  'gl:tableRef'?: unknown[];
-  'gl:formulaRef'?: unknown[];
-}
+import type {
+  JsonLdContent,
+  JsonLdDate,
+  JsonLdPronunciation,
+  JsonLdGrammarInfo,
+  JsonLdRef,
+  JsonLdLocality,
+  JsonLdOrigin,
+  JsonLdSource,
+  JsonLdRelated,
+  JsonLdDesignation,
+  JsonLdLocalizedConcept,
+  JsonLdPartitiveMember,
+  JsonLdPartitiveRelation,
+  JsonLdConcept,
+} from './model-bridge/jsonld-types';
 
 // ── Bridges for fields not yet in glossarist-js ────────────────────────────
 // Remove each bridge when glossarist-js publishes native support.
