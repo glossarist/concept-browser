@@ -137,7 +137,7 @@ export class GraphDataSource {
       if (lc?.domain) {
         edges.push({
           source: sourceUri,
-          target: `${this.uriBase}/${this.registerId}/domain/${slugify(lc.domain)}`,
+          target: UriRouter.buildDomainUri(this.uriBase, this.registerId, slugify(lc.domain)),
           type: 'domain',
           label: lc.domain,
           register: this.registerId,

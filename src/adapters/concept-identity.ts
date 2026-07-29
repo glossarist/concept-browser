@@ -1,4 +1,5 @@
 import { InvalidConceptIdentityError, InvalidConceptUriError } from '../errors';
+import { UriRouter } from './UriRouter';
 
 export interface ConceptIdentityParts {
   readonly localId: string;
@@ -24,7 +25,10 @@ export class ConceptIdentity implements ConceptIdentityParts {
         { localId, registerId, uriBase },
       );
     }
-    this._uri = `${uriBase}/${registerId}/concept/${localId}`;
+    // Single SSOT for concept URI construction: UriRouter.buildConceptUri.
+    // ConceptIdentity, the conceptUri() bridge, and UriRouter.buildConceptUri
+    // all funnel here — no inline template literals scattered across files.
+    this._uri = UriRouter.buildConceptUri(uriBase, registerId, localId);
     this._slug = localId;
     this._path = `${registerId}/concepts/${localId}`;
   }
@@ -52,7 +56,7 @@ export class ConceptIdentity implements ConceptIdentityParts {
   }
 
   domainUri(domainSlug: string): string {
-    return `${this.uriBase}/${this.registerId}/domain/${domainSlug}`;
+    return UriRouter.buildDomainUri(this.uriBase, this.registerId, domainSlug);
   }
 
   static fromUri(uri: string): ConceptIdentity {

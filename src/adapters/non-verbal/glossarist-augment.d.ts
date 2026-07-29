@@ -224,6 +224,12 @@ declare module 'glossarist' {
 // Re-declare the same exports under the 'glossarist/models' subpath so
 // deep-import callers can use them. Upstream's d.ts is stale on this
 // subpath too.
+//
+// The duplication between the 'glossarist' block above and this block
+// is forced by upstream's broken d.ts (PR glossarist/glossarist-js#31).
+// We cannot `export import` from a local namespace because TypeScript
+// requires `declare module` blocks to be self-contained. When upstream
+// ships proper d.ts, DELETE this entire file.
 declare module 'glossarist/models' {
   export type Completeness = 'complete' | 'partial';
   export const COMPLETENESS: { readonly COMPLETE: 'complete'; readonly PARTIAL: 'partial' };
@@ -252,23 +258,8 @@ declare module 'glossarist/models' {
   export function isValidMultiplicity(value: unknown): value is Multiplicity;
   export function multiplicityFromPair(presence: PartitivePresence, count: PartitiveCount): Multiplicity;
   export function pairFromMultiplicity(name: Multiplicity): { presence: PartitivePresence; count: PartitiveCount };
-
-  export class TypeSharedPlurality extends GlossaristModel {
-    constructor(data?: {
-      isShared?: boolean;
-      is_shared?: boolean;
-      isUncertain?: boolean;
-      is_uncertain?: boolean;
-      sharedType?: ConceptRef;
-      shared_type?: ConceptRef;
-    });
-    readonly isShared: boolean;
-    readonly isUncertain: boolean;
-    readonly sharedType: ConceptRef | null;
-    hasSharedType(): boolean;
-    toJSON(): { is_shared: boolean; is_uncertain?: boolean; shared_type?: ReturnType<ConceptRef['toJSON']> };
-    static fromJSON(data: Record<string, unknown>): TypeSharedPlurality;
-  }
+  // (TypeSharedPlurality removed — superseded by presence/count on
+  // PartitiveMember per MECE refactor. Was dead code.)
 
   // ── PartitiveRelation (glossarist 0.4.26 — MECE presence × count) ─
 
