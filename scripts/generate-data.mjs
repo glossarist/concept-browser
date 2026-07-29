@@ -14,6 +14,7 @@ import { buildVersionHistoryTurtle } from './lib/version-turtle.mjs';
 import { buildBibliographyTurtle } from './lib/bibliography-turtle.mjs';
 import { ttlLit } from './lib/turtle-escape.mjs';
 import { firstNonEmpty } from './lib/first-non-empty.mjs';
+import { normalizeBibliography } from './lib/bibliography.mjs';
 
 // MECE partitive multiplicity: 2 independent axes (ISO 704:2022).
 //   presence × count
@@ -1296,9 +1297,10 @@ async function processDataset(dir, register, opts) {
   // Copy bibliography.yaml → bibliography.json
   const bibPath = path.join(sourceRoot, 'bibliography.yaml');
   if (fs.existsSync(bibPath)) {
-    const bibData = readYaml(bibPath);
+    const rawBib = readYaml(bibPath);
+    const bibData = normalizeBibliography(rawBib);
     writeJson(path.join(DATA, register, 'bibliography.json'), bibData);
-    const bibCount = Array.isArray(bibData?.bibliography) ? bibData.bibliography.length : 0;
+    const bibCount = bibData.bibliography.length;
     console.log(`  Copied bibliography (${bibCount} entries)`);
   }
 
