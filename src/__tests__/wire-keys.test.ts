@@ -60,6 +60,6 @@ describe('GL wire-key SSOT', () => {
     // The point of this test: when adding a key, you remember to update
     // the count; when removing, you notice the test fails. Catches
     // accidental drift in either direction.
-    expect(Object.keys(GL).length).toBe(87);
+    expect(Object.keys(GL).length).toBe(90);
   });
 });

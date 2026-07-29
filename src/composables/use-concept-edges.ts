@@ -4,6 +4,8 @@ import type { Router } from 'vue-router';
 // Import the MECE-augmented types from glossarist/models (extended by
 // src/adapters/non-verbal/glossarist-augment.d.ts).
 import type { Concept, RelatedConcept, ConceptRef } from 'glossarist';
+import { PartitiveHyperedge } from 'glossarist';
+import { GenericHyperedge } from 'glossarist/models';
 import type {
   PartitiveRelation as GlsPartitiveRelation,
   PartitiveMember as GlsPartitiveMember,
@@ -13,6 +15,7 @@ import type {
   GraphEdge,
   PartitiveRelationWire,
   PartitiveMemberWire,
+  GenericRelationWire,
 } from '../adapters/types';
 import { getFactory } from '../adapters/factory';
 import { conceptUri } from '../adapters/model-bridge';
@@ -157,42 +160,53 @@ export function useConceptEdges(
     });
   });
 
-  // Concept-level partitive relations (ISO 704 one-to-many decompositions).
-  // Reads the glossarist-js native model (`concept.partitiveRelations`)
-  // and projects each relation into a URI-resolved wire shape for display.
-  // Independent of binary `conceptRelated`.
-  // v2 shape per concept-model/TODO.partitive-relation-v2.
-  const conceptPartitiveRelations = computed<PartitiveRelationWire[]>(() => {
+  // Concept-level n-ary hyperedge relations (ISO 704 one-to-many
+  // decompositions). Reads the glossarist-js unified `concept.relations`
+  // array and projects PartitiveHyperedge → PartitiveRelationWire,
+  // GenericHyperedge → GenericRelationWire for display.
+  //
+  // glossarist 0.4.33+ exposes a unified `.relations` array; type
+  // discrimination is via instanceof.
+  function projectHyperedge(rel: any): PartitiveRelationWire | GenericRelationWire | null {
     const source = conceptUriValue.value;
-    const relations: readonly GlsPartitiveRelation[] = concept.value.partitiveRelations;
-    return relations
-      .map((rel): PartitiveRelationWire | null => {
-        const comprehensive = resolveConceptRefUri(rel.comprehensive);
-        if (!comprehensive) return null;
-        const partitives: PartitiveMemberWire[] = rel.partitives
-          .map((m: GlsPartitiveMember): PartitiveMemberWire | null => {
-            const uri = resolveConceptRefUri(m.ref);
-            if (!uri || uri === source) return null;
-            return {
-              uri,
-              presence: readPresence(m),
-              count: readCount(m),
-              isDelimiting: readIsDelimiting(m),
-            };
-          })
-          .filter((m: PartitiveMemberWire | null): m is PartitiveMemberWire => m !== null);
-        if (partitives.length === 0) return null;
-
+    const comprehensive = resolveConceptRefUri(rel.comprehensive);
+    if (!comprehensive) return null;
+    const members: PartitiveMemberWire[] = (rel.members ?? rel.partitives ?? [])
+      .map((m: any): PartitiveMemberWire | null => {
+        const uri = resolveConceptRefUri(m.ref);
+        if (!uri || uri === source) return null;
         return {
-          source,
-          comprehensive,
-          partitives,
-          completeness: rel.completeness,
-          criterion: rel.criterion ?? undefined,
-          register: registerId.value,
+          uri,
+          presence: readPresence(m),
+          count: readCount(m),
+          isDelimiting: readIsDelimiting(m),
         };
       })
-      .filter((r: PartitiveRelationWire | null): r is PartitiveRelationWire => r !== null);
+      .filter((m: PartitiveMemberWire | null): m is PartitiveMemberWire => m !== null);
+    if (members.length === 0) return null;
+    return {
+      source,
+      comprehensive,
+      members,
+      partitives: members,
+      completeness: rel.completeness,
+      criterion: rel.criterion ?? undefined,
+      register: registerId.value,
+    };
+  }
+
+  const conceptPartitiveRelations = computed<PartitiveRelationWire[]>(() => {
+    return (concept.value.relations as any[] ?? [])
+      .filter(r => r instanceof PartitiveHyperedge)
+      .map(projectHyperedge)
+      .filter((r): r is PartitiveRelationWire => r !== null);
+  });
+
+  const conceptGenericRelations = computed<GenericRelationWire[]>(() => {
+    return (concept.value.relations as any[] ?? [])
+      .filter(r => r instanceof GenericHyperedge)
+      .map(projectHyperedge)
+      .filter((r): r is GenericRelationWire => r !== null);
   });
 
   function resolveConceptRefUri(ref: ConceptRef | null): string | null {
@@ -290,6 +304,7 @@ export function useConceptEdges(
     inverseEdgeType,
     conceptRelated,
     conceptPartitiveRelations,
+    conceptGenericRelations,
     resolveRelatedRef,
     getResolvedRef,
     relatedLabel,
