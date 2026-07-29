@@ -170,12 +170,14 @@ declare module 'glossarist' {
   function pairFromMultiplicity(name: Multiplicity): { presence: PartitivePresence; count: PartitiveCount };
 
   interface Concept {
-    readonly partitiveRelations: PartitiveRelation[];
+    readonly relations: AbstractHyperedge[];
+    readonly partitiveRelations: PartitiveHyperedge[];
+    readonly genericRelations: GenericHyperedge[];
   }
 
   // Re-exposed here so callers importing from the top-level `glossarist`
   // entry get the MECE-augmented shape, not the stale d.ts type.
-  export class PartitiveMember extends GlossaristModel {
+  export class HyperedgeMember extends GlossaristModel {
     constructor(data?: {
       ref?: ConceptRef;
       presence?: PartitivePresence;
@@ -189,36 +191,43 @@ declare module 'glossarist' {
     readonly isRequired: boolean;
     readonly isOptional: boolean;
     get isDelimiting(): boolean;
-    toJSON(): { ref: ReturnType<ConceptRef['toJSON']>; presence?: PartitivePresence; count?: PartitiveCount; is_delimiting?: boolean };
-    static fromJSON(data: Record<string, unknown>): PartitiveMember;
+    toJSON(): Record<string, unknown>;
+    static fromJSON(data: Record<string, unknown>): HyperedgeMember;
     static identityOf(value: unknown): string;
   }
 
-  export class PartitiveRelation extends GlossaristModel {
-    constructor(data?: {
-      comprehensive?: ConceptRef;
-      partitives?: PartitiveMember[];
-      completeness?: Completeness;
-      criterion?: Record<string, string> | string;
-    });
+  export class PartitiveMember extends HyperedgeMember {}
+  export class GenericMember extends HyperedgeMember {}
+
+  export class AbstractHyperedge extends GlossaristModel {
     readonly comprehensive: ConceptRef;
-    readonly partitives: PartitiveMember[];
+    readonly members: HyperedgeMember[];
     readonly completeness: Completeness;
     readonly criterion: Record<string, string> | null;
+    readonly sources: ConceptSource[];
+    readonly notes: Record<string, string> | null;
+    readonly status: string | null;
     readonly isComplete: boolean;
     readonly isPartial: boolean;
     readonly isCoordinate: boolean;
-    hasPlurality(): boolean;
-    hasCriterion(): boolean;
-    toJSON(): {
-      comprehensive: ReturnType<ConceptRef['toJSON']>;
-      partitives: ReturnType<PartitiveMember['toJSON']>[];
-      completeness: Completeness;
-      criterion?: Record<string, string>;
-    };
-    static fromJSON(data: Record<string, unknown>): PartitiveRelation;
+    toJSON(): Record<string, unknown>;
+    static fromJSON(data: Record<string, unknown>): AbstractHyperedge;
     static identityOf(value: unknown): string;
   }
+
+  export class PartitiveHyperedge extends AbstractHyperedge {
+    get partitives(): HyperedgeMember[];
+    static fromJSON(data: Record<string, unknown>): PartitiveHyperedge;
+    static identityOf(value: unknown): string;
+  }
+
+  export class GenericHyperedge extends AbstractHyperedge {
+    static fromJSON(data: Record<string, unknown>): GenericHyperedge;
+    static identityOf(value: unknown): string;
+  }
+
+  // Legacy aliases (deprecated — use Hyperedge-based names)
+  export class PartitiveRelation extends PartitiveHyperedge {}
 }
 
 // Re-declare the same exports under the 'glossarist/models' subpath so
@@ -261,9 +270,9 @@ declare module 'glossarist/models' {
   // (TypeSharedPlurality removed — superseded by presence/count on
   // PartitiveMember per MECE refactor. Was dead code.)
 
-  // ── PartitiveRelation (glossarist 0.4.26 — MECE presence × count) ─
+  // ── Hyperedge classes (glossarist 0.4.33 — unified n-ary model) ─
 
-  export class PartitiveMember extends GlossaristModel {
+  export class HyperedgeMember extends GlossaristModel {
     constructor(data?: {
       ref?: ConceptRef;
       presence?: PartitivePresence;
@@ -274,37 +283,44 @@ declare module 'glossarist/models' {
     readonly presence: PartitivePresence;
     readonly count: PartitiveCount;
     readonly is_delimiting: boolean;
-    readonly isRequired: boolean;
-    readonly isOptional: boolean;
+    required(): boolean;
+    optional(): boolean;
     get isDelimiting(): boolean;
-    toJSON(): { ref: ReturnType<ConceptRef['toJSON']>; presence?: PartitivePresence; count?: PartitiveCount; is_delimiting?: boolean };
-    static fromJSON(data: Record<string, unknown>): PartitiveMember;
+    toJSON(): Record<string, unknown>;
+    static fromJSON(data: Record<string, unknown>): HyperedgeMember;
     static identityOf(value: unknown): string;
   }
 
-  export class PartitiveRelation extends GlossaristModel {
-    constructor(data?: {
-      comprehensive?: ConceptRef;
-      partitives?: PartitiveMember[];
-      completeness?: Completeness;
-      criterion?: Record<string, string> | string;
-    });
+  export class PartitiveMember extends HyperedgeMember {}
+  export class GenericMember extends HyperedgeMember {}
+
+  export class AbstractHyperedge extends GlossaristModel {
     readonly comprehensive: ConceptRef;
-    readonly partitives: PartitiveMember[];
+    readonly members: HyperedgeMember[];
     readonly completeness: Completeness;
     readonly criterion: Record<string, string> | null;
+    readonly sources: ConceptSource[];
+    readonly notes: Record<string, string> | null;
+    readonly status: string | null;
     readonly isComplete: boolean;
     readonly isPartial: boolean;
     readonly isCoordinate: boolean;
-    hasPlurality(): boolean;
-    hasCriterion(): boolean;
-    toJSON(): {
-      comprehensive: ReturnType<ConceptRef['toJSON']>;
-      partitives: ReturnType<PartitiveMember['toJSON']>[];
-      completeness: Completeness;
-      criterion?: Record<string, string>;
-    };
-    static fromJSON(data: Record<string, unknown>): PartitiveRelation;
+    toJSON(): Record<string, unknown>;
+    static fromJSON(data: Record<string, unknown>): AbstractHyperedge;
     static identityOf(value: unknown): string;
   }
+
+  export class PartitiveHyperedge extends AbstractHyperedge {
+    get partitives(): HyperedgeMember[];
+    static fromJSON(data: Record<string, unknown>): PartitiveHyperedge;
+    static identityOf(value: unknown): string;
+  }
+
+  export class GenericHyperedge extends AbstractHyperedge {
+    static fromJSON(data: Record<string, unknown>): GenericHyperedge;
+    static identityOf(value: unknown): string;
+  }
+
+  // Legacy aliases (deprecated)
+  export class PartitiveRelation extends PartitiveHyperedge {}
 }

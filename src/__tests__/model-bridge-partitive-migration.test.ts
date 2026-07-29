@@ -23,9 +23,9 @@ interface PartitiveMemberLike {
 
 function loadPartitives(doc: Record<string, unknown>): PartitiveMemberLike[] {
   const concept = conceptFromJson(doc as any);
-  const relations = (concept as any).partitiveRelations ?? [];
+  const relations = (concept as any).relations ?? [];
   return relations.flatMap((r: any) =>
-    (r.partitives ?? []).map((m: any) => ({
+    ((r.members ?? r.partitives) ?? []).map((m: any) => ({
       presence: m.presence,
       count: m.count,
       is_delimiting: m.is_delimiting,

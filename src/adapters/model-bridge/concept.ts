@@ -10,7 +10,7 @@ import type { ConceptSummary } from '../types';
 import { ConceptIdentity } from '../concept-identity';
 import { GL } from '../wire-keys';
 import { isJsonLd, mapLocalizedFromJsonLd, mapRelatedFromJsonLd } from './mappers';
-import { mapPartitiveRelationFromJsonLd } from './partitive';
+import { mapHyperedgeFromJsonLd } from './hyperedge';
 import { normalizeEntityRefs } from './entity-refs';
 import { attachBridges, attachSourcedFromToSources } from './bridges';
 import type { JsonLdConcept } from './jsonld-types';
@@ -27,9 +27,18 @@ function conceptFromJsonLd(doc: JsonLdConcept): Concept {
   }
 
   const related = (doc[GL.RELATED] ?? []).map(mapRelatedFromJsonLd);
+
+  // Unified hyperedge mapping: both partitive and generic relations
+  // share the same JSON-LD wire shape. glossarist-js dispatches by
+  // wire key (`partitive_relations` / `generic_relations`).
   const partitiveRelations = (doc[GL.PARTITIVE_RELATIONS] ?? [])
-    .map(mapPartitiveRelationFromJsonLd)
+    .map((r: any) => mapHyperedgeFromJsonLd(r, 'gl:hasPartitive'))
     .filter((r): r is Record<string, unknown> => r !== null);
+
+  const genericRelations = (doc[GL.GENERIC_RELATIONS] ?? [])
+    .map((r: any) => mapHyperedgeFromJsonLd(r, 'gl:hasGeneric'))
+    .filter((r): r is Record<string, unknown> => r !== null);
+
   const tagsArr = doc[GL.TAGS];
   const tags = Array.isArray(tagsArr) ? [...tagsArr] : [];
 
@@ -40,6 +49,7 @@ function conceptFromJsonLd(doc: JsonLdConcept): Concept {
     localizations,
     related,
     partitive_relations: partitiveRelations,
+    generic_relations: genericRelations,
     tags,
     figures: normalizeEntityRefs(doc[GL.FIGURE_REF]),
     tables: normalizeEntityRefs(doc[GL.TABLE_REF]),

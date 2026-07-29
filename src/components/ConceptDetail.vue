@@ -28,6 +28,7 @@ import ConceptEditionRail from './ConceptEditionRail.vue';
 import NonVerbalRepDisplay from './NonVerbalRepDisplay.vue';
 import NonVerbalList from './non-verbal/NonVerbalList.vue';
 import PartitiveRelationList from './PartitiveRelationList.vue';
+import GenericRelationList from './GenericRelationList.vue';
 import ConceptDiffModal from './ConceptDiffModal.vue';
 import CitationDisplay from './CitationDisplay.vue';
 import DesignationList from './DesignationList.vue';
@@ -75,6 +76,7 @@ const {
   inverseEdgeType,
   conceptRelated,
   conceptPartitiveRelations,
+  conceptGenericRelations,
   getResolvedRef,
   relatedLabel,
   navigateEdge,
@@ -573,6 +575,14 @@ const nonVerbalReps = computed(() => {
           <PartitiveRelationList
             v-if="conceptPartitiveRelations.length"
             :relations="conceptPartitiveRelations"
+            :manifest="manifest"
+            :register-id="registerId"
+          />
+
+          <!-- Generic relations — genus/species decompositions (ISO 704) -->
+          <GenericRelationList
+            v-if="conceptGenericRelations.length"
+            :relations="conceptGenericRelations"
             :manifest="manifest"
             :register-id="registerId"
           />

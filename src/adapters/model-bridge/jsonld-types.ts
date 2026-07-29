@@ -150,6 +150,8 @@ export interface JsonLdPartitiveMember {
 export interface JsonLdPartitiveRelation {
   'gl:comprehensive'?: JsonLdRef;
   'gl:hasPartitive'?: JsonLdPartitiveMember[];
+  'gl:hasGeneric'?: JsonLdPartitiveMember[];
+  'gl:members'?: JsonLdPartitiveMember[];
   'gl:completeness'?: string;
   'gl:criterion'?: Record<string, string> | string;
 }
@@ -162,6 +164,7 @@ export interface JsonLdConcept {
   'gl:localizedConcept'?: Record<string, JsonLdLocalizedConcept>;
   'gl:related'?: JsonLdRelated[];
   'gl:partitiveRelations'?: JsonLdPartitiveRelation[];
+  'gl:genericRelations'?: JsonLdPartitiveRelation[];
   'gl:tags'?: string[];
   'gl:figureRef'?: unknown[];
   'gl:tableRef'?: unknown[];

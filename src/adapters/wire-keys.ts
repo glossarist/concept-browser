@@ -37,6 +37,7 @@ export const GL = {
   LOCALIZED_CONCEPT: 'gl:localizedConcept',
   RELATED: 'gl:related',
   PARTITIVE_RELATIONS: 'gl:partitiveRelations',
+  GENERIC_RELATIONS: 'gl:genericRelations',
   TAGS: 'gl:tags',
 
   // LocalizedConcept
@@ -139,6 +140,8 @@ export const GL = {
   // PartitiveRelation
   COMPREHENSIVE: 'gl:comprehensive',
   HAS_PARTITIVE: 'gl:hasPartitive',
+  HAS_GENERIC: 'gl:hasGeneric',
+  HAS_MEMBER: 'gl:members',
   COMPLETENESS: 'gl:completeness',
   CRITERION: 'gl:criterion',
 
