@@ -29,14 +29,6 @@ import type { Concept, Manifest, GraphEdge, PartitiveRelationWire, PartitiveMemb
 import { rakeStrokeStyle } from '../utils/partitive-multiplicity';
 import { drawRakeBundles } from './relation-sphere/rake-bundles';
 import { ensureMarkers, ensureTypeMarker } from './relation-sphere/svg-markers';
-import {
-  sphereConstraint,
-  velocityClamp,
-  repulsion,
-  linkForce,
-  focusPin,
-} from './relation-sphere/forces';
-import type { ForcesContext } from './relation-sphere/types';
 import { conceptUri } from '../adapters/model-bridge';
 
 const props = defineProps<{
@@ -439,6 +431,33 @@ function buildGraph() {
 
 /* Reverse lookup: URI → node id. Linear scan is fine for ≤36 nodes. */
 /* ── Custom forces (EXACT prototype replica) ────────────── */
+function sphereConstraint() {
+  let nL: SNode[] = nodes;
+  function force() {
+    for (const n of nL) {
+      const len = Math.sqrt(n.x*n.x + n.y*n.y + n.z*n.z);
+      if (len > 0.001) {
+        const nx = n.x/len, ny = n.y/len, nz = n.z/len;
+        n.x = nx; n.y = ny; n.z = nz;
+        const rad = n.vx*nx + n.vy*ny + n.vz*nz;
+        n.vx -= rad*nx; n.vy -= rad*ny; n.vz -= rad*nz;
+      }
+    }
+  }
+  (force as any).initialize = (n: SNode[]) => { nL = n; };
+  return force;
+}
+function velocityClamp(maxV: number) {
+  let nL: SNode[] = nodes;
+  function force() {
+    for (const n of nL) {
+      const v2 = n.vx*n.vx + n.vy*n.vy + n.vz*n.vz;
+      if (v2 > maxV*maxV) { const s = maxV/Math.sqrt(v2); n.vx*=s; n.vy*=s; n.vz*=s; }
+    }
+  }
+  (force as any).initialize = (n: SNode[]) => { nL = n; };
+  return force;
+}
 /* Pairwise repulsion — pushes nodes apart on the sphere surface so cards
    don't stack. Operates in 3D (chord distance), with the sphereConstraint
    normalizing positions back to the unit sphere each tick. Focus node is
@@ -455,23 +474,31 @@ let linkStrength = expandParams(5).linkStrength;
 let repulseMinDist = expandParams(5).repMin;
 let repulseStrength = expandParams(5).repStrength;
 
-/**
- * Read-only getter bundle for the extracted force factories in
- * ./relation-sphere/forces.ts. Forces read the mutable sim state
- * via these getters each tick so user input (Expand slider, mute
- * toggles, navigation target) takes effect on the next step.
- */
-const forcesContext: ForcesContext = {
-  nodes: () => nodes,
-  links: () => links,
-  mutedTypes: () => mutedTypes.value,
-  mutedRegisters: () => mutedRegisters.value,
-  linkDistance: () => linkDistance,
-  linkStrength: () => linkStrength,
-  repulseMinDist: () => repulseMinDist,
-  repulseStrength: () => repulseStrength,
-};
-
+function repulsion() {
+  let nL: SNode[] = nodes;
+  function force() {
+    const minDist = repulseMinDist;
+    const strength = repulseStrength;
+    const min2 = minDist * minDist;
+    for (let i = 0; i < nL.length; i++) {
+      const a = nL[i];
+      if (a.depth === 0) continue;  /* focus pinned */
+      for (let j = i + 1; j < nL.length; j++) {
+        const b = nL[j];
+        const dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+        const d2 = dx*dx + dy*dy + dz*dz;
+        if (d2 >= min2 || d2 < 1e-6) continue;
+        const d = Math.sqrt(d2);
+        const f = strength * (minDist - d) / d;
+        const fx = dx * f, fy = dy * f, fz = dz * f;
+        a.vx += fx; a.vy += fy; a.vz += fz;
+        if (b.depth !== 0) { b.vx -= fx; b.vy -= fy; b.vz -= fz; }
+      }
+    }
+  }
+  (force as any).initialize = (n: SNode[]) => { nL = n; };
+  return force;
+}
 const navForce = (() => {
   let nL: SNode[] = nodes;
   function force() {
@@ -499,16 +526,63 @@ const clampF = velocityClamp(0.20);
 /* minDist=0.95 ≈ 56° separation on the unit sphere — strong spread so
    cards don't cluster around the focus. strength is high enough that
    nodes reach their spread positions within ~2 seconds of sim start. */
-const repulseF = repulsion(forcesContext);
+const repulseF = repulsion();
 
 /* 3D spring (link) force — pulls connected nodes toward a target chord
    distance. This is what actually spreads cards apart: longer springs
    (higher Expand level) push the graph outward along its edges. Stock
    d3-forceLink only handles x/y; this custom version operates in full
    3D so the sphereConstraint can renormalize positions correctly. */
-const linkF = linkForce(forcesContext);
+function linkForce() {
+  let nL: SNode[] = nodes;
+  let idToIdx = new Map<string, number>();
+  function force() {
+    if (links.length === 0) return;
+    const target = linkDistance;
+    const strength = linkStrength;
+    /* Read muted sets each tick so toggleType/toggleRegister take effect
+       immediately on the next simulation step. */
+    const mutedT = mutedTypes.value;
+    const mutedR = mutedRegisters.value;
+    for (const link of links) {
+      if (mutedT.has(link.type)) continue;
+      const ai = idToIdx.get(link.source);
+      const bi = idToIdx.get(link.target);
+      if (ai === undefined || bi === undefined) continue;
+      const a = nL[ai], b = nL[bi];
+      /* Skip edges involving a muted register (unless the node is the focus) */
+      if (a.depth !== 0 && mutedR.has(a.register)) continue;
+      if (b.depth !== 0 && mutedR.has(b.register)) continue;
+      const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+      const d2 = dx*dx + dy*dy + dz*dz;
+      if (d2 < 1e-6) continue;
+      const d = Math.sqrt(d2);
+      const diff = (d - target) / d * strength;
+      const fx = dx * diff, fy = dy * diff, fz = dz * diff;
+      if (a.depth !== 0) { a.vx += fx; a.vy += fy; a.vz += fz; }
+      if (b.depth !== 0) { b.vx -= fx; b.vy -= fy; b.vz -= fz; }
+    }
+  }
+  (force as any).initialize = (n: SNode[]) => {
+    nL = n;
+    idToIdx = new Map();
+    for (let i = 0; i < n.length; i++) idToIdx.set(n[i].id, i);
+  };
+  return force;
+}
+const linkF = linkForce();
 /* Pin the focus node at (0, 0, 1) so neighbor repulsion doesn't shove it.
    Without this, the focus drifts and the whole sphere wobbles. */
+function focusPin() {
+  let nL: SNode[] = nodes;
+  function force() {
+    for (const n of nL) {
+      if (n.depth === 0) { n.x = 0; n.y = 0; n.z = 1; n.vx = 0; n.vy = 0; n.vz = 0; }
+    }
+  }
+  (force as any).initialize = (n: SNode[]) => { nL = n; };
+  return force;
+}
 const focusPinF = focusPin();
 
 /* ── Simulation ─────────────────────────────────────────── */
@@ -691,6 +765,217 @@ function drawEdges(cx: number, cy: number) {
     isMuted: mutedTypes.value.has('__partitive__'),
     relations: props.partitiveRelations ?? [],
   });
+}
+
+/**
+ * Render PartitiveRelations as ISO 704:2022 rake brackets in the sphere.
+ *
+ * Each relation renders as a right-angle bracket with stem + spine + drops
+ * (geometry described in detail above). Stem and spine are the structural
+ * frame — always single solid at FRAME_STROKE_WIDTH.
+ *
+ * Per-member multiplicity + is_delimiting is encoded on each DROP via
+ * rakeStrokeStyle() (see utils/partitive-multiplicity.ts):
+ *
+ *   multiplicity         is_delimiting  drop visual
+ *   -------------------  --------------  --------------------------------
+ *   compulsory           false           1 solid  @ 1.5px
+ *   compulsory           true            1 solid  @ 4.5px (3× bold)
+ *   optional             false           1 dashed @ 1.5px
+ *   optional             true            1 dashed @ 4.5px
+ *   compulsory_multiple  false           2 solid  @ 1.5px
+ *   compulsory_multiple  true            2 solid  @ 4.5px
+ *   optional_multiple    false           2 dashed @ 1.5px
+ *   optional_multiple    true            2 dashed @ 4.5px
+ *   compulsory_at_least_one         false           1 solid + 1 dashed @ 1.5px
+ *   compulsory_at_least_one         true            1 solid + 1 dashed @ 4.5px
+ *
+ * completeness === 'partial'  : spine extends past last tooth (continued
+ *                               backline — "more exist but not shown")
+ *
+ * Diamond marker at the comprehensive end signals the hyperedge origin.
+ * Junction marker at the spine midpoint signals the right-angle corner.
+ */
+function drawRakeBundles(
+  svg: SVGSVGElement,
+  pos: Map<string, {x: number; y: number}>,
+  _cx: number,
+  _cy: number,
+) {
+  if (mutedTypes.value.has('__partitive__')) return;
+  const color = uiStore.isDark ? '#2dd4bf' : '#0d9488';
+  const DOUBLE_GAP = 4;
+  const DASH = '4 3';
+  const FRAME_STROKE_WIDTH = 1.4;
+  const SPINE_FRACTION = 0.55;       // spine sits 55% from comp toward centroid
+  const PARTIAL_TAIL = 28;           // px extension for completeness: 'partial'
+
+  for (const rel of props.partitiveRelations ?? []) {
+    const compParsed = UriRouter.parseUri(rel.comprehensive);
+    if (!compParsed) continue;
+    const compNodeId = `${compParsed.registerId}/${compParsed.conceptId}`;
+    const compPos = pos.get(compNodeId);
+    if (!compPos) continue;
+
+    const memberPositions = rel.partitives
+      .map(member => {
+        const parsed = UriRouter.parseUri(member.uri);
+        if (!parsed) return null;
+        const nid = `${parsed.registerId}/${parsed.conceptId}`;
+        const p = pos.get(nid);
+        return p ? { member, pos: p } : null;
+      })
+      .filter((x): x is { member: PartitiveMemberWire; pos: {x: number; y: number} } => x !== null);
+
+    if (memberPositions.length === 0) continue;
+
+    // 1. Compute stem-axis (comp → centroid of partitives) and spine-axis (perpendicular)
+    const centroidX = memberPositions.reduce((s, m) => s + m.pos.x, 0) / memberPositions.length;
+    const centroidY = memberPositions.reduce((s, m) => s + m.pos.y, 0) / memberPositions.length;
+    const stemDx = centroidX - compPos.x;
+    const stemDy = centroidY - compPos.y;
+    const stemLen = Math.hypot(stemDx, stemDy) || 1;
+    const stemDirX = stemDx / stemLen;     // unit vector along stem
+    const stemDirY = stemDy / stemLen;
+    const spineDirX = -stemDirY;            // perpendicular = spine direction
+    const spineDirY = stemDirX;
+
+    // 2. Spine center: along stem-axis at SPINE_FRACTION from comp
+    const spineCx = compPos.x + stemDirX * stemLen * SPINE_FRACTION;
+    const spineCy = compPos.y + stemDirY * stemLen * SPINE_FRACTION;
+
+    // 3. Tooth positions = projection of each partitive onto spine line
+    const teeth = memberPositions.map(({ member, pos: pPos }) => {
+      const vx = pPos.x - spineCx;
+      const vy = pPos.y - spineCy;
+      const along = vx * spineDirX + vy * spineDirY;
+      const toothX = spineCx + spineDirX * along;
+      const toothY = spineCy + spineDirY * along;
+      return {
+        member,
+        partitivePos: pPos,
+        toothX,
+        toothY,
+        along,
+        style: rakeStrokeStyle(member.presence, member.count, member.isDelimiting),
+      };
+    });
+
+    // 4. Spine extents (leftmost to rightmost tooth along spine-axis)
+    let minAlong = teeth[0].along;
+    let maxAlong = teeth[0].along;
+    for (const t of teeth) {
+      if (t.along < minAlong) minAlong = t.along;
+      if (t.along > maxAlong) maxAlong = t.along;
+    }
+    // For completeness: 'partial', extend past last tooth (continued backline)
+    if (rel.completeness === 'partial') maxAlong += PARTIAL_TAIL;
+    const spineStartX = spineCx + spineDirX * minAlong;
+    const spineStartY = spineCy + spineDirY * minAlong;
+    const spineEndX = spineCx + spineDirX * maxAlong;
+    const spineEndY = spineCy + spineDirY * maxAlong;
+
+    /**
+     * Draw a single straight segment.
+     *
+     * Stem + spine use FRAME_STROKE_WIDTH (single solid frame).
+     * Drops use the per-member multiplicity + delimiting style from
+     * rakeStrokeStyle().
+     */
+    const drawSegment = (
+      ax: number, ay: number, bx: number, by: number,
+      opts: { width: number; dashed?: boolean; offset?: number; opacity?: number },
+    ) => {
+      const opacity = opts.opacity ?? 0.85;
+      const offset = opts.offset ?? 0;
+      const dashed = opts.dashed ?? false;
+      const dx = bx - ax, dy = by - ay;
+      const len = Math.hypot(dx, dy) || 1;
+      const px = -dy / len, py = dx / len;
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('class', 'rake-seg');
+      line.setAttribute('x1', String(ax + px * offset));
+      line.setAttribute('y1', String(ay + py * offset));
+      line.setAttribute('x2', String(bx + px * offset));
+      line.setAttribute('y2', String(by + py * offset));
+      line.setAttribute('stroke', color);
+      line.setAttribute('stroke-width', String(opts.width));
+      line.setAttribute('opacity', String(opacity));
+      line.setAttribute('stroke-linecap', 'square');
+      if (dashed) line.setAttribute('stroke-dasharray', DASH);
+      svg.appendChild(line);
+    };
+
+    // 5. Stem: comp → spine center (frame — single solid)
+    drawSegment(compPos.x, compPos.y, spineCx, spineCy, { width: FRAME_STROKE_WIDTH });
+
+    // 6. Spine: leftmost tooth → rightmost tooth (frame — single solid)
+    if (Math.abs(maxAlong - minAlong) > 1) {
+      drawSegment(spineStartX, spineStartY, spineEndX, spineEndY, { width: FRAME_STROKE_WIDTH });
+    }
+
+    // 7. Drops: tooth → partitive (per-member multiplicity + delimiting)
+    //    Draw 1 or 2 parallel lines per the style.
+    for (const tooth of teeth) {
+      drawSegment(tooth.toothX, tooth.toothY, tooth.partitivePos.x, tooth.partitivePos.y, {
+        width: tooth.style.strokeWidth,
+        dashed: tooth.style.primaryDashed,
+      });
+      if (tooth.style.lineCount === 2) {
+        drawSegment(tooth.toothX, tooth.toothY, tooth.partitivePos.x, tooth.partitivePos.y, {
+          width: tooth.style.strokeWidth,
+          dashed: tooth.style.secondaryDashed,
+          offset: DOUBLE_GAP,
+        });
+      }
+    }
+
+    // 8. Junction marker at spine center (the right-angle corner)
+    const junction = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    junction.setAttribute('class', 'rake-junction');
+    junction.setAttribute('cx', String(spineCx));
+    junction.setAttribute('cy', String(spineCy));
+    junction.setAttribute('r', '2.5');
+    junction.setAttribute('fill', color);
+    junction.setAttribute('opacity', '0.9');
+    junction.setAttribute('stroke', uiStore.isDark ? '#0a1f1c' : '#ffffff');
+    junction.setAttribute('stroke-width', '1');
+    svg.appendChild(junction);
+
+    // 9. Diamond marker at comprehensive end (hyperedge origin)
+    const diamond = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const dsize = 5;
+    diamond.setAttribute('d',
+      `M ${compPos.x} ${compPos.y - dsize} L ${compPos.x + dsize} ${compPos.y} L ${compPos.x} ${compPos.y + dsize} L ${compPos.x - dsize} ${compPos.y} Z`);
+    diamond.setAttribute('fill', color);
+    diamond.setAttribute('opacity', '0.9');
+    diamond.setAttribute('stroke', uiStore.isDark ? '#0a1f1c' : '#ffffff');
+    diamond.setAttribute('stroke-width', '1');
+    svg.appendChild(diamond);
+  }
+}
+
+function ensureMarkers(svg: SVGSVGElement) {
+  let defs = svg.querySelector('defs');
+  if (!defs) { defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs'); svg.appendChild(defs); }
+}
+
+/* Lazy per-type marker — arrow color matches the edge's per-type color
+   (which may differ from the category color via TYPE_COLOR_OVERRIDE). */
+function ensureTypeMarker(svg: SVGSVGElement, typeId: string, color: string): string {
+  const safeId = typeId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const markerId = `rel-arrow-t-${safeId}`;
+  if (svg.querySelector(`#${markerId}`)) return markerId;
+  let defs = svg.querySelector('defs');
+  if (!defs) { defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs'); svg.appendChild(defs); }
+  const m = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+  m.setAttribute('id', markerId);
+  m.setAttribute('viewBox', '0 0 8 8'); m.setAttribute('refX', '6'); m.setAttribute('refY', '4');
+  m.setAttribute('markerWidth', '5'); m.setAttribute('markerHeight', '5'); m.setAttribute('orient', 'auto');
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  p.setAttribute('d', 'M 0 0 L 6 4 L 0 8 z'); p.setAttribute('fill', color);
+  m.appendChild(p); defs.appendChild(m);
+  return markerId;
 }
 
 /* ── Render DOM nodes ───────────────────────────────────── */
