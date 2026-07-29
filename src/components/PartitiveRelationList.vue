@@ -20,6 +20,7 @@ import { getFactory } from '../adapters/factory';
 import { useI18n, locale } from '../i18n';
 import { completenessLabel } from '../utils/partitive-relation-styling';
 import { presenceLabel, countLabel } from '../utils/partitive-multiplicity';
+import { resolveDesignation } from '../utils/resolve-designation';
 import PartitiveRelationDiagram, {
   type PartitiveMemberLabeled,
 } from './PartitiveRelationDiagram.vue';
@@ -36,25 +37,7 @@ const factory = getFactory();
 const { t } = useI18n();
 
 function designationFor(uri: string): string {
-  const node = store.graph.getNode(uri);
-  if (node) {
-    const des = node.designations[locale.value]
-      || node.designations.eng
-      || Object.values(node.designations)[0];
-    if (des) return des;
-  }
-  const resolution = factory.resolve(uri);
-  if (resolution.type === 'internal') {
-    const adapter = store.datasets.get(resolution.registerId);
-    const entry = adapter?.getIndexEntry(resolution.conceptId);
-    if (entry) {
-      const des = entry.designations[locale.value]
-        || entry.designations.eng
-        || Object.values(entry.designations)[0];
-      if (des) return des;
-    }
-  }
-  return resolution.type === 'internal' ? resolution.conceptId : uri;
+  return resolveDesignation(uri, store, factory, locale.value);
 }
 
 function navigate(uri: string) {

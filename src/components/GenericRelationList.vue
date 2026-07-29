@@ -22,6 +22,7 @@ import { getFactory } from '../adapters/factory';
 import { useI18n, locale } from '../i18n';
 import { completenessLabel } from '../utils/partitive-relation-styling';
 import { presenceLabel, countLabel } from '../utils/partitive-multiplicity';
+import { resolveDesignation } from '../utils/resolve-designation';
 import PartitiveRelationDiagram, {
   type PartitiveMemberLabeled,
 } from './PartitiveRelationDiagram.vue';
@@ -38,34 +39,16 @@ const factory = getFactory();
 const { t } = useI18n();
 
 function designationFor(uri: string): string {
-  const node = store.graph.getNode(uri);
-  if (node) {
-    const des = node.designations[locale.value]
-      || node.designations.eng
-      || Object.values(node.designations)[0];
-    if (des) return des;
-  }
-  const resolution = factory.resolve(uri);
-  if (resolution.type === 'internal') {
-    const adapter = store.datasets.get(resolution.registerId);
-    const entry = adapter?.getIndexEntry(resolution.conceptId);
-    if (entry) {
-      return entry.titles[locale.value]
-        || entry.titles.eng
-        || Object.values(entry.titles)[0]
-        || entry.conceptId;
-    }
-  }
-  return uri;
+  return resolveDesignation(uri, store, factory, locale.value);
 }
 
 function memberLabel(member: GenericRelationWire['members'][number]): PartitiveMemberLabeled {
   return {
-    ref: member.ref,
+    uri: member.uri,
     presence: member.presence,
     count: member.count,
-    is_delimiting: member.is_delimiting,
-    label: designationFor(member.ref.uri ?? `${member.ref.source}:${member.ref.id}`),
+    isDelimiting: member.isDelimiting,
+    label: designationFor(member.uri),
   };
 }
 </script>
@@ -74,7 +57,7 @@ function memberLabel(member: GenericRelationWire['members'][number]): PartitiveM
   <section class="generic-relations" aria-label="Generic relations">
     <div
       v-for="(rel, i) in relations"
-      :key="`generic-${i}-${rel.comprehensive.source}:${rel.comprehensive.id}`"
+      :key="`generic-${i}-${rel.comprehensive}`"
       class="generic-relation-card"
     >
       <header class="relation-header">
@@ -82,24 +65,25 @@ function memberLabel(member: GenericRelationWire['members'][number]): PartitiveM
           {{ completenessLabel(rel.completeness) }}
         </span>
         <span class="badge badge-type">{{ t('relations.generic') }}</span>
-        <h4 class="comprehensive">{{ designationFor(`${rel.comprehensive.source}:${rel.comprehensive.id}`) }}</h4>
+        <h4 class="comprehensive">{{ designationFor(rel.comprehensive) }}</h4>
       </header>
 
       <p v-if="rel.criterion" class="criterion">
-        <em>{{ rel.criterion[locale.value] || rel.criterion.eng || Object.values(rel.criterion)[0] }}</em>
+        <em>{{ rel.criterion[locale] || rel.criterion.eng || Object.values(rel.criterion)[0] }}</em>
       </p>
 
       <PartitiveRelationDiagram
-        :members="rel.members.map(memberLabel)"
-        :comprehensive-label="designationFor(`${rel.comprehensive.source}:${rel.comprehensive.id}`)"
+        :partitives="rel.members.map(memberLabel)"
+        :comprehensive-label="designationFor(rel.comprehensive)"
+        :completeness="rel.completeness"
       />
 
       <ul class="member-presence-list" aria-label="Member presence and count">
         <li v-for="(m, j) in rel.members" :key="j">
-          <span class="member-label">{{ designationFor(`${m.ref.source}:${m.ref.id}`) }}</span>
+          <span class="member-label">{{ designationFor(m.uri) }}</span>
           <span v-if="m.presence && m.presence !== 'required'" class="member-presence">{{ presenceLabel(m.presence) }}</span>
           <span v-if="m.count && m.count !== 'exactly_one'" class="member-count">{{ countLabel(m.count) }}</span>
-          <span v-if="m.is_delimiting" class="member-delimiting">{{ t('relations.delimiting') }}</span>
+          <span v-if="m.isDelimiting" class="member-delimiting">{{ t('relations.delimiting') }}</span>
         </li>
       </ul>
     </div>
