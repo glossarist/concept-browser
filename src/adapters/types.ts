@@ -179,6 +179,30 @@ export interface PartitiveMemberWire {
   isDelimiting: boolean;
 }
 
+/**
+ * GenericRelationWire — ISO 704 / 1087-1 / 12620 generic (genus/
+ * species) decomposition, mirror of PartitiveRelationWire.
+ *
+ * The OIML V 2-200:2010 dataset has ~8 generic hyperedges with
+ * multiple criterion groups per comprehensive; this shape supports
+ * that natively. See docs/design/generic-relation.md (concept-model).
+ */
+export interface GenericRelationWire {
+  source: string;
+  comprehensive: string;
+  members: GenericMemberWire[];
+  completeness: 'complete' | 'partial';
+  criterion?: Record<string, string>;
+  register: string;
+}
+
+export interface GenericMemberWire {
+  uri: string;
+  presence: 'required' | 'optional';
+  count: 'exactly_one' | 'at_least_one' | 'multiple';
+  isDelimiting: boolean;
+}
+
 export interface GraphNode {
   uri: string;
   register: string;
