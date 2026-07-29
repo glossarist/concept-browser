@@ -103,4 +103,33 @@ describe('UriRouter', () => {
       expect(UriRouter.parseUri('https://example.com/other')).toBeNull();
     });
   });
+
+  describe('SSOT: UriRouter.buildConceptUri is the single concept-URI constructor', () => {
+    // Per AUDIT-2026-07-29 P1-1: ConceptIdentity, the conceptUri()
+    // bridge, and UriRouter.buildConceptUri must all funnel through
+    // UriRouter.buildConceptUri. No inline template literals for
+    // `${uriBase}/${registerId}/concept/${id}` outside UriRouter.
+
+    it('UriRouter.buildConceptUri constructs the canonical URI', () => {
+      expect(UriRouter.buildConceptUri('https://x.org', 'vim', '1.3'))
+        .toBe('https://x.org/vim/concept/1.3');
+    });
+
+    it('UriRouter.buildDomainUri constructs the canonical domain URI', () => {
+      expect(UriRouter.buildDomainUri('https://x.org', 'vim', 'physics'))
+        .toBe('https://x.org/vim/domain/physics');
+    });
+
+    it('ConceptIdentity.uri delegates to UriRouter.buildConceptUri', async () => {
+      const { ConceptIdentity } = await import('../adapters/concept-identity');
+      const id = new ConceptIdentity('1.3', 'vim', 'https://x.org');
+      expect(id.uri).toBe(UriRouter.buildConceptUri('https://x.org', 'vim', '1.3'));
+    });
+
+    it('ConceptIdentity.domainUri delegates to UriRouter.buildDomainUri', async () => {
+      const { ConceptIdentity } = await import('../adapters/concept-identity');
+      const id = new ConceptIdentity('1.3', 'vim', 'https://x.org');
+      expect(id.domainUri('physics')).toBe(UriRouter.buildDomainUri('https://x.org', 'vim', 'physics'));
+    });
+  });
 });

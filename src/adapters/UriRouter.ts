@@ -1,5 +1,4 @@
 import type { Manifest } from './types';
-import { ConceptIdentity } from './concept-identity';
 
 // ── URI pattern matching ────────────────────────────────────────────────────
 
@@ -106,11 +105,16 @@ export class UriRouter {
     return `${uriBase}/${registerId}/concept/${conceptId}`;
   }
 
-  /** Construct a canonical URI for a concept. */
+  /** Construct a canonical domain URI from components. */
+  static buildDomainUri(uriBase: string, registerId: string, domainSlug: string): string {
+    return `${uriBase}/${registerId}/domain/${domainSlug}`;
+  }
+
+  /** Construct a canonical URI for a concept from its register-id + concept-id. */
   buildUri(registerId: string, conceptId: string): string {
     const info = this.registerMap.get(registerId);
     const uriBase = info?.uriBase ?? '';
-    return new ConceptIdentity(conceptId, registerId, uriBase).uri;
+    return UriRouter.buildConceptUri(uriBase, registerId, conceptId);
   }
 
   getRegisteredIds(): string[] {
