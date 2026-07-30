@@ -28,6 +28,7 @@ const { t, locale } = useI18n();
 import type { Concept, Manifest, GraphEdge, PartitiveRelationWire, PartitiveMemberWire, GenericRelationWire } from '../adapters/types';
 import { rakeStrokeStyle } from '../utils/partitive-multiplicity';
 import { drawRakeBundles } from './relation-sphere/rake-bundles';
+import { drawGenericPipes } from './relation-sphere/pipe-bundles';
 import { ensureMarkers, ensureTypeMarker } from './relation-sphere/svg-markers';
 import {
   sphereConstraint,
@@ -584,7 +585,7 @@ function drawEdges(cx: number, cy: number) {
   /* Remove only path + text + rect (edges), keep defs (markers).
      Also remove <line> elements (rake-bundle segments) and <circle>
      (rake junction markers). */
-  svg.querySelectorAll('path:not(defs path), line.rake-seg, circle.rake-junction, text.edge-label, rect.edge-label-bg').forEach(el => el.remove());
+  svg.querySelectorAll('path:not(defs path), line.rake-seg, line.pipe-seg, circle.rake-junction, rect.pipe-junction, text.edge-label, text.pipe-label, rect.edge-label-bg, rect.pipe-label-bg').forEach(el => el.remove());
   if (!svg.querySelector('defs')) ensureMarkers(svg);
 
   /* Compute visible node positions */
@@ -706,28 +707,17 @@ function drawEdges(cx: number, cy: number) {
     relations: props.partitiveRelations ?? [],
   });
 
-  /* Generic relations render as rake bundles in a distinct hue (amber).
-     Member shape differs (delimitingCharacteristic instead of isDelimiting),
-     so normalize to the partitive-shaped input the renderer expects. */
-  const genericNormalized: PartitiveRelationWire[] = (props.genericRelations ?? []).map(rel => ({
-    source: rel.source,
-    comprehensive: rel.comprehensive,
-    completeness: rel.completeness,
-    register: rel.register,
-    partitives: rel.members.map(m => ({
-      uri: m.uri,
-      presence: m.presence,
-      count: m.count,
-      /* Every generic member is delimiting by definition (each carries
-         its own delimiting characteristic per ISO 704 §5.5.4.2.1). */
-      isDelimiting: true,
-    })),
-  }));
-  drawRakeBundles(svg, pos, {
+  /* Generic relations render as tree-branch pipe-and-thread bundles
+     (NOT rakes): thick parent pipe from comprehensive to a middle
+     node, then thin direct threads from there to each member. The
+     per-member delimiting characteristic (ISO 704 §5.5.4.2.1) is
+     labeled along each thread; the group criterion at the middle. */
+  drawGenericPipes(svg, pos, {
     isDark: uiStore.isDark,
     color: uiStore.isDark ? '#fbbf24' : '#b45309',
     isMuted: mutedTypes.value.has('__generic__'),
-    relations: genericNormalized,
+    relations: props.genericRelations ?? [],
+    locale: locale.value,
   });
 }
 

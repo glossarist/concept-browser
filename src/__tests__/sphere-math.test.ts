@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hashSeed, expandParams, portSide, portPoint, idToUriGet, visibleNodeIds } from '../utils/sphere-math';
+import { hashSeed, expandParams, portSide, portPoint, idToUriGet, visibleNodeIds, computePipeLayout } from '../utils/sphere-math';
 import type { SphereHyperedgeLike } from '../utils/sphere-math';
 
 describe('sphere-math', () => {
@@ -183,6 +183,76 @@ describe('sphere-math', () => {
       ]);
       const visible = visibleNodeIds(nodes, links, new Set(), new Set());
       expect([...visible].sort()).toEqual(['a', 'b', 'c', 'd', 'focus']);
+    });
+  });
+
+  describe('computePipeLayout', () => {
+    it('returns null for fewer than 2 members', () => {
+      expect(computePipeLayout({ x: 0, y: 0 }, [])).toBeNull();
+      expect(computePipeLayout({ x: 0, y: 0 }, [{ pos: { x: 1, y: 0 } }])).toBeNull();
+    });
+
+    it('places the middle node at the default 50% split between comp and centroid', () => {
+      const comp = { x: 0, y: 0 };
+      const members = [
+        { pos: { x: 10, y: 0 } },
+        { pos: { x: -10, y: 0 } },
+      ];
+      const layout = computePipeLayout(comp, members)!;
+      /* Centroid is (0,0); midpoint between (0,0) and (0,0) is (0,0) */
+      expect(layout.middleNode).toEqual({ x: 0, y: 0 });
+      expect(layout.pipeStart).toEqual(comp);
+      expect(layout.pipeEnd).toEqual(layout.middleNode);
+      expect(layout.threads).toHaveLength(2);
+    });
+
+    it('middle node tracks the member centroid', () => {
+      const comp = { x: 0, y: 0 };
+      const members = [
+        { pos: { x: 10, y: 0 } },
+        { pos: { x: 10, y: 10 } },
+        { pos: { x: 10, y: -10 } },
+      ];
+      const layout = computePipeLayout(comp, members)!;
+      /* Centroid is (10, 0); splitFraction=0.5 → middle at (5, 0) */
+      expect(layout.middleNode).toEqual({ x: 5, y: 0 });
+    });
+
+    it('respects a custom split fraction', () => {
+      const comp = { x: 0, y: 0 };
+      const members = [
+        { pos: { x: 10, y: 0 } },
+        { pos: { x: 10, y: 10 } },
+        { pos: { x: 10, y: -10 } },
+      ];
+      /* splitFraction=0.8 → middle near centroid: (8, 0) */
+      const layout = computePipeLayout(comp, members, 0.8)!;
+      expect(layout.middleNode).toEqual({ x: 8, y: 0 });
+    });
+
+    it('threads connect the middle node to each member', () => {
+      const comp = { x: 0, y: 0 };
+      const members = [
+        { pos: { x: 10, y: 0 } },
+        { pos: { x: -10, y: 0 } },
+      ];
+      const layout = computePipeLayout(comp, members)!;
+      const mid = layout.middleNode;
+      expect(layout.threads[0].start).toEqual(mid);
+      expect(layout.threads[0].end).toEqual(members[0].pos);
+      expect(layout.threads[1].start).toEqual(mid);
+      expect(layout.threads[1].end).toEqual(members[1].pos);
+    });
+
+    it('carries delimitingCharacteristic through to threads', () => {
+      const dc1 = { eng: 'multiple of a unit' };
+      const dc2 = { eng: 'submultiple of a unit' };
+      const layout = computePipeLayout({ x: 0, y: 0 }, [
+        { pos: { x: 10, y: 0 }, delimitingCharacteristic: dc1 },
+        { pos: { x: -10, y: 0 }, delimitingCharacteristic: dc2 },
+      ])!;
+      expect(layout.threads[0].member.delimitingCharacteristic).toBe(dc1);
+      expect(layout.threads[1].member.delimitingCharacteristic).toBe(dc2);
     });
   });
 });

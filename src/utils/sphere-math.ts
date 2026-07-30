@@ -75,6 +75,65 @@ export interface SphereHyperedgeLike {
 }
 
 /**
+ * Layout for the generic-relation "pipe-and-thread" bundle.
+ *
+ * Visual contract (ISO 704 generic relations):
+ *   parent ── thick pipe ──▶ middle node
+ *                              ├── thin thread ──▶ child 1
+ *                              ├── thin thread ──▶ child 2
+ *                              └── thin thread ──▶ child N
+ *
+ * Unlike the partitive rake (right-angle fork notation), this is a
+ * direct tree-branch: straight pipe from comprehensive to a middle
+ * node, then straight threads radiating to each member. The middle
+ * node sits at `splitFraction` along the line from comprehensive to
+ * the member centroid.
+ *
+ * Thick/thin hierarchy: the caller draws `pipeStart → pipeEnd` with a
+ * thick stroke and each thread with a thin stroke — the parent is
+ * visually heavier than the children, matching the tree-branch
+ * metaphor (trunk thicker than twigs).
+ */
+export interface PipeLayoutMember {
+  pos: { x: number; y: number };
+  /** Per-member delimiting characteristic (carried through so the
+   * renderer can label each thread without re-resolving the member). */
+  delimitingCharacteristic?: Record<string, string>;
+}
+
+export interface PipeLayout {
+  middleNode: { x: number; y: number };
+  pipeStart: { x: number; y: number };
+  pipeEnd: { x: number; y: number };
+  threads: Array<{
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+    member: PipeLayoutMember;
+  }>;
+}
+
+export function computePipeLayout(
+  compPos: { x: number; y: number },
+  members: readonly PipeLayoutMember[],
+  splitFraction = 0.5,
+): PipeLayout | null {
+  if (members.length < 2) return null;
+  const sumX = members.reduce((s, m) => s + m.pos.x, 0);
+  const sumY = members.reduce((s, m) => s + m.pos.y, 0);
+  const cx = sumX / members.length;
+  const cy = sumY / members.length;
+  const midX = compPos.x + (cx - compPos.x) * splitFraction;
+  const midY = compPos.y + (cy - compPos.y) * splitFraction;
+  const middleNode = { x: midX, y: midY };
+  return {
+    middleNode,
+    pipeStart: compPos,
+    pipeEnd: middleNode,
+    threads: members.map(m => ({ start: middleNode, end: m.pos, member: m })),
+  };
+}
+
+/**
  * IDs of nodes that should render given the current mute state.
  *
  * The focus node (depth 0) is always visible. Every other node must have
