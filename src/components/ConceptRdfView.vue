@@ -10,12 +10,14 @@ import { useRdfDocument } from './use-rdf-document';
 const props = defineProps<{
   concept: Concept;
   registerId: string;
-  conceptUriValue: string;
+  conceptUriValue: string | null;
 }>();
+
+const uri = computed(() => props.conceptUriValue ?? '');
 
 const { sections, turtle, jsonld, typeChain } = useRdfDocument(
   () => props.concept,
-  () => props.conceptUriValue,
+  () => uri.value,
 );
 
 const resourceCount = computed(() => sections.value.length);
@@ -23,11 +25,11 @@ const conceptId = computed(() => props.concept.id);
 </script>
 
 <template>
-  <ErrorBoundary title="RDF view failed" :retry-key="conceptUriValue">
+  <ErrorBoundary title="RDF view failed" :retry-key="uri">
     <div class="space-y-6">
       <div class="card p-5">
         <div class="flex items-start justify-between gap-3">
-          <RdfInstanceHeader :uri="conceptUriValue" :concept-id="conceptId" />
+          <RdfInstanceHeader :uri="uri" :concept-id="conceptId" />
         </div>
         <div class="mt-4 pt-3 border-t border-ink-100/60">
           <div class="flex items-center gap-1.5 flex-wrap text-xs text-ink-400">

@@ -39,9 +39,9 @@ export interface EdgeDisplay {
 }
 
 export function useConceptEdges(
-  concept: ComputedRef<Concept>,
+  concept: ComputedRef<Concept | null | undefined>,
   registerId: ComputedRef<string>,
-  manifest: ComputedRef<Manifest>,
+  manifest: ComputedRef<Manifest | null | undefined>,
   edges: ComputedRef<GraphEdge[]>,
   router: Router,
 ) {
@@ -50,24 +50,30 @@ export function useConceptEdges(
   const { getColor } = useDsStyle();
   const { locale } = useI18n();
 
-  const conceptUriValue = computed(() =>
-    conceptUri(concept.value, registerId.value, manifest.value.uriBase)
-  );
+  const conceptUriValue = computed(() => {
+    if (!concept.value || !manifest.value) return null;
+    return conceptUri(concept.value, registerId.value, manifest.value.uriBase);
+  });
 
-  const outgoingEdges = computed(() =>
-    store.graph.getUniqueEdges(conceptUriValue.value, 'outgoing', 'target')
-      .filter(e => e.type !== 'domain' && e.type !== 'section')
-  );
+  const outgoingEdges = computed(() => {
+    const uri = conceptUriValue.value;
+    if (!uri) return [];
+    return store.graph.getUniqueEdges(uri, 'outgoing', 'target')
+      .filter(e => e.type !== 'domain' && e.type !== 'section');
+  });
 
-  const incomingEdges = computed(() =>
-    store.graph.getUniqueEdges(conceptUriValue.value, 'incoming', 'source')
-      .filter(e => e.type !== 'domain' && e.type !== 'section')
-  );
+  const incomingEdges = computed(() => {
+    const uri = conceptUriValue.value;
+    if (!uri) return [];
+    return store.graph.getUniqueEdges(uri, 'incoming', 'source')
+      .filter(e => e.type !== 'domain' && e.type !== 'section');
+  });
 
   const edgeDisplayCache = computed(() => {
     const cache = new Map<string, EdgeDisplay>();
+    const focusUri = conceptUriValue.value;
     for (const e of edges.value) {
-      const uri = e.source === conceptUriValue.value ? e.target : e.source;
+      const uri = e.source === focusUri ? e.target : e.source;
       if (cache.has(uri)) continue;
       const resolution = factory.resolve(uri, registerId.value);
       const isLocal = resolution.type === 'internal' && resolution.registerId === registerId.value;
@@ -131,6 +137,7 @@ export function useConceptEdges(
 
   // Concept-level related concepts (managed concept cross-references)
   const conceptRelated = computed(() => {
+    if (!concept.value) return [];
     const direct = concept.value.relatedConcepts?.filter(rc => !INVERSE_RELATIONSHIPS[rc.type]) ?? [];
     const derived = incomingEdges.value
       .filter(e => INVERSE_RELATIONSHIPS[e.type])
@@ -169,6 +176,7 @@ export function useConceptEdges(
   // discrimination is via instanceof.
   function projectHyperedge(rel: any): PartitiveRelationWire | GenericRelationWire | null {
     const source = conceptUriValue.value;
+    if (!source) return null;
     const comprehensive = resolveConceptRefUri(rel.comprehensive);
     if (!comprehensive) return null;
     const isGeneric = rel instanceof GenericHyperedge;
@@ -202,14 +210,16 @@ export function useConceptEdges(
   }
 
   const conceptPartitiveRelations = computed<PartitiveRelationWire[]>(() => {
-    return (concept.value.relations as any[] ?? [])
+    if (!concept.value) return [];
+    return ((concept.value.relations as any[]) ?? [])
       .filter(r => r instanceof PartitiveHyperedge)
       .map(projectHyperedge)
       .filter((r): r is PartitiveRelationWire => r !== null);
   });
 
   const conceptGenericRelations = computed<GenericRelationWire[]>(() => {
-    return (concept.value.relations as any[] ?? [])
+    if (!concept.value) return [];
+    return ((concept.value.relations as any[]) ?? [])
       .filter(r => r instanceof GenericHyperedge)
       .map(projectHyperedge)
       .filter((r): r is GenericRelationWire => r !== null);
