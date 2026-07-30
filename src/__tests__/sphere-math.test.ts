@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { hashSeed, expandParams, portSide, portPoint, idToUriGet, visibleNodeIds } from '../utils/sphere-math';
+import type { SphereHyperedgeLike } from '../utils/sphere-math';
 
 describe('sphere-math', () => {
   describe('hashSeed', () => {
@@ -146,6 +147,30 @@ describe('sphere-math', () => {
       const visible = visibleNodeIds(nodes, links, new Set(), new Set());
       expect(visible.has('focus')).toBe(true);
       expect(visible.has('a')).toBe(false);
+    });
+
+    it('hyperedge member with no bilateral edges stays visible while its bundle is not muted', () => {
+      const nodes = [focus, a, b];
+      const links: Array<{ source: string; target: string; type: string }> = [];
+      const hyperedges: SphereHyperedgeLike[] = [
+        { comprehensive: 'focus', members: ['a', 'b'], muteKey: '__partitive__' },
+      ];
+      const visible = visibleNodeIds(nodes, links, new Set(), new Set(), hyperedges);
+      expect(visible.has('focus')).toBe(true);
+      expect(visible.has('a')).toBe(true);
+      expect(visible.has('b')).toBe(true);
+    });
+
+    it('hyperedge members disappear when the bundle is muted', () => {
+      const nodes = [focus, a, b];
+      const links: Array<{ source: string; target: string; type: string }> = [];
+      const hyperedges: SphereHyperedgeLike[] = [
+        { comprehensive: 'focus', members: ['a', 'b'], muteKey: '__partitive__' },
+      ];
+      const visible = visibleNodeIds(nodes, links, new Set(['__partitive__']), new Set(), hyperedges);
+      expect(visible.has('focus')).toBe(true);
+      expect(visible.has('a')).toBe(false);
+      expect(visible.has('b')).toBe(false);
     });
 
     it('all-visible when no mutes are set', () => {

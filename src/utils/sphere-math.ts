@@ -65,13 +65,27 @@ export interface SphereLinkLike {
   type: string;
 }
 
+export interface SphereHyperedgeLike {
+  /** Node ID of the comprehensive concept. */
+  comprehensive: string;
+  /** Node IDs of the member concepts. */
+  members: readonly string[];
+  /** Mute key — when present in mutedTypes, the whole hyperedge is hidden. */
+  muteKey?: string;
+}
+
 /**
  * IDs of nodes that should render given the current mute state.
  *
  * The focus node (depth 0) is always visible. Every other node must have
  * at least one edge whose type is not muted AND whose other endpoint is
- * not in a muted register — otherwise the card floats with no connections
- * and should disappear when its relations are hidden.
+ * not in a muted register — OR be a member of a non-muted hyperedge —
+ * otherwise the card floats with no connections and should disappear
+ * when its relations are hidden.
+ *
+ * Hyperedge membership counts as a "visible edge" because rake bundles
+ * are the connection: a member with no bilateral edges still needs its
+ * card rendered so the rake has something to point at.
  *
  * Extracted as a pure function so the visibility contract can be tested
  * without mounting the sphere component.
@@ -81,9 +95,18 @@ export function visibleNodeIds(
   links: readonly SphereLinkLike[],
   mutedTypes: ReadonlySet<string>,
   mutedRegisters: ReadonlySet<string>,
+  hyperedges: readonly SphereHyperedgeLike[] = [],
 ): Set<string> {
   const byId = new Map<string, SphereNodeLike>();
   for (const n of nodes) byId.set(n.id, n);
+
+  /* Pre-compute node IDs that participate in a non-muted hyperedge. */
+  const hyperedgeNodeIds = new Set<string>();
+  for (const he of hyperedges) {
+    if (he.muteKey && mutedTypes.has(he.muteKey)) continue;
+    hyperedgeNodeIds.add(he.comprehensive);
+    for (const m of he.members) hyperedgeNodeIds.add(m);
+  }
 
   const visible = new Set<string>();
   for (const n of nodes) {
@@ -92,6 +115,10 @@ export function visibleNodeIds(
       continue;
     }
     if (mutedRegisters.has(n.register)) continue;
+    if (hyperedgeNodeIds.has(n.id)) {
+      visible.add(n.id);
+      continue;
+    }
     for (const l of links) {
       if (mutedTypes.has(l.type)) continue;
       const otherId = l.source === n.id ? l.target : l.target === n.id ? l.source : null;
@@ -105,4 +132,5 @@ export function visibleNodeIds(
   }
   return visible;
 }
+
 
