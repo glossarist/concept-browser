@@ -204,6 +204,35 @@ function withdrawnConcept(): Concept {
   });
 }
 
+function withPartitiveHyperedge(): Concept {
+  const source = 'urn:glossarist:fixtures';
+  return Concept.fromJSON({
+    id: '1.3',
+    uri: `${BASE}/with-partitive-hyperedge`,
+    status: 'valid',
+    localizations: {
+      eng: {
+        language_code: 'eng',
+        entry_status: 'valid',
+        terms: [{ type: 'expression', designation: 'system of quantities', normative_status: 'preferred' }],
+        definition: [{ content: 'A concept that has a partitive decomposition.' }],
+      },
+    },
+    relations: [
+      {
+        type: 'partitive_relation',
+        comprehensive: { source, id: '1.3' },
+        members: [
+          { ref: { source, id: '1.22' }, presence: 'required', count: 'at_least_one' },
+          { ref: { source, id: '1.4' },  presence: 'required', count: 'multiple' },
+          { ref: { source, id: '1.5' },  presence: 'required', count: 'at_least_one' },
+        ],
+        completeness: 'complete',
+      },
+    ],
+  });
+}
+
 export const CONCEPT_FIXTURES: readonly ConceptFixture[] = [
   { name: 'minimal',            description: 'one localization, one designation',                uri: `${BASE}/minimal`,            concept: minimal() },
   { name: 'multilingual',       description: 'three languages across Latn and CJK scripts',      uri: `${BASE}/multilingual`,       concept: multilingual() },
@@ -212,6 +241,7 @@ export const CONCEPT_FIXTURES: readonly ConceptFixture[] = [
   { name: 'with-non-verbal',    description: 'figure, formula, and table non-verbal reps',       uri: `${BASE}/with-non-verbal`,    concept: withNonVerbal() },
   { name: 'with-dates',         description: 'accepted/amended/retired lifecycle',               uri: `${BASE}/with-dates`,         concept: withDates() },
   { name: 'withdrawn',          description: 'withdrawn status with retirement date (J3)',        uri: `${BASE}/withdrawn`,          concept: withdrawnConcept() },
+  { name: 'with-partitive-hyperedge', description: 'partitive decomposition in concept.relations', uri: `${BASE}/with-partitive-hyperedge`, concept: withPartitiveHyperedge() },
 ];
 
 export function fixtureByName(name: string): ConceptFixture {

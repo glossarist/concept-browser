@@ -171,8 +171,6 @@ declare module 'glossarist' {
 
   interface Concept {
     readonly relations: AbstractHyperedge[];
-    readonly partitiveRelations: PartitiveHyperedge[];
-    readonly genericRelations: GenericHyperedge[];
   }
 
   // Re-exposed here so callers importing from the top-level `glossarist`
