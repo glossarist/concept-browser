@@ -516,6 +516,59 @@ function mapPartitiveRelationFromJsonLd(r: JsonLdPartitiveRelation): Record<stri
   return out;
 }
 
+/**
+ * Map a GenericRelation JSON-LD entry to the dict shape that
+ * glossarist-js's GenericHyperedge constructor expects.
+ *
+ * Mirrors mapPartitiveRelationFromJsonLd but reads `gl:hasGeneric` and
+ * carries each member's `gl:delimitingCharacteristic` (ISO 704:2022
+ * §5.5.4.2.1 — required on every GenericMember).
+ */
+function mapGenericRelationFromJsonLd(r: JsonLdPartitiveRelation): Record<string, unknown> | null {
+  const comprehensive = r[GL.COMPREHENSIVE] ? mapRefFromJsonLd(r[GL.COMPREHENSIVE]) : null;
+  if (!comprehensive) return null;
+
+  const members = (r[GL.HAS_GENERIC] ?? [])
+    .map((m): Record<string, unknown> | null => {
+      const ref = m[GL.REF] ? mapRefFromJsonLd(m[GL.REF]) : null;
+      if (!ref) return null;
+      const out: Record<string, unknown> = { ref };
+      const presence = m[GL.PRESENCE];
+      const count = m[GL.COUNT];
+      if (isPartitivePresence(presence) && isPartitiveCount(count)) {
+        out.presence = presence;
+        out.count = count;
+      } else {
+        const raw = m[GL.MULTIPLICITY] ?? splitLegacyCertainty(m[GL.CERTAINTY]);
+        if (raw) {
+          const parts = splitMultiplicity(raw);
+          out.presence = parts.presence;
+          out.count = parts.count;
+        }
+      }
+      const dc = m[GL.DELIMITING_CHARACTERISTIC];
+      if (dc) {
+        out.delimitingCharacteristic = typeof dc === 'string' ? { default: dc } : dc;
+      }
+      return out;
+    })
+    .filter((m): m is Record<string, unknown> => m !== null);
+
+  if (members.length < 2) return null;
+
+  const out: Record<string, unknown> = { comprehensive, members };
+
+  if (r[GL.COMPLETENESS]) out.completeness = r[GL.COMPLETENESS];
+
+  if (r[GL.CRITERION]) {
+    out.criterion = typeof r[GL.CRITERION] === 'string'
+      ? { default: r[GL.CRITERION] }
+      : r[GL.CRITERION];
+  }
+
+  return out;
+}
+
 /** Migrate legacy v2 certainty → old v3 multiplicity string. */
 function splitLegacyCertainty(certainty: string | undefined): string | null {
   if (!certainty) return null;
@@ -549,6 +602,9 @@ function conceptFromJsonLd(doc: JsonLdConcept): Concept {
   const partitiveRelations = (doc[GL.PARTITIVE_RELATIONS] ?? [])
     .map(mapPartitiveRelationFromJsonLd)
     .filter((r): r is Record<string, unknown> => r !== null);
+  const genericRelations = (doc[GL.GENERIC_RELATIONS] ?? [])
+    .map(mapGenericRelationFromJsonLd)
+    .filter((r): r is Record<string, unknown> => r !== null);
   const tagsArr = doc[GL.TAGS];
   const tags = Array.isArray(tagsArr) ? [...tagsArr] : [];
 
@@ -559,6 +615,7 @@ function conceptFromJsonLd(doc: JsonLdConcept): Concept {
     localizations,
     related,
     partitive_relations: partitiveRelations,
+    generic_relations: genericRelations,
     tags,
     figures: normalizeEntityRefs(doc[GL.FIGURE_REF]),
     tables: normalizeEntityRefs(doc[GL.TABLE_REF]),
