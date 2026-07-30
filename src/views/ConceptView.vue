@@ -59,7 +59,7 @@ const edges = computed(() => store.conceptEdges);
 const activeRegisterId = computed(() => sphereFocusPayload.value?.registerId ?? props.registerId);
 const adjacent = ref({ prev: null as string | null, next: null as string | null });
 
-const { conceptPartitiveRelations } = useConceptEdges(
+const { conceptPartitiveRelations, conceptGenericRelations } = useConceptEdges(
   concept,
   activeRegisterId,
   manifest,
@@ -289,6 +289,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
           :register-id="activeRegisterId"
           :edges="edges"
           :partitive-relations="conceptPartitiveRelations"
+          :generic-relations="conceptGenericRelations"
           @navigate="onSphereNavigate"
         />
         <!-- Detail mode -->

@@ -91,6 +91,7 @@ function loadConceptFile(filePath) {
     // Managed concept-level fields
     if (mc.related) result._related = mc.related;
     if (mc.partitive_relations) result._partitiveRelations = mc.partitive_relations;
+    if (mc.generic_relations) result._genericRelations = mc.generic_relations;
     if (mc.data.domains) result._domains = mc.data.domains;
     if (mc.dates) result._dates = mc.dates;
     if (mc.sources) result._sources = mc.sources;
@@ -759,6 +760,54 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
           );
         }
         out['gl:hasPlurality'] = pl;
+      }
+      if (rel.criterion) {
+        out['gl:criterion'] = typeof rel.criterion === 'string'
+          ? { default: rel.criterion }
+          : rel.criterion;
+      }
+      return out;
+    });
+  }
+
+  if (conceptYaml._genericRelations?.length > 0) {
+    doc['gl:genericRelations'] = conceptYaml._genericRelations.map(rel => {
+      const out = { '@type': 'gl:GenericRelation' };
+      if (rel.comprehensive) {
+        out['gl:comprehensive'] = refToJsonLd(rel.comprehensive, 'gl:ConceptRef');
+      }
+      if (Array.isArray(rel.members) && rel.members.length > 0) {
+        out['gl:hasGeneric'] = rel.members.map(member => {
+          const m = { '@type': 'gl:GenericMember' };
+          if (member.ref) {
+            m['gl:ref'] = refToJsonLd(member.ref, 'gl:ConceptRef');
+          } else {
+            m['gl:ref'] = refToJsonLd(member, 'gl:ConceptRef');
+          }
+          const presence = member.presence
+            ?? splitMultiplicity(member.multiplicity ?? '').presence;
+          const count = member.count
+            ?? splitMultiplicity(member.multiplicity ?? '').count;
+          m['gl:presence'] = presence;
+          m['gl:count'] = count;
+          /* ISO 704:2022 §5.5.4.2.1 — every generic member carries a
+             delimiting characteristic that distinguishes it from its
+             coordinate concepts. Required field. */
+          if (member.delimiting_characteristic || member.delimitingCharacteristic) {
+            const dc = member.delimiting_characteristic ?? member.delimitingCharacteristic;
+            m['gl:delimitingCharacteristic'] = typeof dc === 'string'
+              ? { default: dc }
+              : dc;
+          }
+          if (member.multiplicity) m['gl:multiplicity'] = member.multiplicity;
+          const legacyCertainty = member.certainty
+            ?? LEGACY_CERTAINTY_FROM_AXIS[presence];
+          if (legacyCertainty) m['gl:certainty'] = legacyCertainty;
+          return m;
+        });
+      }
+      if (rel.completeness) {
+        out['gl:completeness'] = rel.completeness;
       }
       if (rel.criterion) {
         out['gl:criterion'] = typeof rel.criterion === 'string'
