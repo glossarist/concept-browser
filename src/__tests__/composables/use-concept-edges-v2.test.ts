@@ -39,7 +39,7 @@ function makePartitive(
   if (fields.presence) data.presence = fields.presence;
   if (fields.count) data.count = fields.count;
   if (fields.isDelimiting) data.is_delimiting = fields.isDelimiting;
-  return new PartitiveMemberModel(data as any) as PartitiveMember;
+  return new (PartitiveMemberModel as unknown as new (data: unknown) => PartitiveMember)(data) as PartitiveMember;
 }
 
 function makeRelation(opts: {
@@ -48,7 +48,7 @@ function makeRelation(opts: {
   completeness?: 'complete' | 'partial';
   criterion?: Record<string, string>;
 }): PartitiveHyperedge {
-  return new PartitiveHyperedgeModel(opts as any) as PartitiveHyperedge;
+  return new (PartitiveHyperedgeModel as unknown as new (data: unknown) => PartitiveHyperedge)(opts) as PartitiveHyperedge;
 }
 
 describe('useConceptEdges — MECE PartitiveRelation (glossarist 0.4.26)', () => {
