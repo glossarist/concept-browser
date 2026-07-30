@@ -99,7 +99,7 @@ describe('drawGenericPipes — pipe-and-thread contract', () => {
     expect(svg.querySelectorAll('rect.pipe-junction').length).toBe(1);
   });
 
-  it('renders a delimiting-characteristic label per thread', () => {
+  it('renders ONE characteristic label (the criterion) — no per-thread labels', () => {
     const svg = makeSvg();
     drawGenericPipes(svg, pos, {
       isDark: false,
@@ -109,11 +109,26 @@ describe('drawGenericPipes — pipe-and-thread contract', () => {
       locale: 'eng',
     });
     const labels = Array.from(svg.querySelectorAll('text.pipe-label')).map(t => t.textContent);
-    /* 3 per-member characteristics + 1 group-level criterion = 4 labels */
-    expect(labels).toContain('multiple of a unit');
-    expect(labels).toContain('submultiple of a unit');
-    expect(labels).toContain('coherent derived unit');
-    expect(labels).toContain('by magnitude relationship');
+    /* Exactly one label — the hyperedge-level criterion. Per-member
+       delimitingCharacteristic values are NOT rendered. */
+    expect(labels).toEqual(['by magnitude relationship']);
+  });
+
+  it('renders NO label when the criterion is absent', () => {
+    const svg = makeSvg();
+    const rel = makeRelation();
+    delete rel.criterion;
+    drawGenericPipes(svg, pos, {
+      isDark: false,
+      color: '#b45309',
+      isMuted: false,
+      relations: [rel],
+      locale: 'eng',
+    });
+    /* Pipe + threads + junction + diamond still render, but zero labels. */
+    expect(svg.querySelectorAll('text.pipe-label').length).toBe(0);
+    expect(svg.querySelectorAll('line.pipe-seg').length).toBe(4);
+    expect(svg.querySelectorAll('rect.pipe-junction').length).toBe(1);
   });
 
   it('renders a diamond at the comprehensive end (origin marker)', () => {

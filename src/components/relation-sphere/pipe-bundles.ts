@@ -20,10 +20,13 @@
  *      the rake code with isDelimiting=true on all members, which made
  *      the children THICKER than the parent — backwards.)
  *
- *   3. Per-member delimiting characteristic text is rendered along each
- *      thread (ISO 704 §5.5.4.2.1 — the intension difference that
- *      distinguishes each coordinate concept). The optional group-level
- *      `criterion` is shown at the middle node.
+ *   3. Characteristic label — the criterion is a single hyperedge-level
+ *      field shared by all members (the dimension along which they
+ *      differ), rendered once on the pipe body. Optional: when the
+ *      criterion is absent, no label is shown at all. Per-member
+ *      delimitingCharacteristic is NOT labeled here — those values
+ *      distinguish each member but are not "the characteristic of
+ *      the hyperedge".
  *
  * Pure DOM/geometry — no Vue reactivity, no d3 state. The caller passes
  * the generic relations, position map, and rendering context.
@@ -58,8 +61,8 @@ interface NodePos { x: number; y: number }
  *
  * Each relation produces: 1 thick pipe (comp → middle), N thin threads
  * (middle → each member), 1 junction square at the middle node, 1
- * diamond at the comp end, optional criterion label at the middle,
- * optional delimiting-characteristic label per thread.
+ * diamond at the comp end, and — only when the hyperedge has a
+ * criterion — 1 characteristic label on the pipe body.
  */
 export function drawGenericPipes(
   svg: SVGSVGElement,
@@ -89,23 +92,15 @@ export function drawGenericPipes(
     const layout = computePipeLayout(compPos, memberPositions);
     if (!layout) continue;
 
-    /* 1. Thick parent pipe: comp → middle node */
+    /* 1. Thick parent pipe: comp → middle node. The characteristic
+          label (criterion) sits on the pipe body — see step 4. */
     drawSegment(svg, opts.color, layout.pipeStart, layout.pipeEnd, PIPE_WIDTH);
 
-    /* 2. Thin threads: middle → each member, with characteristic label */
+    /* 2. Thin threads: middle → each member. No per-thread labels —
+          the characteristic is a single hyperedge-level field shared
+          by all members, rendered once on the pipe body. */
     for (const thread of layout.threads) {
       drawSegment(svg, opts.color, thread.start, thread.end, THREAD_WIDTH);
-      const dcText = pickLocalized(thread.member.delimitingCharacteristic, opts.locale);
-      if (dcText) {
-        const midX = (thread.start.x + thread.end.x) / 2;
-        const midY = (thread.start.y + thread.end.y) / 2;
-        drawLabel(svg, midX, midY, dcText, opts.color, {
-          fontSize: 8.5,
-          italic: true,
-          bg: true,
-          isDark: opts.isDark,
-        });
-      }
     }
 
     /* 3. Square junction at the middle node (distinct from the rake's
@@ -113,7 +108,9 @@ export function drawGenericPipes(
           circle = partitive). */
     drawSquare(svg, layout.middleNode.x, layout.middleNode.y, JUNCTION_RADIUS, opts.color, contrastStroke);
 
-    /* 4. Group-level criterion label, if present */
+    /* 4. Characteristic label — single, hyperedge-level, optional.
+          Drawn on the pipe body (midpoint between comp and middle node).
+          When criterion is absent, no label is rendered at all. */
     const critText = pickLocalized(rel.criterion, opts.locale);
     if (critText) {
       const midX = (layout.pipeStart.x + layout.pipeEnd.x) / 2;
