@@ -97,6 +97,13 @@ const mutedRegisters = ref<Set<string>>(new Set());
 const panelOpen = ref(true);
 const MAX_NODES = 36;
 
+/** Convert a concept URI to the internal `${registerId}/${conceptId}` node ID. */
+function uriToNodeId(uri: string): string {
+  const parsed = UriRouter.parseUri(uri);
+  if (parsed) return `${parsed.registerId}/${parsed.conceptId}`;
+  return uri;
+}
+
 /* Sphere-display language. Defaults to the i18n UI locale (which reads
    localStorage) so e.g. a user returning in French mode sees French
    terms by default. The user can override via the Language selector. */
@@ -735,8 +742,29 @@ function renderDOM() {
 
   /* Cards with no visible edges (after applying type + register mutes)
      float with no connections — hide them so toggling a relation type
-     cleans up orphaned cards. Focus node (depth 0) always renders. */
-  const visibleIds = visibleNodeIds(nodes, links, mutedTypes.value, mutedRegisters.value);
+     cleans up orphaned cards. Focus node (depth 0) always renders.
+     Hyperedge members are always visible while their bundle is not
+     muted, even when they have no bilateral edges, so the rake has a
+     card to point at. */
+  const hyperedgesForVisibility = [
+    ...(props.partitiveRelations ?? []).map(rel => ({
+      comprehensive: uriToNodeId(rel.comprehensive),
+      members: rel.partitives.map(m => uriToNodeId(m.uri)),
+      muteKey: '__partitive__',
+    })),
+    ...(props.genericRelations ?? []).map(rel => ({
+      comprehensive: uriToNodeId(rel.comprehensive),
+      members: rel.members.map(m => uriToNodeId(m.uri)),
+      muteKey: '__generic__',
+    })),
+  ];
+  const visibleIds = visibleNodeIds(
+    nodes,
+    links,
+    mutedTypes.value,
+    mutedRegisters.value,
+    hyperedgesForVisibility,
+  );
 
   for (const n of nodes) {
     if (!visibleIds.has(n.id)) continue;
