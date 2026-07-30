@@ -12,6 +12,17 @@ nav.about: About
 nav.sources: Sources
 nav.navigation: Navigation
 nav.datasets: Datasets
+nav.relationTypes: Relation Types
+
+# Relation Types teaching page
+relationTypes.intro: What each line shape and label means in this site. Diagrams use the same renderers as the Relation Sphere, so what you see here is what you'll see in the wild.
+relationTypes.hyperedgeSection: Hyperedge relations (one-to-many)
+relationTypes.bilateralSection: Bilateral relations (one-to-one)
+relationTypes.isoStandard: ISO standard
+relationTypes.example: Example
+relationTypes.category: Category
+relationTypes.diagram: Diagram
+relationTypes.notInDataset: Not used in the current dataset
 
 # Home page
 home.search: Search
@@ -213,6 +224,8 @@ sphere.tight: tight
 sphere.loose: loose
 sphere.redraw: Redraw
 sphere.focus: FOCUS
+sphere.toggleMute: Toggle visibility
+sphere.learnAbout: Learn about this relation type
 concept.detailView: Detail
 concept.relationSphere: Relation Sphere
 concept.permalink: Permalink
