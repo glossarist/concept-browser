@@ -112,4 +112,32 @@ describe('useConceptEdges — hyperedge projection (regression)', () => {
     );
     expect(conceptPartitiveRelations.value.length).toBe(1);
   });
+
+  it('projects a GenericHyperedge from concept.relations', () => {
+    const { concept } = fixtureByName('with-generic-hyperedge');
+    const { conceptGenericRelations } = useConceptEdges(
+      computed(() => concept),
+      computed(() => 'fixtures'),
+      computed(() => manifest),
+      computed(() => noEdges),
+      noopRouter,
+    );
+
+    const rels = conceptGenericRelations.value;
+    expect(rels).toHaveLength(1);
+
+    const [rel] = rels;
+    expect(rel.comprehensive).toBe('https://glossarist.org/fixtures/concept/1.9');
+    expect(rel.members).toHaveLength(3);
+    expect(rel.members.map(m => m.uri)).toEqual([
+      'https://glossarist.org/fixtures/concept/1.17',
+      'https://glossarist.org/fixtures/concept/1.18',
+      'https://glossarist.org/fixtures/concept/1.12',
+    ]);
+    /* ISO 704:2022 §5.5.4.2.1 — every generic member carries a
+       delimiting characteristic. Pin the field is projected. */
+    expect(rel.members[0].delimitingCharacteristic).toEqual({ eng: 'multiple of a unit' });
+    expect(rel.members[1].delimitingCharacteristic).toEqual({ eng: 'submultiple of a unit' });
+    expect(rel.criterion).toEqual({ eng: 'by magnitude relationship to a reference unit' });
+  });
 });

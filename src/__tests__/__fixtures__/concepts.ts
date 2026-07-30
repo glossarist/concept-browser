@@ -233,6 +233,36 @@ function withPartitiveHyperedge(): Concept {
   });
 }
 
+function withGenericHyperedge(): Concept {
+  const source = 'urn:glossarist:fixtures';
+  return Concept.fromJSON({
+    id: '1.9',
+    uri: `${BASE}/with-generic-hyperedge`,
+    status: 'valid',
+    localizations: {
+      eng: {
+        language_code: 'eng',
+        entry_status: 'valid',
+        terms: [{ type: 'expression', designation: 'measurement unit', normative_status: 'preferred' }],
+        definition: [{ content: 'A concept that has a generic (genus/species) decomposition.' }],
+      },
+    },
+    relations: [
+      {
+        type: 'generic_relation',
+        comprehensive: { source, id: '1.9' },
+        criterion: { eng: 'by magnitude relationship to a reference unit' },
+        members: [
+          { ref: { source, id: '1.17' }, presence: 'required', count: 'at_least_one', delimitingCharacteristic: { eng: 'multiple of a unit' } },
+          { ref: { source, id: '1.18' }, presence: 'required', count: 'at_least_one', delimitingCharacteristic: { eng: 'submultiple of a unit' } },
+          { ref: { source, id: '1.12' }, presence: 'required', count: 'at_least_one', delimitingCharacteristic: { eng: 'coherent derived unit' } },
+        ],
+        completeness: 'partial',
+      },
+    ],
+  });
+}
+
 export const CONCEPT_FIXTURES: readonly ConceptFixture[] = [
   { name: 'minimal',            description: 'one localization, one designation',                uri: `${BASE}/minimal`,            concept: minimal() },
   { name: 'multilingual',       description: 'three languages across Latn and CJK scripts',      uri: `${BASE}/multilingual`,       concept: multilingual() },
@@ -242,6 +272,7 @@ export const CONCEPT_FIXTURES: readonly ConceptFixture[] = [
   { name: 'with-dates',         description: 'accepted/amended/retired lifecycle',               uri: `${BASE}/with-dates`,         concept: withDates() },
   { name: 'withdrawn',          description: 'withdrawn status with retirement date (J3)',        uri: `${BASE}/withdrawn`,          concept: withdrawnConcept() },
   { name: 'with-partitive-hyperedge', description: 'partitive decomposition in concept.relations', uri: `${BASE}/with-partitive-hyperedge`, concept: withPartitiveHyperedge() },
+  { name: 'with-generic-hyperedge',   description: 'generic (genus/species) decomposition in concept.relations', uri: `${BASE}/with-generic-hyperedge`, concept: withGenericHyperedge() },
 ];
 
 export function fixtureByName(name: string): ConceptFixture {

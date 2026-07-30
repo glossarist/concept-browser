@@ -25,7 +25,7 @@ import { hashSeed, expandParams, portSide, portPoint, idToUriGet, visibleNodeIds
 import { useI18n } from '../i18n';
 
 const { t, locale } = useI18n();
-import type { Concept, Manifest, GraphEdge, PartitiveRelationWire, PartitiveMemberWire } from '../adapters/types';
+import type { Concept, Manifest, GraphEdge, PartitiveRelationWire, PartitiveMemberWire, GenericRelationWire } from '../adapters/types';
 import { rakeStrokeStyle } from '../utils/partitive-multiplicity';
 import { drawRakeBundles } from './relation-sphere/rake-bundles';
 import { ensureMarkers, ensureTypeMarker } from './relation-sphere/svg-markers';
@@ -45,6 +45,7 @@ const props = defineProps<{
   registerId: string;
   edges: GraphEdge[];
   partitiveRelations?: PartitiveRelationWire[];
+  genericRelations?: GenericRelationWire[];
 }>();
 
 const emit = defineEmits<{
@@ -403,16 +404,22 @@ function buildGraph() {
   nodes = Array.from(nodeMap.values());
   links = resultLinks;
 
-  /* Ensure every PartitiveRelation member is present in the graph
-     so the rake bundle can render. The comprehensive is normally the
-     focus; partitives may need to be added as depth-1 neighbors. */
-  for (const rel of props.partitiveRelations ?? []) {
+  /* Ensure every PartitiveRelation + GenericRelation member is present
+     in the graph so rake bundles can render. The comprehensive is
+     normally the focus; members may need to be added as depth-1
+     neighbors. */
+  const hyperedgeRelations: ReadonlyArray<PartitiveRelationWire | GenericRelationWire> = [
+    ...(props.partitiveRelations ?? []),
+    ...(props.genericRelations ?? []),
+  ];
+  for (const rel of hyperedgeRelations) {
     const compParsed = UriRouter.parseUri(rel.comprehensive);
     if (!compParsed) continue;
     const compNodeId = `${compParsed.registerId}/${compParsed.conceptId}`;
     if (!nodeMap.has(compNodeId)) continue;
 
-    for (const member of rel.partitives) {
+    const members = 'partitives' in rel ? rel.partitives : rel.members;
+    for (const member of members) {
       const parsed = UriRouter.parseUri(member.uri);
       if (!parsed) continue;
       const nid = `${parsed.registerId}/${parsed.conceptId}`;
@@ -690,6 +697,30 @@ function drawEdges(cx: number, cy: number) {
     color: uiStore.isDark ? '#2dd4bf' : '#0d9488',
     isMuted: mutedTypes.value.has('__partitive__'),
     relations: props.partitiveRelations ?? [],
+  });
+
+  /* Generic relations render as rake bundles in a distinct hue (amber).
+     Member shape differs (delimitingCharacteristic instead of isDelimiting),
+     so normalize to the partitive-shaped input the renderer expects. */
+  const genericNormalized: PartitiveRelationWire[] = (props.genericRelations ?? []).map(rel => ({
+    source: rel.source,
+    comprehensive: rel.comprehensive,
+    completeness: rel.completeness,
+    register: rel.register,
+    partitives: rel.members.map(m => ({
+      uri: m.uri,
+      presence: m.presence,
+      count: m.count,
+      /* Every generic member is delimiting by definition (each carries
+         its own delimiting characteristic per ISO 704 §5.5.4.2.1). */
+      isDelimiting: true,
+    })),
+  }));
+  drawRakeBundles(svg, pos, {
+    isDark: uiStore.isDark,
+    color: uiStore.isDark ? '#fbbf24' : '#b45309',
+    isMuted: mutedTypes.value.has('__generic__'),
+    relations: genericNormalized,
   });
 }
 
@@ -1022,6 +1053,16 @@ const legendItems = computed(() => {
       label: 'partitive relation',
       color: uiStore.isDark ? '#2dd4bf' : '#0d9488',
       count: partitiveCount,
+    });
+  }
+  /* Synthetic entry for GenericRelations — same idea, distinct hue. */
+  const genericCount = props.genericRelations?.length ?? 0;
+  if (genericCount > 0) {
+    typeMap.set('__generic__', {
+      type: '__generic__',
+      label: 'generic relation',
+      color: uiStore.isDark ? '#fbbf24' : '#b45309',
+      count: genericCount,
     });
   }
   return Array.from(typeMap.values()).sort((a, b) => b.count - a.count);
