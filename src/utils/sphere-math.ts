@@ -52,3 +52,57 @@ export function idToUriGet(map: Map<string, string>, uri: string): string | unde
   for (const [id, u] of map) if (u === uri) return id;
   return undefined;
 }
+
+export interface SphereNodeLike {
+  id: string;
+  register: string;
+  depth: number;
+}
+
+export interface SphereLinkLike {
+  source: string;
+  target: string;
+  type: string;
+}
+
+/**
+ * IDs of nodes that should render given the current mute state.
+ *
+ * The focus node (depth 0) is always visible. Every other node must have
+ * at least one edge whose type is not muted AND whose other endpoint is
+ * not in a muted register — otherwise the card floats with no connections
+ * and should disappear when its relations are hidden.
+ *
+ * Extracted as a pure function so the visibility contract can be tested
+ * without mounting the sphere component.
+ */
+export function visibleNodeIds(
+  nodes: readonly SphereNodeLike[],
+  links: readonly SphereLinkLike[],
+  mutedTypes: ReadonlySet<string>,
+  mutedRegisters: ReadonlySet<string>,
+): Set<string> {
+  const byId = new Map<string, SphereNodeLike>();
+  for (const n of nodes) byId.set(n.id, n);
+
+  const visible = new Set<string>();
+  for (const n of nodes) {
+    if (n.depth === 0) {
+      visible.add(n.id);
+      continue;
+    }
+    if (mutedRegisters.has(n.register)) continue;
+    for (const l of links) {
+      if (mutedTypes.has(l.type)) continue;
+      const otherId = l.source === n.id ? l.target : l.target === n.id ? l.source : null;
+      if (!otherId) continue;
+      const other = byId.get(otherId);
+      if (!other) continue;
+      if (other.depth !== 0 && mutedRegisters.has(other.register)) continue;
+      visible.add(n.id);
+      break;
+    }
+  }
+  return visible;
+}
+
