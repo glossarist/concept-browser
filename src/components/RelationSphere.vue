@@ -1078,7 +1078,7 @@ const legendItems = computed(() => {
   if (partitiveCount > 0) {
     typeMap.set('__partitive__', {
       type: '__partitive__',
-      label: 'partitive relation',
+      label: 'Partitive Relation',
       color: uiStore.isDark ? '#2dd4bf' : '#0d9488',
       count: partitiveCount,
     });
@@ -1088,7 +1088,7 @@ const legendItems = computed(() => {
   if (genericCount > 0) {
     typeMap.set('__generic__', {
       type: '__generic__',
-      label: 'generic relation',
+      label: 'General Relation',
       color: uiStore.isDark ? '#fbbf24' : '#b45309',
       count: genericCount,
     });

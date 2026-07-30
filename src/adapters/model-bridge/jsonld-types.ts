@@ -141,6 +141,8 @@ export interface JsonLdPartitiveMember {
   'gl:count'?: string;
   /** ISO 704:2022: delimiting part (3× stroke width in diagrams) */
   'gl:isDelimiting'?: boolean;
+  /** ISO 704:2022 §5.5.4.2.1: GenericMember delimiting characteristic (required on generic members) */
+  'gl:delimitingCharacteristic'?: Record<string, string> | string;
   /** Legacy v3 field — one-string multiplicity, split into presence+count */
   'gl:multiplicity'?: string;
   /** Legacy v2 field — migrated to presence+count */
