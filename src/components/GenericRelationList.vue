@@ -42,12 +42,17 @@ function designationFor(uri: string): string {
   return resolveDesignation(uri, store, factory, locale.value);
 }
 
+/** Resolve a LocalizedString delimitingCharacteristic to the current locale. */
+function characteristicText(dc: Record<string, string>): string {
+  return dc[locale.value] ?? dc.default ?? dc.eng ?? Object.values(dc)[0] ?? '';
+}
+
 function memberLabel(member: GenericRelationWire['members'][number]): PartitiveMemberLabeled {
   return {
     uri: member.uri,
     presence: member.presence,
     count: member.count,
-    isDelimiting: member.isDelimiting,
+    isDelimiting: false,
     label: designationFor(member.uri),
   };
 }
@@ -78,12 +83,15 @@ function memberLabel(member: GenericRelationWire['members'][number]): PartitiveM
         :completeness="rel.completeness"
       />
 
-      <ul class="member-presence-list" aria-label="Member presence and count">
+      <ul class="member-presence-list" aria-label="Member delimiting characteristics">
         <li v-for="(m, j) in rel.members" :key="j">
           <span class="member-label">{{ designationFor(m.uri) }}</span>
+          <span
+            v-if="m.delimitingCharacteristic"
+            class="member-delimiting-characteristic"
+          >{{ characteristicText(m.delimitingCharacteristic) }}</span>
           <span v-if="m.presence && m.presence !== 'required'" class="member-presence">{{ presenceLabel(m.presence) }}</span>
           <span v-if="m.count && m.count !== 'exactly_one'" class="member-count">{{ countLabel(m.count) }}</span>
-          <span v-if="m.isDelimiting" class="member-delimiting">{{ t('relations.delimiting') }}</span>
         </li>
       </ul>
     </div>

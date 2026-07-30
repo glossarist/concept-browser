@@ -134,6 +134,7 @@ export const GL = {
   PRESENCE: 'gl:presence',
   COUNT: 'gl:count',
   IS_DELIMITING: 'gl:isDelimiting',
+  DELIMITING_CHARACTERISTIC: 'gl:delimitingCharacteristic',
   MULTIPLICITY: 'gl:multiplicity',
   CERTAINTY: 'gl:certainty',
 

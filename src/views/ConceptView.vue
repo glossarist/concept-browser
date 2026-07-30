@@ -89,7 +89,7 @@ const partitiveRelationsForSphere = computed<PartitiveRelationWire[]>(() => {
         if (uri === sourceUri) return null;
         const presence: PartitivePresence = member.presence;
         const count: PartitiveCount = member.count;
-        const isDelimiting = member.isDelimiting;
+        const isDelimiting = (member as any).is_delimiting === true;
         return { uri, presence, count, isDelimiting };
       })
       .filter((x): x is PartitiveMemberWire => x !== null);

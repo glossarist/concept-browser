@@ -58,8 +58,8 @@ function makeRelation(overrides: Partial<GenericRelationWire> = {}): GenericRela
     source: 'https://example.org/test/concept/5-1',
     comprehensive: 'https://example.org/test/concept/5-1',
     members: [
-      { uri: 'https://example.org/test/concept/5-4', presence: 'required', count: 'exactly_one', delimitingCharacteristic: { eng: "test characteristic" } },
-      { uri: 'https://example.org/test/concept/5-5', presence: 'required', count: 'exactly_one', delimitingCharacteristic: { eng: "test characteristic" } },
+      { uri: 'https://example.org/test/concept/5-4', presence: 'required', count: 'exactly_one', isDelimiting: false },
+      { uri: 'https://example.org/test/concept/5-5', presence: 'required', count: 'exactly_one', isDelimiting: false },
     ],
     completeness: 'complete',
     register: 'test',
@@ -120,8 +120,8 @@ describe('GenericRelationList — wire-type contract mount test', () => {
       props: {
         relations: [makeRelation({
           members: [
-            { uri: 'https://example.org/test/concept/5-4', presence: 'optional', count: 'multiple', delimitingCharacteristic: { eng: "delimiting by light sensors" } },
-            { uri: 'https://example.org/test/concept/5-5', presence: 'required', count: 'exactly_one', delimitingCharacteristic: { eng: "test characteristic" } },
+            { uri: 'https://example.org/test/concept/5-4', presence: 'optional', count: 'multiple', isDelimiting: true },
+            { uri: 'https://example.org/test/concept/5-5', presence: 'required', count: 'exactly_one', isDelimiting: false },
           ],
         })],
         manifest,

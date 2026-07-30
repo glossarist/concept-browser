@@ -171,18 +171,24 @@ export function useConceptEdges(
     const source = conceptUriValue.value;
     const comprehensive = resolveConceptRefUri(rel.comprehensive);
     if (!comprehensive) return null;
-    const members: PartitiveMemberWire[] = (rel.members ?? rel.partitives ?? [])
-      .map((m: any): PartitiveMemberWire | null => {
+    const isGeneric = rel instanceof GenericHyperedge;
+    const members: any[] = (rel.members ?? rel.partitives ?? [])
+      .map((m: any): any | null => {
         const uri = resolveConceptRefUri(m.ref);
         if (!uri || uri === source) return null;
-        return {
+        const base: any = {
           uri,
           presence: readPresence(m),
           count: readCount(m),
-          isDelimiting: readIsDelimiting(m),
         };
+        if (isGeneric) {
+          base.delimitingCharacteristic = m.delimitingCharacteristic;
+        } else {
+          base.isDelimiting = readIsDelimiting(m);
+        }
+        return base;
       })
-      .filter((m: PartitiveMemberWire | null): m is PartitiveMemberWire => m !== null);
+      .filter((m: any | null): m is any => m !== null);
     if (members.length === 0) return null;
     return {
       source,
