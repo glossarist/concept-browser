@@ -21,7 +21,7 @@ import { easeInOutCubic, slerp, fibonacciSpherePosition, project, cardEdge, type
 import { UriRouter } from '../adapters/UriRouter';
 import { getPreferredTerm } from '../utils/concept-helpers';
 import { renderContent } from '../utils/content-renderer';
-import { hashSeed, expandParams, portSide, portPoint, idToUriGet } from '../utils/sphere-math';
+import { hashSeed, expandParams, portSide, portPoint, idToUriGet, visibleNodeIds } from '../utils/sphere-math';
 import { useI18n } from '../i18n';
 
 const { t, locale } = useI18n();
@@ -702,9 +702,13 @@ function renderDOM() {
   const cx = c ? c.clientWidth / 2 : 0;
   const cy = c ? c.clientHeight * 0.46 : 0;
 
+  /* Cards with no visible edges (after applying type + register mutes)
+     float with no connections — hide them so toggling a relation type
+     cleans up orphaned cards. Focus node (depth 0) always renders. */
+  const visibleIds = visibleNodeIds(nodes, links, mutedTypes.value, mutedRegisters.value);
+
   for (const n of nodes) {
-    /* Skip muted-register nodes (except focus) */
-    if (n.depth !== 0 && mutedRegisters.value.has(n.register)) continue;
+    if (!visibleIds.has(n.id)) continue;
 
     const dsColor = getColor(n.register) || '#888';
     const el = document.createElement('div');
@@ -1164,6 +1168,9 @@ function toggleType(type: string) {
   mutedTypes.value = n;
   const c = canvasRef.value;
   if (c) drawEdges(c.clientWidth / 2, c.clientHeight * 0.46);
+  /* Re-render cards so nodes whose only edges were the toggled type
+     disappear (and reappear when the type is unmuted). */
+  renderDOM();
   /* Re-heat the simulation so nodes drift to a new equilibrium with
      the freed/hidden edges. The link force reads mutedTypes each tick,
      so toggling effectively "removes" the edge from the force calc. */
