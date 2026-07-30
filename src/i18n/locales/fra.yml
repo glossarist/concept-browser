@@ -11,6 +11,17 @@ nav.stats: Statistiques
 nav.about: À propos
 nav.navigation: Navigation
 nav.datasets: Jeux de données
+nav.relationTypes: Types de relations
+
+# Page enseignante « Types de relations »
+relationTypes.intro: Ce que chaque forme de ligne et étiquette signifie sur ce site. Les diagrammes utilisent les mêmes rendus que la Sphère de relations — ce que vous voyez ici correspond à ce que vous verrez en navigation.
+relationTypes.hyperedgeSection: Relations hyper-arêtes (un-plusieurs)
+relationTypes.bilateralSection: Relations bilatérales (un-un)
+relationTypes.isoStandard: Norme ISO
+relationTypes.example: Exemple
+relationTypes.category: Catégorie
+relationTypes.diagram: Diagramme
+relationTypes.notInDataset: Non utilisé dans le jeu de données courant
 
 # Home page
 home.search: Rechercher
@@ -204,6 +215,8 @@ sphere.tight: serré
 sphere.loose: étendu
 sphere.redraw: Redessiner
 sphere.focus: FOCUS
+sphere.toggleMute: Basculer la visibilité
+sphere.learnAbout: En savoir plus sur ce type de relation
 concept.detailView: Détail
 concept.relationSphere: Sphère de relations
 concept.permalink: Permalien

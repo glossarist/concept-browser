@@ -95,6 +95,11 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('../views/ContributorsView.vue'),
   },
   {
+    path: '/relation-types',
+    name: 'relation-types',
+    component: () => import('../views/RelationTypesView.vue'),
+  },
+  {
     path: '/about',
     name: 'about-global',
     component: () => import('../views/PageView.vue'),

@@ -1405,16 +1405,23 @@ defineExpose({ navigate });
         <div v-if="legendItems.length" class="sp-section">
           <div class="sp-section-label">{{ t('sphere.relationTypes') }}</div>
           <div class="sp-legend-grid">
-            <button v-for="item in legendItems" :key="item.type" class="sp-legend-item"
+            <div v-for="item in legendItems" :key="item.type"
+              class="sp-legend-item"
               :class="{ muted: isTypeMuted(item.type), 'is-partitive': item.type === '__partitive__' }"
-              @click="toggleType(item.type)"
-              :title="item.type">
-              <span v-if="item.type === '__partitive__'" class="sp-swatch sp-swatch-rake"
-                :style="{ '--rake-color': isTypeMuted(item.type) ? '#b8b9cc' : item.color }"></span>
-              <span v-else class="sp-swatch" :style="{ background: isTypeMuted(item.type) ? '#b8b9cc' : item.color }"></span>
-              <span>{{ item.label }}</span>
-              <span class="sp-count">{{ item.count }}</span>
-            </button>
+            >
+              <button class="sp-legend-toggle"
+                @click="toggleType(item.type)"
+                :title="item.type"
+                :aria-label="`${t('sphere.toggleMute')}: ${item.label}`">
+                <span v-if="item.type === '__partitive__'" class="sp-swatch sp-swatch-rake"
+                  :style="{ '--rake-color': isTypeMuted(item.type) ? '#b8b9cc' : item.color }"></span>
+                <span v-else class="sp-swatch" :style="{ background: isTypeMuted(item.type) ? '#b8b9cc' : item.color }"></span>
+                <span class="sp-count">{{ item.count }}</span>
+              </button>
+              <router-link class="sp-legend-label"
+                :to="{ name: 'relation-types', hash: '#' + item.type }"
+                :title="t('sphere.learnAbout') + ': ' + item.label">{{ item.label }}</router-link>
+            </div>
           </div>
         </div>
 
@@ -1653,12 +1660,22 @@ defineExpose({ navigate });
 /* Type legend */
 .sp-legend-grid { display: flex; flex-direction: column; gap: 2px; }
 .sp-legend-item {
-  display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-radius: 3px;
-  cursor: pointer; border: 1px solid transparent; background: transparent; text-align: left;
+  display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 3px;
+  border: 1px solid transparent; background: transparent; text-align: left;
   width: 100%; font-family: inherit; font-size: 11px; color: var(--ink-mute);
 }
 .sp-legend-item:hover { background: var(--rule); }
 .sp-legend-item.muted { opacity: 0.35; }
+.sp-legend-toggle {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  cursor: pointer; border: none; background: transparent; padding: 0;
+  font: inherit; color: inherit;
+}
+.sp-legend-label {
+  color: inherit; text-decoration: none; flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sp-legend-label:hover { text-decoration: underline; }
 .sp-swatch { width: 18px; height: 2px; flex-shrink: 0; border-radius: 1px; }
 /* Rake swatch — small bracket icon signaling a PartitiveRelation hyperedge
    (not a single binary edge). Two parallel solid lines (close-set double)
