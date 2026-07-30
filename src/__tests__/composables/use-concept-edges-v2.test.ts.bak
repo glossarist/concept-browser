@@ -84,14 +84,14 @@ describe('useConceptEdges — MECE PartitiveRelation (glossarist 0.4.26)', () =>
 
     it('is_delimiting defaults to false', () => {
       const m = makePartitive('test', '1.1');
-      expect(m.is_delimiting).toBe(false);
-      expect(m.is_delimiting).toBe(false);
+      expect((m as any).is_delimiting).toBe(false);
+      expect((m as any).is_delimiting).toBe(false);
     });
 
     it('is_delimiting is preserved when set to true', () => {
       const m = makePartitive('test', '1.1', { isDelimiting: true });
-      expect(m.is_delimiting).toBe(true);
-      expect(m.is_delimiting).toBe(true);
+      expect((m as any).is_delimiting).toBe(true);
+      expect((m as any).is_delimiting).toBe(true);
     });
 
     it('rejects the vacuous (presence=optional, count=at_least_one)', () => {
@@ -107,7 +107,7 @@ describe('useConceptEdges — MECE PartitiveRelation (glossarist 0.4.26)', () =>
         comprehensive: makeRef('test', '1.3'),
         partitives: [makePartitive('test', '1.4'), makePartitive('test', '1.5')],
       });
-      expect(r.members).toHaveLength(2);
+      expect((r as any).members).toHaveLength(2);
       expect((r as any).completeness).toBe('complete');
       expect((r as any).isComplete).toBe(true);
       expect((r as any).isPartial).toBe(false);

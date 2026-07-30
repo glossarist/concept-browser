@@ -182,22 +182,37 @@ declare module 'glossarist' {
       ref?: ConceptRef;
       presence?: PartitivePresence;
       count?: PartitiveCount;
-      is_delimiting?: boolean;
     });
     readonly ref: ConceptRef;
     readonly presence: PartitivePresence;
     readonly count: PartitiveCount;
-    readonly is_delimiting: boolean;
-    readonly isRequired: boolean;
-    readonly isOptional: boolean;
-    get isDelimiting(): boolean;
+    required(): boolean;
+    optional(): boolean;
     toJSON(): Record<string, unknown>;
     static fromJSON(data: Record<string, unknown>): HyperedgeMember;
     static identityOf(value: unknown): string;
   }
 
-  export class PartitiveMember extends HyperedgeMember {}
-  export class GenericMember extends HyperedgeMember {}
+  export class PartitiveMember extends HyperedgeMember {
+    constructor(data?: {
+      ref?: ConceptRef;
+      presence?: PartitivePresence;
+      count?: PartitiveCount;
+      is_delimiting?: boolean;
+    });
+    readonly is_delimiting: boolean;
+    get isDelimiting(): boolean;
+  }
+
+  export class GenericMember extends HyperedgeMember {
+    constructor(data?: {
+      ref?: ConceptRef;
+      presence?: PartitivePresence;
+      count?: PartitiveCount;
+      delimitingCharacteristic?: Record<string, string> | string;
+    });
+    readonly delimitingCharacteristic: Record<string, string>;
+  }
 
   export class AbstractHyperedge extends GlossaristModel {
     readonly comprehensive: ConceptRef;

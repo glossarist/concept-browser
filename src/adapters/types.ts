@@ -200,7 +200,10 @@ export interface GenericMemberWire {
   uri: string;
   presence: 'required' | 'optional';
   count: 'exactly_one' | 'at_least_one' | 'multiple';
-  isDelimiting: boolean;
+  /** ISO 704:2022 §5.5.4.2.1 — the delimiting characteristic that
+   * distinguishes this specific concept from its coordinate concepts.
+   * Required on every GenericMember. LocalizedString shape. */
+  delimitingCharacteristic: Record<string, string>;
 }
 
 export interface GraphNode {

@@ -39,7 +39,7 @@ function makePartitive(
   if (fields.presence) data.presence = fields.presence;
   if (fields.count) data.count = fields.count;
   if (fields.isDelimiting) data.is_delimiting = fields.isDelimiting;
-  return PartitiveMemberModel.fromJSON(data as unknown as Record<string, unknown>) as PartitiveMember;
+  return new PartitiveMemberModel(data as any) as PartitiveMember;
 }
 
 function makeRelation(opts: {
@@ -48,7 +48,7 @@ function makeRelation(opts: {
   completeness?: 'complete' | 'partial';
   criterion?: Record<string, string>;
 }): PartitiveHyperedge {
-  return PartitiveHyperedgeModel.fromJSON(opts as unknown as Record<string, unknown>) as PartitiveHyperedge;
+  return new PartitiveHyperedgeModel(opts as any) as PartitiveHyperedge;
 }
 
 describe('useConceptEdges — MECE PartitiveRelation (glossarist 0.4.26)', () => {
@@ -84,14 +84,14 @@ describe('useConceptEdges — MECE PartitiveRelation (glossarist 0.4.26)', () =>
 
     it('is_delimiting defaults to false', () => {
       const m = makePartitive('test', '1.1');
-      expect(m.is_delimiting).toBe(false);
-      expect(m.is_delimiting).toBe(false);
+      expect((m as any).is_delimiting).toBe(false);
+      expect((m as any).is_delimiting).toBe(false);
     });
 
     it('is_delimiting is preserved when set to true', () => {
       const m = makePartitive('test', '1.1', { isDelimiting: true });
-      expect(m.is_delimiting).toBe(true);
-      expect(m.is_delimiting).toBe(true);
+      expect((m as any).is_delimiting).toBe(true);
+      expect((m as any).is_delimiting).toBe(true);
     });
 
     it('rejects the vacuous (presence=optional, count=at_least_one)', () => {

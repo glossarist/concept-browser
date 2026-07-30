@@ -53,6 +53,15 @@ export function mapHyperedgeFromJsonLd(
         }
       }
       if (m[GL.IS_DELIMITING] === true) out.is_delimiting = true;
+      // ISO 704:2022 §5.5.4.2.1 — GenericMember carries a required
+      // delimitingCharacteristic (the intension difference between
+      // this specific concept and its coordinate concepts).
+      const dc = m[GL.DELIMITING_CHARACTERISTIC];
+      if (dc) {
+        out.delimitingCharacteristic = typeof dc === 'string'
+          ? { default: dc }
+          : dc;
+      }
       return out;
     })
     .filter((m): m is Record<string, unknown> => m !== null);
