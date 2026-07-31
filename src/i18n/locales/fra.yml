@@ -12,16 +12,109 @@ nav.about: À propos
 nav.navigation: Navigation
 nav.datasets: Jeux de données
 nav.relationTypes: Types de relations
+nav.learn: Apprendre
 
-# Page enseignante « Types de relations »
-relationTypes.intro: Ce que chaque forme de ligne et étiquette signifie sur ce site. Les diagrammes utilisent les mêmes rendus que la Sphère de relations — ce que vous voyez ici correspond à ce que vous verrez en navigation.
-relationTypes.hyperedgeSection: Relations hyper-arêtes (un-plusieurs)
-relationTypes.bilateralSection: Relations bilatérales (un-un)
-relationTypes.isoStandard: Norme ISO
-relationTypes.example: Exemple
-relationTypes.category: Catégorie
-relationTypes.diagram: Diagramme
-relationTypes.notInDataset: Non utilisé dans le jeu de données courant
+# Section « Apprendre » (enseignement orienté lecteur)
+learn.intro: Cette section explique ce que vous voyez sur ce site et ce que chaque étiquette signifie. Pour la documentation méthodologique canonique (rédaction de jeux de données, alignement ISO), consultez glossarist.org.
+learn.glossaristOrgNote: La documentation méthodologique pour les auteurs de jeux de données se trouve sur glossarist.org.
+learn.example: Exemple
+learn.learnMore: En savoir plus sur glossarist.org
+learn.relationships.title: Relations
+learn.relationships.short: Comment lire les arêtes bilatérales, le râteau partitif, et le tuyau-fil générique.
+learn.relationships.intro: Chaque ligne et étiquette de la Sphère de relations, de la page de détail et de la vue graphe correspond à une relation sémantique typée. Cette page explique ce que chaque type signifie et comment lire son encodage visuel.
+learn.relationships.bilateralSection: Relations bilatérales (un-un)
+learn.relationships.bilateralIntro: Relations typées un-un entre deux concepts. Dessinées sous forme de lignes droites colorées avec flèches dans la sphère.
+learn.relationships.partitiveSection: Hyper-arête partitive (un-plusieurs)
+learn.relationships.partitiveTitle: relation partitive
+learn.relationships.partitiveBody: Décomposition tout/partie. Le concept englobant est le tout ; chaque membre est une partie. Rendu sous forme de râteau — une tige depuis l'englobant vers une colonne perpendiculaire, avec des dents descendant vers chaque membre.
+learn.relationships.generalSection: Hyper-arête générique (un-plusieurs)
+learn.relationships.generalTitle: relation générique
+learn.relationships.generalBody: Décomposition genre/espèce. Le concept englobant est le genre ; chaque membre est une espèce coordonnée différant selon une dimension partagée. Rendu sous forme de branche d'arbre — un tuyau parent épais depuis l'englobant vers un nœud central, avec des fils fins rayonnant vers chaque membre.
+learn.relationships.criterionTitle: Critère de subdivision
+learn.relationships.criterionBody: "La dimension selon laquelle les concepts coordonnés diffèrent. Affichée une fois sur le corps du tuyau parent. Optionnelle : si aucun critère n'est décrit, aucune étiquette n'est dessinée."
+learn.relationships.thickThinTitle: Hiérarchie épais/mince
+learn.relationships.thickThinBody: ISO 704 utilise traditionnellement des lignes plus épaisses pour marquer différents critères de subdivision (multidimensionalité). Le tuyau-fil respecte cela avec un tuyau parent épais (3,2 px) et des fils enfants plus fins (1,0 px) — la métaphore de la branche d'arbre (tronc vs rameaux).
+learn.dimensions.sectionTitle: Dimensions partitives (comment lire les dents du râteau)
+learn.dimensions.presence.title: Présence
+learn.dimensions.presence.summary: Indique si la partie doit être présente (obligatoire) ou peut être absente (optionnelle).
+learn.dimensions.presence.required.label: obligatoire
+learn.dimensions.presence.required.meaning: La partie doit être présente. Dessinée en ligne pleine.
+learn.dimensions.presence.optional.label: optionnelle
+learn.dimensions.presence.optional.meaning: La partie peut être absente. Dessinée en ligne pointillée.
+learn.dimensions.count.title: Nombre
+learn.dimensions.count.summary: Combien d'instances de la partie apparaissent dans le tout.
+learn.dimensions.count.exactly_one.label: exactement un
+learn.dimensions.count.exactly_one.meaning: Un et un seul. Dessiné en ligne simple.
+learn.dimensions.count.at_least_one.label: au moins un
+learn.dimensions.count.at_least_one.meaning: Un ou plusieurs. Dessiné en ligne double, la secondaire pointillée (« possiblement plus »).
+learn.dimensions.count.multiple.label: plusieurs
+learn.dimensions.count.multiple.meaning: Deux ou plusieurs. Dessiné en ligne double, les deux de même style que la primaire.
+learn.dimensions.delimiting.title: Délimitation
+learn.dimensions.delimiting.summary: Indique si la partie reflète une caractéristique délimitante — qui distingue le tout des concepts coordonnés.
+learn.dimensions.delimiting.false.label: non délimitante
+learn.dimensions.delimiting.false.meaning: Une partie ordinaire. Dessinée à largeur de trait normale (1,5 px).
+learn.dimensions.delimiting.true.label: délimitante
+learn.dimensions.delimiting.true.meaning: La partie est essentielle à l'identité du tout. Dessinée à largeur de trait 3× (4,5 px).
+learn.designations.title: Désignations
+learn.designations.short: Termes et symboles — préféré, admis, déconseillé, forme complète, abréviation, acronyme, sigle.
+learn.designations.intro: Les concepts sont désignés par des termes, noms propres et symboles. Cette page explique le vocabulaire que vous verrez sur chaque page de concept.
+learn.designations.normativeSection: Statut normatif
+learn.designations.normativeIntro: Chaque terme porte un statut normatif attribué par l'organisme de normalisation. IL PEUT Y AVOIR PLUS D'UN terme de chaque statut — les termes préférés ne sont pas uniques.
+learn.designations.preferred.label: terme préféré
+learn.designations.preferred.meaning: Le terme principal pour le concept, attribué par l'organisme de normalisation.
+learn.designations.preferred.multipleNote: Il peut y avoir plus d'un terme préféré.
+learn.designations.admitted.label: terme admis
+learn.designations.admitted.meaning: Un synonyme du terme préféré, mais non retenu comme préféré.
+learn.designations.admitted.multipleNote: Il peut y avoir plus d'un terme admis.
+learn.designations.deprecated.label: terme déconseillé
+learn.designations.deprecated.meaning: Un synonyme du terme préféré, mais jugé indésirable.
+learn.designations.deprecated.multipleNote: Il peut y avoir plus d'un terme déconseillé.
+learn.designations.kindsSection: Types et formes de terme
+learn.designations.fullForm.label: forme complète
+learn.designations.fullForm.meaning: La représentation complète d'une désignation.
+learn.designations.abbreviatedForm.label: forme abrégée
+learn.designations.abbreviatedForm.meaning: Une représentation résultant de l'omission d'une partie de la forme complète.
+learn.designations.abbreviatedForm.multipleNote: Pour certaines formes complètes, deux ou plusieurs formes abrégées peuvent exister.
+learn.designations.borrowed.label: terme emprunté
+learn.designations.borrowed.meaning: Un terme pris depuis une autre langue ou un autre domaine.
+learn.designations.variant.label: variante
+learn.designations.variant.meaning: L'une des formes alternatives d'une désignation (ex. différences d'orthographe entre régions).
+learn.designations.typesSection: Types de désignation
+learn.designations.typesIntro: Trois types de plus haut niveau — termes, noms propres et symboles. Pour les termes, les abréviations se divisent en acronymes vs sigles selon la prononciation.
+learn.designations.term.label: terme (expression)
+learn.designations.term.meaning: Une désignation parlée ou écrite — le type le plus courant.
+learn.designations.acronym.label: acronyme
+learn.designations.acronym.meaning: Une forme abrégée prononcée comme un seul mot.
+learn.designations.initialism.label: sigle
+learn.designations.initialism.meaning: Une forme abrégée prononcée lettre par lettre.
+learn.designations.symbol.label: symbole
+learn.designations.symbol.meaning: Une désignation graphique ou mathématique régie par ISO 80000 / IEC 60027.
+learn.statuses.title: Statuts
+learn.statuses.short: Statut d'entrée (valide/retiré/brouillon), statut normatif, statut de source — ce que chaque badge signifie.
+learn.statuses.intro: Les badges de statut apparaissent partout sur le site. Cette page est une référence rapide pour leur signification.
+learn.statuses.entrySection: Statut d'entrée
+learn.statuses.entry.valid.label: valide
+learn.statuses.entry.valid.meaning: L'entrée du concept est actuellement en vigueur.
+learn.statuses.entry.withdrawn.label: retiré
+learn.statuses.entry.withdrawn.meaning: L'entrée a été retirée de l'usage actif.
+learn.statuses.entry.draft.label: brouillon
+learn.statuses.entry.draft.meaning: L'entrée est en cours de développement et non finalisée.
+learn.statuses.entry.superseded.label: remplacé
+learn.statuses.entry.superseded.meaning: L'entrée a été remplacée par une plus récente.
+learn.statuses.normativeSection: Statut normatif
+learn.statuses.normativeTitle: préféré / admis / déconseillé
+learn.statuses.normativeSummary: Statut par terme (préféré, admis, déconseillé). Chaque statut peut s'appliquer à plus d'un terme par concept.
+learn.statuses.normativeGoDeeper: Voir les types de désignation pour des exemples
+learn.statuses.sourceSection: Statut de source
+learn.statuses.sourceIntro: Chaque citation porte un statut décrivant la fidélité de sa reproduction de la source.
+learn.statuses.source.identical.label: identique
+learn.statuses.source.identical.meaning: La définition correspond verbatim à la source.
+learn.statuses.source.modified.label: modifié
+learn.statuses.source.modified.meaning: La définition est adaptée de la source avec des modifications éditoriales.
+learn.statuses.source.restyled.label: reformulé
+learn.statuses.source.restyled.meaning: La définition préserve le sens de la source mais la reformule largement.
+learn.statuses.source.lineage.label: lignage
+learn.statuses.source.lineage.meaning: La source est l'ancêtre historique de ce concept, pas une citation directe.
 
 # Home page
 home.search: Rechercher

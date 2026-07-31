@@ -1419,7 +1419,7 @@ defineExpose({ navigate });
                 <span class="sp-count">{{ item.count }}</span>
               </button>
               <router-link class="sp-legend-label"
-                :to="{ name: 'relation-types', hash: '#' + item.type }"
+                :to="{ name: 'learn-relationships', hash: '#' + item.type }"
                 :title="t('sphere.learnAbout') + ': ' + item.label">{{ item.label }}</router-link>
             </div>
           </div>
