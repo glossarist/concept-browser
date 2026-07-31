@@ -96,8 +96,27 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: '/relation-types',
-    name: 'relation-types',
-    component: () => import('../views/RelationTypesView.vue'),
+    redirect: '/learn/relationships',
+  },
+  {
+    path: '/learn',
+    name: 'learn',
+    component: () => import('../views/learn/LearnIndexView.vue'),
+  },
+  {
+    path: '/learn/relationships',
+    name: 'learn-relationships',
+    component: () => import('../views/learn/LearnRelationshipsView.vue'),
+  },
+  {
+    path: '/learn/designations',
+    name: 'learn-designations',
+    component: () => import('../views/learn/LearnDesignationsView.vue'),
+  },
+  {
+    path: '/learn/statuses',
+    name: 'learn-statuses',
+    component: () => import('../views/learn/LearnStatusesView.vue'),
   },
   {
     path: '/about',

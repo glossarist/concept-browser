@@ -13,16 +13,109 @@ nav.sources: Sources
 nav.navigation: Navigation
 nav.datasets: Datasets
 nav.relationTypes: Relation Types
+nav.learn: Learn
 
-# Relation Types teaching page
-relationTypes.intro: What each line shape and label means in this site. Diagrams use the same renderers as the Relation Sphere, so what you see here is what you'll see in the wild.
-relationTypes.hyperedgeSection: Hyperedge relations (one-to-many)
-relationTypes.bilateralSection: Bilateral relations (one-to-one)
-relationTypes.isoStandard: ISO standard
-relationTypes.example: Example
-relationTypes.category: Category
-relationTypes.diagram: Diagram
-relationTypes.notInDataset: Not used in the current dataset
+# Learn section (reader-focused teaching)
+learn.intro: This section explains what you see on this site and what each label means. For canonical methodology docs (authoring datasets, ISO alignment), see glossarist.org.
+learn.glossaristOrgNote: Methodology documentation for dataset authors lives on glossarist.org.
+learn.example: Example
+learn.learnMore: Learn more on glossarist.org
+learn.relationships.title: Relationships
+learn.relationships.short: How to read the bilateral edges, partitive rake, and general pipe-and-thread.
+learn.relationships.intro: Every line and label on the Relation Sphere, the detail page, and the graph view maps to a typed semantic relation. This page explains what each kind means and how to read its visual encoding.
+learn.relationships.bilateralSection: Bilateral relations (one-to-one)
+learn.relationships.bilateralIntro: One-to-one typed relations between two concepts. Drawn as straight colored lines with arrowheads in the sphere.
+learn.relationships.partitiveSection: Partitive hyperedge (one-to-many)
+learn.relationships.partitiveTitle: partitive relation
+learn.relationships.partitiveBody: A whole/part decomposition. The comprehensive concept is the whole; each member is a part. Rendered as a rake — a stem from the comprehensive to a perpendicular spine, with teeth dropping to each partitive member.
+learn.relationships.generalSection: General hyperedge (one-to-many)
+learn.relationships.generalTitle: general relation
+learn.relationships.generalBody: A genus/species decomposition. The comprehensive concept is the genus; each member is a coordinate species differing along a shared dimension. Rendered as a tree branch — a thick parent pipe from the comprehensive to a middle node, with thin threads radiating to each member.
+learn.relationships.criterionTitle: Criterion of subdivision
+learn.relationships.criterionBody: "The dimension along which coordinate concepts differ. Shown once on the parent pipe body. Optional: when no criterion is described, no label is drawn."
+learn.relationships.thickThinTitle: Thick/thin hierarchy
+learn.relationships.thickThinBody: ISO 704 traditionally uses thicker lines to mark different criteria of subdivision (multidimensionality). The pipe-and-thread honors this with a thick parent pipe (3.2px) and thinner child threads (1.0px) — the tree-branch metaphor (trunk vs twigs).
+learn.dimensions.sectionTitle: Partitive dimensions (how to read the rake teeth)
+learn.dimensions.presence.title: Presence
+learn.dimensions.presence.summary: Whether the part must be present (compulsory) or may be absent (optional).
+learn.dimensions.presence.required.label: required
+learn.dimensions.presence.required.meaning: The part must be present. Drawn as a solid line.
+learn.dimensions.presence.optional.label: optional
+learn.dimensions.presence.optional.meaning: The part may be absent. Drawn as a dashed line.
+learn.dimensions.count.title: Count
+learn.dimensions.count.summary: How many instances of the part occur in the whole.
+learn.dimensions.count.exactly_one.label: exactly one
+learn.dimensions.count.exactly_one.meaning: One and only one. Drawn as a single line.
+learn.dimensions.count.at_least_one.label: at least one
+learn.dimensions.count.at_least_one.meaning: One or more. Drawn as a double line, the secondary dashed ("possibly more").
+learn.dimensions.count.multiple.label: multiple
+learn.dimensions.count.multiple.meaning: Two or more. Drawn as a double line, both the same style as the primary.
+learn.dimensions.delimiting.title: Delimiting
+learn.dimensions.delimiting.summary: Whether the part reflects a delimiting characteristic — one that distinguishes the whole from coordinate concepts.
+learn.dimensions.delimiting.false.label: not delimiting
+learn.dimensions.delimiting.false.meaning: An ordinary part. Drawn at normal stroke width (1.5px).
+learn.dimensions.delimiting.true.label: delimiting
+learn.dimensions.delimiting.true.meaning: The part is essential to the whole's identity. Drawn at 3× normal stroke width (4.5px).
+learn.designations.title: Designations
+learn.designations.short: Terms and symbols — preferred, admitted, deprecated, full form, abbreviation, acronym, initialism.
+learn.designations.intro: Concepts are designated by terms, proper names, and symbols. This page explains the vocabulary you'll see on each concept page.
+learn.designations.normativeSection: Normative status
+learn.designations.normativeIntro: Each term carries a normative rating from the standardizing body. There can be MORE THAN ONE of each rating — preferred terms aren't unique.
+learn.designations.preferred.label: preferred term
+learn.designations.preferred.meaning: The primary term for the concept, rated by a standardizing body.
+learn.designations.preferred.multipleNote: There can be more than one preferred term.
+learn.designations.admitted.label: admitted term
+learn.designations.admitted.meaning: A synonym for the preferred term, but not rated as preferred.
+learn.designations.admitted.multipleNote: There can be more than one admitted term.
+learn.designations.deprecated.label: deprecated term
+learn.designations.deprecated.meaning: A synonym for the preferred term, but rated as undesired.
+learn.designations.deprecated.multipleNote: There can be more than one deprecated term.
+learn.designations.kindsSection: Kinds and forms of term
+learn.designations.fullForm.label: full form
+learn.designations.fullForm.meaning: The complete representation of a designation.
+learn.designations.abbreviatedForm.label: abbreviated form
+learn.designations.abbreviatedForm.meaning: A representation resulting from the omission of any part of the full form.
+learn.designations.abbreviatedForm.multipleNote: For some full forms, two or more abbreviated forms may exist.
+learn.designations.borrowed.label: borrowed term
+learn.designations.borrowed.meaning: A term taken from another language or from another domain.
+learn.designations.variant.label: variant
+learn.designations.variant.meaning: One of the alternative forms of a designation (e.g. spelling differences across regions).
+learn.designations.typesSection: Designation types
+learn.designations.typesIntro: Three top-level types — terms, proper names, and symbols. Within terms, abbreviations split further into acronyms vs initialisms based on how they're pronounced.
+learn.designations.term.label: term (expression)
+learn.designations.term.meaning: A spoken or written designation — the most common type.
+learn.designations.acronym.label: acronym
+learn.designations.acronym.meaning: An abbreviated form pronounced as a single word.
+learn.designations.initialism.label: initialism
+learn.designations.initialism.meaning: An abbreviated form pronounced letter by letter.
+learn.designations.symbol.label: symbol
+learn.designations.symbol.meaning: A graphical or mathematical designation governed by ISO 80000 / IEC 60027.
+learn.statuses.title: Statuses
+learn.statuses.short: Entry status (valid/withdrawn/draft), normative status, source status — what each badge means.
+learn.statuses.intro: Status badges appear throughout the site. This page is a quick reference for what each one means.
+learn.statuses.entrySection: Entry status
+learn.statuses.entry.valid.label: valid
+learn.statuses.entry.valid.meaning: The concept entry is currently in force.
+learn.statuses.entry.withdrawn.label: withdrawn
+learn.statuses.entry.withdrawn.meaning: The entry has been removed from active use.
+learn.statuses.entry.draft.label: draft
+learn.statuses.entry.draft.meaning: The entry is under development and not yet finalized.
+learn.statuses.entry.superseded.label: superseded
+learn.statuses.entry.superseded.meaning: The entry has been replaced by a newer one.
+learn.statuses.normativeSection: Normative status
+learn.statuses.normativeTitle: preferred / admitted / deprecated
+learn.statuses.normativeSummary: Per-term rating (preferred, admitted, deprecated). Each rating can apply to more than one term per concept.
+learn.statuses.normativeGoDeeper: See designation types for examples
+learn.statuses.sourceSection: Source status
+learn.statuses.sourceIntro: Each citation carries a status describing how faithfully it reproduces the source.
+learn.statuses.source.identical.label: identical
+learn.statuses.source.identical.meaning: The definition matches the source verbatim.
+learn.statuses.source.modified.label: modified
+learn.statuses.source.modified.meaning: The definition is adapted from the source with editorial changes.
+learn.statuses.source.restyled.label: restyled
+learn.statuses.source.restyled.meaning: The definition preserves the source meaning but rewords it heavily.
+learn.statuses.source.lineage.label: lineage
+learn.statuses.source.lineage.meaning: The source is the historical ancestor of this concept, not a direct citation.
 
 # Home page
 home.search: Search
