@@ -13,8 +13,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        serif: ['"DM Serif Display"', 'Georgia', 'serif'],
-        sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
+        serif: ['var(--font-header, "DM Serif Display")', 'Georgia', 'serif'],
+        sans: ['var(--font-body, "DM Sans")', 'system-ui', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'monospace'],
       },
       colors: {
@@ -39,7 +39,7 @@ export default {
       },
       typography: {
         serif: {
-          'font-family': '"DM Serif Display", Georgia, serif',
+          'font-family': 'var(--font-header, "DM Serif Display"), Georgia, serif',
         },
       },
     },
