@@ -97,9 +97,12 @@ Environment:
     //      package generates the full variant set from it.
     //
     //   2. Object — `{ source_dir?, links_html?, skip_default_links?, base_path? }`.
-    //      - `links_html`: raw HTML (one or more <link> tags) emitted verbatim.
-    //        Skips the `favicons` package entirely; consumer is responsible
-    //        for providing the actual icon files in public/.
+    //      - `icons`: DATA — array of { rel, href, type?, sizes? } entries.
+    //        The hrefs are filenames; the CLI applies BASE_PATH and renders
+    //        well-formed <link> tags. Recommended over `links_html`.
+    //      - `links_html` (deprecated): raw HTML emitted verbatim.
+    //        Skips the `favicons` package entirely; impossible to validate
+    //        or safely BASE_PATH-rewrite. Use `icons` instead.
     //      - `source_dir`: directory of canonical favicon files copied as-is
     //        into public/ (overriding any defaults). Useful when the consumer
     //        already has a RealFaviconGenerator output set.
@@ -114,8 +117,34 @@ Environment:
 
     if (faviconCfgIsObject) {
       // Object form — honor each declared field.
+      if (faviconCfg.icons && Array.isArray(faviconCfg.icons) && faviconCfg.icons.length > 0) {
+        // Data-driven: build <link> tags from the icons array.
+        const basePathForIcons =
+          faviconCfg.base_path ||
+          process.env.BASE_PATH?.replace(/\/+$/, '') ||
+          '';
+        faviconHtml = faviconCfg.icons.map((icon) => {
+          const attrs = [`rel="${icon.rel || 'icon'}"`];
+          if (icon.type) attrs.push(`type="${icon.type}"`);
+          if (icon.sizes) attrs.push(`sizes="${icon.sizes}"`);
+          // Bare filenames get BASE_PATH-prefixed; absolute URLs / root-relative
+          // paths are emitted as-is.
+          let href = icon.href || '';
+          if (href && !/^[a-z][a-z0-9+.-]*:/i.test(href) && !href.startsWith('//') && !href.startsWith('/')) {
+            href = basePathForIcons ? `${basePathForIcons}/${href}` : `/${href}`;
+          }
+          attrs.push(`href="${href}"`);
+          return `<link ${attrs.join(' ')} />`;
+        }).join('\n    ');
+        skipDefaultGeneration = true;
+      }
       if (faviconCfg.links_html) {
-        faviconHtml = String(faviconCfg.links_html);
+        if (faviconHtml) {
+          console.warn('  Warning: branding.favicon.icons and links_html are both set; using icons (data form).');
+        } else {
+          console.warn('  Warning: branding.favicon.links_html is deprecated. Use branding.favicon.icons (data) instead.');
+          faviconHtml = String(faviconCfg.links_html);
+        }
         skipDefaultGeneration = true;
       }
       if (faviconCfg.source_dir) {

@@ -52,24 +52,52 @@ const fontHeading = fontStack(headingFont, DEFAULT_CATEGORY.heading) ?? DEFAULT_
 const fontBody = fontStack(brandingFonts?.body, DEFAULT_CATEGORY.body) ?? DEFAULT_FONTS.body;
 const fontMono = fontStack(brandingFonts?.mono, DEFAULT_CATEGORY.mono) ?? DEFAULT_FONTS.mono;
 
-// Favicon configuration (issue #173).
+// Favicon configuration (issues #173, #177, and the data-driven refactor).
 //
-// Consumers provide their own favicon set in one of two ways:
+// Consumers provide their own favicon set in one of these ways:
 //
-//   1. Drop canonical files at `branding.favicon.source_dir` (relative
-//      to the consumer's cwd). The CLI's existing favicon step already
-//      copies these into public/ overriding the defaults — this layout
-//      just needs to emit the right <link> tags.
+//   1. Declare icons as DATA (recommended):
+//        branding:
+//          favicon:
+//            icons:
+//              - rel: icon
+//                type: image/svg+xml
+//                href: favicon.svg
+//              - rel: icon
+//                type: image/png
+//                sizes: 96x96
+//                href: favicon-96x96.png
+//              - rel: shortcut icon
+//                href: favicon.ico
+//              - rel: apple-touch-icon
+//                sizes: 180x180
+//                href: apple-touch-icon.png
+//              - rel: manifest
+//                href: site.webmanifest
+//      The hrefs are filenames (or absolute URLs) — the layout applies
+//      the correct BASE_PATH prefix automatically.
 //
-//   2. Set `branding.favicon.skip_default_links: true` and inject
-//      custom <link> tags via the `branding.favicon.links_html`
-//      string (e.g. RealFaviconGenerator output). The layout emits
-//      that verbatim and skips the default tag block.
+//   2. Drop canonical files at `branding.favicon.source_dir` (relative
+//      to the consumer's cwd). The CLI copies these into public/, and
+//      the layout emits the default 16-link set with BASE_PATH-aware URLs.
 //
-// When neither is set, today's default behavior is preserved.
+//   3. Set `branding.favicon.skip_default_links: true` to emit nothing
+//      (consumer takes full control via their own layout patching).
+//
+// `links_html` is DEPRECATED — raw HTML can't be safely BASE_PATH-rewritten
+// or validated. It still works for backward compat, with a console warning.
 const faviconCfg = siteConfig?.branding?.favicon ?? {};
-const skipDefaultFaviconLinks = faviconCfg.skip_default_links === true;
-const customFaviconLinks: string = faviconCfg.links_html ?? '';
+const faviconCfgIsObject =
+  faviconCfg !== null && typeof faviconCfg === 'object' && !Array.isArray(faviconCfg);
+const skipDefaultFaviconLinks = faviconCfgIsObject && faviconCfg.skip_default_links === true;
+const consumerIcons = faviconCfgIsObject ? (faviconCfg.icons ?? null) : null;
+const deprecatedLinksHtml: string = faviconCfgIsObject ? (faviconCfg.links_html ?? '') : '';
+if (deprecatedLinksHtml) {
+  console.warn(
+    'branding.favicon.links_html is deprecated. Use branding.favicon.icons (data) instead — ' +
+    'see src/utils/favicon-links.ts for the schema. links_html will be removed in a future release.',
+  );
+}
 
 // BASE_PATH-aware favicon URL prefix. Walks the configuration cascade:
 // branding.favicon.base_path → siteConfig.basePath → import.meta.env.BASE_URL → '/'.
@@ -83,17 +111,22 @@ const faviconBaseInput = {
   astroBaseUrl: import.meta.env.BASE_URL,
 };
 const faviconBase = resolveFaviconBase(faviconBaseInput);
-const faviconLinks = buildDefaultFaviconLinks(faviconBaseInput).map(renderFaviconLinkTag);
+// Build the favicon <link> block from data (consumer-declared icons or
+// the default 16-link set). BASE_PATH is applied to every href.
+const faviconLinks = buildFaviconLinks({
+  ...faviconBaseInput,
+  icons: consumerIcons ?? undefined,
+}).map(renderFaviconLinkTag);
 ---
 
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    {!skipDefaultFaviconLinks && (
+    {!skipDefaultFaviconLinks && faviconLinks.length > 0 && (
       <Fragment set:html={faviconLinks.join('\n    ')} />
     )}
-    {customFaviconLinks && <Fragment set:html={customFaviconLinks} />}
+    {deprecatedLinksHtml && <Fragment set:html={deprecatedLinksHtml} />}
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content={siteConfig.title} />

@@ -30,16 +30,31 @@ export interface LogoConfig {
   localDark?: string;
 }
 
+export interface FaviconIcon {
+  /** The `rel` attribute: "icon", "shortcut icon", "apple-touch-icon", "manifest". */
+  rel: string;
+  /** Icon file path. Bare filenames ("favicon.ico") get BASE_PATH-prefixed
+   *  automatically; absolute URLs and root-relative paths are emitted as-is. */
+  href: string;
+  /** Optional MIME type hint (e.g., "image/png", "image/svg+xml"). */
+  type?: string;
+  /** Optional sizes attribute (e.g., "180x180", "any"). */
+  sizes?: string;
+}
+
 export interface FaviconConfig {
-  /** Path prefix for all favicon URLs. Defaults to '/', set to a sub-path
-   *  when deploying under BASE_PATH != '/'. */
+  /** Path prefix for all favicon URLs. Defaults to BASE_PATH-aware '/'. */
   base_path?: string;
-  /** Skip emitting the default <link rel="icon"> and <link rel="apple-touch-icon">
-   *  tags. Use when the consumer provides their own RFG-compatible markup via
-   *  `links_html`. Default: false (emit default tags). */
+  /** Skip emitting the default <link> block. Use when the consumer provides
+   *  their own icons via `icons` or wants zero favicon <link> tags. */
   skip_default_links?: boolean;
-  /** Raw HTML string (one or more <link> tags) to emit in <head> instead of
-   *  the default favicon block. RealFaviconGenerator output goes here. */
+  /** Consumer-declared icons (DATA, not HTML). Replaces the default 16-link
+   *  set when non-empty. Each entry renders to a single <link> tag with
+   *  BASE_PATH-aware href. */
+  icons?: FaviconIcon[];
+  /** @deprecated Use `icons` instead. Raw HTML emitted verbatim — impossible
+   *  to validate, can't be safely BASE_PATH-rewritten. Kept for backward
+   *  compat; emits a console warning when used. */
   links_html?: string;
   /** Consumer-side directory (relative to cwd) holding canonical favicon files.
    *  The CLI's favicon step copies these into public/, overriding defaults. */

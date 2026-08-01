@@ -66,19 +66,23 @@ interface BrandingFonts {
   weights?: number[];
 }
 
+interface FaviconIcon {
+  rel?: string;
+  href: string;
+  type?: string;
+  sizes?: string;
+}
+
 interface FaviconConfig {
-  /** Path prefix for all favicon URLs. Defaults to '/', set to a sub-path
-   *  when deploying under BASE_PATH != '/'. */
+  /** Path prefix for all favicon URLs. Defaults to BASE_PATH-aware '/'. */
   base_path?: string;
-  /** Skip emitting the default <link rel="icon"> and <link rel="apple-touch-icon">
-   *  tags. Use when the consumer provides their own RFG-compatible markup via
-   *  `links_html`. Default: false (emit default tags). */
+  /** Skip emitting the default <link> block. */
   skip_default_links?: boolean;
-  /** Raw HTML string (one or more <link> tags) to emit in <head> instead of
-   *  the default favicon block. RealFaviconGenerator output goes here. */
+  /** Consumer-declared icons (DATA, not HTML). Replaces the default set. */
+  icons?: FaviconIcon[];
+  /** @deprecated Use `icons` instead. Raw HTML — kept for backward compat. */
   links_html?: string;
-  /** Consumer-side directory (relative to cwd) holding canonical favicon files.
-   *  The CLI copies these into public/, overriding defaults. */
+  /** Consumer-side directory of canonical favicon files. */
   source_dir?: string;
 }
 
@@ -133,8 +137,32 @@ async function runBuildPipeline(config: SiteConfig | null): Promise<void> {
 
   if (faviconCfgObject) {
     const cfg: FaviconConfig = faviconCfgObject;
+    if (cfg.icons && cfg.icons.length > 0) {
+      // Data-driven: build <link> tags from the icons array.
+      const basePathForIcons: string =
+        cfg.base_path ||
+        process.env.BASE_PATH?.replace(/\/+$/, '') ||
+        '';
+      faviconHtml = cfg.icons.map((icon: FaviconIcon): string => {
+        const attrs: string[] = [`rel="${icon.rel || 'icon'}"`];
+        if (icon.type) attrs.push(`type="${icon.type}"`);
+        if (icon.sizes) attrs.push(`sizes="${icon.sizes}"`);
+        let href: string = icon.href || '';
+        if (href && !/^[a-z][a-z0-9+.-]*:/i.test(href) && !href.startsWith('//') && !href.startsWith('/')) {
+          href = basePathForIcons ? `${basePathForIcons}/${href}` : `/${href}`;
+        }
+        attrs.push(`href="${href}"`);
+        return `<link ${attrs.join(' ')} />`;
+      }).join('\n    ');
+      skipDefaultGeneration = true;
+    }
     if (cfg.links_html) {
-      faviconHtml = String(cfg.links_html);
+      if (faviconHtml) {
+        console.warn('  Warning: branding.favicon.icons and links_html are both set; using icons (data form).');
+      } else {
+        console.warn('  Warning: branding.favicon.links_html is deprecated. Use branding.favicon.icons (data) instead.');
+        faviconHtml = String(cfg.links_html);
+      }
       skipDefaultGeneration = true;
     }
     if (cfg.source_dir) {
