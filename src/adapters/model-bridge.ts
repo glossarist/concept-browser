@@ -61,7 +61,7 @@ import type {
   JsonLdPartitiveMember,
   JsonLdPartitiveRelation,
   JsonLdConcept,
-} from './model-bridge/jsonld-types';
+} from './jsonld-types';
 
 // ── Bridges for fields not yet in glossarist-js ────────────────────────────
 // Remove each bridge when glossarist-js publishes native support.

@@ -38,4 +38,5 @@ TODO.update-browser/
 .idea/
 .vscode/
 TODO*
+!TODO.typescript/
 __snapshots__/
