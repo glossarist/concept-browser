@@ -1,3 +1,4 @@
+// @ts-nocheck — TODO.typescript/12: remove after glossarist TS migration
 import { describe, it, expect } from 'vitest';
 import { Concept } from 'glossarist';
 import { conceptToQuads, collectQuads, writeTurtleSync, PREFIXES } from 'glossarist/rdf';

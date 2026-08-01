@@ -1,3 +1,4 @@
+// @ts-nocheck — TODO.typescript/12: remove after glossarist TS migration
 import { describe, it, expect } from 'vitest';
 import { ref } from 'vue';
 import { Concept } from 'glossarist';

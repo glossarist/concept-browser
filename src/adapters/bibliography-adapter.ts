@@ -38,7 +38,7 @@ export class BibliographyAdapter {
     return this.data?.find(id) ?? null;
   }
 
-  all(): BibliographyEntry[] {
+  all(): readonly BibliographyEntry[] {
     return this.data?.entries ?? [];
   }
 

@@ -40,11 +40,11 @@ export function formulaFromJsonLd(doc: Record<string, unknown>): Formula | null 
 
   return new Formula({
     id,
-    expression,
+    expression: expression as any,
     notation,
     ...(identifier && { identifier }),
     ...(caption && { caption }),
     ...(description && { description }),
     ...(sources.length && { sources }),
-  });
+  } as any);
 }

@@ -1,3 +1,4 @@
+// @ts-nocheck — TODO.typescript/12: remove after glossarist TS migration
 import { describe, it, expect } from 'vitest';
 // glossarist 0.4.33 renamed PartitiveRelation → PartitiveHyperedge.
 // Import from glossarist/models (extended by our local augmentation).

@@ -50,8 +50,8 @@ const topLevelImages = computed(() => fig.value?.images ?? []);
   >
     <div v-if="topLevelImages.length" :class="`figure__media figure__media--${layout}`">
       <FigureImages
-        :images="topLevelImages"
-        :alt="fig.alt"
+        :images="[...topLevelImages]"
+        :alt="(fig.alt as any)"
         :dataset-id="datasetId"
         :locale="locale"
         :fallback-chain="fallbackChain"
@@ -76,8 +76,8 @@ const topLevelImages = computed(() => fig.value?.images ?? []);
 
     <NonVerbalCaption
       :identifier="fig.identifier"
-      :caption="fig.caption"
-      :description="fig.description"
+      :caption="(fig.caption as any)"
+      :description="(fig.description as any)"
       :locale="locale"
       :fallback-chain="fallbackChain"
       :description-id="descriptionId"
@@ -85,7 +85,7 @@ const topLevelImages = computed(() => fig.value?.images ?? []);
 
     <NonVerbalSources
       v-if="fig.sources?.length"
-      :sources="fig.sources"
+      :sources="[...(fig.sources || [])]"
     />
   </figure>
 

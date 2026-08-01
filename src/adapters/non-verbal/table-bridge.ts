@@ -90,11 +90,11 @@ export function tableFromJsonLd(doc: Record<string, unknown>): Table | null {
 
   return new Table({
     id,
-    content: content as Record<string, unknown>,
+    content: content as any,
     ...(identifier && { identifier }),
     ...(caption && { caption }),
     ...(description && { description }),
     ...(format && { format }),
     ...(sources.length && { sources }),
-  });
+  } as any);
 }

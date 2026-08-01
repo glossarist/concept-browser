@@ -51,7 +51,7 @@ watchEffect(() => {
   }
 });
 
-const effectiveDiff = computed(() => props.diff ?? internal.diffResult.value);
+const effectiveDiff = computed(() => (props.diff ?? internal.diffResult.value) as any);
 const sections = computed(() => deriveDiffSections(effectiveDiff.value, props.lang));
 const similarity = computed(() => computeSimilarity(effectiveDiff.value));
 const hasChanges = computed(() => effectiveDiff.value?.hasChanges === true);

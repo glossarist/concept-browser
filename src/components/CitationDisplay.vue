@@ -107,7 +107,7 @@ async function loadPreview() {
     const def = lc?.definitions?.[0]?.content || concept.definition('eng');
     const term = lc?.terms?.[0]?.designation || concept.primaryDesignation('eng');
     preview.value = {
-      designation: term || entry?.designations?.eng || conceptId,
+      designation: String(term || entry?.designations?.eng || conceptId),
       definition: typeof def === 'string' ? def.slice(0, 200) : '',
     };
   } catch {

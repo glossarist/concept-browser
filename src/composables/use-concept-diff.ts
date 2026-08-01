@@ -211,8 +211,8 @@ export function useConceptDiff() {
     error.value = null;
     try {
       diffResult.value = diffConcepts(
-        oldData ? toDiffableConcept(oldData) : null,
-        newData ? toDiffableConcept(newData) : null,
+        (oldData ? toDiffableConcept(oldData) : null) as any,
+        (newData ? toDiffableConcept(newData) : null) as any,
       );
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : String(e);

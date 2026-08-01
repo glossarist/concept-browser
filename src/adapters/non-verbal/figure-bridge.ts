@@ -48,7 +48,7 @@ function imageFromJsonLd(raw: Record<string, unknown>): FigureImage | null {
     ...(typeof width === 'number' && { width }),
     ...(typeof height === 'number' && { height }),
     ...(typeof scale === 'number' && { scale }),
-  });
+  } as any);
 }
 
 function imagesFromJsonLd(raw: unknown): FigureImage[] {
@@ -96,5 +96,5 @@ export function figureFromJsonLd(doc: Record<string, unknown>): Figure | null {
     ...(description && { description }),
     ...(subfigures && { subfigures }),
     ...(sources.length && { sources }),
-  });
+  } as any);
 }

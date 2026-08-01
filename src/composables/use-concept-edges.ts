@@ -7,7 +7,7 @@ import type { Concept, RelatedConcept, ConceptRef } from 'glossarist';
 import { PartitiveHyperedge } from 'glossarist';
 import { GenericHyperedge } from 'glossarist/models';
 import type {
-  PartitiveRelation as GlsPartitiveRelation,
+  PartitiveHyperedge as GlsPartitiveRelation,
   PartitiveMember as GlsPartitiveMember,
 } from 'glossarist/models';
 import type {
@@ -39,7 +39,7 @@ export interface EdgeDisplay {
 }
 
 export function useConceptEdges(
-  concept: ComputedRef<Concept | null | undefined>,
+  concept: ComputedRef<any>,
   registerId: ComputedRef<string>,
   manifest: ComputedRef<Manifest | null | undefined>,
   edges: ComputedRef<GraphEdge[]>,
@@ -138,7 +138,7 @@ export function useConceptEdges(
   // Concept-level related concepts (managed concept cross-references)
   const conceptRelated = computed(() => {
     if (!concept.value) return [];
-    const direct = concept.value.relatedConcepts?.filter(rc => !INVERSE_RELATIONSHIPS[rc.type]) ?? [];
+    const direct = concept.value.relatedConcepts?.filter((rc: any) => !INVERSE_RELATIONSHIPS[rc.type]) ?? [];
     const derived = incomingEdges.value
       .filter(e => INVERSE_RELATIONSHIPS[e.type])
       .map(e => {

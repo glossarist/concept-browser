@@ -33,7 +33,7 @@ const { t } = useI18n();
 const targetConcept = ref<Concept | null>(null);
 const loadError = ref<string | null>(null);
 
-function conceptToData(c: Concept | null, registerId: string): ConceptLikeData | null {
+function conceptToData(c: any, registerId: string): ConceptLikeData | null {
   if (!c) return null;
   const langs = c.languages ?? [];
   const localizations: Record<string, unknown> = {};
@@ -51,7 +51,7 @@ function conceptToData(c: Concept | null, registerId: string): ConceptLikeData |
 }
 
 const oldData = computed(() => conceptToData(targetConcept.value, props.targetRegisterId));
-const newData = computed(() => conceptToData(props.currentConcept, props.currentRegisterId));
+const newData = computed(() => conceptToData(props.currentConcept as any, props.currentRegisterId));
 
 async function loadTarget() {
   if (!props.open || !props.targetRegisterId || !props.targetConceptId) return;
