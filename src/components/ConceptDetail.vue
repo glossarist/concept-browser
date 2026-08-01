@@ -106,15 +106,15 @@ const engConcept = computed((): LocalizedConcept | null => {
 const primaryTerm = computed(() => getPreferredTerm(engConcept.value, conceptId.value));
 const renderedPrimaryTerm = computed(() => renderContent(primaryTerm.value));
 
-const managedStatus = computed(() => props.concept.status);
+const managedStatus = computed(() => props.concept?.status);
 
-const conceptRefDomains = computed(() => props.concept.domains);
+const conceptRefDomains = computed(() => props.concept?.domains ?? []);
 
-const conceptDates = computed(() => props.concept.dates);
+const conceptDates = computed(() => props.concept?.dates ?? []);
 
-const conceptSources = computed(() => props.concept.sources);
+const conceptSources = computed(() => props.concept?.sources ?? []);
 
-const conceptTags = computed(() => props.concept.tags ?? []);
+const conceptTags = computed(() => props.concept?.tags ?? []);
 
 const factory = getFactory();
 const { ensureBibLoaded, bibResolver, nonVerbalRefResolver } = useRenderOptions(() => props.registerId);
@@ -216,39 +216,46 @@ function goAdjacent(id: string) {
 
 const conceptDomains = computed(() => {
   const domainMap = new Map<string, { slug: string; label: string; langs: string[]; conceptId?: string }>();
-
-  for (const ref of conceptRefDomains.value) {
-    const id = ref.conceptId ?? '';
-    const label = id || ref.urn || '';
-    if (label) {
-      const slug = slugify(label);
-      domainMap.set(slug, { slug, label, langs: [], conceptId: id });
-    }
-  }
-
-  for (const lang of props.concept.languages) {
-    const lc = props.concept.localization(lang);
-    const domain = lc?.domain;
-    if (domain) {
-      const slug = slugify(domain);
-      const existing = domainMap.get(slug);
-      if (existing) {
-        if (!existing.langs.includes(lang)) existing.langs.push(lang);
-      } else {
-        domainMap.set(slug, { slug, label: domain, langs: [lang] });
+  try {
+    for (const ref of conceptRefDomains.value) {
+      const id = ref.conceptId ?? '';
+      const label = id || ref.urn || '';
+      if (label) {
+        const slug = slugify(label);
+        domainMap.set(slug, { slug, label, langs: [], conceptId: id });
       }
     }
+
+    for (const lang of props.concept?.languages ?? []) {
+      const lc = props.concept?.localization(lang);
+      const domain = lc?.domain;
+      if (domain) {
+        const slug = slugify(domain);
+        const existing = domainMap.get(slug);
+        if (existing) {
+          if (!existing.langs.includes(lang)) existing.langs.push(lang);
+        } else {
+          domainMap.set(slug, { slug, label: domain, langs: [lang] });
+        }
+      }
+    }
+  } catch {
+    /* swallow — empty domains rather than crash at hydration */
   }
   return [...domainMap.values()].sort((a, b) => b.langs.length - a.langs.length);
 });
 
 const nonVerbalReps = computed(() => {
   const reps: typeof import('glossarist').NonVerbRep.prototype[] = [];
-  for (const lang of props.concept.languages) {
-    const lc = props.concept.localization(lang);
-    if (lc?.nonVerbalRep?.length) {
-      reps.push(...lc.nonVerbalRep);
+  try {
+    for (const lang of props.concept?.languages ?? []) {
+      const lc = props.concept?.localization(lang);
+      if (lc?.nonVerbalRep?.length) {
+        reps.push(...lc.nonVerbalRep);
+      }
     }
+  } catch {
+    /* swallow — empty reps rather than crash at hydration */
   }
   return reps;
 });
@@ -501,20 +508,20 @@ const nonVerbalReps = computed(() => {
           </div>
 
           <!-- Non-verbal reps (concept-level) -->
-          <NonVerbalRepDisplay v-if="nonVerbalReps.length" :reps="nonVerbalReps" :locale="languages[0] ?? 'eng'" :register-id="registerId" :dataset-locales="languages" />
+          <NonVerbalRepDisplay v-if="nonVerbalReps?.length" :reps="nonVerbalReps" :locale="languages[0] ?? 'eng'" :register-id="registerId" :dataset-locales="languages" />
 
           <!-- Structural entity refs (concept-level figures/tables/formulas) -->
-          <NonVerbalList v-if="structuralEntityRefs.length" :refs="structuralEntityRefs" />
+          <NonVerbalList v-if="structuralEntityRefs?.length" :refs="structuralEntityRefs" />
         </div>
 
         <!-- Right sidebar -->
         <div class="w-full lg:w-64 flex-shrink-0 space-y-4 mt-6 lg:mt-0">
           <!-- Relations -->
-          <div v-if="outgoingEdges.length || incomingEdges.length" class="card p-5">
+          <div v-if="outgoingEdges?.length || incomingEdges?.length" class="card p-5">
             <div class="section-label">{{ t('concept.relations') }}</div>
 
             <!-- Outgoing -->
-            <div v-if="outgoingEdges.length" class="mt-3">
+            <div v-if="outgoingEdges?.length" class="mt-3">
               <div class="text-xs text-ink-300 mb-1.5">{{ t('concept.outgoing') }} ({{ outgoingEdges.length }})</div>
               <div class="space-y-0.5 max-h-56 overflow-y-auto pr-1 -mr-1">
                 <button
@@ -537,7 +544,7 @@ const nonVerbalReps = computed(() => {
             </div>
 
             <!-- Incoming -->
-            <div v-if="incomingEdges.length" class="mt-3 pt-3 border-t border-ink-100/60">
+            <div v-if="incomingEdges?.length" class="mt-3 pt-3 border-t border-ink-100/60">
               <div class="text-xs text-ink-300 mb-1.5">{{ t('concept.incoming') }} ({{ incomingEdges.length }})</div>
               <div class="space-y-0.5 max-h-40 overflow-y-auto pr-1 -mr-1">
                 <button
@@ -573,7 +580,7 @@ const nonVerbalReps = computed(() => {
 
           <!-- Partitive relations — one-to-many decompositions (ISO 704) -->
           <PartitiveRelationList
-            v-if="conceptPartitiveRelations.length"
+            v-if="conceptPartitiveRelations?.length"
             :relations="conceptPartitiveRelations"
             :manifest="manifest"
             :register-id="registerId"
@@ -581,7 +588,7 @@ const nonVerbalReps = computed(() => {
 
           <!-- Generic relations — genus/species decompositions (ISO 704) -->
           <GenericRelationList
-            v-if="conceptGenericRelations.length"
+            v-if="conceptGenericRelations?.length"
             :relations="conceptGenericRelations"
             :manifest="manifest"
             :register-id="registerId"
@@ -608,7 +615,7 @@ const nonVerbalReps = computed(() => {
           />
 
           <!-- Domains -->
-          <div v-if="conceptDomains.length" class="card p-5">
+          <div v-if="conceptDomains?.length" class="card p-5">
             <div class="section-label">{{ t('concept.domains') }}</div>
             <div class="space-y-1 mt-3">
               <button
@@ -628,7 +635,7 @@ const nonVerbalReps = computed(() => {
           </div>
 
           <!-- Tags -->
-          <div v-if="conceptTags.length" class="card p-5">
+          <div v-if="conceptTags?.length" class="card p-5">
             <div class="section-label">{{ t('concept.tags') }}</div>
             <div class="flex flex-wrap gap-1.5 mt-3">
               <span v-for="tag in conceptTags" :key="tag" class="badge badge-gray text-[10px]">{{ tag }}</span>
@@ -636,7 +643,7 @@ const nonVerbalReps = computed(() => {
           </div>
 
           <!-- Managed concept dates -->
-          <div v-if="conceptDates.length" class="card p-5">
+          <div v-if="conceptDates?.length" class="card p-5">
             <div class="section-label">{{ t('concept.lifecycleDates') }}</div>
             <dl class="mt-3 space-y-1.5 text-xs">
               <div v-for="(d, i) in conceptDates" :key="i" class="flex gap-2">
@@ -647,7 +654,7 @@ const nonVerbalReps = computed(() => {
           </div>
 
           <!-- Managed concept sources -->
-          <div v-if="conceptSources.length" class="card p-5">
+          <div v-if="conceptSources?.length" class="card p-5">
             <div class="section-label">{{ t('concept.conceptSources') }}</div>
             <div class="space-y-2 mt-3">
               <div v-for="(src, i) in conceptSources" :key="i" class="text-xs">

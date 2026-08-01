@@ -36,28 +36,53 @@ const fontHeader = brandingFonts?.header?.family
 const fontBody = brandingFonts?.body?.family
   ? `'${brandingFonts.body.family}', system-ui, sans-serif`
   : `'DM Sans', system-ui, sans-serif`;
+
+// Favicon configuration (issue #173).
+//
+// Consumers provide their own favicon set in one of two ways:
+//
+//   1. Drop canonical files at `branding.favicon.source_dir` (relative
+//      to the consumer's cwd). The CLI's existing favicon step already
+//      copies these into public/ overriding the defaults — this layout
+//      just needs to emit the right <link> tags.
+//
+//   2. Set `branding.favicon.skip_default_links: true` and inject
+//      custom <link> tags via the `branding.favicon.links_html`
+//      string (e.g. RealFaviconGenerator output). The layout emits
+//      that verbatim and skips the default tag block.
+//
+// When neither is set, today's default behavior is preserved.
+const faviconCfg = siteConfig?.branding?.favicon ?? {};
+const skipDefaultFaviconLinks = faviconCfg.skip_default_links === true;
+const customFaviconLinks: string = faviconCfg.links_html ?? '';
+const faviconBase = faviconCfg.base_path ?? '/';
 ---
 
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
-    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png" />
-    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png" />
-    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png" />
-    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png" />
-    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png" />
-    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png" />
-    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png" />
-    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png" />
-    <link rel="apple-touch-icon" sizes="167x167" href="/apple-touch-icon-167x167.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png" />
-    <link rel="apple-touch-icon" sizes="1024x1024" href="/apple-touch-icon-1024x1024.png" />
+    {!skipDefaultFaviconLinks && (
+      <>
+        <link rel="icon" type="image/x-icon" href={`${faviconBase}favicon.ico`} />
+        <link rel="icon" type="image/svg+xml" href={`${faviconBase}favicon.svg`} />
+        <link rel="icon" type="image/png" sizes="16x16" href={`${faviconBase}favicon-16x16.png`} />
+        <link rel="icon" type="image/png" sizes="32x32" href={`${faviconBase}favicon-32x32.png`} />
+        <link rel="icon" type="image/png" sizes="48x48" href={`${faviconBase}favicon-48x48.png`} />
+        <link rel="apple-touch-icon" sizes="57x57" href={`${faviconBase}apple-touch-icon-57x57.png`} />
+        <link rel="apple-touch-icon" sizes="60x60" href={`${faviconBase}apple-touch-icon-60x60.png`} />
+        <link rel="apple-touch-icon" sizes="72x72" href={`${faviconBase}apple-touch-icon-72x72.png`} />
+        <link rel="apple-touch-icon" sizes="76x76" href={`${faviconBase}apple-touch-icon-76x76.png`} />
+        <link rel="apple-touch-icon" sizes="114x114" href={`${faviconBase}apple-touch-icon-114x114.png`} />
+        <link rel="apple-touch-icon" sizes="120x120" href={`${faviconBase}apple-touch-icon-120x120.png`} />
+        <link rel="apple-touch-icon" sizes="144x144" href={`${faviconBase}apple-touch-icon-144x144.png`} />
+        <link rel="apple-touch-icon" sizes="152x152" href={`${faviconBase}apple-touch-icon-152x152.png`} />
+        <link rel="apple-touch-icon" sizes="167x167" href={`${faviconBase}apple-touch-icon-167x167.png`} />
+        <link rel="apple-touch-icon" sizes="180x180" href={`${faviconBase}apple-touch-icon-180x180.png`} />
+        <link rel="apple-touch-icon" sizes="1024x1024" href={`${faviconBase}apple-touch-icon-1024x1024.png`} />
+      </>
+    )}
+    {customFaviconLinks && <Fragment set:html={customFaviconLinks} />}
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content={siteConfig.title} />

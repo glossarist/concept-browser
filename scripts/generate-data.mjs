@@ -1344,6 +1344,9 @@ async function processDataset(dir, register, opts) {
   await writeDatasetRdf(register, manifest, concepts, refMaps, opts);
 
   // Copy bibliography.yaml → bibliography.json
+  // ALWAYS emit bibliography.json — empty stub `{ bibliography: [] }` when no
+  // source exists — so the concept detail page's unconditional fetch doesn't
+  // 404 (issue #174). The build never emits a request it can't satisfy.
   const bibPath = path.join(sourceRoot, 'bibliography.yaml');
   if (fs.existsSync(bibPath)) {
     const rawBib = readYaml(bibPath);
@@ -1351,6 +1354,9 @@ async function processDataset(dir, register, opts) {
     writeJson(path.join(DATA, register, 'bibliography.json'), bibData);
     const bibCount = bibData.bibliography.length;
     console.log(`  Copied bibliography (${bibCount} entries)`);
+  } else {
+    writeJson(path.join(DATA, register, 'bibliography.json'), { bibliography: [] });
+    console.log(`  Emitted empty bibliography.json (no source bibliography.yaml)`);
   }
 
   // Copy images/ with magic-byte validation + manifest emission.

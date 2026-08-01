@@ -18,6 +18,22 @@ export interface LogoConfig {
   localDark?: string;
 }
 
+export interface FaviconConfig {
+  /** Path prefix for all favicon URLs. Defaults to '/', set to a sub-path
+   *  when deploying under BASE_PATH != '/'. */
+  base_path?: string;
+  /** Skip emitting the default <link rel="icon"> and <link rel="apple-touch-icon">
+   *  tags. Use when the consumer provides their own RFG-compatible markup via
+   *  `links_html`. Default: false (emit default tags). */
+  skip_default_links?: boolean;
+  /** Raw HTML string (one or more <link> tags) to emit in <head> instead of
+   *  the default favicon block. RealFaviconGenerator output goes here. */
+  links_html?: string;
+  /** Consumer-side directory (relative to cwd) holding canonical favicon files.
+   *  The CLI's favicon step copies these into public/, overriding defaults. */
+  source_dir?: string;
+}
+
 export interface SiteBranding {
   primaryColor?: string;
   darkColor?: string;
@@ -27,7 +43,7 @@ export interface SiteBranding {
   };
   logo?: LogoConfig;
   footerLogo?: LogoConfig;
-  favicon?: string;
+  favicon?: string | FaviconConfig;
   ownerName?: string;
   ownerUrl?: string;
 }
