@@ -235,22 +235,33 @@ Then in `site-config.yml`:
 branding:
   favicon:
     base_path: /                              # URL prefix (BASE_PATH-aware; default '/')
-    skip_default_links: true                  # suppress the default <link> block
     source_dir: assets/favicons               # canonical files (all of them, in one directory)
-    links_html: |-                            # raw HTML emitted verbatim in <head>
-      <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
-      <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-      <link rel="shortcut icon" href="/favicon.ico" />
-      <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-      <link rel="manifest" href="/site.webmanifest" />
+    icons:                                    # DATA — declare each icon, not HTML
+      - rel: icon
+        type: image/svg+xml
+        href: favicon.svg
+      - rel: icon
+        type: image/png
+        sizes: 96x96
+        href: favicon-96x96.png
+      - rel: shortcut icon
+        href: favicon.ico
+      - rel: apple-touch-icon
+        sizes: 180x180
+        href: apple-touch-icon.png
+      - rel: manifest
+        href: site.webmanifest
 ```
+
+The CLI copies every file from `source_dir/` into `public/` (also removing the default cruft), then renders one `<link>` tag per icon entry. The `href` is a **filename** — the system applies the correct `base_path` prefix automatically. Absolute URLs (`https://cdn.example.com/x.png`) and root-relative paths (`/x.png`) are emitted unchanged.
 
 | Field | Type | Effect |
 |---|---|---|
 | `source_dir` | string | Path (relative to cwd) to a directory containing **all** canonical favicon files. The CLI copies every file in this directory into `public/`, overriding any defaults. Also removes the default-generated cruft (`apple-touch-icon-57x57.png`, `favicon-16x16.png`, etc.) so it doesn't linger. |
-| `links_html` | string | Raw HTML (one or more `<link>` tags) emitted verbatim in `<head>`. Use this to declare which of the source_dir files the browser should load, with what `sizes`/`type`. |
-| `skip_default_links` | boolean | When true, the CLI does NOT call the `favicons` package and does NOT emit the default `<link>` tags. Pair with `links_html` and `source_dir` for fully custom branding. |
+| `icons` | `FaviconIcon[]` | **DATA — recommended.** Array of `{ rel, href, type?, sizes? }` entries. Each renders to one `<link>` tag with BASE_PATH-aware href. Replaces the default 16-link set. |
+| `skip_default_links` | boolean | When true, the CLI does NOT call the `favicons` package and does NOT emit the default `<link>` tags. Pair with `icons` and `source_dir` for fully custom branding. |
 | `base_path` | string | URL prefix prepended to every emitted link. Useful for BASE_PATH-scoped deployments (e.g. `/vocab/`). |
+| ~~`links_html`~~ | string | **@deprecated** — use `icons` instead. Raw HTML emitted verbatim. Impossible to validate or safely BASE_PATH-rewrite; kept for backward compat with a console warning. |
 
 The object form exists so consumers with a RealFaviconGenerator favicon set (or any other canonical brand favicon bundle) can install it without a post-build script. Previously this required workarounds like `glossarist/cie-eilv/scripts/install-favicons.mjs` (149 lines) and `glossarist/iala-vocab/scripts/install-favicons.mjs` (175 lines) — both are now unnecessary.
 
