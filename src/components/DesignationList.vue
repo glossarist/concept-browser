@@ -77,8 +77,8 @@ function resolvedLabel(dr: { content: string | null; ref?: { source: string | nu
       <div v-if="d.related?.length" class="mt-0.5 space-y-0.5">
         <div v-for="(dr, dri) in d.related" :key="'dr'+dri" class="text-xs text-ink-400 flex items-center gap-1.5">
           <span class="badge text-[9px] bg-gray-50 text-gray-600">{{ relationshipLabel(dr.type ?? '') }}</span>
-          <template v-if="getDesignationTarget(dr)">
-            <span class="italic">{{ getDesignationTarget(dr) }}</span>
+          <template v-if="getDesignationTarget(dr as any)">
+            <span class="italic">{{ getDesignationTarget(dr as any) }}</span>
           </template>
           <button v-else-if="'ref' in dr && dr.ref" @click="emit('navigate-related', dr.ref)" class="concept-link">{{ resolvedLabel(dr) }}</button>
           <span v-else>{{ resolvedLabel(dr) }}</span>

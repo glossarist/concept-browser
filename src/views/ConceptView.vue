@@ -284,7 +284,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
         <!-- Sphere mode — receives concept + edges directly, no URI matching -->
         <RelationSphere
           v-if="viewMode === 'sphere'"
-          :concept="concept"
+          :concept="concept as any"
           :manifest="manifest"
           :register-id="activeRegisterId"
           :edges="edges"
@@ -295,7 +295,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
         <!-- Detail mode -->
         <ConceptDetail
           v-else
-          :concept="concept"
+          :concept="concept as any"
           :manifest="manifest"
           :edges="edges"
           :adjacent="adjacent"

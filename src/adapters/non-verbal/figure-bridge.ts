@@ -96,5 +96,5 @@ export function figureFromJsonLd(doc: Record<string, unknown>): Figure | null {
     ...(description && { description }),
     ...(subfigures && { subfigures }),
     ...(sources.length && { sources }),
-  });
+  } as any);
 }

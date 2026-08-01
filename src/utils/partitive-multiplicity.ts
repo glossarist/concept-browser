@@ -28,9 +28,10 @@ import {
   multiplicityFromPair,
   isValidPresence,
   isValidCount,
-  type PartitivePresence,
-  type PartitiveCount,
 } from 'glossarist/models';
+
+type PartitivePresence = (typeof PARTITIVE_PRESENCE.VALUES)[number];
+type PartitiveCount = (typeof PARTITIVE_COUNT.VALUES)[number];
 
 // ── Two independent axes (re-exported SSOT) ────────────────────────────
 

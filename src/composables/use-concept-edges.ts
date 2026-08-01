@@ -7,7 +7,7 @@ import type { Concept, RelatedConcept, ConceptRef } from 'glossarist';
 import { PartitiveHyperedge } from 'glossarist';
 import { GenericHyperedge } from 'glossarist/models';
 import type {
-  PartitiveRelation as GlsPartitiveRelation,
+  PartitiveHyperedge as GlsPartitiveRelation,
   PartitiveMember as GlsPartitiveMember,
 } from 'glossarist/models';
 import type {
@@ -39,7 +39,7 @@ export interface EdgeDisplay {
 }
 
 export function useConceptEdges(
-  concept: ComputedRef<Concept | null | undefined>,
+  concept: ComputedRef<any>,
   registerId: ComputedRef<string>,
   manifest: ComputedRef<Manifest | null | undefined>,
   edges: ComputedRef<GraphEdge[]>,

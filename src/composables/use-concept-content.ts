@@ -102,7 +102,7 @@ export function useConceptContent(
         notes,
         examples,
         sources: lc.sources,
-        designations: lc.terms,
+        designations: [...lc.terms],
         renderedDesignations: new Map(lc.terms.map(d => [d.designation, renderContent(d.designation)])),
         entryStatus: lc.entryStatus ?? '',
         classification: lc.classification,
