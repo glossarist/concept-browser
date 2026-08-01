@@ -315,4 +315,24 @@ describe('drawRakeBundles — rake contract', () => {
     expect(svg.querySelectorAll('circle.rake-junction').length).toBe(2);
     expect(svg.querySelectorAll('path').length).toBe(2);
   });
+
+  it('renders ellipsis "…" text when completeness is partial', () => {
+    const svg = makeSvg();
+    drawRakeBundles(svg, pos, {
+      isDark: false, color: '#0d9488', isMuted: false,
+      relations: [makeRelation({ completeness: 'partial' })],
+    });
+    const ellipsis = svg.querySelectorAll('text.rake-ellipsis');
+    expect(ellipsis.length).toBe(1);
+    expect(ellipsis[0].textContent).toBe('…');
+  });
+
+  it('does NOT render ellipsis when completeness is complete', () => {
+    const svg = makeSvg();
+    drawRakeBundles(svg, pos, {
+      isDark: false, color: '#0d9488', isMuted: false,
+      relations: [makeRelation({ completeness: 'complete' })],
+    });
+    expect(svg.querySelectorAll('text.rake-ellipsis').length).toBe(0);
+  });
 });

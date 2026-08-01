@@ -140,6 +140,23 @@ export function drawRakeBundles(
       drawSegment(svg, opts.color, spineStartX, spineStartY, spineEndX, spineEndY, { width: FRAME_STROKE_WIDTH });
     }
 
+    // 6b. Ellipsis marker for partial completeness — ISO 704:2022
+    //     "..." at the open end of the spine indicates further members
+    //     exist but are not encoded.
+    if (rel.completeness === 'partial') {
+      const ellipsis = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      ellipsis.setAttribute('class', 'rake-ellipsis');
+      ellipsis.setAttribute('x', String(spineEndX + spineDirX * 4));
+      ellipsis.setAttribute('y', String(spineEndY + spineDirY * 4 + 3));
+      ellipsis.setAttribute('fill', opts.color);
+      ellipsis.setAttribute('font-size', '10');
+      ellipsis.setAttribute('font-family', 'JetBrains Mono, monospace');
+      ellipsis.setAttribute('font-weight', '600');
+      ellipsis.setAttribute('opacity', '0.8');
+      ellipsis.textContent = '…';
+      svg.appendChild(ellipsis);
+    }
+
     // 7. Drops: tooth → partitive (per-member multiplicity + delimiting).
     //    1 or 2 parallel lines per the style.
     for (const tooth of teeth) {
