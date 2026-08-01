@@ -88,53 +88,150 @@ Environment:
     fs.mkdirSync(publicDir, { recursive: true });
 
     const branding = config?.branding || {};
-    const faviconSrc =
-      (branding.favicon && resolve(process.cwd(), branding.favicon)) ||
-      (branding.logo?.localPath && resolve(process.cwd(), branding.logo.localPath)) ||
-      resolve(pkgRoot, 'public', 'favicon.svg');
+
+    // Favicon resolution (issue #173).
+    //
+    // `branding.favicon` accepts two shapes:
+    //
+    //   1. String (legacy) — path to a single source SVG/PNG. The `favicons`
+    //      package generates the full variant set from it.
+    //
+    //   2. Object — `{ source_dir?, links_html?, skip_default_links?, base_path? }`.
+    //      - `links_html`: raw HTML (one or more <link> tags) emitted verbatim.
+    //        Skips the `favicons` package entirely; consumer is responsible
+    //        for providing the actual icon files in public/.
+    //      - `source_dir`: directory of canonical favicon files copied as-is
+    //        into public/ (overriding any defaults). Useful when the consumer
+    //        already has a RealFaviconGenerator output set.
+    //      - `skip_default_links`: don't emit the default <link> block at all.
+    //      - `base_path`: URL prefix for the emitted links (BASE_PATH-aware).
+    const faviconCfg = branding.favicon;
+    const faviconCfgIsObject =
+      faviconCfg !== null && typeof faviconCfg === 'object' && !Array.isArray(faviconCfg);
 
     let faviconHtml = '';
-    if (fs.existsSync(faviconSrc)) {
-      console.log(`\n=== FAVICONS ===\n`);
-      const favicons = (await import('favicons')).default;
-      const source = fs.readFileSync(faviconSrc);
-      const response = await favicons(source, {
-        appName: config?.title || 'Glossarist',
-        background: branding.primaryColor || '#2563eb',
-        theme_color: branding.primaryColor || '#2563eb',
-        icons: {
-          android: false,
-          appleIcon: true,
-          appleStartup: false,
-          favicons: true,
-          windows: false,
-          yandex: false,
-        },
-      });
+    let skipDefaultGeneration = false;
 
-      for (const img of response.images) {
-        fs.writeFileSync(resolve(publicDir, img.name), img.contents);
+    if (faviconCfgIsObject) {
+      // Object form — honor each declared field.
+      if (faviconCfg.links_html) {
+        faviconHtml = String(faviconCfg.links_html);
+        skipDefaultGeneration = true;
       }
-      for (const file of response.files) {
-        fs.writeFileSync(resolve(publicDir, file.name), file.contents);
-      }
+      if (faviconCfg.source_dir) {
+        const srcDir = resolve(process.cwd(), faviconCfg.source_dir);
+        if (fs.existsSync(srcDir) && fs.statSync(srcDir).isDirectory()) {
+          console.log(`\n=== FAVICONS (copy from ${faviconCfg.source_dir}) ===\n`);
+          // When the consumer provides a canonical favicon set, also delete
+          // the default-generated cruft (apple-touch-icon-*.png, etc.) so
+          // it doesn't linger in public/ and pollute the deployment.
+          // Mirrors glossarist/iala-vocab/scripts/install-favicons.mjs.
+          const cruftFiles = [
+            'apple-touch-icon-57x57.png',
+            'apple-touch-icon-60x60.png',
+            'apple-touch-icon-72x72.png',
+            'apple-touch-icon-76x76.png',
+            'apple-touch-icon-114x114.png',
+            'apple-touch-icon-120x120.png',
+            'apple-touch-icon-144x144.png',
+            'apple-touch-icon-152x152.png',
+            'apple-touch-icon-167x167.png',
+            'apple-touch-icon-180x180.png',
+            'apple-touch-icon-1024x1024.png',
+            'apple-touch-icon-precomposed.png',
+            'favicon-16x16.png',
+            'favicon-32x32.png',
+            'favicon-48x48.png',
+            'browserconfig.xml',
+          ];
+          let removed = 0;
+          for (const cruft of cruftFiles) {
+            const cruftPath = resolve(publicDir, cruft);
+            if (fs.existsSync(cruftPath)) {
+              fs.unlinkSync(cruftPath);
+              removed++;
+            }
+          }
+          if (removed > 0) console.log(`  Removed ${removed} default cruft file(s)`);
 
-      if (faviconSrc.endsWith('.svg')) {
-        fs.copyFileSync(faviconSrc, resolve(publicDir, 'favicon.svg'));
+          let copied = 0;
+          for (const entry of fs.readdirSync(srcDir)) {
+            const fromPath = resolve(srcDir, entry);
+            if (fs.statSync(fromPath).isFile()) {
+              fs.copyFileSync(fromPath, resolve(publicDir, entry));
+              copied++;
+            }
+          }
+          console.log(`  Copied ${copied} canonical favicon file(s) from ${faviconCfg.source_dir}`);
+        } else {
+          console.warn(`  Warning: branding.favicon.source_dir not found: ${srcDir}`);
+        }
       }
+      if (faviconCfg.skip_default_links) {
+        skipDefaultGeneration = true;
+      }
+    }
 
-      faviconHtml = response.html.join('\n    ');
-      if (faviconSrc.endsWith('.svg')) {
-        faviconHtml += '\n    <link rel="icon" type="image/svg+xml" href="/favicon.svg">';
+    if (!skipDefaultGeneration) {
+      // Legacy / default path — derive a single source file and let the
+      // `favicons` package generate the full variant set.
+      const faviconSrc =
+        (typeof faviconCfg === 'string' && faviconCfg && resolve(process.cwd(), faviconCfg)) ||
+        (branding.logo?.localPath && resolve(process.cwd(), branding.logo.localPath)) ||
+        resolve(pkgRoot, 'public', 'favicon.svg');
+
+      if (fs.existsSync(faviconSrc)) {
+        console.log(`\n=== FAVICONS ===\n`);
+        const favicons = (await import('favicons')).default;
+        const source = fs.readFileSync(faviconSrc);
+        const response = await favicons(source, {
+          appName: config?.title || 'Glossarist',
+          background: branding.primaryColor || '#2563eb',
+          theme_color: branding.primaryColor || '#2563eb',
+          icons: {
+            android: false,
+            appleIcon: true,
+            appleStartup: false,
+            favicons: true,
+            windows: false,
+            yandex: false,
+          },
+        });
+
+        for (const img of response.images) {
+          fs.writeFileSync(resolve(publicDir, img.name), img.contents);
+        }
+        for (const file of response.files) {
+          fs.writeFileSync(resolve(publicDir, file.name), file.contents);
+        }
+
+        if (faviconSrc.endsWith('.svg')) {
+          fs.copyFileSync(faviconSrc, resolve(publicDir, 'favicon.svg'));
+        }
+
+        // Only use the generated HTML if the consumer didn't supply their own.
+        if (!faviconHtml) {
+          faviconHtml = response.html.join('\n    ');
+          if (faviconSrc.endsWith('.svg')) {
+            faviconHtml += '\n    <link rel="icon" type="image/svg+xml" href="/favicon.svg">';
+          }
+        }
+        console.log(`  Generated ${response.images.length} favicon files`);
       }
-      fs.writeFileSync(resolve(publicDir, 'favicon-links.html'), faviconHtml);
-      console.log(`  Generated ${response.images.length} favicon files`);
     }
 
     if (faviconHtml) {
-      const basePath = process.env.BASE_PATH?.replace(/\/+$/, '') || '';
+      fs.writeFileSync(resolve(publicDir, 'favicon-links.html'), faviconHtml);
+      // Apply base_path prefix (issue #173 + BASE_PATH-aware deployments).
+      const basePath =
+        (faviconCfgIsObject && faviconCfg.base_path) ||
+        process.env.BASE_PATH?.replace(/\/+$/, '') ||
+        '';
       if (basePath) {
-        faviconHtml = faviconHtml.replace(/(href|content)="\/([^"]+)"/g, `$1="${basePath}/$2"`);
+        faviconHtml = faviconHtml.replace(
+          /(href|content)="\/([^"]+)"/g,
+          `$1="${basePath}/$2`,
+        );
       }
       process.env.FAVICON_HTML = faviconHtml;
     }
