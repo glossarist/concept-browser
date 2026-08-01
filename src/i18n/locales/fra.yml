@@ -55,6 +55,18 @@ learn.dimensions.delimiting.false.label: non délimitante
 learn.dimensions.delimiting.false.meaning: Une partie ordinaire. Dessinée à largeur de trait normale (1,5 px).
 learn.dimensions.delimiting.true.label: délimitante
 learn.dimensions.delimiting.true.meaning: La partie est essentielle à l'identité du tout. Dessinée à largeur de trait 3× (4,5 px).
+learn.dimensions.combinationsTitle: Combinaisons de multiplicité valides
+learn.dimensions.combinationsDescription: Description ISO 704
+learn.dimensions.combinationsModel: Notre modèle
+learn.dimensions.combinationsVisual: Visuel
+learn.dimensions.combo.compulsory: obligatoire
+learn.dimensions.combo.atLeastOne: au moins un
+learn.dimensions.combo.optional: optionnel
+learn.dimensions.combo.optionalMultiple: optionnel multiple
+learn.dimensions.combo.compulsoryMultiple: obligatoire multiple
+learn.dimensions.invalidDescription: (invalide)
+learn.dimensions.invalidModel: optional + at_least_one
+learn.dimensions.invalidReason: Vacuous — se réduit à optional + multiple (0..*). Rejeté par glossarist-js.
 learn.designations.title: Désignations
 learn.designations.short: Termes et symboles — préféré, admis, déconseillé, forme complète, abréviation, acronyme, sigle.
 learn.designations.intro: Les concepts sont désignés par des termes, noms propres et symboles. Cette page explique le vocabulaire que vous verrez sur chaque page de concept.

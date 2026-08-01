@@ -86,6 +86,39 @@ const delimitingValues: readonly DimensionValue[] = [
     meaning: t('learn.dimensions.delimiting.true.meaning'),
   },
 ];
+
+const validCombinations = [
+  {
+    description: t('learn.dimensions.combo.compulsory'),
+    uml: '1..1',
+    model: 'required + exactly_one',
+    svg: '<svg width="44" height="14"><line x1="2" y1="7" x2="42" y2="7" stroke="currentColor" stroke-width="1.5"/></svg>',
+  },
+  {
+    description: t('learn.dimensions.combo.atLeastOne'),
+    uml: '1..*',
+    model: 'required + at_least_one',
+    svg: '<svg width="44" height="14"><line x1="2" y1="5" x2="42" y2="5" stroke="currentColor" stroke-width="1.5"/><line x1="2" y1="9" x2="42" y2="9" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/></svg>',
+  },
+  {
+    description: t('learn.dimensions.combo.optional'),
+    uml: '0..1',
+    model: 'optional + exactly_one',
+    svg: '<svg width="44" height="14"><line x1="2" y1="7" x2="42" y2="7" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/></svg>',
+  },
+  {
+    description: t('learn.dimensions.combo.optionalMultiple'),
+    uml: '0..*',
+    model: 'optional + multiple',
+    svg: '<svg width="44" height="14"><line x1="2" y1="5" x2="42" y2="5" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="2" y1="9" x2="42" y2="9" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/></svg>',
+  },
+  {
+    description: t('learn.dimensions.combo.compulsoryMultiple'),
+    uml: '2..*',
+    model: 'required + multiple',
+    svg: '<svg width="44" height="14"><line x1="2" y1="5" x2="42" y2="5" stroke="currentColor" stroke-width="1.5"/><line x1="2" y1="9" x2="42" y2="9" stroke="currentColor" stroke-width="1.5"/></svg>',
+  },
+];
 </script>
 
 <template>
@@ -201,6 +234,36 @@ const delimitingValues: readonly DimensionValue[] = [
             </svg>
           </template>
         </DimensionCard>
+      </div>
+
+      <h3 class="text-base font-semibold text-ink-700 dark:text-ink-100 mt-6 mb-3">
+        {{ t('learn.dimensions.combinationsTitle') }}
+      </h3>
+      <div class="card p-4 overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-ink-100 dark:border-ink-700 text-ink-500 dark:text-ink-400 text-xs uppercase tracking-wide">
+              <th class="text-left py-2 pr-4">{{ t('learn.dimensions.combinationsDescription') }}</th>
+              <th class="text-center py-2 px-2">UML</th>
+              <th class="text-left py-2 px-2">{{ t('learn.dimensions.combinationsModel') }}</th>
+              <th class="text-center py-2 pl-4">{{ t('learn.dimensions.combinationsVisual') }}</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-ink-100 dark:divide-ink-700">
+            <tr v-for="combo in validCombinations" :key="combo.model">
+              <td class="py-2 pr-4 text-ink-700 dark:text-ink-200">{{ combo.description }}</td>
+              <td class="py-2 px-2 text-center font-mono text-ink-500 dark:text-ink-400">{{ combo.uml }}</td>
+              <td class="py-2 px-2 font-mono text-xs text-ink-600 dark:text-ink-300">{{ combo.model }}</td>
+              <td class="py-2 pl-4 text-center" v-html="combo.svg"></td>
+            </tr>
+            <tr class="opacity-50">
+              <td class="py-2 pr-4 text-ink-500 dark:text-ink-400 italic">{{ t('learn.dimensions.invalidDescription') }}</td>
+              <td class="py-2 px-2 text-center font-mono text-ink-400">—</td>
+              <td class="py-2 px-2 font-mono text-xs text-ink-400">{{ t('learn.dimensions.invalidModel') }}</td>
+              <td class="py-2 pl-4 text-center text-xs text-ink-400 italic">{{ t('learn.dimensions.invalidReason') }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
