@@ -8,6 +8,8 @@ import {
   DEFAULT_CATEGORY,
   type FontConfigLike,
 } from '../utils/font-stack';
+import { resolveFaviconBase } from '../utils/favicon-base';
+import { buildDefaultFaviconLinks, renderFaviconLinkTag } from '../utils/favicon-links';
 
 interface Props {
   title: string;
@@ -68,7 +70,20 @@ const fontMono = fontStack(brandingFonts?.mono, DEFAULT_CATEGORY.mono) ?? DEFAUL
 const faviconCfg = siteConfig?.branding?.favicon ?? {};
 const skipDefaultFaviconLinks = faviconCfg.skip_default_links === true;
 const customFaviconLinks: string = faviconCfg.links_html ?? '';
-const faviconBase = faviconCfg.base_path ?? '/';
+
+// BASE_PATH-aware favicon URL prefix. Walks the configuration cascade:
+// branding.favicon.base_path → siteConfig.basePath → import.meta.env.BASE_URL → '/'.
+// Always ends with '/' so `${faviconBase}favicon.ico` resolves correctly
+// whether the deployment is at '/' or '/cie-eilv/'.
+//
+// See src/utils/favicon-base.ts for the shared resolver + regression tests.
+const faviconBaseInput = {
+  brandingFaviconBasePath: typeof faviconCfg === 'object' ? faviconCfg.base_path : undefined,
+  siteConfigBasePath: siteConfig?.basePath,
+  astroBaseUrl: import.meta.env.BASE_URL,
+};
+const faviconBase = resolveFaviconBase(faviconBaseInput);
+const faviconLinks = buildDefaultFaviconLinks(faviconBaseInput).map(renderFaviconLinkTag);
 ---
 
 <!DOCTYPE html>
@@ -76,24 +91,7 @@ const faviconBase = faviconCfg.base_path ?? '/';
   <head>
     <meta charset="utf-8" />
     {!skipDefaultFaviconLinks && (
-      <>
-        <link rel="icon" type="image/x-icon" href={`${faviconBase}favicon.ico`} />
-        <link rel="icon" type="image/svg+xml" href={`${faviconBase}favicon.svg`} />
-        <link rel="icon" type="image/png" sizes="16x16" href={`${faviconBase}favicon-16x16.png`} />
-        <link rel="icon" type="image/png" sizes="32x32" href={`${faviconBase}favicon-32x32.png`} />
-        <link rel="icon" type="image/png" sizes="48x48" href={`${faviconBase}favicon-48x48.png`} />
-        <link rel="apple-touch-icon" sizes="57x57" href={`${faviconBase}apple-touch-icon-57x57.png`} />
-        <link rel="apple-touch-icon" sizes="60x60" href={`${faviconBase}apple-touch-icon-60x60.png`} />
-        <link rel="apple-touch-icon" sizes="72x72" href={`${faviconBase}apple-touch-icon-72x72.png`} />
-        <link rel="apple-touch-icon" sizes="76x76" href={`${faviconBase}apple-touch-icon-76x76.png`} />
-        <link rel="apple-touch-icon" sizes="114x114" href={`${faviconBase}apple-touch-icon-114x114.png`} />
-        <link rel="apple-touch-icon" sizes="120x120" href={`${faviconBase}apple-touch-icon-120x120.png`} />
-        <link rel="apple-touch-icon" sizes="144x144" href={`${faviconBase}apple-touch-icon-144x144.png`} />
-        <link rel="apple-touch-icon" sizes="152x152" href={`${faviconBase}apple-touch-icon-152x152.png`} />
-        <link rel="apple-touch-icon" sizes="167x167" href={`${faviconBase}apple-touch-icon-167x167.png`} />
-        <link rel="apple-touch-icon" sizes="180x180" href={`${faviconBase}apple-touch-icon-180x180.png`} />
-        <link rel="apple-touch-icon" sizes="1024x1024" href={`${faviconBase}apple-touch-icon-1024x1024.png`} />
-      </>
+      <Fragment set:html={faviconLinks.join('\n    ')} />
     )}
     {customFaviconLinks && <Fragment set:html={customFaviconLinks} />}
     <meta name="apple-mobile-web-app-capable" content="yes" />
