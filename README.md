@@ -109,7 +109,65 @@ branding:
 
 If no logo is configured, the Glossarist logo is shown by default. The footer always shows the Glossarist logo ("Powered by Glossarist").
 
-Favicons work the same way — place `favicon.svg`, `favicon.ico`, and `apple-touch-icon*.png` in `public/`. If not provided, the Glossarist favicon is used.
+### Favicons
+
+`branding.favicon` accepts two shapes — a legacy **string** form and an **object** form that lets consumers provide their own canonical favicon set without writing a post-build script.
+
+#### String form (legacy, still supported)
+
+Path to a single source SVG/PNG. The CLI generates the full variant set (favicon.ico, apple-touch-icon-*.png, etc.) from it using the `favicons` package:
+
+```yaml
+branding:
+  favicon: assets/my-brand.svg
+```
+
+#### Object form (recommended for branded deployments)
+
+The object form lets you provide your own canonical favicon set (typically RealFaviconGenerator output) and have the CLI install it without a post-build script.
+
+A canonical favicon set is **multiple files** — typically `favicon.svg`, `favicon.ico`, `favicon-96x96.png`, `apple-touch-icon.png`, `web-app-manifest-192x192.png`, `web-app-manifest-512x512.png`, and `site.webmanifest`. Put all of them in a directory (e.g. `assets/favicons/`) and reference it via `source_dir`:
+
+```
+my-deployment/
+├── site-config.yml
+└── assets/
+    └── favicons/                  ← branding.favicon.source_dir points here
+        ├── favicon.svg
+        ├── favicon.ico
+        ├── favicon-96x96.png
+        ├── apple-touch-icon.png
+        ├── web-app-manifest-192x192.png
+        ├── web-app-manifest-512x512.png
+        └── site.webmanifest       ← optional; CLI regenerates with BASE_PATH
+```
+
+Then in `site-config.yml`:
+
+```yaml
+branding:
+  favicon:
+    base_path: /                              # URL prefix (BASE_PATH-aware; default '/')
+    skip_default_links: true                  # suppress the default <link> block
+    source_dir: assets/favicons               # canonical files (all of them, in one directory)
+    links_html: |-                            # raw HTML emitted verbatim in <head>
+      <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+      <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+      <link rel="shortcut icon" href="/favicon.ico" />
+      <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+      <link rel="manifest" href="/site.webmanifest" />
+```
+
+| Field | Type | Effect |
+|---|---|---|
+| `source_dir` | string | Path (relative to cwd) to a directory containing **all** canonical favicon files. The CLI copies every file in this directory into `public/`, overriding any defaults. Also removes the default-generated cruft (`apple-touch-icon-57x57.png`, `favicon-16x16.png`, etc.) so it doesn't linger. |
+| `links_html` | string | Raw HTML (one or more `<link>` tags) emitted verbatim in `<head>`. Use this to declare which of the source_dir files the browser should load, with what `sizes`/`type`. |
+| `skip_default_links` | boolean | When true, the CLI does NOT call the `favicons` package and does NOT emit the default `<link>` tags. Pair with `links_html` and `source_dir` for fully custom branding. |
+| `base_path` | string | URL prefix prepended to every emitted link. Useful for BASE_PATH-scoped deployments (e.g. `/vocab/`). |
+
+The object form exists so consumers with a RealFaviconGenerator favicon set (or any other canonical brand favicon bundle) can install it without a post-build script. Previously this required workarounds like `glossarist/cie-eilv/scripts/install-favicons.mjs` (149 lines) and `glossarist/iala-vocab/scripts/install-favicons.mjs` (175 lines) — both are now unnecessary.
+
+If neither form is set, the Glossarist default favicon is used.
 
 ### About pages
 
