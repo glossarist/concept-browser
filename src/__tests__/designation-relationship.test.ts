@@ -197,8 +197,8 @@ describe('designation target matching robustness', () => {
     // Terms are in model order, not raw order
     const pdf = lc.terms.find(t => t.designation === 'PDF')!;
     const iso = lc.terms.find(t => t.designation === 'ISO')!;
-    expect(getDesignationTarget(pdf.related[0])).toBe('Portable Document Format');
-    expect(getDesignationTarget(iso.related[0])).toBe('International Organization for Standardization');
+    expect(getDesignationTarget(pdf.related[0] as any)).toBe('Portable Document Format');
+    expect(getDesignationTarget(iso.related[0] as any)).toBe('International Organization for Standardization');
   });
 });
 

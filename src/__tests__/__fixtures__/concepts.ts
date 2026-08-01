@@ -87,8 +87,8 @@ function withSources(): Concept {
         type: 'authoritative',
         modification: 'revised 2024',
         origin: {
-          ref: { source: 'ISO 704', id: '3.1', version: '2020' },
-          locality: { type: 'clause', referenceFrom: '3.1', referenceTo: '3.5' },
+          ref: { source: 'ISO 704', id: '3.1', version: '2020' } as any,
+          locality: { type: 'clause', referenceFrom: '3.1', referenceTo: '3.5' } as any,
           link: 'https://example.org/iso-704',
           original: 'Original wording here.',
         },
@@ -98,7 +98,7 @@ function withSources(): Concept {
         type: 'lineage',
         origin: {
           ref: { source: 'IEC 60050', id: '102-01', version: '2008' },
-          locality: { type: 'clause', referenceFrom: '102-01-01' },
+          locality: { type: 'clause', referenceFrom: '102-01-01' } as any,
         },
       },
       {

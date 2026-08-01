@@ -173,7 +173,7 @@ function attachBridges(concept: Concept, localizations: Record<string, unknown>)
  * instances, since RelatedConcept.fromJSON only reads type/content/ref.
  */
 function attachRelatedBridges(
-  modelRelated: Array<{ type?: string | null; content?: Record<string, string> | string | null; ref?: any; related?: any[] }>,
+  modelRelated: ReadonlyArray<{ type?: string | null; content?: Record<string, string> | string | null; ref?: any; related?: ReadonlyArray<any> }>,
   rawRelated: unknown[],
 ): void {
   for (const rawRel of rawRelated) {
@@ -241,7 +241,7 @@ function mapDesignationFromJsonLd(d: JsonLdDesignation): Record<string, unknown>
 
   const pronunciation = d[GL.PRONUNCIATION];
   if (pronunciation?.length) {
-    result.pronunciation = pronunciation.map(p => ({
+    result.pronunciation = pronunciation.map((p: any) => ({
       content: p[GL.CONTENT] ?? null,
       language: p[GL.LANGUAGE] ?? null,
       script: p[GL.SCRIPT] ?? null,
@@ -257,7 +257,7 @@ function mapDesignationFromJsonLd(d: JsonLdDesignation): Record<string, unknown>
 
   const related = d[GL.RELATED];
   if (related?.length) {
-    result.related = related.map(r => {
+    result.related = related.map((r: any) => {
       const relType = r[GL.RELATIONSHIP_TYPE] ?? 'references';
       if (DESIGNATION_REL_TYPES.has(relType) && r[GL.TARGET]) {
         return { type: relType, target: r[GL.TARGET] };
@@ -272,7 +272,7 @@ function mapDesignationFromJsonLd(d: JsonLdDesignation): Record<string, unknown>
   }
   const grammarInfo = d[GL.GRAMMAR_INFO];
   if (grammarInfo?.length) {
-    result.grammar_info = grammarInfo.map(gi => ({
+    result.grammar_info = grammarInfo.map((gi: any) => ({
       gender: gi[GL.GENDER] ?? null,
       number: gi[GL.NUMBER] ?? null,
       part_of_speech: gi[GL.PART_OF_SPEECH] ?? null,
@@ -354,7 +354,7 @@ function mapSourceFromJsonLd(s: JsonLdSource): Record<string, unknown> {
 
   const sf = s[GL.SOURCED_FROM] ?? s[GL.SOURCED_FROM_ALT];
   if (sf?.length) {
-    result.sourced_from = sf.map(item => mapOriginFromJsonLd(item));
+    result.sourced_from = sf.map((item: any) => mapOriginFromJsonLd(item));
   }
 
   return result;
@@ -445,7 +445,7 @@ function mapLocalizedFromJsonLd(lc: JsonLdLocalizedConcept): Record<string, unkn
 
   const dates = lc[GL.DATES];
   if (dates?.length) {
-    data.dates = dates.map(d => ({
+    data.dates = dates.map((d: any) => ({
       date: d[GL.DATE] ?? null,
       type: d[GL.DATE_TYPE] ?? null,
     }));
@@ -471,7 +471,7 @@ function mapPartitiveRelationFromJsonLd(r: JsonLdPartitiveRelation): Record<stri
   if (!comprehensive) return null;
 
   const partitives = (r[GL.HAS_PARTITIVE] ?? [])
-    .map((m): Record<string, unknown> | null => {
+    .map((m: any): Record<string, unknown> | null => {
       const ref = m[GL.REF] ? mapRefFromJsonLd(m[GL.REF]) : null;
       if (!ref) return null;
       const out: Record<string, unknown> = { ref };
@@ -494,7 +494,7 @@ function mapPartitiveRelationFromJsonLd(r: JsonLdPartitiveRelation): Record<stri
       if (m[GL.IS_DELIMITING] === true) out.is_delimiting = true;
       return out;
     })
-    .filter((m): m is Record<string, unknown> => m !== null);
+    .filter((m: any): m is Record<string, unknown> => m !== null);
 
   // ISO 704 requires ≥2 partitives. Skip malformed relations rather
   // than letting the constructor throw and break the whole concept.
@@ -529,7 +529,7 @@ function mapGenericRelationFromJsonLd(r: JsonLdPartitiveRelation): Record<string
   if (!comprehensive) return null;
 
   const members = (r[GL.HAS_GENERIC] ?? [])
-    .map((m): Record<string, unknown> | null => {
+    .map((m: any): Record<string, unknown> | null => {
       const ref = m[GL.REF] ? mapRefFromJsonLd(m[GL.REF]) : null;
       if (!ref) return null;
       const out: Record<string, unknown> = { ref };
@@ -552,7 +552,7 @@ function mapGenericRelationFromJsonLd(r: JsonLdPartitiveRelation): Record<string
       }
       return out;
     })
-    .filter((m): m is Record<string, unknown> => m !== null);
+    .filter((m: any): m is Record<string, unknown> => m !== null);
 
   if (members.length < 2) return null;
 
@@ -589,7 +589,7 @@ function splitMultiplicity(m: string): { presence: 'required' | 'optional'; coun
 
 function conceptFromJsonLd(doc: JsonLdConcept): Concept {
   const id = String(doc[GL.IDENTIFIER] ?? doc['@id']?.split('/').pop() ?? '');
-  const localizations: Record<string, unknown> = {};
+  const localizations: Record<string, Record<string, unknown>> = {};
 
   const rawLc = doc[GL.LOCALIZED_CONCEPT] ?? {};
   for (const [lang, lc] of Object.entries(rawLc)) {
@@ -601,10 +601,10 @@ function conceptFromJsonLd(doc: JsonLdConcept): Concept {
   const related = (doc[GL.RELATED] ?? []).map(mapRelatedFromJsonLd);
   const partitiveRelations = (doc[GL.PARTITIVE_RELATIONS] ?? [])
     .map(mapPartitiveRelationFromJsonLd)
-    .filter((r): r is Record<string, unknown> => r !== null);
+    .filter((r: any): r is Record<string, unknown> => r !== null);
   const genericRelations = (doc[GL.GENERIC_RELATIONS] ?? [])
     .map(mapGenericRelationFromJsonLd)
-    .filter((r): r is Record<string, unknown> => r !== null);
+    .filter((r: any): r is Record<string, unknown> => r !== null);
   const tagsArr = doc[GL.TAGS];
   const tags = Array.isArray(tagsArr) ? [...tagsArr] : [];
 
@@ -612,7 +612,7 @@ function conceptFromJsonLd(doc: JsonLdConcept): Concept {
     id,
     term: doc[GL.TERM] ?? null,
     uri: doc['@id'] ?? null,
-    localizations,
+    localizations: localizations as Record<string, any>,
     related,
     partitive_relations: partitiveRelations,
     generic_relations: genericRelations,

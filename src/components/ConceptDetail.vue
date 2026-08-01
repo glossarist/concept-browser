@@ -200,7 +200,7 @@ function getTermForLang(lang: string): string {
 
 function getDesignationsForLang(lang: string): Designation[] {
   const lc = props.concept.localization(lang);
-  return lc?.terms ?? [];
+  return [...(lc?.terms ?? [])];
 }
 
 function hasDefinition(lang: string): boolean {
@@ -444,7 +444,7 @@ const nonVerbalReps = computed(() => {
               </div>
 
               <!-- Non-verbal representations -->
-              <NonVerbalRepDisplay v-if="lc.lc.nonVerbalRep?.length" :reps="lc.lc.nonVerbalRep" :locale="lc.lang" :register-id="registerId" :dataset-locales="languages" />
+              <NonVerbalRepDisplay v-if="lc.lc.nonVerbalRep?.length" :reps="[...lc.lc.nonVerbalRep]" :locale="lc.lang" :register-id="registerId" :dataset-locales="languages" />
 
               <!-- Sources -->
               <div v-if="lc.sources.length" class="space-y-2">

@@ -8,12 +8,21 @@ import {
   writeTurtleSync,
   collectQuads,
   PREFIXES,
-  type ClassInstance,
-  type PropValue,
-  type Quad,
 } from 'glossarist/rdf';
+import type { Quad } from '@rdfjs/types';
 
-export type { ClassInstance, PropValue };
+export interface PropValue {
+  predicate: string;
+  values: string[];
+  nested?: boolean;
+}
+
+export interface ClassInstance {
+  classId: string;
+  classLabel: string;
+  label: string;
+  props: PropValue[];
+}
 
 export interface RdfDocument {
   sections: ComputedRef<ClassInstance[]>;
@@ -111,10 +120,10 @@ export function useRdfDocument(
     const concept = getConcept();
     const uri = getConceptUri();
     const conceptQuads = collectQuads(
-      conceptToQuads(concept, {
+      conceptToQuads(concept as any, {
         registerId: options.registerId ?? '',
         uriBase: options.uriBase ?? '',
-      }),
+      }) as any,
     );
     const provenanceQuads = collectQuads(
       provenanceToQuads({
@@ -122,7 +131,7 @@ export function useRdfDocument(
         serializer: 'concept-browser',
         serializerVersion: SERIALIZER_VERSION,
         generatedAt: new Date().toISOString(),
-      }),
+      }) as any,
     );
     return [...conceptQuads, ...provenanceQuads];
   });

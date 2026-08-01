@@ -41,7 +41,7 @@ const descriptionId = computed(() => `${anchor.value}-desc`);
   >
     <div class="formula__expr-line">
       <FormulaExpression
-        :expression="form.expression"
+        :expression="(form.expression as any)"
         :notation="(form.notation as FormulaNotation | null)"
         :locale="locale"
         :fallback-chain="fallbackChain"
@@ -50,8 +50,8 @@ const descriptionId = computed(() => `${anchor.value}-desc`);
 
     <NonVerbalCaption
       :identifier="form.identifier"
-      :caption="form.caption"
-      :description="form.description"
+      :caption="(form.caption as any)"
+      :description="(form.description as any)"
       :locale="locale"
       :fallback-chain="fallbackChain"
       :description-id="descriptionId"
@@ -59,7 +59,7 @@ const descriptionId = computed(() => `${anchor.value}-desc`);
 
     <NonVerbalSources
       v-if="form.sources?.length"
-      :sources="form.sources"
+      :sources="[...(form.sources || [])]"
     />
   </figure>
 

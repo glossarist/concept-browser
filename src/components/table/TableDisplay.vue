@@ -65,8 +65,8 @@ const markup = computed(() => {
 
     <NonVerbalCaption
       :identifier="table.identifier"
-      :caption="table.caption"
-      :description="table.description"
+      :caption="(table.caption as any)"
+      :description="(table.description as any)"
       :locale="locale"
       :fallback-chain="fallbackChain"
       :description-id="descriptionId"
@@ -74,7 +74,7 @@ const markup = computed(() => {
 
     <NonVerbalSources
       v-if="table.sources?.length"
-      :sources="table.sources"
+      :sources="[...(table.sources || [])]"
     />
   </figure>
 

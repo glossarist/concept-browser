@@ -183,7 +183,7 @@ function resolveUrnRefs(text: string, opts: RenderOptions): string {
 function resolveMentions(text: string, opts: RenderOptions): string {
   return text.replace(/\{\{([^{}]+?)\}\}/g, (_orig, body) => {
     const parsed = parseMention(body);
-    const p = parsed as Record<string, unknown>;
+    const p = parsed as unknown as Record<string, unknown>;
 
     switch (p.kind) {
       case 'fig-ref':
