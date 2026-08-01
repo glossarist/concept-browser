@@ -259,6 +259,18 @@ function tooltipFor(member: PartitiveMemberLabeled): string | undefined {
       v-bind="frameStrokeAttrs"
     />
 
+    <!-- Ellipsis marker for partial completeness (ISO 704:2022) -->
+    <text
+      v-if="completeness === 'partial'"
+      :x="layout.spineEndX + 6" :y="layout.spineY + 4"
+      class="ellipsis-marker"
+      fill="currentColor"
+      font-size="12"
+      font-family="JetBrains Mono, monospace"
+      font-weight="600"
+      opacity="0.7"
+    >…</text>
+
     <!-- Drops + partitive nodes -->
     <g v-for="(slot, i) in layout.partitiveSlots" :key="i">
       <!-- Primary drop line -->
