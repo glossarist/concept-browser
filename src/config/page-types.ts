@@ -35,7 +35,7 @@ export const PAGE_TYPES: readonly PageTypeDefinition[] = [
   { type: 'stats',      route: 'stats',   title: 'Statistics',   icon: 'chart',      scope: 'dataset', featureFlag: '!stats',     autoSynthesize: true },
   { type: 'sources',    route: 'sources', title: 'Sources',      icon: 'database',   scope: 'dataset', autoSynthesize: true },
   { type: 'about',      route: 'about',   title: 'About',        icon: 'info',       scope: 'dataset', featureFlag: '!about',     autoSynthesize: true },
-  { type: 'learn',      route: 'learn',   title: 'Learn',        icon: 'book-open',  scope: 'global',  autoSynthesize: true },
+  { type: 'learn',      route: 'learn',   title: 'Learn',        icon: 'book',        scope: 'global',  autoSynthesize: true },
 ] as const;
 
 export type BuiltinPageType = typeof PAGE_TYPES[number]['type'];

@@ -56,6 +56,18 @@ learn.dimensions.delimiting.false.label: not delimiting
 learn.dimensions.delimiting.false.meaning: An ordinary part. Drawn at normal stroke width (1.5px).
 learn.dimensions.delimiting.true.label: delimiting
 learn.dimensions.delimiting.true.meaning: The part is essential to the whole's identity. Drawn at 3× normal stroke width (4.5px).
+learn.dimensions.combinationsTitle: Valid multiplicity combinations
+learn.dimensions.combinationsDescription: ISO 704 description
+learn.dimensions.combinationsModel: Our model
+learn.dimensions.combinationsVisual: Visual
+learn.dimensions.combo.compulsory: compulsory
+learn.dimensions.combo.atLeastOne: at least one
+learn.dimensions.combo.optional: optional
+learn.dimensions.combo.optionalMultiple: optional multiple
+learn.dimensions.combo.compulsoryMultiple: compulsory multiple
+learn.dimensions.invalidDescription: (invalid)
+learn.dimensions.invalidModel: optional + at_least_one
+learn.dimensions.invalidReason: Vacuous — collapses to optional + multiple (0..*). Rejected by glossarist-js.
 learn.designations.title: Designations
 learn.designations.short: Terms and symbols — preferred, admitted, deprecated, full form, abbreviation, acronym, initialism.
 learn.designations.intro: Concepts are designated by terms, proper names, and symbols. This page explains the vocabulary you'll see on each concept page.
