@@ -9,6 +9,10 @@
  *     drop's line style encodes its multiplicity + is_delimiting per
  *     ISO 704:2022 (5 multiplicity values × 2 delimiting states).
  *
+ * External concepts (status: 'external') are wrapped in parentheses per
+ * ISO 704:2022 §5.5.4.3.1, using the upstream `isExternalMember` /
+ * `isExternalComprehensive` detection from glossarist@0.4.52.
+ *
  * Header badges communicate metadata that the diagram's line styles
  * also encode — for users who can't perceive the visual difference
  * (screen readers, low vision, monochrome displays).
@@ -21,6 +25,7 @@ import { useI18n, locale } from '../i18n';
 import { completenessLabel } from '../utils/partitive-relation-styling';
 import { presenceLabel, countLabel } from '../utils/partitive-multiplicity';
 import { resolveDesignation } from '../utils/resolve-designation';
+import { isExternalMember, isExternalComprehensive, formatExternalLabel } from '../utils/external-detection';
 import PartitiveRelationDiagram, {
   type PartitiveMemberLabeled,
 } from './PartitiveRelationDiagram.vue';
@@ -36,8 +41,51 @@ const store = useVocabularyStore();
 const factory = getFactory();
 const { t } = useI18n();
 
-function designationFor(uri: string): string {
-  return resolveDesignation(uri, store, factory, locale.value);
+/** Per-URI cache of external-status lookups, so the rake doesn't re-resolve
+ *  the same concept on every render pass. */
+const externalCache = new Map<string, boolean>();
+
+/**
+ * Bridge the concept-browser ref shape to glossarist@0.4.52's ConceptStore
+ * interface. The store exposes concepts via `lookup({ source, id })` and
+ * returns an object with `.status` + `.related[]` — exactly what the
+ * upstream external-detection utilities need.
+ */
+const externalStore = {
+  lookup(ref: { source?: string | null; id?: string | null }) {
+    if (!ref?.source && !ref?.id) return null;
+    // Find the matching concept by traversing the loaded datasets.
+    for (const adapter of store.datasets.values()) {
+      for (const entry of adapter.getConcepts() ?? []) {
+        if (entry && entry.id === ref.id) {
+          return {
+            status: entry.status,
+            related: (entry as any).relatedConcepts ?? (entry as any).related ?? [],
+          };
+        }
+      }
+    }
+    return null;
+  },
+};
+
+function isExternalUri(uri: string, kind: 'member' | 'comprehensive'): boolean {
+  if (externalCache.has(uri)) return externalCache.get(uri)!;
+  // Build a member/hyperedge shape the upstream utilities expect.
+  const ref = { source: uri, id: uri.split('/').pop() ?? uri };
+  let isExt: boolean;
+  if (kind === 'comprehensive') {
+    isExt = isExternalComprehensive({ comprehensive: ref, members: [] }, externalStore);
+  } else {
+    isExt = isExternalMember({ ref }, externalStore);
+  }
+  externalCache.set(uri, isExt);
+  return isExt;
+}
+
+function designationFor(uri: string, kind: 'member' | 'comprehensive' = 'member'): string {
+  const label = resolveDesignation(uri, store, factory, locale.value);
+  return formatExternalLabel(label, isExternalUri(uri, kind));
 }
 
 function navigate(uri: string) {
@@ -67,7 +115,7 @@ function criterionText(criterion?: Record<string, string>): string | null {
 function labeledMembers(rel: PartitiveRelationWire): PartitiveMemberLabeled[] {
   return rel.partitives.map(m => ({
     uri: m.uri,
-    label: designationFor(m.uri),
+    label: designationFor(m.uri, 'member'),
     presence: m.presence,
     count: m.count,
     isDelimiting: m.isDelimiting,

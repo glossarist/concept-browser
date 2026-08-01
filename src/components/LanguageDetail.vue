@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Concept, LocalizedConcept, Designation, Expression, Abbreviation as AbbreviationType } from 'glossarist';
+import { checkExtensionalCompleteness, type ExtensionalCompletenessIssue } from 'glossarist';
 import { computed } from 'vue';
 import { langName, langLabel } from '../utils/lang';
 import { renderContent } from '../utils/content-renderer';
@@ -33,6 +34,33 @@ const definition = computed(() => {
   const content = lc.value.definitions.map(d => d.content).filter(Boolean).join('\n\n');
   return content;
 });
+
+/**
+ * ISO 704:2022 §6.4.5.1 extensional-completeness warnings.
+ *
+ * An extensional definition enumerates every member of the concept's
+ * extension. Open-ended phrasing ("etc.", "...", "and so on") signals
+ * that the enumeration is incomplete — the definition is invalid per
+ * ISO 704. Surface each warning inline so editors can fix the source.
+ *
+ * The validator gates on `definition.type === 'extensional'`. Today
+ * concept-browser's DetailedDefinition model doesn't carry that field,
+ * so this returns [] — the wiring is in place for the moment glossarist
+ * exposes definition-type tracking (or for consumers that annotate
+ * definitions themselves).
+ */
+const extensionalIssues = computed<ExtensionalCompletenessIssue[]>(() => {
+  if (!lc.value) return [];
+  const issues: ExtensionalCompletenessIssue[] = [];
+  for (const d of lc.value.definitions) {
+    const issue = checkExtensionalCompleteness(
+      d as unknown as { type?: string | null; content?: string | null },
+    );
+    if (issue) issues.push(issue);
+  }
+  return issues;
+});
+
 const notes = computed(() => lc.value?.notes.map(n => n.content).filter(Boolean) ?? []);
 const examples = computed(() => lc.value?.examples.map(e => e.content).filter(Boolean) ?? []);
 const sources = computed(() => lc.value?.sources ?? []);
@@ -140,6 +168,16 @@ function handleContentClick(e: MouseEvent) {
       <div v-if="definition" class="card p-5">
         <div class="section-label">{{ t('concept.definition') }}</div>
         <div class="text-ink-800 leading-relaxed mt-3" v-html="renderContent(definition, renderOpts)"></div>
+        <!-- ISO 704:2022 §6.4.5.1 extensional-completeness warnings -->
+        <div
+          v-for="(issue, i) in extensionalIssues"
+          :key="'ext'+i"
+          class="mt-3 p-2 rounded border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-xs text-amber-900 dark:text-amber-100"
+          :title="`Rule: ${issue.rule}`"
+        >
+          <span class="font-semibold">⚠ {{ t('concept.extensionalWarning') || 'Extensional completeness' }}:</span>
+          {{ issue.message }}
+        </div>
       </div>
 
       <!-- Notes -->
