@@ -297,7 +297,7 @@ const nonVerbalReps = computed(() => {
           </button>
         </div>
       </div>
-      <h1 class="font-serif text-2xl sm:text-3xl text-ink-800 leading-snug mb-3" v-html="renderedPrimaryTerm"></h1>
+      <h1 class="font-title text-2xl sm:text-3xl text-ink-800 leading-snug mb-3" v-html="renderedPrimaryTerm"></h1>
       <div class="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:flex-wrap sm:overflow-visible sm:mx-0 sm:pb-0 scrollbar-none">
         <span class="badge badge-blue font-mono">{{ conceptId }}</span>
         <span

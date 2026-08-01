@@ -96,7 +96,7 @@ function openDataset(id: string) {
     <template v-else-if="group">
       <div class="flex items-baseline gap-3 mb-2">
         <span class="text-2xl">{{ groupMeta.glyph }}</span>
-        <h1 class="font-serif text-3xl text-ink-800 dark:text-ink-50">
+        <h1 class="font-title text-3xl text-ink-800 dark:text-ink-50">
           {{ group.label }}
         </h1>
       </div>

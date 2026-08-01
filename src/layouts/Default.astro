@@ -2,6 +2,12 @@
 import '@/styles/tailwind.css';
 import AppIsland from '../islands/AppIsland.vue';
 import { getSiteConfig } from '../lib/site-config';
+import {
+  fontStack,
+  DEFAULT_FONTS,
+  DEFAULT_CATEGORY,
+  type FontConfigLike,
+} from '../utils/font-stack';
 
 interface Props {
   title: string;
@@ -14,28 +20,35 @@ const { title, description = '', conceptTerm, conceptDefinition } = Astro.props;
 const siteConfig = await getSiteConfig();
 
 // Derive Google Fonts URL from siteConfig branding (build-time SSG).
-// Falls back to the default DM Sans / DM Serif Display / JetBrains Mono
-// when no branding.fonts is declared.
+// Includes every slot the consumer declared (title / heading / body / mono,
+// plus the deprecated `header` alias). Falls back to the default
+// DM Sans / DM Serif Display / JetBrains Mono when nothing is declared.
 const brandingFonts = siteConfig?.branding?.fonts;
+const headingFont = brandingFonts?.heading ?? brandingFonts?.header; // header = deprecated alias
+const fontSlots = [
+  brandingFonts?.title,
+  headingFont,
+  brandingFonts?.body,
+  brandingFonts?.mono,
+];
 const fontParts: string[] = [];
-if (brandingFonts?.header?.source === 'google' && brandingFonts.header.family) {
-  const w = (brandingFonts.header.weights || [400, 700]).join(';');
-  fontParts.push(`family=${brandingFonts.header.family.replace(/ /g, '+')}:wght@${w}`);
-}
-if (brandingFonts?.body?.source === 'google' && brandingFonts.body.family) {
-  const w = (brandingFonts.body.weights || [400, 700]).join(';');
-  fontParts.push(`family=${brandingFonts.body.family.replace(/ /g, '+')}:wght@${w}`);
+for (const f of fontSlots) {
+  if (f && (f as FontConfigLike).source === 'google' && (f as FontConfigLike).family) {
+    const w = (f.weights || [400, 700]).join(';');
+    fontParts.push(`family=${(f as FontConfigLike).family.replace(/ /g, '+')}:wght@${w}`);
+  }
 }
 const fontsUrl = fontParts.length > 0
   ? `https://fonts.googleapis.com/css2?${fontParts.join('&')}&display=swap`
   : 'https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap';
 
-const fontHeader = brandingFonts?.header?.family
-  ? `'${brandingFonts.header.family}', Georgia, serif`
-  : `'DM Serif Display', Georgia, serif`;
-const fontBody = brandingFonts?.body?.family
-  ? `'${brandingFonts.body.family}', system-ui, sans-serif`
-  : `'DM Sans', system-ui, sans-serif`;
+// Build CSS font-family stacks via the shared SSOT. Consumers can pick
+// any category for any slot — e.g. sans-serif title + serif heading —
+// and the fallback chain follows the declared category.
+const fontTitle = fontStack(brandingFonts?.title, DEFAULT_CATEGORY.title) ?? DEFAULT_FONTS.title;
+const fontHeading = fontStack(headingFont, DEFAULT_CATEGORY.heading) ?? DEFAULT_FONTS.heading;
+const fontBody = fontStack(brandingFonts?.body, DEFAULT_CATEGORY.body) ?? DEFAULT_FONTS.body;
+const fontMono = fontStack(brandingFonts?.mono, DEFAULT_CATEGORY.mono) ?? DEFAULT_FONTS.mono;
 
 // Favicon configuration (issue #173).
 //
@@ -93,7 +106,7 @@ const faviconBase = faviconCfg.base_path ?? '/';
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" as="style" href={fontsUrl} onload="this.rel='stylesheet'">
     <noscript><link href={fontsUrl} rel="stylesheet"></noscript>
-    <Fragment set:html={`<style>:root{--font-header:${fontHeader};--font-body:${fontBody}}</style>`} />
+    <Fragment set:html={`<style>:root{--font-title:${fontTitle};--font-heading:${fontHeading};--font-header:${fontHeading};--font-body:${fontBody};--font-mono:${fontMono}}</style>`} />
     <script is:inline>
       (function() {
         const c = document.cookie.split(';').map(s => s.trim()).find(s => s.startsWith('theme='));

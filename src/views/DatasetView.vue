@@ -321,7 +321,7 @@ function clearSection() {
 
     <!-- Header -->
     <div v-if="manifest" class="mb-8">
-      <h1 class="font-serif text-3xl text-ink-800 mb-2">{{ localizedTitle }}</h1>
+      <h1 class="font-title text-3xl text-ink-800 mb-2">{{ localizedTitle }}</h1>
       <p class="text-ink-400 leading-relaxed max-w-2xl">{{ localizedDescription }}</p>
       <div class="flex flex-wrap gap-2 mt-4">
         <span class="badge" :style="conceptCountBadgeStyle">{{ manifest.conceptCount.toLocaleString() }} {{ t('dataset.concepts') }}</span>

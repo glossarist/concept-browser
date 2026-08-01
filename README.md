@@ -109,6 +109,93 @@ branding:
 
 If no logo is configured, the Glossarist logo is shown by default. The footer always shows the Glossarist logo ("Powered by Glossarist").
 
+### Fonts
+
+Brand typography is fully slot-based and category-agnostic. There are **four slots** — `title`, `heading`, `body`, `mono` — and each slot accepts **any category** (`serif`, `sans-serif`, `monospace`). Nothing dictates that "headings must be serif" or "body must be sans-serif". Pick whatever combination matches your brand.
+
+#### Slots
+
+| Slot | Applies to | Default family | Default category |
+|---|---|---|---|
+| `title` | The single most-prominent text on each page (home hero, concept name on detail page, dataset/group title) | DM Serif Display | serif |
+| `heading` | h2–h6 section headings | DM Serif Display | serif |
+| `body` | Paragraph text, lists, table cells | DM Sans | sans-serif |
+| `mono` | Code blocks, inline code, kbd | JetBrains Mono | monospace |
+
+The defaults preserve the Glossarist visual identity — override any of them to match your brand.
+
+#### Per-slot category override
+
+Set `category` on any slot to control the fallback chain (the browser uses it when the primary family fails to load or is still loading):
+
+```yaml
+branding:
+  fonts:
+    title:
+      family: Inter
+      source: google
+      category: sans-serif           # sans-serif title (was serif by default)
+      weights: [400, 600, 700]
+    heading:
+      family: Inter
+      source: google
+      category: sans-serif
+      weights: [600, 700]
+    body:
+      family: Merriweather
+      source: google
+      category: serif                # serif body (was sans-serif by default)
+      weights: [400, 700]
+    mono:
+      family: Fira Code
+      source: google
+      category: monospace
+      weights: [400, 500]
+```
+
+This produces:
+
+| Slot | CSS variable | Stack |
+|---|---|---|
+| title | `--font-title` | `'Inter', system-ui, sans-serif` |
+| heading | `--font-heading` (and `--font-header` for backward compat) | `'Inter', system-ui, sans-serif` |
+| body | `--font-body` | `'Merriweather', Georgia, serif` |
+| mono | `--font-mono` | `'Fira Code', ui-monospace, "JetBrains Mono", Menlo, Monaco, monospace` |
+
+#### Source options
+
+| `source` | Behavior |
+|---|---|
+| `google` | Build emits a Google Fonts CSS `@import` for the declared `family` + `weights`. |
+| `url` | Build emits a `@font-face` block loading from `url`. |
+| `local` | Consumer ships the font files in `public/`; no build-time fetch. |
+
+#### Backward compatibility
+
+The legacy `branding.fonts.header` slot still works — it's a deprecated alias for `branding.fonts.heading`. Existing configs don't break. The CSS variable `--font-header` is still emitted (as an alias for `--font-heading`) so existing stylesheets that reference it continue to work.
+
+#### Mixed-category example: all sans-serif
+
+```yaml
+branding:
+  fonts:
+    title:   { family: Inter,        source: google, category: sans-serif }
+    heading: { family: Inter,        source: google, category: sans-serif }
+    body:    { family: Inter,        source: google, category: sans-serif }
+    mono:    { family: JetBrains Mono, source: google, category: monospace }
+```
+
+#### Mixed-category example: traditional serif
+
+```yaml
+branding:
+  fonts:
+    title:   { family: Playfair Display, source: google, category: serif }
+    heading: { family: Lora,             source: google, category: serif }
+    body:    { family: Source Sans Pro,  source: google, category: sans-serif }
+    mono:    { family: Source Code Pro,  source: google, category: monospace }
+```
+
 ### Favicons
 
 `branding.favicon` accepts two shapes — a legacy **string** form and an **object** form that lets consumers provide their own canonical favicon set without writing a post-build script.
