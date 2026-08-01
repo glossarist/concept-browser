@@ -1,10 +1,22 @@
 // === Branding ===
 
+export type FontCategory = 'serif' | 'sans-serif' | 'monospace';
+
 export interface FontConfig {
   family: string;
   source: 'google' | 'url' | 'local';
   weights?: number[];
   url?: string;
+  /** Font category — controls the fallback chain when the primary family
+   *  fails to load. Defaults preserve prior behavior: `'serif'` for header,
+   *  `'sans-serif'` for body, `'monospace'` for mono.
+   *
+   *  Set explicitly when the consumer's chosen family doesn't match the
+   *  slot's default category — e.g. set `header: { family: 'Inter',
+   *  category: 'sans-serif' }` so the fallback chain is
+   *  `'Inter', system-ui, sans-serif` instead of `'Inter', Georgia, serif`.
+   */
+  category?: FontCategory;
 }
 
 export interface LogoConfig {
@@ -38,8 +50,18 @@ export interface SiteBranding {
   primaryColor?: string;
   darkColor?: string;
   fonts?: {
+    /** Most prominent display text on each page — home hero, concept name
+     *  on the detail page, group/dataset title. No category is dictated;
+     *  pick `serif`, `sans-serif`, or `monospace` for any slot. */
+    title?: FontConfig;
+    /** Section headings (h2–h6). */
+    heading?: FontConfig;
+    /** Backward-compat alias for `heading` (deprecated). */
     header?: FontConfig;
+    /** Paragraph text, lists, table cells. */
     body?: FontConfig;
+    /** Code blocks, inline code, kbd. */
+    mono?: FontConfig;
   };
   logo?: LogoConfig;
   footerLogo?: LogoConfig;

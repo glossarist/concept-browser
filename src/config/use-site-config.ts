@@ -3,6 +3,7 @@ import type { PageConfig, SiteColors } from './types';
 import type { DatasetGroup } from './types';
 import { synthesizePages } from './page-types';
 import { locale } from '../i18n';
+import { fontStack, DEFAULT_FONTS, DEFAULT_CATEGORY } from '../utils/font-stack';
 
 export interface RuntimeSiteConfig {
   id: string;
@@ -21,8 +22,11 @@ export interface RuntimeSiteConfig {
     primaryColor?: string;
     darkColor?: string;
     fonts?: {
-      header?: { family: string; source: string; weights?: number[]; url?: string };
-      body?: { family: string; source: string; weights?: number[]; url?: string };
+      title?: { family: string; source: string; weights?: number[]; url?: string; category?: 'serif' | 'sans-serif' | 'monospace' };
+      heading?: { family: string; source: string; weights?: number[]; url?: string; category?: 'serif' | 'sans-serif' | 'monospace' };
+      header?: { family: string; source: string; weights?: number[]; url?: string; category?: 'serif' | 'sans-serif' | 'monospace' }; // deprecated alias for heading
+      body?: { family: string; source: string; weights?: number[]; url?: string; category?: 'serif' | 'sans-serif' | 'monospace' };
+      mono?: { family: string; source: string; weights?: number[]; url?: string; category?: 'serif' | 'sans-serif' | 'monospace' };
     };
     logo?: { path: string; alt: string; url?: string; light?: string; dark?: string };
     footerLogo?: { path: string; alt: string; url?: string; light?: string; dark?: string };
@@ -95,13 +99,25 @@ function applyBranding(config: RuntimeSiteConfig) {
     root.style.setProperty('--brand-dark', b.darkColor);
   }
 
-  if (b.fonts?.header) {
-    loadFont(b.fonts.header);
-    root.style.setProperty('--font-header', `'${b.fonts.header.family}', Georgia, serif`);
+  if (b.fonts?.title) {
+    loadFont(b.fonts.title);
+    root.style.setProperty('--font-title', fontStack(b.fonts.title, DEFAULT_CATEGORY.title) ?? DEFAULT_FONTS.title);
+  }
+  // heading is the new slot name; header is the backward-compat alias.
+  const headingFont = b.fonts?.heading ?? b.fonts?.header;
+  if (headingFont) {
+    loadFont(headingFont);
+    const stack = fontStack(headingFont, DEFAULT_CATEGORY.heading) ?? DEFAULT_FONTS.heading;
+    root.style.setProperty('--font-heading', stack);
+    root.style.setProperty('--font-header', stack);
   }
   if (b.fonts?.body) {
     loadFont(b.fonts.body);
-    root.style.setProperty('--font-body', `'${b.fonts.body.family}', system-ui, sans-serif`);
+    root.style.setProperty('--font-body', fontStack(b.fonts.body, DEFAULT_CATEGORY.body) ?? DEFAULT_FONTS.body);
+  }
+  if (b.fonts?.mono) {
+    loadFont(b.fonts.mono);
+    root.style.setProperty('--font-mono', fontStack(b.fonts.mono, DEFAULT_CATEGORY.mono) ?? DEFAULT_FONTS.mono);
   }
 }
 

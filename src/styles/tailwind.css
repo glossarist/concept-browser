@@ -60,6 +60,8 @@
   --brand-primary: #2563eb;
   --brand-primary-rgb: 37, 99, 235;
   --brand-dark: #1e293b;
+  --font-title: "DM Serif Display", Georgia, serif;
+  --font-heading: "DM Serif Display", Georgia, serif;
   --font-header: "DM Serif Display", Georgia, serif;
   --font-body: "DM Sans", system-ui, sans-serif;
   --gold-accent: #B8935A;
@@ -72,6 +74,9 @@
     @apply antialiased bg-surface text-ink-800;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  .font-title {
+    font-family: var(--font-title);
   }
   h1, h2, h3, .font-serif {
     font-family: var(--font-header);

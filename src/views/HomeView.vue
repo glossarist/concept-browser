@@ -77,7 +77,7 @@ function goToGraph() { router.push({ name: 'graph' }); }
           <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-300 hidden sm:inline">{{ localizedSubtitle }}</span>
         </template>
       </div>
-      <h1 class="font-serif text-[2rem] sm:text-[2.75rem] text-ink-800 leading-[1.1] mb-4 tracking-tight">
+      <h1 class="font-title text-[2rem] sm:text-[2.75rem] text-ink-800 leading-[1.1] mb-4 tracking-tight">
         {{ localizedTitle }}
         <template v-if="localizedSubtitle"><br class="hidden sm:block" /> {{ localizedSubtitle }}</template>
       </h1>

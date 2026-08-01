@@ -13,9 +13,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        title: ['var(--font-title, "DM Serif Display")', 'Georgia', 'serif'],
+        heading: ['var(--font-heading, "DM Serif Display")', 'Georgia', 'serif'],
         serif: ['var(--font-header, "DM Serif Display")', 'Georgia', 'serif'],
         sans: ['var(--font-body, "DM Sans")', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'monospace'],
+        mono: ['var(--font-mono, "JetBrains Mono")', 'ui-monospace', 'monospace'],
       },
       colors: {
         ink: {
