@@ -74,16 +74,21 @@ interface FaviconIcon {
 }
 
 interface FaviconConfig {
-  /** Path prefix for all favicon URLs. Defaults to BASE_PATH-aware '/'. */
+  /** Path prefix for all favicon URLs. Accepts both forms because
+   *  loadSiteConfig normalizes snake_case → camelCase at load time. */
   base_path?: string;
+  basePath?: string;
   /** Skip emitting the default <link> block. */
   skip_default_links?: boolean;
-  /** Consumer-declared icons (DATA, not HTML). Replaces the default set. */
+  skipDefaultLinks?: boolean;
+  /** Consumer-declared icons (DATA, not HTML). */
   icons?: FaviconIcon[];
-  /** @deprecated Use `icons` instead. Raw HTML — kept for backward compat. */
+  /** @deprecated Use `icons` instead. */
   links_html?: string;
+  linksHtml?: string;
   /** Consumer-side directory of canonical favicon files. */
   source_dir?: string;
+  sourceDir?: string;
 }
 
 interface BrandingConfig {
@@ -137,13 +142,21 @@ async function runBuildPipeline(config: SiteConfig | null): Promise<void> {
 
   if (faviconCfgObject) {
     const cfg: FaviconConfig = faviconCfgObject;
-    if (cfg.icons && cfg.icons.length > 0) {
+    // Defensive field access: loadSiteConfig normalizes snake_case → camelCase
+    // at load time. Accept both forms.
+    const cfgBasePath: string | undefined    = cfg.basePath ?? cfg.base_path;
+    const cfgSkipDefault: boolean            = (cfg.skipDefaultLinks ?? cfg.skip_default_links) === true;
+    const cfgLinksHtml: string | undefined   = cfg.linksHtml ?? cfg.links_html;
+    const cfgSourceDir: string | undefined   = cfg.sourceDir ?? cfg.source_dir;
+    const cfgIcons: FaviconIcon[] | undefined = cfg.icons;
+
+    if (cfgIcons && cfgIcons.length > 0) {
       // Data-driven: build <link> tags from the icons array.
       const basePathForIcons: string =
-        cfg.base_path ||
+        cfgBasePath ||
         process.env.BASE_PATH?.replace(/\/+$/, '') ||
         '';
-      faviconHtml = cfg.icons.map((icon: FaviconIcon): string => {
+      faviconHtml = cfgIcons.map((icon: FaviconIcon): string => {
         const attrs: string[] = [`rel="${icon.rel || 'icon'}"`];
         if (icon.type) attrs.push(`type="${icon.type}"`);
         if (icon.sizes) attrs.push(`sizes="${icon.sizes}"`);
@@ -156,19 +169,19 @@ async function runBuildPipeline(config: SiteConfig | null): Promise<void> {
       }).join('\n    ');
       skipDefaultGeneration = true;
     }
-    if (cfg.links_html) {
+    if (cfgLinksHtml) {
       if (faviconHtml) {
         console.warn('  Warning: branding.favicon.icons and links_html are both set; using icons (data form).');
       } else {
         console.warn('  Warning: branding.favicon.links_html is deprecated. Use branding.favicon.icons (data) instead.');
-        faviconHtml = String(cfg.links_html);
+        faviconHtml = String(cfgLinksHtml);
       }
       skipDefaultGeneration = true;
     }
-    if (cfg.source_dir) {
-      const srcDir: string = resolve(process.cwd(), cfg.source_dir);
+    if (cfgSourceDir) {
+      const srcDir: string = resolve(process.cwd(), cfgSourceDir);
       if (fs.existsSync(srcDir) && fs.statSync(srcDir).isDirectory()) {
-        console.log(`\n=== FAVICONS (copy from ${cfg.source_dir}) ===\n`);
+        console.log(`\n=== FAVICONS (copy from ${cfgSourceDir}) ===\n`);
         // When the consumer provides a canonical favicon set, also delete
         // the default-generated cruft so it doesn't linger in public/.
         const cruftFiles: readonly string[] = [
@@ -207,12 +220,12 @@ async function runBuildPipeline(config: SiteConfig | null): Promise<void> {
             copied++;
           }
         }
-        console.log(`  Copied ${copied} canonical favicon file(s) from ${cfg.source_dir}`);
+        console.log(`  Copied ${copied} canonical favicon file(s) from ${cfgSourceDir}`);
       } else {
         console.warn(`  Warning: branding.favicon.source_dir not found: ${srcDir}`);
       }
     }
-    if (cfg.skip_default_links) {
+    if (cfgSkipDefault) {
       skipDefaultGeneration = true;
     }
   }
@@ -266,7 +279,7 @@ async function runBuildPipeline(config: SiteConfig | null): Promise<void> {
   if (faviconHtml) {
     fs.writeFileSync(resolve(publicDir, 'favicon-links.html'), faviconHtml);
     const basePath: string =
-      (faviconCfgObject?.base_path) ||
+      (faviconCfgObject ? (faviconCfgObject.basePath ?? faviconCfgObject.base_path) : undefined) ||
       process.env.BASE_PATH?.replace(/\/+$/, '') ||
       '';
     if (basePath) {

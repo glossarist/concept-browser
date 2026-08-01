@@ -112,18 +112,30 @@ Environment:
     const faviconCfgIsObject =
       faviconCfg !== null && typeof faviconCfg === 'object' && !Array.isArray(faviconCfg);
 
+    // Defensive field access: loadSiteConfig normalizes snake_case YAML keys
+    // to camelCase at load time, so `source_dir` arrives as `sourceDir`. But
+    // the canonical FaviconConfig schema documents snake_case (matching the
+    // YAML wire format), and Astro's getSiteConfig path does NOT normalize.
+    // Accept both forms so a future change to either loader can't break this.
+    // See src/utils/favicon-config-access.ts for the SSOT + tests.
+    const cfgBasePath       = faviconCfgIsObject ? (faviconCfg.basePath ?? faviconCfg.base_path) : undefined;
+    const cfgSkipDefault    = faviconCfgIsObject ? (faviconCfg.skipDefaultLinks ?? faviconCfg.skip_default_links) === true : false;
+    const cfgLinksHtml      = faviconCfgIsObject ? (faviconCfg.linksHtml ?? faviconCfg.links_html) : undefined;
+    const cfgSourceDir      = faviconCfgIsObject ? (faviconCfg.sourceDir ?? faviconCfg.source_dir) : undefined;
+    const cfgIcons          = faviconCfgIsObject ? faviconCfg.icons : undefined;
+
     let faviconHtml = '';
     let skipDefaultGeneration = false;
 
     if (faviconCfgIsObject) {
       // Object form — honor each declared field.
-      if (faviconCfg.icons && Array.isArray(faviconCfg.icons) && faviconCfg.icons.length > 0) {
+      if (cfgIcons && Array.isArray(cfgIcons) && cfgIcons.length > 0) {
         // Data-driven: build <link> tags from the icons array.
         const basePathForIcons =
-          faviconCfg.base_path ||
+          cfgBasePath ||
           process.env.BASE_PATH?.replace(/\/+$/, '') ||
           '';
-        faviconHtml = faviconCfg.icons.map((icon) => {
+        faviconHtml = cfgIcons.map((icon) => {
           const attrs = [`rel="${icon.rel || 'icon'}"`];
           if (icon.type) attrs.push(`type="${icon.type}"`);
           if (icon.sizes) attrs.push(`sizes="${icon.sizes}"`);
@@ -138,19 +150,19 @@ Environment:
         }).join('\n    ');
         skipDefaultGeneration = true;
       }
-      if (faviconCfg.links_html) {
+      if (cfgLinksHtml) {
         if (faviconHtml) {
           console.warn('  Warning: branding.favicon.icons and links_html are both set; using icons (data form).');
         } else {
           console.warn('  Warning: branding.favicon.links_html is deprecated. Use branding.favicon.icons (data) instead.');
-          faviconHtml = String(faviconCfg.links_html);
+          faviconHtml = String(cfgLinksHtml);
         }
         skipDefaultGeneration = true;
       }
-      if (faviconCfg.source_dir) {
-        const srcDir = resolve(process.cwd(), faviconCfg.source_dir);
+      if (cfgSourceDir) {
+        const srcDir = resolve(process.cwd(), cfgSourceDir);
         if (fs.existsSync(srcDir) && fs.statSync(srcDir).isDirectory()) {
-          console.log(`\n=== FAVICONS (copy from ${faviconCfg.source_dir}) ===\n`);
+          console.log(`\n=== FAVICONS (copy from ${cfgSourceDir}) ===\n`);
           // When the consumer provides a canonical favicon set, also delete
           // the default-generated cruft (apple-touch-icon-*.png, etc.) so
           // it doesn't linger in public/ and pollute the deployment.
@@ -191,12 +203,12 @@ Environment:
               copied++;
             }
           }
-          console.log(`  Copied ${copied} canonical favicon file(s) from ${faviconCfg.source_dir}`);
+          console.log(`  Copied ${copied} canonical favicon file(s) from ${cfgSourceDir}`);
         } else {
           console.warn(`  Warning: branding.favicon.source_dir not found: ${srcDir}`);
         }
       }
-      if (faviconCfg.skip_default_links) {
+      if (cfgSkipDefault) {
         skipDefaultGeneration = true;
       }
     }
@@ -253,7 +265,7 @@ Environment:
       fs.writeFileSync(resolve(publicDir, 'favicon-links.html'), faviconHtml);
       // Apply base_path prefix (issue #173 + BASE_PATH-aware deployments).
       const basePath =
-        (faviconCfgIsObject && faviconCfg.base_path) ||
+        cfgBasePath ||
         process.env.BASE_PATH?.replace(/\/+$/, '') ||
         '';
       if (basePath) {
