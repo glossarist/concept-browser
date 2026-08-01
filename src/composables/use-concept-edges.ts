@@ -138,33 +138,37 @@ export function useConceptEdges(
   // Concept-level related concepts (managed concept cross-references)
   const conceptRelated = computed(() => {
     if (!concept.value) return [];
-    const direct = concept.value.relatedConcepts?.filter((rc: any) => !INVERSE_RELATIONSHIPS[rc.type]) ?? [];
-    const derived = incomingEdges.value
-      .filter(e => INVERSE_RELATIONSHIPS[e.type])
-      .map(e => {
-        const parsed = factory.resolve(e.source, registerId.value);
-        const sourceUrn = parsed.type === 'internal'
-          ? store.manifests.get(parsed.registerId)?.datasetUri
-          : null;
-        const conceptId = e.source.match(/\/concept\/([^/]+)$/)?.[1];
-        return {
-          type: INVERSE_RELATIONSHIPS[e.type],
-          ref: sourceUrn && conceptId ? { source: sourceUrn, id: conceptId } : null,
-          content: '',
-        };
+    try {
+      const direct = concept.value.relatedConcepts?.filter((rc: any) => !INVERSE_RELATIONSHIPS[rc.type]) ?? [];
+      const derived = incomingEdges.value
+        .filter(e => INVERSE_RELATIONSHIPS[e.type])
+        .map(e => {
+          const parsed = factory.resolve(e.source, registerId.value);
+          const sourceUrn = parsed.type === 'internal'
+            ? store.manifests.get(parsed.registerId)?.datasetUri
+            : null;
+          const conceptId = e.source.match(/\/concept\/([^/]+)$/)?.[1];
+          return {
+            type: INVERSE_RELATIONSHIPS[e.type],
+            ref: sourceUrn && conceptId ? { source: sourceUrn, id: conceptId } : null,
+            content: '',
+          };
+        });
+      return [...direct, ...derived].filter(edge => {
+        if (edge.type === 'broader_partitive' || edge.type === 'narrower_partitive') {
+          const refUri = resolveRefUri(edge.ref as { source: string | null; id: string | null } | null);
+          if (!refUri) return true;
+          const rels = conceptPartitiveRelations.value;
+          return !rels.some(rel =>
+            rel.comprehensive === refUri
+            || rel.partitives.some(m => m.uri === refUri),
+          );
+        }
+        return true;
       });
-    return [...direct, ...derived].filter(edge => {
-      if (edge.type === 'broader_partitive' || edge.type === 'narrower_partitive') {
-        const refUri = resolveRefUri(edge.ref as { source: string | null; id: string | null } | null);
-        if (!refUri) return true;
-        const rels = conceptPartitiveRelations.value;
-        return !rels.some(rel =>
-          rel.comprehensive === refUri
-          || rel.partitives.some(m => m.uri === refUri),
-        );
-      }
-      return true;
-    });
+    } catch {
+      return [];
+    }
   });
 
   // Concept-level n-ary hyperedge relations (ISO 704 one-to-many
@@ -174,25 +178,29 @@ export function useConceptEdges(
   //
   // glossarist 0.4.33+ exposes a unified `.relations` array; type
   // discrimination is via instanceof.
+  //
+  // Defensive: wrap in try/catch so a malformed concept (missing
+  // .relations, bad .comprehensive, etc.) never crashes the detail
+  // view at hydration. Regression: issue #171.
   function projectHyperedge(rel: any): PartitiveRelationWire | GenericRelationWire | null {
     const source = conceptUriValue.value;
     if (!source) return null;
-    const comprehensive = resolveConceptRefUri(rel.comprehensive);
+    const comprehensive = resolveConceptRefUri(rel?.comprehensive);
     if (!comprehensive) return null;
     const isGeneric = rel instanceof GenericHyperedge;
-    const members: any[] = (rel.members ?? rel.partitives ?? [])
+    const members: any[] = (rel?.members ?? rel?.partitives ?? [])
       .map((m: any): any | null => {
-        const uri = resolveConceptRefUri(m.ref);
+        const uri = resolveConceptRefUri(m?.ref);
         if (!uri || uri === source) return null;
         const base: any = {
           uri,
-          presence: readPresence(m),
-          count: readCount(m),
+          presence: m?.presence,
+          count: m?.count,
         };
         if (isGeneric) {
-          base.delimitingCharacteristic = m.delimitingCharacteristic;
+          base.delimitingCharacteristic = m?.delimitingCharacteristic;
         } else {
-          base.isDelimiting = readIsDelimiting(m);
+          base.isDelimiting = m?.is_delimiting === true;
         }
         return base;
       })
@@ -203,26 +211,34 @@ export function useConceptEdges(
       comprehensive,
       members,
       partitives: members,
-      completeness: rel.completeness,
-      criterion: rel.criterion ?? undefined,
+      completeness: rel?.completeness,
+      criterion: rel?.criterion ?? undefined,
       register: registerId.value,
     };
   }
 
   const conceptPartitiveRelations = computed<PartitiveRelationWire[]>(() => {
     if (!concept.value) return [];
-    return ((concept.value.relations as any[]) ?? [])
-      .filter(r => r instanceof PartitiveHyperedge)
-      .map(projectHyperedge)
-      .filter((r): r is PartitiveRelationWire => r !== null);
+    try {
+      return ((concept.value.relations as any[]) ?? [])
+        .filter(r => r instanceof PartitiveHyperedge)
+        .map(projectHyperedge)
+        .filter((r): r is PartitiveRelationWire => r !== null);
+    } catch {
+      return [];
+    }
   });
 
   const conceptGenericRelations = computed<GenericRelationWire[]>(() => {
     if (!concept.value) return [];
-    return ((concept.value.relations as any[]) ?? [])
-      .filter(r => r instanceof GenericHyperedge)
-      .map(projectHyperedge)
-      .filter((r): r is GenericRelationWire => r !== null);
+    try {
+      return ((concept.value.relations as any[]) ?? [])
+        .filter(r => r instanceof GenericHyperedge)
+        .map(projectHyperedge)
+        .filter((r): r is GenericRelationWire => r !== null);
+    } catch {
+      return [];
+    }
   });
 
   function resolveConceptRefUri(ref: ConceptRef | null): string | null {

@@ -30,6 +30,12 @@ jobs:
       - run: npm install -g npm@latest
       - run: npm ci
       - run: npm test
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Pre-publish smoke gate
+        run: |
+          npm run build
+          npm run smoke
       - run: npm publish --provenance --access public --tag latest
 
   github-release:

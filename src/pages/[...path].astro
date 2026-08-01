@@ -11,6 +11,12 @@ export async function getStaticPaths() {
     { params: { path: 'about' } },
     { params: { path: 'contributors' } },
     { params: { path: 'news' } },
+    /* /learn and sub-routes — page-types.ts auto-synthesizes the nav entry.
+       Without these static paths the nav link 404s on prefetch (issue #174). */
+    { params: { path: 'learn' } },
+    { params: { path: 'learn/relationships' } },
+    { params: { path: 'learn/designations' } },
+    { params: { path: 'learn/statuses' } },
   ];
   for (const ds of datasets) {
     paths.push({ params: { path: `dataset/${ds.data.id}/about` } });
