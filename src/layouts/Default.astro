@@ -68,12 +68,7 @@ const fontBody = brandingFonts?.body?.family
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" as="style" href={fontsUrl} onload="this.rel='stylesheet'">
     <noscript><link href={fontsUrl} rel="stylesheet"></noscript>
-    <style is:global>
-      :root {
-        --font-header: ${fontHeader};
-        --font-body: ${fontBody};
-      }
-    </style>
+    <Fragment set:html={`<style>:root{--font-header:${fontHeader};--font-body:${fontBody}}</style>`} />
     <script is:inline>
       (function() {
         const c = document.cookie.split(';').map(s => s.trim()).find(s => s.startsWith('theme='));
