@@ -1,6 +1,6 @@
 {
   "name": "@glossarist/concept-browser",
-  "version": "0.7.114",
+  "version": "0.7.115",
   "description": "Vue SPA for browsing Glossarist terminology datasets with cross-reference resolution, graph visualization, and multi-language support",
   "type": "module",
   "bin": {
@@ -26,7 +26,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "mutation:test": "stryker run stryker.config.mjs",
-    "validate:shacl": "tsx scripts/validate-shacl.ts",
     "dev:astro": "astro dev",
     "build:astro": "astro build",
     "preview:astro": "astro preview"
