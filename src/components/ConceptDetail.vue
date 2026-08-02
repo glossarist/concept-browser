@@ -117,9 +117,11 @@ const conceptSources = computed(() => props.concept?.sources ?? []);
 const conceptTags = computed(() => props.concept?.tags ?? []);
 
 const factory = getFactory();
-const { ensureBibLoaded, bibResolver, nonVerbalRefResolver } = useRenderOptions(() => props.registerId);
+const { ready: bibReady, ensureBibLoaded, bibResolver, nonVerbalRefResolver } = useRenderOptions(() => props.registerId);
 
-const renderOpts = computed<RenderOptions>(() => ({
+const renderOpts = computed<RenderOptions>(() => {
+  bibReady.value;
+  return {
   xrefResolver: (uri, term) => {
     const resolution = factory.resolve(uri, props.registerId);
     if (resolution.type === 'internal') {
@@ -140,7 +142,8 @@ const renderOpts = computed<RenderOptions>(() => ({
   },
   bibResolver,
   nonVerbalRefResolver,
-}));
+};
+});
 
 watch(() => props.registerId, () => { ensureBibLoaded(); }, { immediate: true });
 
