@@ -5,14 +5,22 @@
  * math placeholders, tables, lists, and text formatting. This is the single
  * source of truth for content rendering in the browser.
  *
- * Mention kinds routed here (all dispatched by glossarist's `parseMention`):
- *   - {{fig:id}} / {{fig:id, display}}  → nonVerbalRefResolver (figure)
- *   - {{table:id}} / {{table:id, display}}  → nonVerbalRefResolver (table)
- *   - {{formula:id}} / {{formula:id, display}}  → nonVerbalRefResolver (formula)
- *   - {{cite:key[, render term]}}  → citeResolver
- *   - {{urn:...[, render term]}}  → xrefResolver
- *   - {{concept_id[, render term]}}  → conceptRefResolver
- *   - {{designation[, render term]}}  → conceptRefResolver
+ * Unified mention syntax: {{kind:target[, label]}}
+ * Every inline reference is a typed mention with a kind prefix:
+ *
+ *   - {{cite:key[, label]}}    → citeResolver (concept source citation)
+ *   - {{urn:...[, label]}}     → xrefResolver (URN routing)
+ *   - {{fig:id[, label]}}      → nonVerbalRefResolver (figure)
+ *   - {{table:id[, label]}}    → nonVerbalRefResolver (table)
+ *   - {{formula:id[, label]}}  → nonVerbalRefResolver (formula)
+ *   - {{bib:id[, label]}}      → bibResolver (bibliography entry, case-3-only)
+ *   - {{link:URL[, label]}}    → linkResolver (external URL)
+ *   - {{image:src[, alt]}}     → imageResolver (inline image embed)
+ *   - {{designation[, label]}} → conceptRefResolver (designation match)
+ *   - {{numeric_id[, label]}}  → conceptRefResolver (numeric ID match)
+ *
+ * Legacy `<<ref,title>>` (AsciiDoc xref) is deprecated; emits a console
+ * warning and renders as plain text. Migrate to {{kind:target}} syntax.
  *
  * Math-specific helpers (replaceBracketed, mathPlaceholder) are internal.
  * The v-math directive upgrades the placeholders to Plurimath at runtime.
@@ -29,6 +37,8 @@ export type BibResolver = (refId: string, title: string) => string;
 export type CiteResolver = (key: string, label: string | null) => string;
 export type ConceptRefResolver = (conceptId: string, term: string) => string;
 export type NonVerbalRefResolver = (kind: NonVerbalKind, entityId: string, display?: string) => string;
+export type LinkResolver = (url: string, label: string) => string;
+export type ImageResolver = (src: string, alt: string) => string;
 
 export interface RenderOptions {
   xrefResolver?: XrefResolver;
@@ -36,6 +46,8 @@ export interface RenderOptions {
   conceptRefResolver?: ConceptRefResolver;
   citeResolver?: CiteResolver;
   nonVerbalRefResolver?: NonVerbalRefResolver;
+  linkResolver?: LinkResolver;
+  imageResolver?: ImageResolver;
 }
 
 // ── Math placeholders ────────────────────────────────────────────────────
@@ -144,12 +156,30 @@ function convertLists(text: string): string {
 
 // ── Inline reference resolution ──────────────────────────────────────────
 
-function resolveBibRefs(text: string, opts: RenderOptions): string {
+/**
+ * Deprecated AsciiDoc xref syntax: <<refId, title>>
+ *
+ * This was historically overloaded for:
+ *   1. Non-concept entity xrefs (should use {{fig/table/formula:id, label}})
+ *   2. Bibliography lookups (should use {{bib:id}} or {{cite:id}})
+ *   3. Concept citations (should use {{cite:id}})
+ *
+ * All three uses are wrong. This function emits a deprecation warning and
+ * renders the title as plain text. Datasets should migrate to the unified
+ * {{kind:target}} syntax.
+ */
+function resolveLegacyXref(text: string): string {
   return text.replace(/<<([^,>]+),([^>]+)>>/g, (_, refId, title) => {
-    if (opts.bibResolver) {
-      return opts.bibResolver(refId.trim(), title.trim());
+    const rid = refId.trim();
+    const lbl = title.trim();
+    if (typeof console !== 'undefined') {
+      console.warn(
+        `[glossarist] <<${rid},${lbl}>> is deprecated. ` +
+        `Use {{fig/table/formula:${rid}, ${lbl}}} for non-concept entities, ` +
+        `{{cite:${rid}}} for concept citations, or {{bib:${rid}}} for bibliography.`,
+      );
     }
-    return `<span class="bib-ref">${escapeHtml(title.trim())}</span>`;
+    return `<span class="legacy-xref" title="Deprecated: use {{kind:target}} syntax">${escapeHtml(lbl)}</span>`;
   });
 }
 
@@ -180,6 +210,45 @@ function resolveUrnRefs(text: string, opts: RenderOptions): string {
 
 function resolveMentions(text: string, opts: RenderOptions): string {
   return text.replace(/\{\{([^{}]+?)\}\}/g, (_orig, body) => {
+
+    // ── New kinds: link, image, bib (pre-parsed before parseMention) ──
+    // These follow the same {{kind:target[, label]}} convention as
+    // fig/table/formula but are handled here because glossarist's
+    // parseMention doesn't recognize them yet. When glossarist-js adds
+    // support (per PROMPT-NOW.md), these pre-parse cases can be removed
+    // and the switch below will handle them natively.
+
+    const linkMatch = body.match(/^link:(.+)$/i);
+    if (linkMatch) {
+      const rest = linkMatch[1];
+      const commaIdx = rest.indexOf(',');
+      const url = (commaIdx > 0 ? rest.slice(0, commaIdx).trim() : rest.trim());
+      const label = commaIdx > 0 ? rest.slice(commaIdx + 1).trim() : url;
+      if (opts.linkResolver) return opts.linkResolver(url, label);
+      return `<a href="${escapeAttr(url)}" target="_blank" rel="noopener" class="ext-link">${escapeHtml(label)}</a>`;
+    }
+
+    const imageMatch = body.match(/^image:(.+)$/i);
+    if (imageMatch) {
+      const rest = imageMatch[1];
+      const commaIdx = rest.indexOf(',');
+      const src = (commaIdx > 0 ? rest.slice(0, commaIdx).trim() : rest.trim());
+      const alt = commaIdx > 0 ? rest.slice(commaIdx + 1).trim() : '';
+      if (opts.imageResolver) return opts.imageResolver(src, alt);
+      return `<img src="${escapeAttr(src)}" alt="${escapeAttr(alt)}" class="inline-image" />`;
+    }
+
+    const bibMatch = body.match(/^bib:(.+)$/i);
+    if (bibMatch) {
+      const rest = bibMatch[1];
+      const commaIdx = rest.indexOf(',');
+      const id = (commaIdx > 0 ? rest.slice(0, commaIdx).trim() : rest.trim());
+      const label = commaIdx > 0 ? rest.slice(commaIdx + 1).trim() : id;
+      if (opts.bibResolver) return opts.bibResolver(id, label);
+      return `<span class="bib-ref">${escapeHtml(label)}</span>`;
+    }
+
+    // ── Existing kinds: handled by glossarist's parseMention ──
     const parsed = parseMention(body);
     const p = parsed as unknown as Record<string, unknown>;
 
@@ -253,10 +322,10 @@ function resolveMentions(text: string, opts: RenderOptions): string {
  * 2. AsciiDoc tables
  * 3. Bullet and numbered lists
  * 4. Text formatting (bold, italic, subscript)
- * 5. Bibliography cross-references (<<ref,title>>)
- * 6. Single-brace URN inline references ({urn:...})
- * 7. Mention dispatcher — non-verbal (fig/table/formula), then parseMention
- *    (cite-ref, urn-ref, numeric, designation)
+ * 5. Legacy AsciiDoc xrefs (<<ref,title>> → deprecated, renders as plain text)
+ * 6. URN inline references ({urn:...})
+ * 7. Mention dispatcher — link/image/bib (pre-parsed), then parseMention
+ *    (fig/table/formula, cite-ref, urn-ref, numeric, designation)
  */
 export function renderContent(text: string, xrefResolverOrOpts?: XrefResolver | RenderOptions): string {
   if (!text) return '';
@@ -280,7 +349,7 @@ export function renderContent(text: string, xrefResolverOrOpts?: XrefResolver | 
   result = result.replace(/~([^~]+)~/g, '<sub>$1</sub>');
 
   // Stage 4: Reference resolution
-  result = resolveBibRefs(result, opts);
+  result = resolveLegacyXref(result);
   result = resolveUrnRefs(result, opts);
 
   // Stage 5: Mention dispatcher (non-verbal first, then parseMention SSOT)
@@ -296,18 +365,28 @@ export function renderContent(text: string, xrefResolverOrOpts?: XrefResolver | 
 export function cleanContent(text: string): string {
   if (!text) return '';
   let result = text
+    // Legacy xrefs first (before HTML tag stripping eats <<)
+    .replace(/<<([^,>]+),([^>]+)>>/g, '$2')
     .replace(/<[^>]+>/g, '')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '$1')
     .replace(/~([^~]+)~/g, '_$1')
     .replace(/\n[ \t]*\* /g, '; ')
-    .replace(/<<([^,>]+),([^>]+)>>/g, '$2')
-    // Non-verbal mentions: {{fig:id, display}} → display; {{fig:id}} → id
+    // Entity mentions: {{fig:id, display}} → display; {{fig:id}} → id
     .replace(/\{\{(?:fig|figure|table|tbl|formula|eq):([^,}]+),\s*([^}]+)\}\}/g, '$2')
     .replace(/\{\{(?:fig|figure|table|tbl|formula|eq):([^}]+)\}\}/g, '$1')
+    // Link mentions: {{link:URL, label}} → label; {{link:URL}} → URL
+    .replace(/\{\{link:([^,}]+),\s*([^}]+)\}\}/gi, '$2')
+    .replace(/\{\{link:([^}]+)\}\}/gi, '$1')
+    // Image mentions: {{image:src, alt}} → alt; {{image:src}} → empty
+    .replace(/\{\{image:[^,}]+,\s*([^}]+)\}\}/gi, '$1')
+    .replace(/\{\{image:([^}]+)\}\}/gi, '')
+    // Bib mentions: {{bib:id, label}} → label; {{bib:id}} → id
+    .replace(/\{\{bib:([^,}]+),\s*([^}]+)\}\}/gi, '$2')
+    .replace(/\{\{bib:([^}]+)\}\}/gi, '$1')
     // URN refs — show render term (second part for two-arg, third part for three-arg)
-    .replace(/\{\{urn:[^,}]+,([^,}]+),([^}]+)\}\}/g, '$1')  // three-arg: {{urn:...,term,display}} → term
-    .replace(/\{\{urn:[^,}]+(?:,([^}]+))?\}\}/g, (_, label) => label ? label.trim() : '')  // two-arg or bare
+    .replace(/\{\{urn:[^,}]+,([^,}]+),([^}]+)\}\}/g, '$1')
+    .replace(/\{\{urn:[^,}]+(?:,([^}]+))?\}\}/g, (_, label) => label ? label.trim() : '')
     .replace(/\{urn:[^,}]+,([^,}]+)(?:,[^}]+)?\}/g, '$1')
     // Cite refs — show render term (or empty if bare)
     .replace(/\{\{cite:[^,}]+(?:,([^}]+))?\}\}/g, (_, label) => label ? label.trim() : '')

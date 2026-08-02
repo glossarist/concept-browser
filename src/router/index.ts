@@ -119,6 +119,11 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('../views/learn/LearnStatusesView.vue'),
   },
   {
+    path: '/learn/inline-content',
+    name: 'learn-inline-content',
+    component: () => import('../views/learn/LearnInlineContentView.vue'),
+  },
+  {
     path: '/about',
     name: 'about-global',
     component: () => import('../views/PageView.vue'),
