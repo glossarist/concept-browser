@@ -7,7 +7,8 @@ import process from "node:process";
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 
 const TARGET_DIRS = ["scripts", "cli"];
-const EXTENSIONS = new Set([".ts", ".mjs", ".js", ".cjs"]);
+const JS_EXTENSIONS = new Set([".mjs", ".js", ".cjs"]);
+const ALL_EXTENSIONS = new Set([".ts", ...JS_EXTENSIONS]);
 const SKIP_DIRS = new Set(["__tests__", "node_modules"]);
 
 function walk(dir) {
@@ -18,7 +19,7 @@ function walk(dir) {
     const st = statSync(full);
     if (st.isDirectory()) {
       out.push(...walk(full));
-    } else if (EXTENSIONS.has(path.extname(entry))) {
+    } else if (ALL_EXTENSIONS.has(path.extname(entry))) {
       out.push(full);
     }
   }
@@ -39,15 +40,24 @@ export function checkAllScripts({ root = ROOT } = {}) {
   files.sort();
 
   const failures = [];
-  for (const file of files) {
-    const result = spawnSync(process.execPath, ["--check", file], {
+
+  // JS files: syntax-check with node --check
+  for (const file of files.filter(f => JS_EXTENSIONS.has(path.extname(f)))) {
+    const result = spawnSync(process.execPath, ["--check", file], { encoding: "utf8" });
+    if (result.status !== 0) {
+      failures.push({ file: path.relative(root, file), stderr: result.stderr || "" });
+    }
+  }
+
+  // TS files: type-check with tsc (authoritative for TypeScript)
+  if (files.some(f => path.extname(f) === ".ts")) {
+    const tsconfig = path.join(root, "tsconfig.scripts.json");
+    const result = spawnSync("npx", ["tsc", "-p", tsconfig, "--noEmit"], {
       encoding: "utf8",
+      cwd: root,
     });
     if (result.status !== 0) {
-      failures.push({
-        file: path.relative(root, file),
-        stderr: result.stderr || "",
-      });
+      failures.push({ file: "tsconfig.scripts.json (tsc)", stderr: result.stdout || result.stderr || "" });
     }
   }
 
@@ -60,9 +70,7 @@ function main() {
     process.stdout.write(`syntax OK: ${files.length} file(s) checked\n`);
     return;
   }
-  process.stderr.write(
-    `syntax check failed: ${failures.length} of ${files.length} file(s)\n\n`,
-  );
+  process.stderr.write(`syntax check failed: ${failures.length} of ${files.length} file(s)\n\n`);
   for (const { file, stderr } of failures) {
     process.stderr.write(`--- ${file} ---\n${stderr}\n`);
   }
@@ -70,8 +78,7 @@ function main() {
 }
 
 const isDirectEntry = process.argv[1] &&
-  path.resolve(process.argv[1]) ===
-    path.resolve(new URL(import.meta.url).pathname);
+  path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
 
 if (isDirectEntry) {
   main();

@@ -23,33 +23,38 @@ import type {
   YamlNewsFrontmatter,
   YamlContentPage,
 } from './lib/yaml-types';
+import { buildConceptUri } from './lib/concept-uri';
+import {
+  loadConceptFile,
+  readYaml,
+  stripHtml,
+  splitMultiplicity,
+  LEGACY_MULTIPLICITY_MAP,
+  LEGACY_CERTAINTY_FROM_AXIS,
+} from './lib/harmonize-concept';
+import {
+  termToDesignation,
+  defsToJsonLd,
+  refToJsonLd,
+  localityToJsonLd,
+  sourcesToJsonLd,
+  refsToJsonLd,
+  citationToJsonLd,
+} from './lib/jsonld-emitter';
+import {
+  escapeTurtle,
+  escapeXml,
+  conceptJsonToTurtle,
+  conceptJsonToSkosJsonLd,
+  conceptJsonToTbx,
+} from './lib/concept-formats';
 
 // MECE partitive multiplicity: 2 independent axes (ISO 704:2022).
 //   presence × count
 // Legacy 5-value `multiplicity` and 2-value `certainty` map into the
 // 2-axis model — keep emitting them for one release cycle so consumers
 // that still read the legacy fields keep working.
-const LEGACY_MULTIPLICITY_MAP = {
-  compulsory:               { presence: 'required', count: 'exactly_one' },
-  optional:                 { presence: 'optional', count: 'exactly_one' },
-  compulsory_multiple:      { presence: 'required', count: 'multiple' },
-  optional_multiple:        { presence: 'optional', count: 'multiple' },
-  compulsory_at_least_one:  { presence: 'required', count: 'at_least_one' },
-};
-const LEGACY_CERTAINTY_FROM_AXIS = {
-  required: 'confirmed',
-  optional: 'possible',
-};
-
-function splitMultiplicity(multiplicity) {
-  return multiplicity in LEGACY_MULTIPLICITY_MAP
-    ? LEGACY_MULTIPLICITY_MAP[multiplicity]
-    : { presence: 'required', count: 'exactly_one' };
-}
-
-function buildConceptUri(uriBase, registerId, conceptId) {
-  return `${uriBase}/${registerId}/concept/${conceptId}`;
-}
+// (LEGACY_MULTIPLICITY_MAP and LEGACY_CERTAINTY_FROM_AXIS imported from harmonize-concept.ts)
 
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
@@ -63,7 +68,7 @@ const DATA = path.join(PUBLIC, 'data');
  *   No staging, no copy. fetch-datasets.mjs verifies the path is safe.
  * - Otherwise fall back to the standard .datasets/<id>/ staging dir.
  */
-function datasetDir(ds) {
+function datasetDir(ds: Record<string, any>): string {
   return ds.localPath
     ? path.resolve(ROOT, ds.localPath)
     : path.join(ROOT, '.datasets', ds.id);
@@ -75,57 +80,6 @@ const DS_PALETTE = [
   '#0891b2', '#65a30d',
 ];
 
-function readYaml(filePath) {
-  return yaml.load(fs.readFileSync(filePath, 'utf8'));
-}
-
-/** Strip HTML tags and normalize whitespace for plain-text display. */
-function stripHtml(s) {
-  return s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-}
-
-function loadConceptFile(filePath: string): HarmonizedConcept {
-  const content = fs.readFileSync(filePath, 'utf8');
-  const docs = yaml.loadAll(content, null, { schema: yaml.DEFAULT_SCHEMA }) as Record<string, any>[];
-
-  if (docs.length === 1 && docs[0].termid !== undefined) {
-    return docs[0] as HarmonizedConcept;
-  }
-
-  if (docs.length >= 1 && docs[0].data && docs[0].data.identifier !== undefined) {
-    const mc = docs[0] as YamlManagedConceptDoc;
-    const result: HarmonizedConcept = { termid: String(mc.data!.identifier) };
-
-    // Managed concept-level fields
-    if (mc.related) result._related = mc.related;
-    if (mc.partitive_relations) result._partitiveRelations = mc.partitive_relations;
-    if (mc.generic_relations) result._genericRelations = mc.generic_relations;
-    if (mc.data.domains) result._domains = mc.data.domains;
-    if (mc.dates) result._dates = mc.dates;
-    if (mc.sources) result._sources = mc.sources;
-    if (mc.status) result._status = mc.status;
-    if (mc.schema_version) result._schemaVersion = mc.schema_version;
-    if (mc.date_accepted) result._dateAccepted = mc.date_accepted;
-
-    for (const doc of docs.slice(1)) {
-      if (!doc) continue;
-      const lang = doc.data?.language_code || doc.language_code;
-      if (!lang) continue;
-      const lcData = { ...(doc.data || {}) };
-      delete lcData.language_code;
-      // Merge top-level fields (terms, definition, notes, etc.) into lcData
-      for (const key of ['terms', 'definition', 'notes', 'annotations', 'examples', 'sources', 'dates', 'domain', 'references', 'entry_status', 'classification', 'review_type', 'review_date', 'review_decision_date', 'review_decision_event', 'review_status', 'review_decision', 'review_decision_notes', 'lineage_source_similarity', 'release', 'script', 'system']) {
-        if (doc[key] !== undefined && lcData[key] === undefined) {
-          lcData[key] = doc[key];
-        }
-      }
-      result[lang] = lcData;
-    }
-    return result;
-  }
-
-  return docs[0] as HarmonizedConcept;
-}
 
 function writeJson(filePath, data) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -211,160 +165,6 @@ async function writeBuildActivity(conceptCount, datasetRegisters, baseUri) {
   console.log(`Emitted build activity record: data/activity/${runId}.ttl`);
 }
 
-function termToDesignation(term) {
-  const typeMap = {
-    expression: 'gl:Expression',
-    abbreviation: 'gl:Abbreviation',
-    symbol: 'gl:Symbol',
-    letter_symbol: 'gl:LetterSymbol',
-    'graphical symbol': 'gl:GraphicalSymbol',
-  };
-  const doc = {
-    '@type': typeMap[term.type] || 'gl:Designation',
-    'gl:normativeStatus': term.normative_status || 'preferred',
-    'gl:term': term.designation,
-  };
-
-  if (term.grammar_info && term.grammar_info.length > 0) {
-    doc['gl:grammarInfo'] = term.grammar_info.map(gi => {
-      const g = {};
-      if (gi.gender) g['gl:gender'] = gi.gender;
-      if (gi.number) g['gl:number'] = gi.number;
-      for (const pos of ['noun', 'verb', 'adj', 'adverb', 'preposition', 'participle']) {
-        if (gi[pos]) g[`gl:${pos}`] = gi[pos];
-      }
-      return g;
-    });
-  }
-
-  if (term.international !== undefined) doc['gl:international'] = term.international;
-  if (term.absent !== undefined) doc['gl:absent'] = term.absent;
-  if (term.geographical_area) doc['gl:geographicalArea'] = term.geographical_area;
-  if (term.term_type) doc['gl:termType'] = term.term_type;
-  if (term.prefix) doc['gl:prefix'] = term.prefix;
-  if (term.usage_info) doc['gl:usageInfo'] = term.usage_info;
-  if (term.field_of_application) doc['gl:fieldOfApplication'] = term.field_of_application;
-
-  if (term.acronym !== undefined) doc['gl:acronym'] = term.acronym;
-  if (term.initialism !== undefined) doc['gl:initialism'] = term.initialism;
-  if (term.truncation !== undefined) doc['gl:truncation'] = term.truncation;
-
-  if (term.text) doc['gl:text'] = term.text;
-  if (term.image) doc['gl:image'] = term.image;
-
-  if (term.related && term.related.length > 0) {
-    doc['gl:related'] = term.related.map(r => {
-      const rel = {};
-      if (r.type) rel['gl:relationshipType'] = r.type;
-      if (r.target) {
-        rel['gl:target'] = r.target;
-      } else if (r.ref) {
-        const ref = { '@type': 'gl:ConceptRef' };
-        if (r.ref.source) ref['gl:source'] = r.ref.source;
-        if (r.ref.id) ref['gl:id'] = r.ref.id;
-        if (r.ref.text) ref['gl:text'] = r.ref.text;
-        rel['gl:ref'] = ref;
-      }
-      return rel;
-    });
-  }
-
-  return doc;
-}
-
-function defsToJsonLd(defs) {
-  if (!defs || !Array.isArray(defs)) return [];
-  return defs
-    .map(d => ({
-      '@type': 'gl:DetailedDefinition',
-      'gl:content': d.content || '',
-    }))
-    .filter(d => d['gl:content']);
-}
-
-function refToJsonLd(ref, typeName = 'gl:Ref') {
-  if (!ref) return undefined;
-  const refObj = { '@type': typeName };
-  if (typeof ref === 'string') {
-    refObj['gl:source'] = ref;
-  } else {
-    if (ref.source) refObj['gl:source'] = ref.source;
-    if (ref.id) refObj['gl:id'] = ref.id;
-    if (ref.version) refObj['gl:version'] = ref.version;
-    if (ref.text) refObj['gl:text'] = ref.text;
-  }
-  return refObj;
-}
-
-function localityToJsonLd(loc) {
-  if (!loc) return undefined;
-  const locObj = {};
-  if (loc.type) locObj['gl:localityType'] = loc.type;
-  if (loc.reference_from) locObj['gl:referenceFrom'] = loc.reference_from;
-  if (loc.referenceFrom) locObj['gl:referenceFrom'] = loc.referenceFrom;
-  if (loc.reference_to) locObj['gl:referenceTo'] = loc.reference_to;
-  if (loc.referenceTo) locObj['gl:referenceTo'] = loc.referenceTo;
-  return Object.keys(locObj).length > 0 ? locObj : undefined;
-}
-
-function sourcesToJsonLd(sources) {
-  if (!sources || !Array.isArray(sources)) return [];
-  return sources.map(s => {
-    const doc = { '@type': 'gl:ConceptSource' };
-    if (s.id) doc['gl:id'] = s.id;
-    if (s.type) doc['gl:sourceType'] = s.type;
-    if (s.status) doc['gl:sourceStatus'] = s.status;
-    if (s.modification) doc['gl:modification'] = s.modification;
-    if (s.origin) {
-      const origin = { '@type': 'gl:Citation' };
-      const ref = refToJsonLd(s.origin.ref);
-      if (ref) origin['gl:ref'] = ref;
-      const loc = localityToJsonLd(s.origin.locality);
-      if (loc) origin['gl:locality'] = loc;
-      if (s.origin.link) origin['gl:link'] = s.origin.link;
-      doc['gl:origin'] = origin;
-    }
-    if (s.sourced_from && s.sourced_from.length) {
-      doc['gl:sourcedFrom'] = s.sourced_from.map(sf => {
-        const cite = { '@type': 'gl:Citation' };
-        const ref = refToJsonLd(sf.ref);
-        if (ref) cite['gl:ref'] = ref;
-        const loc = localityToJsonLd(sf.locality);
-        if (loc) cite['gl:locality'] = loc;
-        if (sf.link) cite['gl:link'] = sf.link;
-        return cite;
-      });
-    }
-    return doc;
-  });
-}
-
-function refsToJsonLd(refs, refMaps) {
-  if (!refs || !Array.isArray(refs)) return [];
-  return refs.map(r => {
-    if (r.id) {
-      const ref = { '@id': r.id, 'gl:term': r.term };
-      if (r.sourceId) ref['gl:sourceId'] = r.sourceId;
-      if (r.citation) ref['gl:citation'] = citationToJsonLd(r.citation);
-      return ref;
-    }
-    if (r.term && refMaps) {
-      const uri = resolveRefUri(r.term, refMaps);
-      if (uri) return { '@id': uri, 'gl:term': r.term };
-    }
-    return { '@id': r.id || r.term, 'gl:term': r.term };
-  }).filter(r => r['@id']);
-}
-
-function citationToJsonLd(citation) {
-  const obj = {};
-  const ref = refToJsonLd(citation.ref);
-  if (ref) obj['gl:ref'] = ref;
-  const loc = localityToJsonLd(citation.locality);
-  if (loc) obj['gl:locality'] = loc;
-  if (citation.link) obj['gl:link'] = citation.link;
-  return obj;
-}
 
 function buildPatternIndex(datasets: Record<string, any>[], registerCache: Record<string, any>) {
   const entries: { prefix: string; datasetId: string }[] = [];
@@ -842,201 +642,6 @@ function getPrimaryDesignation(conceptYaml) {
   return descs;
 }
 
-function escapeTurtle(s) {
-  return ttlLit(s).slice(1, -1);
-}
-
-function conceptJsonToTurtle(concept) {
-  const uri = concept['@id'] || '';
-  const id = concept['gl:identifier'] || '';
-  const lines = [
-    '@prefix skos: <http://www.w3.org/2004/02/skos/core#> .',
-    '@prefix dcterms: <http://purl.org/dc/terms/> .',
-    '',
-  ];
-
-  const props = ['  a skos:Concept'];
-  props.push(`  skos:notation "${escapeTurtle(id)}"`);
-
-  for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
-    if (lc['gl:designation']) {
-      for (const d of lc['gl:designation']) {
-        const term = d['gl:term'];
-        if (!term) continue;
-        const pred = d['gl:normativeStatus'] === 'preferred' ? 'skos:prefLabel' : 'skos:altLabel';
-        props.push(`  ${pred} "${escapeTurtle(term)}"@${lang}`);
-      }
-    }
-    if (lc['gl:definition']) {
-      for (const d of lc['gl:definition']) {
-        if (d['gl:content']) props.push(`  skos:definition "${escapeTurtle(d['gl:content'])}"@${lang}`);
-      }
-    }
-    if (lc['gl:notes']) {
-      for (const d of lc['gl:notes']) {
-        if (d['gl:content']) props.push(`  skos:scopeNote "${escapeTurtle(d['gl:content'])}"@${lang}`);
-      }
-    }
-  }
-
-  lines.push(`<${uri}>`);
-  lines.push(props.join(' ;\n'));
-  lines.push(' .');
-  return lines.join('\n');
-}
-
-function conceptJsonToSkosJsonLd(concept) {
-  const uri = concept['@id'] || '';
-  const id = concept['gl:identifier'] || '';
-
-  const doc = {
-    '@context': {
-      skos: 'http://www.w3.org/2004/02/skos/core#',
-      dcterms: 'http://purl.org/dc/terms/',
-      '@language': { '@container': '@language' },
-    },
-    '@id': uri,
-    '@type': 'skos:Concept',
-    'skos:notation': id,
-  };
-
-  const prefLabels = {}, altLabels = {}, definitions = {}, scopeNotes = {};
-  for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
-    const descs = lc['gl:designation'] || [];
-    const pref = descs.find(d => d['gl:normativeStatus'] === 'preferred' && d['gl:term']);
-    const alt = descs.find(d => d['gl:normativeStatus'] !== 'preferred' && d['gl:term']);
-    if (pref) prefLabels[lang] = pref['gl:term'];
-    if (alt) altLabels[lang] = alt['gl:term'];
-    const def = (lc['gl:definition'] || [])[0];
-    if (def?.['gl:content']) definitions[lang] = def['gl:content'];
-    const note = (lc['gl:notes'] || [])[0];
-    if (note?.['gl:content']) scopeNotes[lang] = note['gl:content'];
-  }
-
-  if (Object.keys(prefLabels).length) doc['skos:prefLabel'] = prefLabels;
-  if (Object.keys(altLabels).length) doc['skos:altLabel'] = altLabels;
-  if (Object.keys(definitions).length) doc['skos:definition'] = definitions;
-  if (Object.keys(scopeNotes).length) doc['skos:scopeNote'] = scopeNotes;
-
-  return JSON.stringify(doc);
-}
-
-function escapeXml(s) {
-  const str = Array.isArray(s) ? s.join(', ') : String(s ?? '');
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function conceptJsonToTbx(concept) {
-  const id = concept['gl:identifier'] || '';
-  const uri = concept['@id'] || '';
-  const localized = concept['gl:localizedConcept'] || {};
-
-  const langSections = [];
-  for (const [lang, lc] of Object.entries(localized)) {
-    const descs = lc['gl:designation'] || [];
-    const definitions = (lc['gl:definition'] || []).filter(d => d['gl:content']);
-    const notes = (lc['gl:notes'] || []).filter(d => d['gl:content']);
-    const examples = (lc['gl:examples'] || []).filter(d => d['gl:content']);
-    const sources = lc['gl:source'] || [];
-    const entryStatus = lc['gl:entryStatus'] || '';
-
-    if (!descs.length && !definitions.length) continue;
-
-    const termEntries = [];
-    for (const d of descs) {
-      const term = d['gl:term'];
-      if (!term) continue;
-      const status = d['gl:normativeStatus'] || '';
-      const type = d['@type'] || '';
-      let gramGrp = '';
-      if (d['gl:grammarInfo'] && d['gl:grammarInfo'].length > 0) {
-        const gi = d['gl:grammarInfo'][0];
-        if (gi['gl:gender']) gramGrp = `\n            <grammaticalGender>${escapeXml(gi['gl:gender'])}</grammaticalGender>`;
-        if (gi['gl:number']) gramGrp += `\n            <grammaticalNumber>${escapeXml(gi['gl:number'])}</grammaticalNumber>`;
-        for (const pos of ['noun', 'verb', 'adj', 'adverb', 'preposition', 'participle']) {
-          if (gi[`gl:${pos}`]) gramGrp += `\n            <partOfSpeech>${pos}</partOfSpeech>`;
-        }
-      }
-      let posBlock = '';
-      if (type.includes('Abbreviation')) posBlock = '\n            <partOfSpeech>abbreviation</partOfSpeech>';
-      if (type.includes('Symbol')) posBlock = '\n            <partOfSpeech>symbol</partOfSpeech>';
-
-      termEntries.push(`          <termEntry>
-            <langSet xml:lang="${lang}">
-              <tig>
-                <term>${escapeXml(term)}</term>${gramGrp}${posBlock}
-              </tig>
-            </langSet>
-          </termEntry>`);
-    }
-
-    let defBlock = '';
-    if (definitions.length) {
-      const defParts = definitions.map(d => `            <p>${escapeXml(d['gl:content'])}</p>`).join('\n');
-      defBlock = `\n          <descrip type="definition">\n${defParts}\n          </descrip>`;
-    }
-
-    let noteBlock = '';
-    for (let i = 0; i < notes.length; i++) {
-      noteBlock += `\n          <note type="note">${escapeXml(notes[i]['gl:content'])}</note>`;
-    }
-    for (let i = 0; i < examples.length; i++) {
-      noteBlock += `\n          <note type="example">${escapeXml(examples[i]['gl:content'])}</note>`;
-    }
-
-    let sourceBlock = '';
-    for (const src of sources) {
-      const origin = src['gl:origin'] || {};
-      const parts = [];
-      const ref = origin['gl:ref'];
-      if (ref) {
-        const refParts = [];
-        if (ref['gl:source']) refParts.push(ref['gl:source']);
-        if (ref['gl:id']) refParts.push(ref['gl:id']);
-        parts.push(refParts.join(' ') || '');
-      }
-      if (origin['gl:locality']) {
-        const loc = origin['gl:locality'];
-        if (loc['gl:referenceFrom']) parts.push(loc['gl:localityType'] ? `${loc['gl:localityType']} ${loc['gl:referenceFrom']}` : loc['gl:referenceFrom']);
-      }
-      if (parts.filter(Boolean).length) {
-        sourceBlock += `\n          <ref>${escapeXml(parts.filter(Boolean).join(', '))}</ref>`;
-      }
-    }
-
-    let statusBlock = '';
-    if (entryStatus) {
-      statusBlock += `\n          <descrip type="entryStatus">${escapeXml(entryStatus)}</descrip>`;
-    }
-
-    const termEntriesBlock = termEntries.length ? '\n' + termEntries.join('\n') : '';
-    langSections.push({ lang, termEntries, blocks: [defBlock, noteBlock, sourceBlock, statusBlock].filter(b => b).join('') });
-  }
-
-  if (!langSections.length) return '';
-
-  const bodyEntries = langSections.map(ls => {
-    return `      <languageSection xml:lang="${ls.lang}">${ls.blocks}\n      </languageSection>`;
-  }).join('\n');
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<tbx style="dca" type="TBX-Basic" xml:lang="en" xmlns="urn:iso:std:iso:30042:ed-2">
-  <tbxHeader>
-    <fileDesc>
-      <source>${escapeXml(uri)}</source>
-    </fileDesc>
-  </tbxHeader>
-  <text>
-    <body>
-      <conceptEntry id="${escapeXml(id)}">
-${bodyEntries}
-      </conceptEntry>
-    </body>
-  </text>
-</tbx>
-`;
-}
-
 async function processDataset(dir, register, opts) {
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.yaml')).sort((a, b) => naturalSort(a.replace('.yaml', ''), b.replace('.yaml', '')));
 
@@ -1215,20 +820,20 @@ async function processDataset(dir, register, opts) {
   // Strip HTML from index summary for text display
   const plainSummary = summary.map(c => {
     const designations = {};
-    for (const [lang, term] of Object.entries(c.designations)) {
-      if (term) designations[lang] = stripHtml(term);
+    for (const [lang, term] of Object.entries(c.designations) as [string, unknown][]) {
+      if (term) designations[lang] = stripHtml(String(term));
     }
     return {
       ...c,
       designations,
-      eng: stripHtml(c.eng),
+      eng: stripHtml(String(c.eng)),
     };
   });
 
   const graphNodeEntries = concepts.map(c => {
     const cleanDesignations = {};
-    for (const [l, t] of Object.entries(c.designations)) {
-      if (t) cleanDesignations[l] = stripHtml(t);
+    for (const [l, t] of Object.entries(c.designations) as [string, unknown][]) {
+      if (t) cleanDesignations[l] = stripHtml(String(t));
     }
     return [c.id, cleanDesignations, c.status];
   });

@@ -1,0 +1,255 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glossarist.org/concept-model/shapes/glossarist.concept.yaml.schema.json",
+  "title": "Glossarist Concept YAML",
+  "description": "Schema for dataset author YAML files. Derived from scripts/lib/yaml-types.ts — the TypeScript interfaces are the source of truth.",
+  "type": "object",
+  "required": ["termid"],
+  "properties": {
+    "termid": {
+      "type": "string",
+      "description": "Unique concept identifier within the dataset"
+    },
+    "id": { "type": "string" },
+    "uri": { "type": "string", "format": "uri" },
+    "status": {
+      "type": "string",
+      "enum": ["valid", "not_valid", "withdrawn", "draft", "superseded"]
+    },
+    "_related": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/relation" }
+    },
+    "_partitiveRelations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/partitiveRelation" }
+    },
+    "_genericRelations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/genericRelation" }
+    },
+    "_domains": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "_dates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/date" }
+    },
+    "_sources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/source" }
+    },
+    "_status": { "type": "string" },
+    "_schemaVersion": { "type": "string" },
+    "_dateAccepted": { "type": "string", "format": "date" }
+  },
+  "patternProperties": {
+    "^[a-z]{3}$": { "$ref": "#/$defs/localization" }
+  },
+  "additionalProperties": true,
+
+  "$defs": {
+    "localization": {
+      "type": "object",
+      "properties": {
+        "language_code": { "type": "string", "pattern": "^[a-z]{3}$" },
+        "terms": { "type": "array", "items": { "$ref": "#/$defs/term" } },
+        "definition": { "type": "array", "items": { "$ref": "#/$defs/content" } },
+        "notes": { "type": "array", "items": { "$ref": "#/$defs/content" } },
+        "examples": { "type": "array", "items": { "$ref": "#/$defs/content" } },
+        "annotations": { "type": "array", "items": { "$ref": "#/$defs/content" } },
+        "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } },
+        "dates": { "type": "array", "items": { "$ref": "#/$defs/date" } },
+        "domain": { "type": "array", "items": { "type": "string" } },
+        "entry_status": {
+          "type": "string",
+          "enum": ["valid", "not_valid", "withdrawn", "draft", "superseded"]
+        },
+        "classification": { "type": "string" },
+        "release": { "type": "string" }
+      }
+    },
+
+    "term": {
+      "type": "object",
+      "required": ["designation"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["expression", "abbreviation", "symbol", "letter_symbol", "graphical symbol"]
+        },
+        "designation": { "type": "string" },
+        "normative_status": {
+          "type": "string",
+          "enum": ["preferred", "admitted", "deprecated", ""]
+        },
+        "origin": { "$ref": "#/$defs/origin" },
+        "grammar_info": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/grammarInfo" }
+        },
+        "international": { "type": "boolean" },
+        "absent": { "type": "boolean" },
+        "geographical_area": { "type": "string" },
+        "term_type": { "type": "string" },
+        "prefix": { "type": "string" },
+        "usage_info": { "type": "string" },
+        "field_of_application": { "type": "string" }
+      }
+    },
+
+    "content": {
+      "type": "object",
+      "properties": {
+        "content": { "type": "string" }
+      }
+    },
+
+    "source": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["authoritative", "lineage", "adapted"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["identical", "modified", "restyled", "context-added", "extracted", "expanded-coverage"]
+        },
+        "origin": { "$ref": "#/$defs/origin" }
+      }
+    },
+
+    "origin": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "type": "object",
+          "properties": {
+            "source": { "type": "string" },
+            "id": { "type": "string" },
+            "version": { "type": "string" },
+            "text": { "type": "string" }
+          }
+        },
+        "locality": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string" },
+            "reference_from": { "type": "string" },
+            "reference_to": { "type": "string" }
+          }
+        },
+        "link": { "type": "string", "format": "uri" }
+      }
+    },
+
+    "grammarInfo": {
+      "type": "object",
+      "properties": {
+        "gender": { "type": "string" },
+        "number": { "type": "string" },
+        "partOfSpeech": { "type": "string" },
+        "noun": { "type": "boolean" },
+        "verb": { "type": "boolean" },
+        "adj": { "type": "boolean" },
+        "adverb": { "type": "boolean" },
+        "preposition": { "type": "boolean" },
+        "participle": { "type": "boolean" }
+      }
+    },
+
+    "date": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "date": { "type": "string", "format": "date" }
+      }
+    },
+
+    "relation": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "target": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "properties": {
+                "ref": { "type": "string" },
+                "uri": { "type": "string", "format": "uri" }
+              }
+            }
+          ]
+        },
+        "content": { "type": "string" },
+        "label": { "type": "string" }
+      }
+    },
+
+    "partitiveRelation": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "target": { "type": "string" },
+        "members": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/partitiveMember" }
+        },
+        "criterion": { "type": "string" },
+        "multiplicity": {
+          "type": "string",
+          "enum": ["compulsory", "optional", "compulsory_multiple", "optional_multiple", "compulsory_at_least_one"]
+        }
+      }
+    },
+
+    "partitiveMember": {
+      "type": "object",
+      "properties": {
+        "ref": { "type": "string" },
+        "uri": { "type": "string", "format": "uri" },
+        "presence": {
+          "type": "string",
+          "enum": ["required", "optional"]
+        },
+        "count": {
+          "type": "string",
+          "enum": ["exactly_one", "at_least_one", "multiple"]
+        },
+        "delimiting": { "type": "boolean" },
+        "multiplicity": {
+          "type": "string",
+          "enum": ["compulsory", "optional", "compulsory_multiple", "optional_multiple", "compulsory_at_least_one"]
+        }
+      }
+    },
+
+    "genericRelation": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "target": { "type": "string" },
+        "members": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              {
+                "type": "object",
+                "properties": {
+                  "ref": { "type": "string" },
+                  "uri": { "type": "string", "format": "uri" }
+                }
+              }
+            ]
+          }
+        },
+        "criterion": { "type": "string" }
+      }
+    }
+  }
+}

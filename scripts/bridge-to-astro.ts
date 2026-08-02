@@ -1,6 +1,4 @@
-function buildConceptUri(uriBase, registerId, conceptId) {
-  return `${uriBase}/${registerId}/concept/${conceptId}`;
-}
+import { buildConceptUri } from './lib/concept-uri';
 
 
 /**
