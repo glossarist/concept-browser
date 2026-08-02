@@ -14,9 +14,6 @@ const LIBRARY_SCRIPTS = [
   'normalize-yaml',
   'extract-source-refs',
   'migrate-v1-to-v3',
-  'bridge-to-astro',
-  'sync-concept-model',
-  'generate-404',
 ];
 
 const PIPELINE_SCRIPTS = [
@@ -29,6 +26,9 @@ const PIPELINE_SCRIPTS = [
   'generate-ontology-schema',
   'doctor',
   'validate-shacl',
+  'bridge-to-astro',
+  'sync-concept-model',
+  'generate-404',
 ];
 
 function runPlain(args: string[], opts?: Parameters<typeof spawnSync>[2]): { status: number | null; stdout: string; stderr: string } {
