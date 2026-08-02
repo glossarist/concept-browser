@@ -10,7 +10,7 @@
  *   - {{table:id}} / {{table:id, display}}  → nonVerbalRefResolver (table)
  *   - {{formula:id}} / {{formula:id, display}}  → nonVerbalRefResolver (formula)
  *   - {{cite:key[, render term]}}  → citeResolver
- *   - {{urn:...[, render term]}}  → urnRefResolver / xrefResolver
+ *   - {{urn:...[, render term]}}  → xrefResolver
  *   - {{concept_id[, render term]}}  → conceptRefResolver
  *   - {{designation[, render term]}}  → conceptRefResolver
  *
@@ -28,7 +28,6 @@ export type XrefResolver = (uri: string, term: string) => string;
 export type BibResolver = (refId: string, title: string) => string;
 export type CiteResolver = (key: string, label: string | null) => string;
 export type ConceptRefResolver = (conceptId: string, term: string) => string;
-export type UrnRefResolver = (uri: string, term: string) => string;
 export type NonVerbalRefResolver = (kind: NonVerbalKind, entityId: string, display?: string) => string;
 
 export interface RenderOptions {
@@ -36,7 +35,6 @@ export interface RenderOptions {
   bibResolver?: BibResolver;
   conceptRefResolver?: ConceptRefResolver;
   citeResolver?: CiteResolver;
-  urnRefResolver?: UrnRefResolver;
   nonVerbalRefResolver?: NonVerbalRefResolver;
 }
 
@@ -209,7 +207,6 @@ function resolveMentions(text: string, opts: RenderOptions): string {
       case 'urn-ref': {
         const uri = p.uri as string;
         const label = (p.label as string) ?? uri;
-        if (opts.urnRefResolver) return opts.urnRefResolver(uri, label);
         if (opts.xrefResolver) return opts.xrefResolver(uri, label);
         return escapeHtml(label);
       }

@@ -117,7 +117,10 @@ const conceptSources = computed(() => props.concept?.sources ?? []);
 const conceptTags = computed(() => props.concept?.tags ?? []);
 
 const factory = getFactory();
-const { ready: bibReady, ensureBibLoaded, bibResolver, nonVerbalRefResolver } = useRenderOptions(() => props.registerId);
+const { ready: bibReady, ensureBibLoaded, bibResolver, citeResolver, nonVerbalRefResolver } = useRenderOptions(
+  () => props.registerId,
+  () => props.concept?.sources,
+);
 
 const renderOpts = computed<RenderOptions>(() => {
   bibReady.value;
@@ -141,6 +144,7 @@ const renderOpts = computed<RenderOptions>(() => {
     return `<a href="#" class="xref-link" data-register="${escapeAttr(props.registerId)}" data-concept="${escapeAttr(resolvedId)}">${escapeAttr(term)}</a>`;
   },
   bibResolver,
+  citeResolver,
   nonVerbalRefResolver,
 };
 });
@@ -155,7 +159,7 @@ const structuralEntityRefs = useConceptEntities(
 useNonVerbalCrossRef();
 
 function handleContentClick(e: MouseEvent) {
-  const target = (e.target as HTMLElement).closest('.xref-link') as HTMLElement | null;
+  const target = (e.target as HTMLElement).closest('.xref-link, .cite-link') as HTMLElement | null;
   if (!target) return;
   e.preventDefault();
   const registerId = target.dataset.register;
