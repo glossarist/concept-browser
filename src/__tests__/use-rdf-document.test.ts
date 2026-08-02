@@ -1,10 +1,9 @@
-// @ts-nocheck — TODO.typescript/12: remove after glossarist TS migration
 import { describe, it, expect } from 'vitest';
 import { ref } from 'vue';
 import { Concept } from 'glossarist';
 import { useRdfDocument } from '../components/use-rdf-document';
 
-function makeConcept(): Concept {
+function makeConcept(): any {
   return Concept.fromJSON({
     id: '3.1.1',
     uri: 'https://glossarist.org/test/concept/3.1.1',
@@ -24,7 +23,7 @@ function makeConcept(): Concept {
   });
 }
 
-function makeConceptWithNonVerbal(): Concept {
+function makeConceptWithNonVerbal(): any {
   return Concept.fromJSON({
     id: '3.1.2',
     uri: 'https://glossarist.org/test/concept/3.1.2',

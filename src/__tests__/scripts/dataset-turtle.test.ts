@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Parser, Store } from 'n3';
-import { buildDatasetTurtle } from '../../../scripts/lib/dataset-turtle.mjs';
+import { buildDatasetTurtle } from '../../../scripts/lib/dataset-turtle';
 
 const BASE = 'https://glossarist.org/dataset';
 

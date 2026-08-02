@@ -3,15 +3,15 @@
 /**
  * Glossarist Concept Browser CLI — runtime entrypoint.
  *
- * This is the published bin entry. It stays as plain JS (no tsx dependency)
- * so consumers who install with --omit=dev can use it.
- *
- * The TypeScript version lives at cli/index.ts for type-checking during
- * development. The two files should be kept in sync manually until
- * TODO.typescript/03 adds a compile step.
+ * Registers tsx as the ESM loader so dynamic imports of .ts scripts
+ * work at runtime. tsx is a regular dependency (not devDep), so it
+ * survives --omit=dev.
  */
 
-import { loadSiteConfig } from '../scripts/load-site-config.mjs';
+import { register } from 'node:module';
+register('tsx/esm', import.meta.url);
+
+import { loadSiteConfig } from '../scripts/load-site-config.ts';
 import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -20,10 +20,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgRoot = resolve(__dirname, '..');
 
 const commands = {
-  fetch:    async () => (await import('../scripts/fetch-datasets.mjs')).main(),
-  generate: async () => { await import('../scripts/generate-data.mjs'); },
-  edges:    async () => (await import('../scripts/build-edges.js')).main(),
-  about:    async () => (await import('../scripts/process-about-pages.mjs')).main(),
+  fetch:    async () => (await import('../scripts/fetch-datasets.ts')).main(),
+  generate: async () => { await import('../scripts/generate-data.ts'); },
+  edges:    async () => (await import('../scripts/build-edges.ts')).main(),
+  about:    async () => (await import('../scripts/process-about-pages.ts')).main(),
 };
 
 function parseArgs(argv) {
@@ -294,7 +294,7 @@ Environment:
     }
 
     console.log(`\n=== BRIDGE DATA ===\n`);
-    const bridge = resolve(pkgRoot, 'scripts', 'bridge-to-astro.mjs');
+    const bridge = resolve(pkgRoot, 'scripts', 'bridge-to-astro.ts');
     if (existsSync(bridge)) {
       await import(`file://${bridge}`);
     }
@@ -319,7 +319,7 @@ Environment:
       await viteBuild({ configFile: viteConfig, root: pkgRoot, mode: 'production' });
     }
 
-    const postbuild = resolve(pkgRoot, 'scripts', 'generate-404.js');
+    const postbuild = resolve(pkgRoot, 'scripts', 'generate-404.ts');
     if (existsSync(postbuild)) {
       await import(`file://${postbuild}`);
     }
@@ -334,7 +334,7 @@ Environment:
   }
 
   if (cmd === 'normalize') {
-    const { normalizeYaml } = await import('../scripts/normalize-yaml.mjs');
+    const { normalizeYaml } = await import('../scripts/normalize-yaml.ts');
     const check = process.argv.includes('--check');
     const paths = process.argv.slice(2).filter(a => !a.startsWith('-') && a !== 'normalize');
     const { checked, nonNfc, fixed } = normalizeYaml({ check, paths });
@@ -357,7 +357,7 @@ Environment:
   }
 
   if (cmd === 'doctor') {
-    const { main: doctorMain } = await import('../scripts/doctor.mjs');
+    const { main: doctorMain } = await import('../scripts/doctor.ts');
     await doctorMain();
     return;
   }

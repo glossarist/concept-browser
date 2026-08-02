@@ -1,5 +1,5 @@
-// @ts-nocheck — TODO.typescript/12: remove after glossarist TS migration
 import { describe, it, expect } from 'vitest';
+import type { Quad } from 'n3';
 import { Concept } from 'glossarist';
 import { conceptToQuads, collectQuads, writeTurtleSync, PREFIXES } from 'glossarist/rdf';
 import type { ConceptFixture } from '../__fixtures__/concepts';
@@ -41,7 +41,7 @@ describe('Layer 7 — serialization performance regression', () => {
 
     const start = performance.now();
     for (const { concept } of concepts) {
-      const quads = collectQuads(conceptToQuads(concept, { registerId: 'perf', uriBase: BASE }));
+      const quads = collectQuads(conceptToQuads(concept, { registerId: 'perf', uriBase: BASE }) as Generator<Quad>);
       writeTurtleSync(quads, { prefixes: PREFIXES });
     }
     const elapsed = performance.now() - start;
@@ -55,7 +55,7 @@ describe('Layer 7 — serialization performance regression', () => {
     const concepts = makeConcepts(100);
     const start = performance.now();
     for (const { concept } of concepts) {
-      const quads = collectQuads(conceptToQuads(concept, { registerId: 'perf', uriBase: BASE }));
+      const quads = collectQuads(conceptToQuads(concept, { registerId: 'perf', uriBase: BASE }) as Generator<Quad>);
       writeTurtleSync(quads, { prefixes: PREFIXES });
     }
     const elapsed = performance.now() - start;
@@ -69,7 +69,7 @@ describe('Layer 7 — scale stress (P4: 10 000 concepts)', () => {
     const concepts = makeConcepts(SCALE_CONCEPT_COUNT);
     const start = performance.now();
     for (const { concept } of concepts) {
-      const quads = collectQuads(conceptToQuads(concept, { registerId: 'perf', uriBase: BASE }));
+      const quads = collectQuads(conceptToQuads(concept, { registerId: 'perf', uriBase: BASE }) as Generator<Quad>);
       writeTurtleSync(quads, { prefixes: PREFIXES });
     }
     const elapsed = performance.now() - start;
@@ -98,7 +98,7 @@ describe('Layer 7 — scale stress (P4: 10 000 concepts)', () => {
 function timeTurtle(concepts: { concept: Concept; uri: string }[]): number {
   const start = performance.now();
   for (const { concept } of concepts) {
-    const quads = collectQuads(conceptToQuads(concept, { registerId: 'perf', uriBase: BASE }));
+    const quads = collectQuads(conceptToQuads(concept, { registerId: 'perf', uriBase: BASE }) as Generator<Quad>);
     writeTurtleSync(quads, { prefixes: PREFIXES });
   }
   return performance.now() - start;

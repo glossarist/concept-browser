@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeBibliography } from '../lib/bibliography.mjs';
+import { normalizeBibliography } from '../lib/bibliography';
 
 describe('normalizeBibliography', () => {
   it('wraps a bare array into { bibliography: [...] }', () => {

@@ -3,7 +3,7 @@ import { writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { runDoctor, formatResults, CHECKS, NODE_MIN_MAJOR } from '../doctor.mjs';
+import { runDoctor, formatResults, CHECKS, NODE_MIN_MAJOR } from '../doctor';
 
 function makeTmpProject() {
   const dir = mkdtempSync(join(tmpdir(), 'doctor-'));

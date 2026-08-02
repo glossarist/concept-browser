@@ -19,7 +19,7 @@ import { join, basename, extname, resolve } from 'node:path';
 import { cwd } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { loadSiteConfig } from './load-site-config.mjs';
+import { loadSiteConfig } from './load-site-config';
 
 export function loadSiteConfigForAbout() {
   try {

@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
-const scriptPath = join(dirname(new URL(import.meta.url).pathname), '..', 'process-about-pages.mjs');
+const scriptPath = join(dirname(new URL(import.meta.url).pathname), '..', 'process-about-pages');
 
 // Process-about-pages discovers per-dataset about content from either
 // .datasets/<id>/about/ (fetched) OR site-config localPath overrides.

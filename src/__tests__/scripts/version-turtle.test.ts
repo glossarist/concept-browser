@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Parser, Store } from 'n3';
-import { buildVersionTurtle, buildVersionHistoryTurtle } from '../../../scripts/lib/version-turtle.mjs';
+import { buildVersionTurtle, buildVersionHistoryTurtle } from '../../../scripts/lib/version-turtle';
 
 function parse(turtle: string): Store {
   const parser = new Parser({ format: 'Turtle' });

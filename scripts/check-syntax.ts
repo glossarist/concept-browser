@@ -7,7 +7,7 @@ import process from "node:process";
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 
 const TARGET_DIRS = ["scripts", "cli"];
-const EXTENSIONS = new Set([".mjs", ".js", ".cjs"]);
+const EXTENSIONS = new Set([".ts", ".mjs", ".js", ".cjs"]);
 const SKIP_DIRS = new Set(["__tests__", "node_modules"]);
 
 function walk(dir) {

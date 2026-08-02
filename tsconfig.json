@@ -20,6 +20,6 @@
     },
     "baseUrl": "."
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "cli/**/*.ts", "env.d.ts", ".astro/types.d.ts"],
-  "exclude": ["src/content.config.ts", "src/pages/**", "src/layouts/**", "src/astro-islands/**", "src/lib/site-config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "env.d.ts", ".astro/types.d.ts"],
+  "exclude": ["src/content.config.ts", "src/pages/**", "src/layouts/**", "src/astro-islands/**", "src/lib/site-config.ts", "src/__tests__/**", "scripts/**", "cli/**"]
 }
