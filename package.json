@@ -22,6 +22,8 @@
     "sync:model": "tsx scripts/sync-concept-model.ts",
     "build:full": "npm run generate-ontology && npm run fetch-datasets && npm run generate-data && tsx scripts/build-edges.ts && npm run build",
     "build:site": "concept-browser --site build",
+    "build:scripts": "node scripts/build-scripts.mjs",
+    "prepublishOnly": "npm run build:scripts",
     "smoke": "tsx scripts/smoke.ts",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -3,15 +3,12 @@
 /**
  * Glossarist Concept Browser CLI — runtime entrypoint.
  *
- * Registers tsx as the ESM loader so dynamic imports of .ts scripts
- * work at runtime. tsx is a regular dependency (not devDep), so it
- * survives --omit=dev.
+ * Imports compiled .js scripts (not .ts) because Node.js v24+ blocks
+ * type stripping for files under node_modules. Scripts are compiled
+ * to .js by `npm run build:scripts` during prepublishOnly.
  */
 
-import { register } from 'node:module';
-register('tsx/esm', import.meta.url);
-
-import { loadSiteConfig } from '../scripts/load-site-config.ts';
+import { loadSiteConfig } from '../scripts/load-site-config.js';
 import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -20,10 +17,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgRoot = resolve(__dirname, '..');
 
 const commands = {
-  fetch:    async () => (await import('../scripts/fetch-datasets.ts')).main(),
-  generate: async () => { await import('../scripts/generate-data.ts'); },
-  edges:    async () => (await import('../scripts/build-edges.ts')).main(),
-  about:    async () => (await import('../scripts/process-about-pages.ts')).main(),
+  fetch:    async () => (await import('../scripts/fetch-datasets.js')).main(),
+  generate: async () => { await import('../scripts/generate-data.js'); },
+  edges:    async () => (await import('../scripts/build-edges.js')).main(),
+  about:    async () => (await import('../scripts/process-about-pages.js')).main(),
 };
 
 function parseArgs(argv) {
@@ -294,7 +291,7 @@ Environment:
     }
 
     console.log(`\n=== BRIDGE DATA ===\n`);
-    const bridge = resolve(pkgRoot, 'scripts', 'bridge-to-astro.ts');
+    const bridge = resolve(pkgRoot, 'scripts', 'bridge-to-astro.js');
     if (existsSync(bridge)) {
       await import(`file://${bridge}`);
     }
@@ -319,7 +316,7 @@ Environment:
       await viteBuild({ configFile: viteConfig, root: pkgRoot, mode: 'production' });
     }
 
-    const postbuild = resolve(pkgRoot, 'scripts', 'generate-404.ts');
+    const postbuild = resolve(pkgRoot, 'scripts', 'generate-404.js');
     if (existsSync(postbuild)) {
       await import(`file://${postbuild}`);
     }
@@ -334,7 +331,7 @@ Environment:
   }
 
   if (cmd === 'normalize') {
-    const { normalizeYaml } = await import('../scripts/normalize-yaml.ts');
+    const { normalizeYaml } = await import('../scripts/normalize-yaml.js');
     const check = process.argv.includes('--check');
     const paths = process.argv.slice(2).filter(a => !a.startsWith('-') && a !== 'normalize');
     const { checked, nonNfc, fixed } = normalizeYaml({ check, paths });
@@ -357,7 +354,7 @@ Environment:
   }
 
   if (cmd === 'doctor') {
-    const { main: doctorMain } = await import('../scripts/doctor.ts');
+    const { main: doctorMain } = await import('../scripts/doctor.js');
     await doctorMain();
     return;
   }
