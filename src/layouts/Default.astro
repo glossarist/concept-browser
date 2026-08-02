@@ -2,12 +2,8 @@
 import '@/styles/tailwind.css';
 import AppIsland from '../islands/AppIsland.vue';
 import { getSiteConfig } from '../lib/site-config';
-import {
-  fontStack,
-  DEFAULT_FONTS,
-  DEFAULT_CATEGORY,
-  type FontConfigLike,
-} from '../utils/font-stack';
+import { type FontConfigLike } from '../utils/font-stack';
+import { renderFontVariablesInline } from '../utils/font-variables';
 import { resolveFaviconBase } from '../utils/favicon-base';
 import { buildFaviconLinks, renderFaviconLinkTag } from '../utils/favicon-links';
 
@@ -44,13 +40,11 @@ const fontsUrl = fontParts.length > 0
   ? `https://fonts.googleapis.com/css2?${fontParts.join('&')}&display=swap`
   : 'https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap';
 
-// Build CSS font-family stacks via the shared SSOT. Consumers can pick
-// any category for any slot — e.g. sans-serif title + serif heading —
-// and the fallback chain follows the declared category.
-const fontTitle = fontStack(brandingFonts?.title, DEFAULT_CATEGORY.title) ?? DEFAULT_FONTS.title;
-const fontHeading = fontStack(headingFont, DEFAULT_CATEGORY.heading) ?? DEFAULT_FONTS.heading;
-const fontBody = fontStack(brandingFonts?.body, DEFAULT_CATEGORY.body) ?? DEFAULT_FONTS.body;
-const fontMono = fontStack(brandingFonts?.mono, DEFAULT_CATEGORY.mono) ?? DEFAULT_FONTS.mono;
+// Single source of truth for the inline font-variable block.
+// renderFontVariablesInline() is shared with use-site-config.ts so the
+// build-time SSG and runtime override paths can never drift.
+// See src/utils/font-variables.ts for the contract + regression tests.
+const fontVarsCss = renderFontVariablesInline(brandingFonts);
 
 // Favicon configuration (issues #173, #177, and the data-driven refactor).
 //
@@ -137,7 +131,7 @@ const faviconLinks = buildFaviconLinks({
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" as="style" href={fontsUrl} onload="this.rel='stylesheet'">
     <noscript><link href={fontsUrl} rel="stylesheet"></noscript>
-    <Fragment set:html={`<style>:root{--font-title:${fontTitle};--font-heading:${fontHeading};--font-header:${fontHeading};--font-serif:${fontHeading};--font-sans:${fontBody};--font-body:${fontBody};--font-mono:${fontMono}}</style>`} />
+    <Fragment set:html={`<style>${fontVarsCss}</style>`} />
     <script is:inline>
       (function() {
         const c = document.cookie.split(';').map(s => s.trim()).find(s => s.startsWith('theme='));

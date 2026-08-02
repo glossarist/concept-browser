@@ -12,13 +12,11 @@ export default {
   ],
   theme: {
     extend: {
-      fontFamily: {
-        title: ['var(--font-title, "DM Serif Display")', 'Georgia', 'serif'],
-        heading: ['var(--font-heading, "DM Serif Display")', 'Georgia', 'serif'],
-        serif: ['var(--font-header, "DM Serif Display")', 'Georgia', 'serif'],
-        sans: ['var(--font-body, "DM Sans")', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-mono, "JetBrains Mono")', 'ui-monospace', 'monospace'],
-      },
+      // Font utilities are defined in src/styles/tailwind.css @layer base.
+      // They reference slot CSS variables (--font-title, --font-heading,
+      // --font-body, --font-mono) emitted by buildFontVariables() in
+      // src/utils/font-variables.ts. Configuring them here would create
+      // a second source of truth that can drift.
       colors: {
         ink: {
           DEFAULT: '#1a1b2e',
@@ -37,11 +35,6 @@ export default {
           DEFAULT: '#faf9f6',
           alt: '#f3f2ee',
           raised: '#ffffff',
-        },
-      },
-      typography: {
-        serif: {
-          'font-family': 'var(--font-header, "DM Serif Display"), Georgia, serif',
         },
       },
     },

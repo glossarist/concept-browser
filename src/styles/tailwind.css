@@ -38,9 +38,19 @@
   --color-group-family: #6366f1;
   --color-group-collection: #0891b2;
 
-  --font-serif: "DM Serif Display", Georgia, serif;
-  --font-sans: "DM Sans", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  /* Tailwind font utilities. Defined as `var()` references to the slot
+     variables so the utilities exist (templates still reference
+     `.font-serif`, `.font-sans`, `.font-mono`) but the bundle's
+     `:root, :host { ... }` block emits ALIASES, not literal values —
+     meaning it cannot clobber whatever the inline `<style>` sets.
+
+     The inline style (Default.astro) emits ONLY slot-named variables
+     (--font-title, --font-heading, --font-body, --font-mono) via
+     buildFontVariables() in src/utils/font-variables.ts. The aliases
+     here resolve to those slot variables through the cascade. */
+  --font-serif: var(--font-heading);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono);
 }
 
 :root {
@@ -71,11 +81,23 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  .font-title {
-    font-family: var(--font-title);
-  }
-  h1, h2, h3, .font-serif {
-    font-family: var(--font-header);
+  /* Slot-named utilities — the canonical API. Each maps to a CSS variable
+     emitted by buildFontVariables() in src/utils/font-variables.ts. */
+  .font-title   { font-family: var(--font-title); }
+  .font-heading { font-family: var(--font-heading); }
+  .font-body    { font-family: var(--font-body); }
+  /* Backward-compat aliases. Existing templates use `.font-serif` and
+     `.font-sans`; map them to slot variables so brand fonts propagate
+     without forcing every consumer to rewrite markup. These do NOT
+     bake in serif↔heading / sans↔body — the slot variable holds
+     whatever category the consumer declared. */
+  .font-serif   { font-family: var(--font-heading); }
+  .font-sans    { font-family: var(--font-body); }
+  /* Legacy alias for `.font-header` (renamed to `.font-heading`). */
+  .font-header  { font-family: var(--font-heading); }
+  /* Default heading typography — applies unless overridden by a slot class. */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
   }
   code, pre, .font-mono {
     font-family: var(--font-mono);
