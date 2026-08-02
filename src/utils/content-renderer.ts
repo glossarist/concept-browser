@@ -26,6 +26,7 @@
  * The v-math directive upgrades the placeholders to Plurimath at runtime.
  */
 import { escapeHtml, escapeAttr } from './escape';
+import { sanitizeUrl, isSafeUrl } from './url-safety';
 import { parseMention } from 'glossarist';
 import type { NonVerbalKind } from '../adapters/non-verbal/types';
 import { entityKindFromMentionKind } from '../adapters/non-verbal/kind';
@@ -135,7 +136,7 @@ function convertLists(text: string): string {
       items.push(m[1].trim());
     }
     if (!items.length) return _;
-    const lis = items.map(item => `<li>${item}</li>`).join('');
+    const lis = items.map(item => `<li>${escapeHtml(item)}</li>`).join('');
     return `\n<ul class="concept-list">${lis}</ul>`;
   });
 
@@ -147,7 +148,7 @@ function convertLists(text: string): string {
       items.push(m[1].trim());
     }
     if (!items.length) return _;
-    const lis = items.map(item => `<li>${item}</li>`).join('');
+    const lis = items.map(item => `<li>${escapeHtml(item)}</li>`).join('');
     return `\n<ol class="concept-list concept-list-ordered">${lis}</ol>`;
   });
 
@@ -225,7 +226,9 @@ function resolveMentions(text: string, opts: RenderOptions): string {
       const url = (commaIdx > 0 ? rest.slice(0, commaIdx).trim() : rest.trim());
       const label = commaIdx > 0 ? rest.slice(commaIdx + 1).trim() : url;
       if (opts.linkResolver) return opts.linkResolver(url, label);
-      return `<a href="${escapeAttr(url)}" target="_blank" rel="noopener" class="ext-link">${escapeHtml(label)}</a>`;
+      const safeUrl = sanitizeUrl(url);
+      if (!safeUrl) return escapeHtml(label);
+      return `<a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener" class="ext-link">${escapeHtml(label)}</a>`;
     }
 
     const imageMatch = body.match(/^image:(.+)$/i);
@@ -235,6 +238,7 @@ function resolveMentions(text: string, opts: RenderOptions): string {
       const src = (commaIdx > 0 ? rest.slice(0, commaIdx).trim() : rest.trim());
       const alt = commaIdx > 0 ? rest.slice(commaIdx + 1).trim() : '';
       if (opts.imageResolver) return opts.imageResolver(src, alt);
+      if (!isSafeUrl(src)) return escapeHtml(alt || src);
       return `<img src="${escapeAttr(src)}" alt="${escapeAttr(alt)}" class="inline-image" />`;
     }
 

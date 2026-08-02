@@ -12,6 +12,8 @@
     "postbuild": "tsx scripts/generate-404.ts",
     "preview": "vite preview",
     "check:scripts": "tsx scripts/check-syntax.ts",
+    "validate:yaml": "tsx scripts/validate-yaml.ts",
+    "validate:shacl": "tsx scripts/validate-shacl.ts",
     "pretest": "tsx scripts/check-syntax.ts",
     "prebuild": "tsx scripts/check-syntax.ts",
     "fetch-datasets": "tsx scripts/fetch-datasets.ts",

@@ -37,10 +37,11 @@ interface ParsedArgs {
 type CommandRunner = () => Promise<void>;
 
 const commands: Record<string, CommandRunner> = {
-  fetch:    async () => (await import('../scripts/fetch-datasets')).main(),
-  generate: async () => { await import('../scripts/generate-data'); },
-  edges:    async () => (await import('../scripts/build-edges')).main(),
-  about:    async () => (await import('../scripts/process-about-pages')).main(),
+  fetch:        async () => (await import('../scripts/fetch-datasets')).main(),
+  generate:     async () => { await import('../scripts/generate-data'); },
+  edges:        async () => (await import('../scripts/build-edges')).main(),
+  about:        async () => (await import('../scripts/process-about-pages')).main(),
+  'validate-yaml': async () => { await import('../scripts/validate-yaml'); },
 };
 
 function parseArgs(argv: readonly string[]): ParsedArgs {

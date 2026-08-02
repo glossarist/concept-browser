@@ -18,11 +18,7 @@ export function isSafeUrl(url: string): boolean {
     }
   }
 
-  if (trimmed.startsWith('#') || trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../')) {
-    return true;
-  }
-
-  return false;
+  return true;
 }
 
 export function sanitizeUrl(url: string): string {
