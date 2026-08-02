@@ -3,7 +3,7 @@ import type { PageConfig, SiteColors } from './types';
 import type { DatasetGroup } from './types';
 import { synthesizePages } from './page-types';
 import { locale } from '../i18n';
-import { fontStack, DEFAULT_FONTS, DEFAULT_CATEGORY } from '../utils/font-stack';
+import { buildFontVariables, type BrandingFontsLike } from '../utils/font-variables';
 
 export interface RuntimeSiteConfig {
   id: string;
@@ -99,25 +99,20 @@ function applyBranding(config: RuntimeSiteConfig) {
     root.style.setProperty('--brand-dark', b.darkColor);
   }
 
-  if (b.fonts?.title) {
-    loadFont(b.fonts.title);
-    root.style.setProperty('--font-title', fontStack(b.fonts.title, DEFAULT_CATEGORY.title) ?? DEFAULT_FONTS.title);
-  }
-  // heading is the new slot name; header is the backward-compat alias.
-  const headingFont = b.fonts?.heading ?? b.fonts?.header;
-  if (headingFont) {
-    loadFont(headingFont);
-    const stack = fontStack(headingFont, DEFAULT_CATEGORY.heading) ?? DEFAULT_FONTS.heading;
-    root.style.setProperty('--font-heading', stack);
-    root.style.setProperty('--font-header', stack);
-  }
-  if (b.fonts?.body) {
-    loadFont(b.fonts.body);
-    root.style.setProperty('--font-body', fontStack(b.fonts.body, DEFAULT_CATEGORY.body) ?? DEFAULT_FONTS.body);
-  }
-  if (b.fonts?.mono) {
-    loadFont(b.fonts.mono);
-    root.style.setProperty('--font-mono', fontStack(b.fonts.mono, DEFAULT_CATEGORY.mono) ?? DEFAULT_FONTS.mono);
+  if (b.fonts && (b.fonts.title || b.fonts.heading || b.fonts.header || b.fonts.body || b.fonts.mono)) {
+    // Load declared Google Fonts first so the brand stack resolves
+    // without flashing the fallback.
+    if (b.fonts.title) loadFont(b.fonts.title);
+    const headingFont = b.fonts.heading ?? b.fonts.header;
+    if (headingFont) loadFont(headingFont);
+    if (b.fonts.body) loadFont(b.fonts.body);
+    if (b.fonts.mono) loadFont(b.fonts.mono);
+
+    // Single SSOT — same shape as Default.astro's inline <style>.
+    const vars = buildFontVariables(b.fonts as BrandingFontsLike);
+    for (const [k, v] of Object.entries(vars)) {
+      root.style.setProperty(k, v);
+    }
   }
 }
 
