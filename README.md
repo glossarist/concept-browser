@@ -293,6 +293,48 @@ The page appears in the sidebar navigation automatically.
 
 See [`site-config.example.yml`](site-config.example.yml) for all options including UI languages, fonts, features, and dataset groups.
 
+## Data/Deployment Boundary
+
+Concept-browser enforces a strict separation between **data** (authored by dataset authors) and **deployment** (configured by deployers):
+
+- **Dataset authors** write concepts, sources, bibliography, and inline mentions. They don't know where their dataset will be deployed or what other datasets will be co-deployed.
+- **Deployers** write `site-config.yml` to register datasets, declare URI patterns, and optionally add routing entries for external datasets. They never edit dataset content.
+- **Concept-browser** resolves every cross-reference at runtime via a fixed cascade, making multiple datasets behave as one coherent whole.
+
+### The resolution cascade
+
+Every `{{cite:...}}` and `{{urn:...}}` mention walks this cascade at render time:
+
+1. **`uriPatterns`** — is there a co-deployed dataset that matches? → internal link (case 1)
+2. **`routing[]`** — is there a routing entry for the URI? → external link (case 2)
+3. **`citation.link`** — does the source have a canonical link? → flat bib record (case 3)
+4. **Unresolved** — plain text
+
+The same YAML renders differently in different deployments. The data never changes.
+
+## Inline Content Syntax
+
+All inline references in concept text use the unified `{{kind:target}}` notation:
+
+| Kind | Example | What it does |
+|---|---|---|
+| `cite` | `{{cite:sourceId}}` | Cite a `ConceptSource` from this concept's `sources[]` — walks the full resolution cascade |
+| `urn` | `{{urn:iso:std:iso:704}}` | Reference a concept via URN routing |
+| `fig` | `{{fig:diagram_3}}` | Reference a figure entity in the same dataset |
+| `table` | `{{table:units}}` | Reference a table entity |
+| `formula` | `{{formula:ohm_law}}` | Reference a formula entity |
+| `bib` | `{{bib:ref_1}}` | Reference a bibliography entry (case-3-only, no underlying concept) |
+| `link` | `{{link:https://example.com}}` | External URL (canonical, deployment-independent) |
+| `image` | `{{image:src, alt}}` | Inline image embed |
+| *(none)* | `{{measurement unit}}` | Designation match in same dataset |
+| *(none)* | `{{112-01-10}}` | Numeric ID match in same dataset |
+
+Each kind accepts an optional label: `{{kind:target, label}}`.
+
+**Deprecated:** `<<ref,title>>` (AsciiDoc xref syntax) emits a deprecation warning. Migrate to `{{kind:target}}`.
+
+See `/learn/inline-content` on any deployed site for a full interactive reference.
+
 ## CLI Commands
 
 ```

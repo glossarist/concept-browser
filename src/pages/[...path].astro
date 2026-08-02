@@ -17,6 +17,7 @@ export async function getStaticPaths() {
     { params: { path: 'learn/relationships' } },
     { params: { path: 'learn/designations' } },
     { params: { path: 'learn/statuses' } },
+    { params: { path: 'learn/inline-content' } },
   ];
   for (const ds of datasets) {
     paths.push({ params: { path: `dataset/${ds.data.id}/about` } });
