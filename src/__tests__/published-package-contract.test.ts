@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,7 +21,6 @@ const PIPELINE_SCRIPTS = [
   'generate-data',
   'build-edges',
   'process-about-pages',
-  'smoke',
   'generate-ontology-data',
   'generate-ontology-schema',
   'doctor',
@@ -80,5 +79,22 @@ describe('published-package contract — compiled .js scripts load under plain n
     `]);
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('valid=true');
+  });
+
+  it('compiled scripts do not import devDependencies (runtime packaging regression)', () => {
+    const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+    const deps = new Set(Object.keys(pkg.dependencies || {}));
+    const devDeps = new Set(Object.keys(pkg.devDependencies || {}));
+    for (const name of LIBRARY_SCRIPTS) {
+      const jsPath = join(SCRIPTS_DIR, `${name}.js`);
+      if (!existsSync(jsPath)) continue;
+      const src = readFileSync(jsPath, 'utf8');
+      for (const devDep of devDeps) {
+        if (deps.has(devDep)) continue;
+        expect(src).not.toContain(`from "${devDep}"`);
+        expect(src).not.toContain(`from '${devDep}'`);
+        expect(src).not.toMatch(new RegExp(`import\\s*\\(\\s*["']${devDep}["']`));
+      }
+    }
   });
 });

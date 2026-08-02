@@ -1,8 +1,17 @@
 import { build } from 'esbuild';
 import { globSync } from 'glob';
-import { dirname, relative } from 'path';
+import { relative } from 'path';
 
-const files = globSync('scripts/*.ts').filter(f => !f.includes('__tests__'));
+// Exclude scripts that are dev/CI-only and depend on devDependencies.
+// These are not consumer-facing CLI commands and would pull in heavy deps
+// (e.g. playwright for smoke) that consumers shouldn't need.
+const DEV_ONLY = new Set([
+  'scripts/smoke.ts',       // needs playwright (devDep, heavy)
+]);
+
+const files = globSync('scripts/*.ts').filter(f =>
+  !f.includes('__tests__') && !DEV_ONLY.has(f),
+);
 
 await Promise.all(files.map(async (file) => {
   const outfile = file.replace(/\.ts$/, '.js');
