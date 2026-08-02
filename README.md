@@ -39,13 +39,56 @@ Your project (CWD)                    Package (read-only)
 │   └── my-vocab/             ─┤     ┌──────────────────────────┐
 │       └── concepts/*.yaml   ─┤     │ @glossarist/concept-browser │
 ├── public/                   ─┤ ──> │                          │
-│   └── (logos, favicons)     ─┤     │ generate-data.mjs        │
-├── .cb-content/   ← generated │     │ bridge-to-astro.mjs      │
+│   └── (logos, favicons)     ─┤     │ generate-data.ts         │
+├── .cb-content/   ← generated │     │ bridge-to-astro.ts       │
 └── dist/          ← output    │     │ astro build              │
                              ──┘     └──────────────────────────┘
 ```
 
 The package reads your config and data, generates `.cb-content/` (content collections) and `dist/` (static site) in your project. The package itself (`node_modules/`) is never modified.
+
+## Data / Deployment Boundary
+
+There is a strict separation between **dataset authors** and **deployers**:
+
+| Role | Owns | Does NOT touch |
+|------|------|----------------|
+| **Dataset author** | YAML concept files, bibliography, figures/tables | site-config.yml, deployment URLs, other datasets |
+| **Deployer** | site-config.yml, URI patterns, branding, fonts | dataset content, inline references, concept IDs |
+| **concept-browser** | Resolves every citation at runtime | — |
+
+The same dataset YAML works in any deployment. A citation like `{{cite:iso704}}` resolves differently depending on which datasets are co-deployed — the deployer's `site-config.yml:uriPatterns` decides.
+
+## Inline Content Syntax
+
+All inline references in concept text use the unified `{{kind:target}}` notation:
+
+| Kind | Syntax | Example | Description |
+|------|--------|---------|-------------|
+| cite | `{{cite:sourceId}}` | `{{cite:iso7301}}` | Cite a ConceptSource from this concept's `sources[]` |
+| cite+label | `{{cite:id, label}}` | `{{cite:iso7301, rice}}` | Same, with explicit display label |
+| urn | `{{urn:URN}}` | `{{urn:iso:std:iso:704}}` | Reference via URN routing |
+| fig | `{{fig:id}}` | `{{fig:diagram_3}}` | Reference a figure entity |
+| table | `{{table:id}}` | `{{table:unit_list}}` | Reference a table entity |
+| formula | `{{formula:id}}` | `{{formula:ohm_law}}` | Reference a formula entity |
+| bib | `{{bib:id}}` | `{{bib:ref_1}}` | Bibliography entry (no underlying concept) |
+| link | `{{link:URL}}` | `{{link:https://example.com}}` | External URL |
+| link+label | `{{link:URL, label}}` | `{{link:https://example.com, click here}}` | External URL with label |
+| image | `{{image:src}}` | `{{image:diagram.png}}` | Inline image embed |
+| image+alt | `{{image:src, alt}}` | `{{image:diagram.png, The diagram}}` | Image with alt text |
+| designation | `{{designation}}` | `{{measurement unit}}` | Reference by designation text |
+| numeric | `{{numeric_id}}` | `{{112-01-10}}` | Reference by numeric ID |
+
+The deprecated `<<ref,title>>` AsciiDoc xref syntax still works but emits a console warning. Migrate to the unified syntax.
+
+### Citation Resolution Cascade
+
+When concept-browser encounters `{{cite:sourceId}}`, it walks this cascade:
+
+1. **uriPatterns** — Is there a co-deployed dataset matching this URI? → internal link
+2. **routing[]** — Is there a routing entry in site-config.yml? → external link
+3. **citation.link** — Does the source have a canonical link? → flat bibliography record
+4. **unresolved** — No match → plain text
 
 ## Configuration
 

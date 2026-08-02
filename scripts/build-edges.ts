@@ -97,14 +97,14 @@ function slugify(text) {
 
 // --- Extractors (open/closed: add new extractors to EXTRACTORS array) ---
 
-function extractReferences(concept, registerId) {
-  const edges = [];
+function extractReferences(concept: Record<string, any>, registerId: string) {
+  const edges: Record<string, any>[] = [];
   const sourceUri = concept['@id'];
-  for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {})) {
+  for (const [lang, lc] of Object.entries(concept['gl:localizedConcept'] || {}) as [string, any][]) {
     if (lc['gl:references']) {
-      for (const ref of lc['gl:references']) {
+      for (const ref of lc['gl:references'] as Record<string, any>[]) {
         if (ref['@id'] && ref['@id'] !== sourceUri) {
-          const edge = {
+          const edge: Record<string, any> = {
             source: sourceUri,
             target: ref['@id'],
             type: ref['@id'].startsWith('cite:') ? 'citation' : 'references',
@@ -368,11 +368,11 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest)
     const uriBase = manifest.uriBase;
     if (!uriBase) throw new Error('build-edges: manifest.uriBase is required');
 
-    function buildSectionNode(section, idx) {
+    function buildSectionNode(section: Record<string, any>, idx: number): Record<string, any> {
       const sectionId = `section-${section.id}`;
       const domainUri = `${uriBase}/${registerId}/domain/${sectionId}`;
       const domainLabel = section.names?.eng || section.id;
-      const node = {
+      const node: Record<string, any> = {
         uri: domainUri,
         id: sectionId,
         names: section.names || {},
@@ -525,7 +525,7 @@ if (auditUnmatched.size > 0) {
 
 // Build cross-reference index: for each dataset, which other datasets'
 // edges.json contains edges targeting that dataset's URIs.
-const datasetUriPrefixes = new Map();
+const datasetUriPrefixes = new Map<string, string>();
 for (const [ds, manifest] of manifestCache) {
   const uriBase = manifest.uriBase;
     if (!uriBase) throw new Error('build-edges: manifest.uriBase is required');
@@ -538,7 +538,7 @@ for (const ds of datasets) {
 }
 
 for (const [sourceDs, edges] of allDatasetEdges) {
-  const targets = new Set();
+  const targets = new Set<string>();
   for (const edge of edges) {
     for (const [targetDs, prefix] of datasetUriPrefixes) {
       if (targetDs !== sourceDs && edge.target.startsWith(prefix)) {
@@ -561,7 +561,7 @@ for (const [sourceDs, edges] of allDatasetEdges) {
 
 const crossRefPath = join(DATA_DIR, 'cross-ref-index.json');
 writeFileSync(crossRefPath, JSON.stringify(crossRefIndex));
-const refCount = Object.values(crossRefIndex).reduce((sum, arr) => sum + arr.length, 0);
+const refCount = Object.values(crossRefIndex).reduce((sum: number, arr: string[]) => sum + arr.length, 0);
 console.log(`Written cross-ref-index.json (${refCount} cross-references across ${datasets.length} datasets)`);
 
 console.log('Done.');

@@ -11,8 +11,9 @@ import { dirname } from 'node:path';
  */
 
 export class BuildCache {
-  /** @param {string} cacheDir */
-  constructor(cacheDir) {
+  private cacheDir: string;
+
+  constructor(cacheDir: string) {
     this.cacheDir = cacheDir;
   }
 

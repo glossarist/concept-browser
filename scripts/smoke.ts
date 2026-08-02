@@ -53,7 +53,7 @@ const MIME = {
   '.webmanifest': 'application/manifest+json; charset=utf-8',
 };
 
-function serveDist(root) {
+function serveDist(root: string): Promise<{ server: ReturnType<typeof createServer>; origin: string }> {
   return new Promise((resolve) => {
     const server = createServer((req, res) => {
       try {
@@ -91,7 +91,8 @@ function serveDist(root) {
     });
     // Use port 0 to let the OS pick a free port; retrieve it after listen.
     server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
+      const addr = server.address();
+      const port = typeof addr === 'object' && addr ? addr.port : 0;
       resolve({ server, origin: `http://127.0.0.1:${port}` });
     });
   });

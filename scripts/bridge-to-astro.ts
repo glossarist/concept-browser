@@ -79,7 +79,7 @@ for (const reg of registry) {
   if (index && index.concepts) {
     for (const concept of index.concepts) {
       if (!concept) continue;
-      const conceptEntry = {
+      const conceptEntry: Record<string, any> = {
         registerId: id,
         conceptId: concept.id,
         uri: buildConceptUri(entry.uriBase || '', id, concept.id),

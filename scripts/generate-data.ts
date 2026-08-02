@@ -15,6 +15,14 @@ import { buildBibliographyTurtle } from './lib/bibliography-turtle';
 import { ttlLit } from './lib/turtle-escape';
 import { firstNonEmpty } from './lib/first-non-empty';
 import { normalizeBibliography } from './lib/bibliography';
+import type {
+  HarmonizedConcept,
+  YamlManagedConceptDoc,
+  YamlManifest,
+  YamlBibliographyEntry,
+  YamlNewsFrontmatter,
+  YamlContentPage,
+} from './lib/yaml-types';
 
 // MECE partitive multiplicity: 2 independent axes (ISO 704:2022).
 //   presence × count
@@ -76,17 +84,17 @@ function stripHtml(s) {
   return s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 }
 
-function loadConceptFile(filePath) {
+function loadConceptFile(filePath: string): HarmonizedConcept {
   const content = fs.readFileSync(filePath, 'utf8');
-  const docs = yaml.loadAll(content, null, { schema: yaml.DEFAULT_SCHEMA });
+  const docs = yaml.loadAll(content, null, { schema: yaml.DEFAULT_SCHEMA }) as Record<string, any>[];
 
   if (docs.length === 1 && docs[0].termid !== undefined) {
-    return docs[0];
+    return docs[0] as HarmonizedConcept;
   }
 
   if (docs.length >= 1 && docs[0].data && docs[0].data.identifier !== undefined) {
-    const mc = docs[0];
-    const result = { termid: String(mc.data.identifier) };
+    const mc = docs[0] as YamlManagedConceptDoc;
+    const result: HarmonizedConcept = { termid: String(mc.data!.identifier) };
 
     // Managed concept-level fields
     if (mc.related) result._related = mc.related;
@@ -116,7 +124,7 @@ function loadConceptFile(filePath) {
     return result;
   }
 
-  return docs[0];
+  return docs[0] as HarmonizedConcept;
 }
 
 function writeJson(filePath, data) {
@@ -358,12 +366,12 @@ function citationToJsonLd(citation) {
   return obj;
 }
 
-function buildPatternIndex(datasets, registerCache) {
-  const entries = [];
+function buildPatternIndex(datasets: Record<string, any>[], registerCache: Record<string, any>) {
+  const entries: { prefix: string; datasetId: string }[] = [];
 
   for (const ds of datasets) {
-    const reg = registerCache[ds.id] || null;
-    const patterns = new Set();
+    const reg: Record<string, any> | null = registerCache[ds.id] || null;
+    const patterns = new Set<string>();
 
     // Site-config patterns (primary)
     if (ds.uri) patterns.add(ds.uri);
@@ -371,12 +379,12 @@ function buildPatternIndex(datasets, registerCache) {
 
     // Register.yaml patterns (supplementary)
     if (reg) {
-      if (reg.urn && reg.urn.endsWith('*')) patterns.add(reg.urn);
+      if (reg.urn && typeof reg.urn === 'string' && reg.urn.endsWith('*')) patterns.add(reg.urn);
       for (const alias of reg.urnAliases || []) patterns.add(alias);
     }
 
     for (const pattern of patterns) {
-      if (!pattern.endsWith('*')) continue;
+      if (typeof pattern !== 'string' || !pattern.endsWith('*')) continue;
       const prefix = pattern.slice(0, -1);
       if (prefix) entries.push({ prefix, datasetId: ds.id });
     }
@@ -1052,9 +1060,9 @@ async function processDataset(dir, register, opts) {
       if (!conceptYaml?.termid) continue;
       const termid = String(conceptYaml.termid);
       for (const lang of Object.keys(conceptYaml)) {
-        const lc = conceptYaml[lang];
+        const lc = conceptYaml[lang] as Record<string, any>;
         if (!lc || typeof lc !== 'object' || !Array.isArray(lc.terms)) continue;
-        for (const term of lc.terms) {
+        for (const term of lc.terms as Record<string, any>[]) {
           const designation = term.designation;
           if (typeof designation === 'string' && designation && !designationLookup.has(designation.toLowerCase())) {
             designationLookup.set(designation.toLowerCase(), termid);
@@ -1171,7 +1179,7 @@ async function processDataset(dir, register, opts) {
         id: termid,
         designations: getPrimaryDesignation(conceptYaml),
         groups: getGroups(conceptYaml),
-        status: conceptYaml.eng?.entry_status || 'valid',
+        status: (conceptYaml.eng as Record<string, any>)?.entry_status || 'valid',
       });
 
       for (const processor of STATS_PROCESSORS) {
@@ -1292,7 +1300,7 @@ async function processDataset(dir, register, opts) {
       conceptIds: s.conceptIds,
     }))
     .sort((a, b) => b.conceptCount - a.conceptCount);
-  const totalRelationships = Object.values(stats.relTypeCounts).reduce((a, b) => a + b, 0);
+  const totalRelationships = Object.values(stats.relTypeCounts).reduce((a: number, b: number) => a + b, 0);
 
   writeJson(path.join(DATA, register, 'stats.json'), {
     sourceCount: sourceStats.length,
@@ -1302,7 +1310,7 @@ async function processDataset(dir, register, opts) {
     partitiveRelations: stats.partitiveRelations,
   });
 
-  const manifest = {
+  const manifest: Record<string, any> = {
     id: register,
     datasetUri: opts.datasetUri,
     uriAliases: opts.uriAliases,
@@ -1571,7 +1579,7 @@ function processNewsPage(config, page) {
 
   for (const file of postFiles) {
     const content = fs.readFileSync(path.join(newsDir, file), 'utf8');
-    const frontmatter = {};
+    const frontmatter: Record<string, string> = {};
     const bodyLines = [];
 
     let inFm = false;
@@ -1614,20 +1622,20 @@ function processNewsPage(config, page) {
 
 // --- Markdown-lite renderer (isomorphic, same logic as src/utils/markdown-lite.ts) ---
 
-function renderMarkdown(input) {
-  const INLINE_PATTERNS = [
+function renderMarkdown(input: string): string {
+  const INLINE_PATTERNS: [RegExp, (m: string[]) => string][] = [
     [/\*\*(.+?)\*\*/g, m => `<strong>${m[1]}</strong>`],
     [/(?<!\*)\*([^*]+?)\*(?!\*)/g, m => `<em>${m[1]}</em>`],
     [/`([^`]+?)`/g, m => `<code>${m[1]}</code>`],
     [/\[([^\]]+)\]\(([^)]+)\)/g, m => `<a href="${m[2]}" target="_blank">${m[1]}</a>`],
   ];
-  function renderInline(text) {
+  function renderInline(text: string): string {
     for (const [re, fn] of INLINE_PATTERNS) {
-      text = text.replace(re, (...args) => fn(args));
+      text = text.replace(re, (...args: string[]) => fn(args));
     }
     return text;
   }
-  function escapeHtml(s) {
+  function escapeHtml(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
@@ -1684,7 +1692,7 @@ function renderMarkdown(input) {
   return blocks.join('\n');
 }
 
-function processContentPage(config, page) {
+function processContentPage(config: Record<string, any>, page: Record<string, any>) {
   if (!page.source) {
     console.warn(`  Skipping content page '${page.route}': no source file`);
     return;
@@ -1711,7 +1719,7 @@ function processContentPage(config, page) {
 
   // Generate localized versions
   if (page.translations) {
-    for (const [lang, tr] of Object.entries(page.translations)) {
+    for (const [lang, tr] of Object.entries(page.translations) as [string, Record<string, any>][]) {
       const { source, title: trTitle } = tr;
       if (!source) continue;
       const trSrcPath = path.resolve(ROOT, source);
@@ -1873,7 +1881,7 @@ writeJson(path.join(PUBLIC, 'site-config.json'), {
 });
 console.log('Generated site-config.json');
 
-const total = Object.values(counts).reduce((s, n) => s + n, 0);
+const total = Object.values(counts).reduce((s: number, n: number) => s + n, 0);
 console.log(`\nDone! Generated data for ${total} concepts across ${registry.length} datasets.`);
 for (const [id, count] of Object.entries(counts)) {
   console.log(`  ${id}: ${count} concepts`);
