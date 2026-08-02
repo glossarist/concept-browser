@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { firstNonEmpty } from '../lib/first-non-empty.mjs';
+import { firstNonEmpty } from '../lib/first-non-empty';
 
 describe('firstNonEmpty — register-wins resolution', () => {
   it('returns the first value when both are present (register wins)', () => {

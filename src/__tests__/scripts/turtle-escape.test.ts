@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ttlLit, ttlPrefixed, ttlIri, assertValidIri } from '../../../scripts/lib/turtle-escape.mjs';
+import { ttlLit, ttlPrefixed, ttlIri, assertValidIri } from '../../../scripts/lib/turtle-escape';
 
 describe('D1/D2 — Turtle escaping hardening', () => {
   describe('ttlLit', () => {

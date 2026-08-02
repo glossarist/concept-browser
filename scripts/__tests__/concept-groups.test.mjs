@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getGroups } from '../lib/concept-groups.mjs';
+import { getGroups } from '../lib/concept-groups';
 
 describe('getGroups', () => {
   it('returns explicit eng.groups when present', () => {

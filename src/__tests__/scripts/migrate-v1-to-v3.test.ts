@@ -5,7 +5,7 @@ import {
   migrateRelation,
   migrateConceptData,
   isAlreadyMigrated,
-} from '../../../scripts/migrate-v1-to-v3.mjs';
+} from '../../../scripts/migrate-v1-to-v3';
 
 describe('migrate-v1-to-v3 pure conversion', () => {
   describe('isV1PartitiveRelation', () => {

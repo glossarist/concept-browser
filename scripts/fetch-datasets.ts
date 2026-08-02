@@ -20,8 +20,8 @@ import JSZip from 'jszip';
 import { loadGcr } from 'glossarist';
 import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { loadSiteConfig } from './load-site-config.mjs';
-import { assertLocalPathSafe } from './lib/local-path-safety.mjs';const ROOT = process.cwd();
+import { loadSiteConfig } from './load-site-config';
+import { assertLocalPathSafe } from './lib/local-path-safety';const ROOT = process.cwd();
 const DATASETS_DIR = path.join(ROOT, '.datasets');
 const GCR_DIR = path.join(ROOT, '.gcr');
 

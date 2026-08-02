@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { normalizeYaml } from '../../../scripts/normalize-yaml.mjs';
+import { normalizeYaml } from '../../../scripts/normalize-yaml';
 
 const NFC_STRING = 'café';
 const NON_NFC_STRING = 'café';

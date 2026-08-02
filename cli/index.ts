@@ -21,10 +21,7 @@
  *   GITHUB_TOKEN         GitHub token for private repos
  */
 
-// Scripts are still .mjs (TODO.typescript/02). These imports will be fully
-// typed once the scripts convert to .ts.
-// @ts-expect-error — .mjs module without declaration
-import { loadSiteConfig } from '../scripts/load-site-config.mjs';
+import { loadSiteConfig } from '../scripts/load-site-config';
 import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -40,10 +37,10 @@ interface ParsedArgs {
 type CommandRunner = () => Promise<void>;
 
 const commands: Record<string, CommandRunner> = {
-  fetch:    async () => (await import('../scripts/fetch-datasets.mjs' as string)).main(),
-  generate: async () => { await import('../scripts/generate-data.mjs' as string); },
-  edges:    async () => (await import('../scripts/build-edges.js' as string)).main(),
-  about:    async () => (await import('../scripts/process-about-pages.mjs' as string)).main(),
+  fetch:    async () => (await import('../scripts/fetch-datasets')).main(),
+  generate: async () => { await import('../scripts/generate-data'); },
+  edges:    async () => (await import('../scripts/build-edges')).main(),
+  about:    async () => (await import('../scripts/process-about-pages')).main(),
 };
 
 function parseArgs(argv: readonly string[]): ParsedArgs {
@@ -308,7 +305,7 @@ async function runBuildPipeline(config: SiteConfig | null): Promise<void> {
   }
 
   console.log(`\n=== BRIDGE DATA ===\n`);
-  const bridge: string = resolve(pkgRoot, 'scripts', 'bridge-to-astro.mjs');
+  const bridge: string = resolve(pkgRoot, 'scripts', 'bridge-to-astro.ts');
   if (existsSync(bridge)) {
     await import(`file://${bridge}`);
   }
@@ -341,7 +338,7 @@ async function runBuildPipeline(config: SiteConfig | null): Promise<void> {
 }
 
 async function runNormalize(): Promise<void> {
-  const mod = await import('../scripts/normalize-yaml.mjs' as string);
+  const mod = await import('../scripts/normalize-yaml');
   const normalizeYaml = mod.normalizeYaml;
   const check: boolean = process.argv.includes('--check');
   const paths: string[] = process.argv.slice(2).filter(a => !a.startsWith('-') && a !== 'normalize');
@@ -414,7 +411,7 @@ Environment:
   }
 
   if (cmd === 'doctor') {
-    const mod = await import('../scripts/doctor.mjs' as string);
+    const mod = await import('../scripts/doctor');
     await mod.main();
     return;
   }

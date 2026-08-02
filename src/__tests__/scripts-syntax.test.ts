@@ -9,10 +9,10 @@ const repoRoot = path.resolve(
 );
 
 describe('scripts syntax gate', () => {
-  it('`npm run check:scripts` exits 0 (every .mjs/.js/.cjs in scripts/ and cli/ parses)', () => {
+  it('`npm run check:scripts` exits 0 (every .ts/.mjs/.js/.cjs in scripts/ and cli/ parses)', () => {
     const result = spawnSync(
       process.execPath,
-      [path.join(repoRoot, 'scripts', 'check-syntax.mjs')],
+      ['--import', 'tsx', path.join(repoRoot, 'scripts', 'check-syntax.ts')],
       { encoding: 'utf8' },
     );
 

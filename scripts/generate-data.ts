@@ -2,19 +2,19 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 import { naturalSort, Register, parseMention } from 'glossarist';
-import { loadSiteConfig } from './load-site-config.mjs';
-import { getGroups } from './lib/concept-groups.mjs';
-import { consumeDatasetEntities } from './lib/build/non-verbal-consumer.mjs';
-import { copyImageAssets } from './lib/build/image-assets.mjs';
-import { buildDatasetTurtle } from './lib/dataset-turtle.mjs';
-import { buildActivityTurtle } from './lib/build-activity-turtle.mjs';
-import { buildVocabularyTurtle } from './lib/vocab-turtle.mjs';
-import { buildAgentsTurtle } from './lib/agents-turtle.mjs';
-import { buildVersionHistoryTurtle } from './lib/version-turtle.mjs';
-import { buildBibliographyTurtle } from './lib/bibliography-turtle.mjs';
-import { ttlLit } from './lib/turtle-escape.mjs';
-import { firstNonEmpty } from './lib/first-non-empty.mjs';
-import { normalizeBibliography } from './lib/bibliography.mjs';
+import { loadSiteConfig } from './load-site-config';
+import { getGroups } from './lib/concept-groups';
+import { consumeDatasetEntities } from './lib/build/non-verbal-consumer';
+import { copyImageAssets } from './lib/build/image-assets';
+import { buildDatasetTurtle } from './lib/dataset-turtle';
+import { buildActivityTurtle } from './lib/build-activity-turtle';
+import { buildVocabularyTurtle } from './lib/vocab-turtle';
+import { buildAgentsTurtle } from './lib/agents-turtle';
+import { buildVersionHistoryTurtle } from './lib/version-turtle';
+import { buildBibliographyTurtle } from './lib/bibliography-turtle';
+import { ttlLit } from './lib/turtle-escape';
+import { firstNonEmpty } from './lib/first-non-empty';
+import { normalizeBibliography } from './lib/bibliography';
 
 // MECE partitive multiplicity: 2 independent axes (ISO 704:2022).
 //   presence × count

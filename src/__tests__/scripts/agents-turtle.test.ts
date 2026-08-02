@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Parser, Store } from 'n3';
-import { buildAgentsTurtle as _buildAgentsTurtle } from '../../../scripts/lib/agents-turtle.mjs';
+import { buildAgentsTurtle as _buildAgentsTurtle } from '../../../scripts/lib/agents-turtle';
 
 const buildAgentsTurtle = _buildAgentsTurtle as unknown as (...args: any[]) => Promise<string>;
 

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { rmSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { BuildCache } from '../../../scripts/lib/build-cache.mjs';
+import { BuildCache } from '../../../scripts/lib/build-cache';
 
 const SUITE_DIR = join(tmpdir(), `build-cache-${process.pid}-${Date.now()}`);
 

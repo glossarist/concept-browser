@@ -90,7 +90,7 @@ function parseTurtle(text, baseIri) {
   });
 }
 
-function* walkTtl(dir) {
+function* walkTtl(dir: string): Generator<string> {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) yield* walkTtl(full);
@@ -98,12 +98,12 @@ function* walkTtl(dir) {
   }
 }
 
-function formatViolation(v) {
+function formatViolation(v: any): string {
   const focus = v.focusNode?.value ?? '(unknown)';
   const shape = v.shape?.value ?? '(unknown)';
   const path = v.path?.value ?? '';
   const message = (v.message && v.message.length > 0)
-    ? v.message.map(m => m.value).join('; ')
+    ? v.message.map((m: any) => m.value).join('; ')
     : '(no message)';
   const pathPart = path ? `\n    path:    ${path}` : '';
   return `    shape:   ${shape}${pathPart}\n    node:    ${focus}\n    message: ${message}`;
@@ -121,7 +121,7 @@ async function main() {
   try {
     const shapesText = readFileSync(shapesPath, 'utf8');
     shapesDataset = await parseTurtle(shapesText, `file://${shapesPath}`);
-  } catch (e) {
+  } catch (e: any) {
     console.error(`Failed to load SHACL shapes from ${shapesPath}: ${e.message}`);
     process.exit(2);
   }
@@ -150,7 +150,7 @@ async function main() {
     try {
       const text = readFileSync(path, 'utf8');
       graph = await parseTurtle(text, `file://${path}`);
-    } catch (e) {
+    } catch (e: any) {
       violations.push({ path, parseError: e.message });
       continue;
     }

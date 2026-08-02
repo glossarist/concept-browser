@@ -10,12 +10,12 @@ function parseTurtle(text: string): Store {
 }
 
 function runInline(code: string): string {
-  return execFileSync('node', ['--input-type=module', '-e', code], { encoding: 'utf8' }).toString();
+  return execFileSync('node', ['--import', 'tsx', '--input-type=module', '-e', code], { encoding: 'utf8' }).toString();
 }
 
 describe('WS F Layer 8 — build pipeline integration', () => {
-  it('vocab-turtle.mjs produces parseable Turtle with 7 schemes', () => {
-    const out = runInline(`import { buildVocabularyTurtle } from './scripts/lib/vocab-turtle.mjs'; console.log(await buildVocabularyTurtle());`);
+  it('vocab-turtle.ts produces parseable Turtle with 7 schemes', () => {
+    const out = runInline(`import { buildVocabularyTurtle } from './scripts/lib/vocab-turtle'; console.log(await buildVocabularyTurtle());`);
     const store = parseTurtle(out);
     const schemes = [...store].filter(q =>
       q.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' &&
@@ -24,9 +24,9 @@ describe('WS F Layer 8 — build pipeline integration', () => {
     expect(schemes.length).toBe(7);
   });
 
-  it('dataset-turtle.mjs produces parseable dcat:Dataset', () => {
+  it('dataset-turtle.ts produces parseable dcat:Dataset', () => {
     const out = runInline(`
-      import { buildDatasetTurtle } from './scripts/lib/dataset-turtle.mjs';
+      import { buildDatasetTurtle } from './scripts/lib/dataset-turtle';
       console.log(await buildDatasetTurtle({
         datasetIri: 'https://glossarist.org/test/',
         registerId: 'test', title: 'Test', modified: '2026-06-28',
@@ -42,9 +42,9 @@ describe('WS F Layer 8 — build pipeline integration', () => {
     expect(types).toContain('http://www.w3.org/2004/02/skos/core#ConceptScheme');
   });
 
-  it('build-activity-turtle.mjs produces parseable prov:Activity', () => {
+  it('build-activity-turtle.ts produces parseable prov:Activity', () => {
     const out = runInline(`
-      import { buildActivityTurtle } from './scripts/lib/build-activity-turtle.mjs';
+      import { buildActivityTurtle } from './scripts/lib/build-activity-turtle';
       console.log(await buildActivityTurtle({
         baseUri: 'https://glossarist.org',
         runId: 'test', startedAt: '2026-01-01T00:00:00Z', endedAt: '2026-01-01T00:05:00Z',
@@ -59,9 +59,9 @@ describe('WS F Layer 8 — build pipeline integration', () => {
     expect(activities.length).toBe(1);
   });
 
-  it('agents-turtle.mjs produces parseable foaf:Person', () => {
+  it('agents-turtle.ts produces parseable foaf:Person', () => {
     const out = runInline(`
-      import { buildAgentsTurtle } from './scripts/lib/agents-turtle.mjs';
+      import { buildAgentsTurtle } from './scripts/lib/agents-turtle';
       console.log(await buildAgentsTurtle([{ name: 'Ada Lovelace', role: 'Editor', organization: 'Royal Society' }], 'https://glossarist.org/agent', 'https://glossarist.org/org'));
     `);
     const store = parseTurtle(out);
@@ -72,9 +72,9 @@ describe('WS F Layer 8 — build pipeline integration', () => {
     expect(persons.length).toBe(1);
   });
 
-  it('bibliography-turtle.mjs produces parseable dcterms:BibliographicResource', () => {
+  it('bibliography-turtle.ts produces parseable dcterms:BibliographicResource', () => {
     const out = runInline(`
-      import { buildBibliographyTurtle } from './scripts/lib/bibliography-turtle.mjs';
+      import { buildBibliographyTurtle } from './scripts/lib/bibliography-turtle';
       console.log(await buildBibliographyTurtle('test', { iso704: { reference: 'ISO 704' } }, 'https://glossarist.org'));
     `);
     const store = parseTurtle(out);
@@ -85,9 +85,9 @@ describe('WS F Layer 8 — build pipeline integration', () => {
     expect(bibs.length).toBe(1);
   });
 
-  it('version-turtle.mjs produces parseable prov:Entity chain', () => {
+  it('version-turtle.ts produces parseable prov:Entity chain', () => {
     const out = runInline(`
-      import { buildVersionHistoryTurtle } from './scripts/lib/version-turtle.mjs';
+      import { buildVersionHistoryTurtle } from './scripts/lib/version-turtle';
       console.log(await buildVersionHistoryTurtle({
         registerId: 'test', datasetIri: 'https://glossarist.org/test/',
         versions: [
@@ -113,12 +113,12 @@ describe('WS F Layer 8 — build pipeline integration', () => {
 
   it('all six emitters produce parseable output in a single subprocess', () => {
     const out = runInline(`
-      import { buildVocabularyTurtle } from './scripts/lib/vocab-turtle.mjs';
-      import { buildDatasetTurtle } from './scripts/lib/dataset-turtle.mjs';
-      import { buildActivityTurtle } from './scripts/lib/build-activity-turtle.mjs';
-      import { buildAgentsTurtle } from './scripts/lib/agents-turtle.mjs';
-      import { buildBibliographyTurtle } from './scripts/lib/bibliography-turtle.mjs';
-      import { buildVersionHistoryTurtle } from './scripts/lib/version-turtle.mjs';
+      import { buildVocabularyTurtle } from './scripts/lib/vocab-turtle';
+      import { buildDatasetTurtle } from './scripts/lib/dataset-turtle';
+      import { buildActivityTurtle } from './scripts/lib/build-activity-turtle';
+      import { buildAgentsTurtle } from './scripts/lib/agents-turtle';
+      import { buildBibliographyTurtle } from './scripts/lib/bibliography-turtle';
+      import { buildVersionHistoryTurtle } from './scripts/lib/version-turtle';
       const parts = [
         await buildVocabularyTurtle(),
         await buildDatasetTurtle({ datasetIri: 'https://glossarist.org/test/', registerId: 'test', title: 't', modified: '2026-01-01', languages: ['eng'], distributions: [], topConceptUris: [], sections: [] }),

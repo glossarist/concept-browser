@@ -13,9 +13,9 @@ import { resolve, dirname } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const SCRIPT_PATHS = [
-  '../../scripts/fetch-datasets.mjs',
-  '../../scripts/build-edges.js',
-  '../../scripts/process-about-pages.mjs',
+  '../../scripts/fetch-datasets.ts',
+  '../../scripts/build-edges.ts',
+  '../../scripts/process-about-pages.ts',
 ];
 
 describe('CLI script contract: every script exports main()', () => {

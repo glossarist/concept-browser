@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Parser, Store } from 'n3';
-import { buildActivityTurtle } from '../../../scripts/lib/build-activity-turtle.mjs';
+import { buildActivityTurtle } from '../../../scripts/lib/build-activity-turtle';
 
 function makeInput(overrides: any = {}): any {
   return {

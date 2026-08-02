@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Parser, Store } from 'n3';
-import { buildBibliographyTurtle } from '../../../scripts/lib/bibliography-turtle.mjs';
+import { buildBibliographyTurtle } from '../../../scripts/lib/bibliography-turtle';
 
 const FOAF = 'http://xmlns.com/foaf/0.1/';
 const DCTERMS = 'http://purl.org/dc/terms/';

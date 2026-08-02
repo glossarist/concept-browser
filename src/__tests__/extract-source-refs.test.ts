@@ -1,8 +1,7 @@
-// @ts-nocheck — ESM .js import without type declarations
 import { describe, it, expect } from 'vitest';
-import { extractSourceRefs } from '../../scripts/extract-source-refs.js';
+import { extractSourceRefs } from '../../scripts/extract-source-refs';
 
-function makeConcept(sources: any[], localizedSources?: any) {
+function makeConcept(sources: any[] = [], localizedSources?: any) {
   return {
     '@id': 'https://glossarist.org/ds1/concept/1.1',
     'gl:source': sources || [],

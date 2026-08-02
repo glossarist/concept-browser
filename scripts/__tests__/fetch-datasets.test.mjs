@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { assertLocalPathSafe } from '../lib/local-path-safety.mjs';
+import { assertLocalPathSafe } from '../lib/local-path-safety';
 
 function makeTmpTree() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cb-fetch-'));

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Parser, Store } from 'n3';
-import { buildVocabularyTurtle, listVocabSchemes } from '../../../scripts/lib/vocab-turtle.mjs';
+import { buildVocabularyTurtle, listVocabSchemes } from '../../../scripts/lib/vocab-turtle';
 
 function parse(turtle: string): Store {
   const parser = new Parser({ format: 'Turtle' });

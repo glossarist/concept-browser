@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SCRIPT = join(__dirname, '..', '..', 'scripts', 'validate-shacl.mjs');
+const SCRIPT = join(__dirname, '..', '..', 'scripts', 'validate-shacl.ts');
 const FIXTURES = join(__dirname, '..', '__fixtures__', 'shacl');
 const SHAPES = join(__dirname, '..', '__fixtures__', 'concept-shape.ttl');
 
@@ -31,13 +31,13 @@ function execCaught(cmd: string, args: string[], opts: Parameters<typeof execFil
 }
 
 function runValidate(dataDir: string, { env, shapes }: RunOptions = {}): RunResult {
-  return execCaught('node', [SCRIPT, '--shapes', shapes ?? SHAPES, dataDir], {
+  return execCaught('node', ['--import', 'tsx', SCRIPT, '--shapes', shapes ?? SHAPES, dataDir], {
     env: { ...process.env, ...env },
   });
 }
 
 function runValidateRaw(args: string[], { env }: RunOptions = {}): RunResult {
-  return execCaught('node', [SCRIPT, ...args], {
+  return execCaught('node', ['--import', 'tsx', SCRIPT, ...args], {
     env: { ...process.env, ...env },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
