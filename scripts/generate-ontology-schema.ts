@@ -386,8 +386,8 @@ function extractPropertyBlocks(shapeBlock) {
   return blocks;
 }
 
-function parseConstraint(propBlock) {
-  const c = {};
+function parseConstraint(propBlock: string): Record<string, any> {
+  const c: Record<string, any> = {};
   const path = extractResource(propBlock, 'sh:path');
   c.path = path ? compactIri(expandPrefixed(path)) : null;
 

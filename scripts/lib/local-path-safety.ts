@@ -24,14 +24,18 @@ import path from 'path';
  * (`/var/folders/...`) is a symlink to `/private/var/folders/...`; without
  * this, prefix comparisons across the symlink boundary silently fail.
  */
-function physicalPath(p) {
+function physicalPath(p: string): string {
   if (fs.existsSync(p)) return fs.realpathSync(p);
   const parent = path.dirname(p);
   const parentReal = fs.existsSync(parent) ? fs.realpathSync(parent) : physicalPath(parent);
   return path.join(parentReal, path.basename(p));
 }
 
-export function assertLocalPathSafe(datasetId, localPath, { root = process.cwd(), datasetsDir } = {}) {
+export function assertLocalPathSafe(
+  datasetId: string,
+  localPath: string,
+  { root = process.cwd(), datasetsDir }: { root?: string; datasetsDir?: string } = {},
+): string {
   const datasetsRoot = datasetsDir || path.join(root, '.datasets');
   const localResolved = path.resolve(root, localPath);
 

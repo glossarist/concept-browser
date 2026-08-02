@@ -11,9 +11,10 @@ import {
   writeTurtle,
   PREFIXES,
 } from 'glossarist/rdf';
+import type { PrefixMap } from './yaml-types';
 
-function writerPrefixes() {
-  const out = {};
+function writerPrefixes(): PrefixMap {
+  const out: PrefixMap = {};
   // Only the prefixes this emitter actually uses — keeps the output
   // header focused.
   for (const k of ['dcat', 'skos', 'dcterms', 'prov', 'rdf', 'rdfs', 'xsd']) {
@@ -27,7 +28,7 @@ function writerPrefixes() {
   return out;
 }
 
-export async function buildDatasetTurtle(input) {
+export async function buildDatasetTurtle(input: any): Promise<string> {
   const quads = collectQuads(datasetToQuads(input));
   return writeTurtle(quads, { prefixes: writerPrefixes() });
 }

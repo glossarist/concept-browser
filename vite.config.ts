@@ -183,7 +183,7 @@ export default defineConfig({
     globals: true,
     include: [
       'src/__tests__/**/*.test.ts',
-      'scripts/__tests__/**/*.test.mjs',
+      'scripts/__tests__/**/*.test.ts',
     ],
   },
 })

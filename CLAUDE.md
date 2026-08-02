@@ -97,6 +97,30 @@ Each dataset color from `manifest.json` or `site-config.json`. Colors accept `{ 
 
 Vue 3 + TypeScript + Vite + Pinia + Vue Router + Tailwind CSS 3 + D3.js + KaTeX + n3 + rdf-validate-shacl + fast-check + Vitest (with happy-dom)
 
+## TypeScript Architecture
+
+All source code is TypeScript. Two graduated tsconfig files enforce different strictness levels:
+
+- **`tsconfig.json`** — strict (`strict: true`). Covers `src/` production code (Vue components, composables, adapters). `vue-tsc --noEmit` checks this.
+- **`tsconfig.scripts.json`** — relaxed (`noImplicitAny: false`). Covers `scripts/` + `cli/`. `tsc -p tsconfig.scripts.json --noEmit` checks this.
+
+Test files (`src/__tests__/`) are excluded from both type-check configs — vitest's tsx runtime transpiles without type-checking. This keeps `npm run build` fast.
+
+### Wire Types
+
+Single barrel at `src/adapters/wire/index.ts` re-exports three MECE layers:
+- **YAML author format** (`scripts/lib/yaml-types.ts`) — what dataset authors write
+- **JSON-LD browser format** (`src/adapters/jsonld-types.ts`) — what the SPA reads
+- **Manifest / site-config** (`src/adapters/types.ts`, `src/config/types.ts`)
+
+### Scripts
+
+All scripts are `.ts` files run via `tsx`. The CLI entrypoint (`cli/index.mjs`) registers the tsx ESM loader:
+```js
+register('tsx/esm', import.meta.url);
+```
+`tsx` is in `dependencies` (not `devDependencies`) so it survives `--omit=dev` in CI.
+
 ## Deployment
 
 Deployed to https://www.geolexica.org via GitHub Pages. CI/CD pipeline: `.github/workflows/deploy.yml` runs fetch-datasets, generate-data, build-edges, build on push to main. SPA fallback via `dist/404.html`.
