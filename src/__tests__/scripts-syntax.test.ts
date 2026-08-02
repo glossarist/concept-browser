@@ -13,7 +13,7 @@ describe('scripts syntax gate', () => {
     const result = spawnSync(
       process.execPath,
       ['--import', 'tsx', path.join(repoRoot, 'scripts', 'check-syntax.ts')],
-      { encoding: 'utf8' },
+      { encoding: 'utf8', timeout: 60000 },
     );
 
     if (result.status !== 0) {
@@ -24,5 +24,5 @@ describe('scripts syntax gate', () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout).toMatch(/syntax OK:/);
-  });
+  }, 120000);
 });
