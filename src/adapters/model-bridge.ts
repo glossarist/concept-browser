@@ -367,6 +367,13 @@ function mapRelatedFromJsonLd(r: JsonLdRelated): Record<string, unknown> {
     result.type = r[GL.RELATIONSHIP_TYPE];
   }
 
+  // gl:target is the resolved concept URI for cross-dataset relations
+  // (e.g., superseded_by → cie-2020 concept). Without this, the UI
+  // renders related concepts as plain text with no clickable link.
+  if (r[GL.TARGET]) {
+    result.target = r[GL.TARGET];
+  }
+
   if (r[GL.REF]) {
     const ref = mapRefFromJsonLd(r[GL.REF]);
     if (ref) result.ref = ref;

@@ -173,6 +173,19 @@ function extractRelated(concept, registerId, uriBase, urnMap) {
   const edges = [];
   const sourceUri = concept['@id'];
   for (const r of concept['gl:related'] || []) {
+    // Prefer gl:target — already resolved at generate-data build time
+    // via refPrefixMap (maps dataset ref labels to dataset IDs).
+    if (r['gl:target']) {
+      edges.push({
+        source: sourceUri,
+        target: r['gl:target'],
+        type: r['gl:relationshipType'] || 'references',
+        label: r['gl:term'] || undefined,
+        register: r['gl:target'].match(/\/([^/]+)\/concept\//)?.[1] || registerId,
+      });
+      continue;
+    }
+    // Fallback: resolve from gl:ref using urnMap
     const ref = r['gl:ref'];
     if (!ref) continue;
     const source = ref['gl:source'] || ref['source'];
@@ -457,6 +470,12 @@ for (const ds of datasets) {
     for (const alias of manifest.uriAliases ?? []) {
       const base = alias.endsWith('*') ? alias.slice(0, -1) : alias;
       if (base) urnMap.set(base, ds);
+    }
+    // Map the dataset's ref label (e.g. "CIE S 017:2020") to its dataset ID.
+    // This enables cross-dataset resolution for gl:ref entries that use
+    // source labels instead of URIs.
+    if (manifest.ref) {
+      urnMap.set(manifest.ref, ds);
     }
   } catch {}
 }
