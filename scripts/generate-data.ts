@@ -375,9 +375,22 @@ function extractInlineRefs(localizedData, refMaps, conceptSources = []) {
     if (pattern) { refs.push(pattern); }
   }
 
-  // Double-brace mentions: dispatched by parseMention kind
+  // Double-brace mentions: dispatched by parseMention kind.
+  //
+  // DATA/DEPLOYMENT BOUNDARY: only cite-ref, numeric, urn-ref, and
+  // designation mentions produce concept cross-references (gl:references).
+  // Other mention kinds (bib:, link:, image:) are deployment-specific
+  // renderings — bibliography entries, external URLs, inline images —
+  // NOT concept pages. They must NOT appear in gl:references or be
+  // turned into concept URIs. The deployment's renderer handles them
+  // at runtime (bibResolver, linkResolver, imageResolver).
   for (const m of fullText.matchAll(/\{\{([^{}]+?)\}\}/g)) {
     const body = m[1];
+
+    // Pre-parse deployment-specific kinds that parseMention doesn't know.
+    // These are NEVER concept cross-references — skip them entirely.
+    if (/^(bib|link|image):/i.test(body)) continue;
+
     const parsed = parseMention(body);
 
     let ref = null;
@@ -399,6 +412,8 @@ function extractInlineRefs(localizedData, refMaps, conceptSources = []) {
       // {{designation,render term}} — same-dataset designation reference
       ref = handleDesignation(parsed, refMaps);
     } else {
+      // Unresolved mentions: only include if they look like concept refs
+      // (numeric IDs or known patterns). Never include bib:/link:/image:.
       ref = handleUnresolved(body, refMaps);
     }
     if (ref) refs.push(ref);
