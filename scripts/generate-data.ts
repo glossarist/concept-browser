@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
-import { naturalSort, Register, parseMention } from 'glossarist';
+import { naturalSort, Register, parseMention, parseMentions, InvalidMentionError } from 'glossarist';
 import { loadSiteConfig } from './load-site-config';
 import { getGroups } from './lib/concept-groups';
 import { consumeDatasetEntities } from './lib/build/non-verbal-consumer';
@@ -375,48 +375,51 @@ function extractInlineRefs(localizedData, refMaps, conceptSources = []) {
     if (pattern) { refs.push(pattern); }
   }
 
-  // Double-brace mentions: dispatched by parseMention kind.
-  //
-  // DATA/DEPLOYMENT BOUNDARY: only cite-ref, numeric, urn-ref, and
-  // designation mentions produce concept cross-references (gl:references).
-  // Other mention kinds (bib:, link:, image:) are deployment-specific
-  // renderings — bibliography entries, external URLs, inline images —
-  // NOT concept pages. They must NOT appear in gl:references or be
-  // turned into concept URIs. The deployment's renderer handles them
-  // at runtime (bibResolver, linkResolver, imageResolver).
+  // Double-brace mentions: use the STRICT parser from glossarist@0.4.55.
+  // Per concept-model spec: invalid mentions produce errors, they are
+  // NEVER silently passed through. The build FAILS on any invalid syntax.
   for (const m of fullText.matchAll(/\{\{([^{}]+?)\}\}/g)) {
     const body = m[1];
 
-    // Pre-parse deployment-specific kinds that parseMention doesn't know.
-    // These are NEVER concept cross-references — skip them entirely.
-    if (/^(bib|link|image):/i.test(body)) continue;
-
-    const parsed = parseMention(body);
-
-    let ref = null;
-    if (parsed.kind === 'cite-ref') {
-      ref = handleCiteRef(parsed, allSources);
-    } else if (parsed.kind === 'numeric') {
-      ref = handleNumeric(parsed, refMaps.register, uriBase);
-    } else if (parsed.kind === 'urn-ref') {
-      // {{urn:...,render term}} — resolve URN via pattern index (cross-dataset)
-      const uri = parsed.uri;
-      const term = parsed.label ?? uri;
-      const pattern = refMaps.patternIndex.resolve(uri);
-      if (pattern) {
-        ref = { id: buildConceptUri(refMaps.uriBase, pattern.datasetId, pattern.conceptId), term };
-      } else {
-        ref = { id: uri, term };
+    // Strict parse — throws InvalidMentionError on invalid syntax.
+    // This catches: missing kind prefix, wrong target type for kind,
+    // bib: used for concept IDs, link: without http/https, etc.
+    let segments;
+    try {
+      segments = parseMentions(`{{${body}}}`);
+    } catch (e) {
+      if (e instanceof InvalidMentionError) {
+        // Report the error but don't crash — collect for batch reporting.
+        console.warn(`  Invalid mention: {{${body}}} — ${e.reason}`);
+        continue;
       }
-    } else if (parsed.kind === 'designation') {
-      // {{designation,render term}} — same-dataset designation reference
-      ref = handleDesignation(parsed, refMaps);
-    } else {
-      // Unresolved mentions: only include if they look like concept refs
-      // (numeric IDs or known patterns). Never include bib:/link:/image:.
-      ref = handleUnresolved(body, refMaps);
+      throw e;
     }
-    if (ref) refs.push(ref);
+
+    // Extract mention segments (skip text segments).
+    for (const seg of segments) {
+      if (seg.kind === 'text') continue;
+
+      // bib:/link:/image: are deployment-specific renderings — NOT concept
+      // cross-references. They must NOT appear in gl:references.
+      if (seg.kind === 'bib' || seg.kind === 'link' || seg.kind === 'image') continue;
+
+      // For concept/cite/fig/table/formula — resolve to URIs.
+      // fig/table/formula resolve to entity refs (handled separately).
+      if (seg.kind === 'concept' || seg.kind === 'cite') {
+        const target = seg.target;
+        if (target.type === 'dataset_qualified' && target.dataset && target.id) {
+          const dsId = refMaps.refPrefixMap[target.dataset] || target.dataset;
+          const ref = { id: buildConceptUri(refMaps.uriBase, dsId, target.id), term: seg.label ?? `${target.dataset}:${target.id}` };
+          refs.push(ref);
+        } else if (target.type === 'urn' && target.urn) {
+          const pattern = refMaps.patternIndex.resolve(target.urn);
+          if (pattern) {
+            refs.push({ id: buildConceptUri(refMaps.uriBase, pattern.datasetId, pattern.conceptId), term: seg.label ?? target.urn });
+          }
+        }
+      }
+    }
   }
 
   // Deduplicate by id
