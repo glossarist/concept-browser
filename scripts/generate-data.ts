@@ -1262,7 +1262,45 @@ function processNewsPage(config, page) {
 
 // --- Markdown-lite renderer (isomorphic, same logic as src/utils/markdown-lite.ts) ---
 
+// Convert AsciiDoc table syntax to HTML table.
+// Matches: |=== ... |=== (with optional leading newline)
+// Row format: | cell1 | cell2 | cell3 |
+function convertAsciiDocTables(text: string): string {
+  return text.replace(/\n?\|===\n([\s\S]*?)\n\|===/g, (_: string, body: string) => {
+    const rows = body.split('\n').filter(line => line.trim() !== '');
+    if (!rows.length) return '';
+    const parsedRows = rows.map(row => {
+      const cellText = row.replace(/^\s*\|/, '').trim();
+      return cellText.split(/\s*\|\s*/).map(c => c.trim()).filter(c => c !== '');
+    }).filter(r => r.length > 0);
+    if (!parsedRows.length) return '';
+    const maxCols = Math.max(...parsedRows.map(r => r.length));
+    const normalized = parsedRows.map(r => {
+      while (r.length < maxCols) r.push('');
+      return r;
+    });
+    const thead = '<thead><tr>' + normalized[0].map(c => `<th>${c}</th>`).join('') + '</tr></thead>';
+    const tbody = '<tbody>' + normalized.slice(1).map(r =>
+      '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>'
+    ).join('') + '</tbody>';
+    return `<table class="asciidoc-table">${thead}${tbody}</table>`;
+  });
+}
+
 function renderMarkdown(input: string): string {
+  // First convert AsciiDoc tables to HTML
+  let text = convertAsciiDocTables(input);
+
+  // Allow specific HTML tags to pass through (math spans, etc.)
+  // These are author-controlled content embedded in the dataset, not user input.
+  const HTML_PASS_THROUGH = /<span\s+class="math-pending"[^>]*>[^<]*<\/span>/g;
+  const htmlPlaceholders: string[] = [];
+  text = text.replace(HTML_PASS_THROUGH, (match) => {
+    const idx = htmlPlaceholders.length;
+    htmlPlaceholders.push(match);
+    return ` HTML${idx} `;
+  });
+
   const INLINE_PATTERNS: [RegExp, (m: string[]) => string][] = [
     [/\*\*(.+?)\*\*/g, m => `<strong>${m[1]}</strong>`],
     [/(?<!\*)\*([^*]+?)\*(?!\*)/g, m => `<em>${m[1]}</em>`],
@@ -1329,7 +1367,9 @@ function renderMarkdown(input: string): string {
     while (i < lines.length && lines[i].trim() && !/^#{1,4}\s/.test(lines[i]) && !/^\s*[-*]\s+/.test(lines[i]) && !/^\s*\d+\.\s+/.test(lines[i]) && !/^>\s?/.test(lines[i]) && !lines[i].trimStart().startsWith('```')) { pl.push(lines[i]); i++; }
     if (pl.length) blocks.push(`<p>${renderInline(pl.join(' '))}</p>`);
   }
-  return blocks.join('\n');
+  // Restore HTML pass-through placeholders
+  const result = blocks.join('\n').replace(/ HTML(\d+) /g, (_, idx) => htmlPlaceholders[parseInt(idx)]);
+  return result;
 }
 
 function processContentPage(config: Record<string, any>, page: Record<string, any>) {
