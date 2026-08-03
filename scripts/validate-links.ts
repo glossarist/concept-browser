@@ -56,7 +56,7 @@ function checkFile(file: string, dataDir: string): BrokenLink[] {
   const broken: BrokenLink[] = [];
 
   function check(target: string | undefined, field: string) {
-    if (!target) return;
+    if (!target || typeof target !== 'string') return;
     if (!target.startsWith('http')) return; // External links checked separately
     const { exists, expected } = localPathForUri(target, dataDir);
     if (!exists) {
