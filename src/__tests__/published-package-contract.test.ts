@@ -97,4 +97,14 @@ describe('published-package contract — compiled .js scripts load under plain n
       }
     }
   });
+
+  it('compiled scripts can find package data files (glossarist-vocab.json path regression)', () => {
+    // When esbuild bundles scripts/lib/vocab-turtle.ts into scripts/generate-data.js,
+    // __dirname changes from scripts/lib/ to scripts/. The path to data/ must
+    // resolve correctly in both modes. This test verifies the fallback logic.
+    const dataDir = join(ROOT, 'data');
+    expect(existsSync(join(dataDir, 'glossarist-vocab.json'))).toBe(true);
+    expect(existsSync(join(dataDir, 'colors.json'))).toBe(true);
+    expect(existsSync(join(dataDir, 'concept-model', 'shapes', 'glossarist.shacl.ttl'))).toBe(true);
+  });
 });
