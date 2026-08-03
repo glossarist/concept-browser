@@ -409,9 +409,15 @@ function extractInlineRefs(localizedData, refMaps, conceptSources = []) {
       if (seg.kind === 'concept' || seg.kind === 'cite') {
         const target = seg.target;
         if (target.type === 'dataset_qualified' && target.dataset && target.id) {
-          const dsId = refMaps.refPrefixMap[target.dataset] || target.dataset;
-          const ref = { id: buildConceptUri(refMaps.uriBase, dsId, target.id), term: seg.label ?? `${target.dataset}:${target.id}` };
-          refs.push(ref);
+          // Only create a concept URI if the dataset is CO-DEPLOYED.
+          // If the dataset doesn't exist in this deployment's refPrefixMap,
+          // skip — the runtime resolver will handle it (unresolved text or
+          // external link via routing). Creating a URI for a non-existent
+          // dataset produces a 404.
+          const dsId = refMaps.refPrefixMap[target.dataset];
+          if (dsId) {
+            refs.push({ id: buildConceptUri(refMaps.uriBase, dsId, target.id), term: seg.label ?? `${target.dataset}:${target.id}` });
+          }
         } else if (target.type === 'urn' && target.urn) {
           const pattern = refMaps.patternIndex.resolve(target.urn);
           if (pattern) {

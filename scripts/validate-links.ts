@@ -112,8 +112,23 @@ function checkFile(file: string, dataDir: string): BrokenLink[] {
   }
 
   const sourceIds = new Set<string>();
-  for (const s of json['gl:sources'] ?? []) {
+  const sourceRefKeys = new Set<string>();
+  // Collect from concept-level sources AND localization-level sources
+  const allSourceArrays = [
+    ...(json['gl:sources'] ?? []),
+  ];
+  for (const lc of Object.values(json['gl:localizedConcept'] ?? {})) {
+    const lcSources = (lc as any)['gl:source'] ?? (lc as any)['gl:sources'];
+    if (Array.isArray(lcSources)) allSourceArrays.push(...lcSources);
+  }
+  for (const s of allSourceArrays) {
     if (s['gl:id']) sourceIds.add(s['gl:id']);
+    const origin = s['gl:origin'] ?? {};
+    const ref = origin['gl:ref'] ?? {};
+    if (ref['gl:source'] && ref['gl:id']) {
+      sourceRefKeys.add(`${ref['gl:source']}:${ref['gl:id']}`);
+      sourceIds.add(ref['gl:id']);
+    }
   }
 
   const textChunks: string[] = [];
@@ -190,14 +205,20 @@ function checkFile(file: string, dataDir: string): BrokenLink[] {
       continue;
     }
 
-    // cite:id — source must exist in this concept's sources[]
+    // cite:id — source must exist in this concept's sources[].
+    // Handles DATASET:ID format: {{cite:IEV:702-02-07}} matches a source
+    // with id "702-02-07" or origin.ref { source: "IEV", id: "702-02-07" }.
     const citeMatch = body.match(/^cite:(.+)$/i);
     if (citeMatch) {
       const rest = citeMatch[1];
       const commaIdx = rest.indexOf(',');
-      const id = (commaIdx > 0 ? rest.slice(0, commaIdx).trim() : rest.trim());
-      if (!sourceIds.has(id)) {
-        broken.push({ file: relFile, line: 0, field: '{{cite:...}}', target: id, reason: `source "${id}" not found in this concept's sources[]` });
+      const rawId = (commaIdx > 0 ? rest.slice(0, commaIdx).trim() : rest.trim());
+
+      // Check: rawId (e.g. "IEV:702-02-07"), or just the ID part ("702-02-07")
+      const lastColon = rawId.lastIndexOf(':');
+      const idPart = lastColon > 0 ? rawId.slice(lastColon + 1) : rawId;
+      if (!sourceIds.has(rawId) && !sourceIds.has(idPart) && !sourceRefKeys.has(rawId)) {
+        broken.push({ file: relFile, line: 0, field: '{{cite:...}}', target: rawId, reason: `source "${rawId}" not found in this concept's sources[]` });
       }
       continue;
     }
