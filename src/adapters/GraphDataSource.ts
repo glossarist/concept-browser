@@ -16,7 +16,13 @@ interface DomainNodeJson {
   children?: DomainNodeJson[];
 }
 
-function resolveRefTarget(rc: RelatedConcept, uriBase: string, registerId: string, urnMap?: ReadonlyMap<string, string>): string {
+export function resolveRefTarget(rc: RelatedConcept, uriBase: string, registerId: string, urnMap?: ReadonlyMap<string, string>): string {
+  // Prefer the native target field — already resolved at build time
+  // via refPrefixMap in generate-data.ts. This is the author-provided
+  // canonical URL for cross-dataset relations.
+  if (rc.target) return rc.target;
+
+  // Fallback: resolve from ref (for data generated before gl:target existed)
   if (!rc.ref) return '';
   const ref = rc.ref;
   if (ref.id) {

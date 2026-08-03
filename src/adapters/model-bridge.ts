@@ -170,7 +170,8 @@ function attachBridges(concept: Concept, localizations: Record<string, unknown>)
 /**
  * Attach bridged fields (ref text, sourceId, citation) to RelatedConcept instances
  * from the raw deserialized data. Called after Concept.fromJSON creates the model
- * instances, since RelatedConcept.fromJSON only reads type/content/ref.
+ * instances, since RelatedConcept.fromJSON does not read sourceId/citation/text.
+ * (It does read type/content/ref/target natively.)
  */
 function attachRelatedBridges(
   modelRelated: ReadonlyArray<{ type?: string | null; content?: Record<string, string> | string | null; ref?: any; related?: ReadonlyArray<any> }>,
