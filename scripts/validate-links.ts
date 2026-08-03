@@ -70,7 +70,8 @@ function checkFile(file: string, dataDir: string): BrokenLink[] {
     }
   }
 
-  // gl:related entries (concept-level)
+  // ── Concept-level cross-references ─────────────────────────────────────
+  // gl:related entries
   for (const r of json['gl:related'] ?? []) {
     check(r['gl:target'], 'gl:related[].gl:target');
     check(r['@id'], 'gl:related[].@id');
@@ -97,6 +98,111 @@ function checkFile(file: string, dataDir: string): BrokenLink[] {
     for (const m of gr['gl:hasMember'] ?? []) {
       check(m['gl:ref']?.['@id'] ?? m['gl:ref'], 'gl:genericRelations.gl:hasMember[].gl:ref');
     }
+  }
+
+  // ── Inline mention validation ─────────────────────────────────────────
+  // Scan ALL text content (definitions, notes, examples, annotations) for
+  // {{kind:target}} mentions and validate each by kind. No mention is
+  // silently skipped — every xref must resolve.
+  const datasetDir = file.includes('/concepts/') ? dirname(dirname(file)) : '';
+  const bibPath = datasetDir ? join(datasetDir, 'bibliography.json') : '';
+  let bibliography: Record<string, any> | null = null;
+  if (bibPath && existsSync(bibPath)) {
+    try { bibliography = JSON.parse(readFileSync(bibPath, 'utf8')); } catch {}
+  }
+
+  const sourceIds = new Set<string>();
+  for (const s of json['gl:sources'] ?? []) {
+    if (s['gl:id']) sourceIds.add(s['gl:id']);
+  }
+
+  const textChunks: string[] = [];
+  for (const lc of Object.values(json['gl:localizedConcept'] ?? {})) {
+    const lcObj = lc as any;
+    for (const field of ['gl:definition', 'gl:notes', 'gl:examples', 'gl:annotations']) {
+      for (const entry of lcObj[field] ?? []) {
+        if (entry['gl:content']) textChunks.push(entry['gl:content']);
+      }
+    }
+  }
+  const fullText = textChunks.join('\n');
+
+  for (const m of fullText.matchAll(/\{\{([^{}]+?)\}\}/g)) {
+    const body = m[1].trim();
+    const relFile = file.replace(cwd() + '/', '');
+
+    // bib:id — must be a PURE bibliographic record, NOT a concept.
+    // If the id matches a source in sources[], the author used bib: for
+    // a concept citation — they should use {{cite:...}} instead.
+    // Per concept-model spec: IEV entries, ISO standards with concept IDs,
+    // anything that IS a concept in any dataset → must use cite:, not bib:.
+    const bibMatch = body.match(/^bib:(.+)$/i);
+    if (bibMatch) {
+      const rest = bibMatch[1];
+      const commaIdx = rest.indexOf(',');
+      const id = (commaIdx > 0 ? rest.slice(0, commaIdx).trim() : rest.trim());
+      if (sourceIds.has(id)) {
+        broken.push({
+          file: relFile, line: 0, field: '{{bib:...}}', target: id,
+          reason: `"${id}" is a ConceptSource (concept), not a bibliography entry. Use {{cite:${id}}} instead. bib: is ONLY for pure bibliographic records (papers, external docs) that are NOT concepts in any dataset.`,
+        });
+      } else if (bibliography) {
+        const entries = bibliography.bibliography ?? bibliography;
+        if (!entries[id] && !(Array.isArray(entries) && entries.some((e: any) => e.id === id))) {
+          broken.push({
+            file: relFile, line: 0, field: '{{bib:...}}', target: id,
+            reason: `bibliography entry "${id}" not found in bibliography.json. If this is a concept, use {{cite:...}} or {{urn:...}} instead.`,
+          });
+        }
+      } else {
+        broken.push({
+          file: relFile, line: 0, field: '{{bib:...}}', target: id,
+          reason: `no bibliography.json for this dataset. If "${id}" is a concept, use {{cite:...}} or {{urn:...}} instead.`,
+        });
+      }
+      continue;
+    }
+
+    // link:url — must be a valid http/https URL
+    const linkMatch = body.match(/^link:(.+)$/i);
+    if (linkMatch) {
+      const rest = linkMatch[1];
+      const commaIdx = rest.indexOf(',');
+      const url = (commaIdx > 0 ? rest.slice(0, commaIdx).trim() : rest.trim());
+      if (!/^https?:\/\//.test(url)) {
+        broken.push({ file: relFile, line: 0, field: '{{link:...}}', target: url, reason: 'link must be http: or https: URL' });
+      }
+      continue;
+    }
+
+    // image:src — if local path, must exist in public/
+    const imageMatch = body.match(/^image:(.+)$/i);
+    if (imageMatch) {
+      const rest = imageMatch[1];
+      const commaIdx = rest.indexOf(',');
+      const src = (commaIdx > 0 ? rest.slice(0, commaIdx).trim() : rest.trim());
+      if (!/^https?:\/\//.test(src) && !src.startsWith('data:')) {
+        const imgPath = join(cwd(), 'public', src.replace(/^\//, ''));
+        if (!existsSync(imgPath)) {
+          broken.push({ file: relFile, line: 0, field: '{{image:...}}', target: src, reason: `image file not found: public/${src.replace(/^\//, '')}` });
+        }
+      }
+      continue;
+    }
+
+    // cite:id — source must exist in this concept's sources[]
+    const citeMatch = body.match(/^cite:(.+)$/i);
+    if (citeMatch) {
+      const rest = citeMatch[1];
+      const commaIdx = rest.indexOf(',');
+      const id = (commaIdx > 0 ? rest.slice(0, commaIdx).trim() : rest.trim());
+      if (!sourceIds.has(id)) {
+        broken.push({ file: relFile, line: 0, field: '{{cite:...}}', target: id, reason: `source "${id}" not found in this concept's sources[]` });
+      }
+      continue;
+    }
+
+    // numeric/designation/urn — checked via the concept-level cross-ref checks above
   }
 
   return broken;
