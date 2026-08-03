@@ -7,7 +7,7 @@
 // to absolute IRIs, then re-rendered via glossarist-js's n3 writer with
 // the canonical prefix map ).
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -18,10 +18,25 @@ import {
 } from 'glossarist/rdf';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const VOCAB_PATH = join(__dirname, '..', '..', 'data', 'glossarist-vocab.json');
 
-function loadVocab(path = VOCAB_PATH) {
-  return JSON.parse(readFileSync(path, 'utf8'));
+// When running from source (tsx), this file is at scripts/lib/ and
+// the data dir is two levels up. When bundled by esbuild into
+// scripts/*.js, __dirname is scripts/ and the data dir is one level up.
+function findVocabPath(): string {
+  const candidates = [
+    join(__dirname, '..', '..', 'data', 'glossarist-vocab.json'),
+    join(__dirname, '..', 'data', 'glossarist-vocab.json'),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  throw new Error(
+    `glossarist-vocab.json not found. Tried:\n${candidates.map(p => '  ' + p).join('\n')}`,
+  );
+}
+
+function loadVocab() {
+  return JSON.parse(readFileSync(findVocabPath(), 'utf8'));
 }
 
 // n3's writer prefixes must omit the trailing # or / — those go in

@@ -221,6 +221,14 @@ function buildRefMaps(config, registerCache) {
   const refPrefixMap = {};
   const patternIndex = buildPatternIndex(config.datasets, registerCache);
 
+  // Auto-map each dataset's `ref` field to its dataset ID.
+  // This enables cross-dataset link resolution: a concept in cie-2020
+  // with ref: { source: "CIE S 017:2011", id: "17-245" } resolves to
+  // cie-2011/concept/17-245 because cie-2011 has ref: "CIE S 017:2011".
+  for (const ds of config.datasets) {
+    if (ds.ref) refPrefixMap[ds.ref] = ds.id;
+  }
+
   for (const route of config.routing || []) {
     if (route.uri && route.uri.includes('iec') && route.uri.includes('60050')) {
       const mapped = route.targetDataset;
@@ -508,6 +516,18 @@ function yamlToJsonLd(conceptYaml, register, refMaps) {
         if (r.ref.id) ref['gl:id'] = r.ref.id;
         if (r.ref.text) ref['gl:text'] = r.ref.text;
         rel['gl:ref'] = ref;
+
+        // Resolve cross-dataset refs to gl:target URIs.
+        // refPrefixMap maps source labels (e.g. "CIE S 017:2011") to
+        // dataset IDs (e.g. "cie-2011"). When the source matches a
+        // co-deployed dataset, we can build a navigable concept URI.
+        if (r.ref.source && r.ref.id && refMaps?.refPrefixMap?.[r.ref.source]) {
+          const datasetId = refMaps.refPrefixMap[r.ref.source];
+          rel['gl:target'] = buildConceptUri(refMaps.uriBase, datasetId, r.ref.id);
+        }
+      }
+      if (r.target) {
+        rel['gl:target'] = r.target;
       }
       return rel;
     });
