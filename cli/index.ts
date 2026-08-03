@@ -9,8 +9,10 @@
  *   edges      Build cross-reference edges from generated concept data
  *   build      Full pipeline: fetch + generate + edges + vite build
  *   site       Same as build (alias)
- *   normalize  NFC-normalize YAML files in .datasets/ (use --check for CI gate)
- *   doctor     Diagnose the local environment (deps, datasets, shapes, context)
+ *   normalize       NFC-normalize YAML files in .datasets/ (use --check for CI gate)
+ *   doctor          Diagnose the local environment (deps, datasets, shapes, context)
+ *   validate-yaml   Validate dataset YAML against the concept schema
+ *   validate-links  Validate that all generated cross-references resolve to existing concepts
  *
  * Options:
  *   --site <id>  Site config to use (looks for site-config.yml in CWD)
@@ -42,6 +44,7 @@ const commands: Record<string, CommandRunner> = {
   edges:        async () => (await import('../scripts/build-edges')).main(),
   about:        async () => (await import('../scripts/process-about-pages')).main(),
   'validate-yaml': async () => { await import('../scripts/validate-yaml'); },
+  'validate-links': async () => { await import('../scripts/validate-links'); },
 };
 
 function parseArgs(argv: readonly string[]): ParsedArgs {
