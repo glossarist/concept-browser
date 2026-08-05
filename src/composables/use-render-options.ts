@@ -65,7 +65,24 @@ export function useRenderOptions(
       return `<span class="cite-ref">${escapeHtml(label ?? key)}</span>`;
     }
 
-    const source = sources.find(s => s.id === key);
+    // Parse DATASET:ID format. {{cite:IEV:702-02-07}} → dataset="IEV", idPart="702-02-07"
+    // Match against: raw id, id part, or origin.ref { source: dataset, id: idPart }
+    const lastColon = key.lastIndexOf(':');
+    const idPart = lastColon > 0 ? key.slice(lastColon + 1) : key;
+    const datasetPart = lastColon > 0 ? key.slice(0, lastColon) : '';
+
+    const source = sources.find(s => {
+      // Match by source id (raw or id part)
+      if (s.id === key || s.id === idPart) return true;
+      // Match by origin.ref
+      const ref = s.origin?.ref;
+      if (ref) {
+        if (datasetPart && ref.source === datasetPart && ref.id === idPart) return true;
+        if (ref.id === key || ref.id === idPart) return true;
+      }
+      return false;
+    });
+
     if (!source?.origin) {
       return `<span class="cite-unresolved">${escapeHtml(label ?? key)}</span>`;
     }
