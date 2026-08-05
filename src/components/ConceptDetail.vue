@@ -119,7 +119,17 @@ const conceptTags = computed(() => props.concept?.tags ?? []);
 const factory = getFactory();
 const { ready: bibReady, ensureBibLoaded, bibResolver, citeResolver, nonVerbalRefResolver } = useRenderOptions(
   () => props.registerId,
-  () => props.concept?.sources,
+  () => {
+    // Collect sources from ALL localizations (shown separately per language,
+    // but the citeResolver needs access to all of them since content from
+    // every language is rendered on the same page).
+    const sources: any[] = [];
+    for (const lang of props.concept?.languages ?? []) {
+      const lc = props.concept?.localization(lang);
+      if (lc?.sources) sources.push(...lc.sources);
+    }
+    return sources;
+  },
 );
 
 const renderOpts = computed<RenderOptions>(() => {
