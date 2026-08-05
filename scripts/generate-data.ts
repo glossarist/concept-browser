@@ -375,54 +375,46 @@ function extractInlineRefs(localizedData, refMaps, conceptSources = []) {
     if (pattern) { refs.push(pattern); }
   }
 
-  // Double-brace mentions: use the STRICT parser from glossarist@0.4.55.
-  // Per concept-model spec: invalid mentions produce errors, they are
-  // NEVER silently passed through. The build FAILS on any invalid syntax.
+  // Double-brace mentions: use the strict parser from glossarist@0.4.56.
+  // Bare numeric IDs and designations are implicit same-dataset concept refs.
   for (const m of fullText.matchAll(/\{\{([^{}]+?)\}\}/g)) {
     const body = m[1];
 
-    // Strict parse — throws InvalidMentionError on invalid syntax.
-    // This catches: missing kind prefix, wrong target type for kind,
-    // bib: used for concept IDs, link: without http/https, etc.
+    // Skip deployment-specific kinds (not concept cross-references)
+    if (/^(bib|link|image):/i.test(body)) continue;
+
     let segments;
     try {
       segments = parseMentions(`{{${body}}}`);
     } catch (e) {
       if (e instanceof InvalidMentionError) {
-        // Report the error but don't crash — collect for batch reporting.
         console.warn(`  Invalid mention: {{${body}}} — ${e.reason}`);
         continue;
       }
       throw e;
     }
 
-    // Extract mention segments (skip text segments).
     for (const seg of segments) {
       if (seg.kind === 'text') continue;
-
-      // bib:/link:/image: are deployment-specific renderings — NOT concept
-      // cross-references. They must NOT appear in gl:references.
       if (seg.kind === 'bib' || seg.kind === 'link' || seg.kind === 'image') continue;
 
-      // For concept/cite/fig/table/formula — resolve to URIs.
-      // fig/table/formula resolve to entity refs (handled separately).
       if (seg.kind === 'concept' || seg.kind === 'cite') {
         const target = seg.target;
         if (target.type === 'dataset_qualified' && target.dataset && target.id) {
-          // Only create a concept URI if the dataset is CO-DEPLOYED.
-          // If the dataset doesn't exist in this deployment's refPrefixMap,
-          // skip — the runtime resolver will handle it (unresolved text or
-          // external link via routing). Creating a URI for a non-existent
-          // dataset produces a 404.
+          // Cross-dataset: only if co-deployed
           const dsId = refMaps.refPrefixMap[target.dataset];
           if (dsId) {
             refs.push({ id: buildConceptUri(refMaps.uriBase, dsId, target.id), term: seg.label ?? `${target.dataset}:${target.id}` });
           }
         } else if (target.type === 'urn' && target.urn) {
+          // URN: resolve via pattern index
           const pattern = refMaps.patternIndex.resolve(target.urn);
           if (pattern) {
             refs.push({ id: buildConceptUri(refMaps.uriBase, pattern.datasetId, pattern.conceptId), term: seg.label ?? target.urn });
           }
+        } else if (target.type === 'entity_id' && target.id) {
+          // Same-dataset concept reference (bare numeric ID or designation)
+          refs.push({ id: buildConceptUri(refMaps.uriBase, refMaps.register, target.id), term: seg.label ?? target.id });
         }
       }
     }
