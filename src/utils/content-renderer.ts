@@ -98,17 +98,138 @@ function mathPlaceholder(expr: string, format: string, bold: boolean): string {
 
 // ── Block transforms ─────────────────────────────────────────────────────
 
+/**
+ * AsciiDoc table attribute line, e.g.
+ *   [cols="3", options="noheader,unnumbered"]
+ *   [format="dsv"]
+ * Lives immediately before the `|===` opener. The renderer does not honour
+ * these attributes (no column sizing, no header suppression), so we strip
+ * them to avoid leaking as literal text in the output.
+ */
+const ASCII_DOC_TABLE_ATTR_RE = /\n?\[[^\]\n]+\]\s*\n(?=\n?\|===)/g;
+
+/**
+ * Pre-row span/alignment modifier prefix that can appear before a leading
+ * pipe:
+ *   .2+        → cell spans 2 columns
+ *   .3+        → cell spans 3 columns
+ *   2+         → cell spans 2 rows
+ *   a>         → horizontal alignment
+ * The renderer does not honour spans, so we strip the modifier.
+ */
+const ASCII_DOC_LEADING_SPAN_PIPE_RE = /^[.\d+]+[+>]+\s*\|/;
+
+/**
+ * Cell-span modifier prefix that can appear inside a cell (after the pipe):
+ *   .2+ cell content   →   cell content
+ * Kept separate from ASCII_DOC_LEADING_SPAN_PIPE_RE because the leading
+ * variant consumes the pipe whereas this one only consumes the modifier.
+ */
+const ASCII_DOC_CELL_SPAN_RE = /^[.]\d+[+]|[.]\d+>[>]?\s*/g;
+
+/**
+ * Trailing cell-continuation marker ` +` at the end of a row line means
+ * "the next physical line continues this cell". The renderer joins such
+ * lines into the same cell with a `<br>` separator.
+ */
+const ASCII_DOC_CELL_CONTINUATION_RE = /\s\+\s*$/;
+
+function stripAsciiDocTableAttributes(text: string): string {
+  return text.replace(ASCII_DOC_TABLE_ATTR_RE, '\n');
+}
+
 function convertAsciiDocTables(text: string): string {
-  return text.replace(/\n?\|===\n([\s\S]*?)\n\|===/g, (_: string, body: string) => {
-    const rows: string[] = body.split('\n').filter((line: string) => line.trim() !== '');
-    if (!rows.length) return '';
+  const prepared = stripAsciiDocTableAttributes(text);
+  return prepared.replace(/\n?\|===\n([\s\S]*?)\n\|===/g, (_: string, body: string) => {
+    const lines: string[] = body.split('\n');
+    if (!lines.some((l: string) => l.trim() !== '')) return '';
 
-    const parsedRows: string[][] = rows.map((row: string) => {
-      const cellText = row.replace(/^\s*\|/, '').trim();
-      const cells = cellText.split(/\s*\|\s*/).map((c: string) => c.trim()).filter((c: string) => c !== '');
-      return cells;
-    }).filter((r: string[]) => r.length > 0);
+    // State machine for joining `+` continuation lines into the same cell
+    // and grouping cells into rows. Two formats are supported:
+    //
+    //   1. Simple one-row-per-line:
+    //        | a | b | c
+    //        | d | e | f
+    //      Each leading `|` starts a new row.
+    //
+    //   2. Continuation-based multi-cell rows (used by VIM and other
+    //      bilingual sources):
+    //        | english-line +
+    //        french line | next-cell +
+    //        more of next-cell
+    //      A `|` at the start of a line, AFTER the current row has used
+    //      a `+` continuation, starts a new CELL in the SAME row.
+    //
+    // The disambiguation state is `rowHasContinuation`: once any line in
+    // the current row has used `+`, subsequent leading `|` lines are new
+    // cells in that row. Otherwise (simple format), they are new rows.
+    const rows: string[][] = [];
+    let currentRow: string[] | null = null;
+    let rowHasContinuation = false;
+    let prevLineEndedWithContinuation = false;
 
+    const flushRow = () => {
+      if (currentRow !== null && currentRow.length > 0) rows.push(currentRow);
+      currentRow = null;
+      rowHasContinuation = false;
+      prevLineEndedWithContinuation = false;
+    };
+
+    for (const line of lines) {
+      if (line.trim() === '') {
+        flushRow();
+        continue;
+      }
+
+      const startsWithPipe = ASCII_DOC_LEADING_SPAN_PIPE_RE.test(line) || /^\s*\|/.test(line);
+      const endsWithContinuation = ASCII_DOC_CELL_CONTINUATION_RE.test(line);
+      const cleaned = line
+        .replace(ASCII_DOC_LEADING_SPAN_PIPE_RE, '|')
+        .replace(ASCII_DOC_CELL_CONTINUATION_RE, '')
+        .trim();
+
+      if (startsWithPipe && !rowHasContinuation) {
+        // New row in simple format.
+        flushRow();
+        const cellText = cleaned.replace(/^\s*\|/, '').trim();
+        const newCells = cellText.split(/\s*\|\s*/).map(stripCellSpanModifier).filter(c => c !== '');
+        currentRow = newCells;
+      } else if (startsWithPipe && rowHasContinuation) {
+        // New cell in the same row (continuation format).
+        if (currentRow === null) currentRow = [];
+        const cellText = cleaned.replace(/^\s*\|/, '').trim();
+        const newCells = cellText.split(/\s*\|\s*/).map(stripCellSpanModifier).filter(c => c !== '');
+        currentRow.push(...newCells);
+      } else if (currentRow !== null && prevLineEndedWithContinuation) {
+        // Continuation of the previous cell — append with <br>.
+        // The continuation line may itself contain `|`-separated cells,
+        // so split it; the first piece joins the last cell, the rest
+        // become new cells in the same row.
+        const pieces = cleaned.split(/\s*\|\s*/).map(stripCellSpanModifier).filter(c => c !== '');
+        if (pieces.length > 0 && currentRow.length > 0) {
+          currentRow[currentRow.length - 1] = `${currentRow[currentRow.length - 1]}<br>${pieces[0]}`;
+          if (pieces.length > 1) currentRow.push(...pieces.slice(1));
+        } else if (pieces.length > 0) {
+          currentRow.push(pieces[0]);
+          if (pieces.length > 1) currentRow.push(...pieces.slice(1));
+        }
+      } else {
+        // Stray non-pipe line outside any continuation — treat as a new
+        // single-cell row so the content is not lost.
+        flushRow();
+        currentRow = [cleaned];
+      }
+
+      if (endsWithContinuation) {
+        rowHasContinuation = true;
+        prevLineEndedWithContinuation = true;
+      } else {
+        prevLineEndedWithContinuation = false;
+      }
+    }
+    flushRow();
+
+    const parsedRows: string[][] = rows.filter((r: string[]) => r.length > 0);
     if (!parsedRows.length) return '';
 
     const maxCols = Math.max(...parsedRows.map((r: string[]) => r.length));
@@ -117,13 +238,22 @@ function convertAsciiDocTables(text: string): string {
       return r;
     });
 
-    const thead = normalized[0].map((c: string) => `<th>${escapeHtml(c)}</th>`).join('');
+    // Cells may already contain rendered math spans (from stage 1) and
+    // inline formatting (italic, subscript) from stage 3. escapeHtml
+    // would double-escape the angle brackets inside those spans and
+    // cause the browser to render them as literal text. Pass cell
+    // content through unchanged.
+    const thead = normalized[0].map((c: string) => `<th>${c}</th>`).join('');
     const tbody = normalized.slice(1).map((r: string[]) =>
-      `<tr>${r.map((c: string) => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`
+      `<tr>${r.map((c: string) => `<td>${c}</td>`).join('')}</tr>`
     ).join('');
 
     return `\n<table class="concept-table"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>`;
   });
+}
+
+function stripCellSpanModifier(cell: string): string {
+  return cell.replace(ASCII_DOC_CELL_SPAN_RE, '').trim();
 }
 
 function convertLists(text: string): string {

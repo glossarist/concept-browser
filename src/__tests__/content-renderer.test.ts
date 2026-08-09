@@ -42,6 +42,51 @@ describe('renderContent', () => {
     expect(result).not.toContain('|===');
   });
 
+  it('strips AsciiDoc table attribute lines (cols, options)', () => {
+    const input = 'Intro\n\n[cols="3", options="noheader,unnumbered"]\n|===\n| a | b\n|===';
+    const result = renderContent(input);
+    expect(result).not.toContain('[cols=');
+    expect(result).not.toContain('noheader');
+    expect(result).toContain('<table class="concept-table">');
+  });
+
+  it('strips cell-span modifiers (.2+, 2+) from cell content', () => {
+    const input = '|===\n.2+| cell-a | cell-b\n| cell-c\n|===';
+    const result = renderContent(input);
+    expect(result).not.toMatch(/\b\.2\+/);
+    expect(result).toContain('cell-a');
+    expect(result).toContain('cell-b');
+  });
+
+  it('joins + continuation lines into the same cell with <br>', () => {
+    const input = '|===\n| english line +\nfrench line | cell-b\n|===';
+    const result = renderContent(input);
+    expect(result).toContain('english line<br>french line');
+    expect(result).toContain('<th>cell-b</th>');
+    expect(result).not.toMatch(/\s\+\s*\|/);
+  });
+
+  it('groups cells of the same row when continuation is used', () => {
+    // VIM-style bilingual layout: each `|` after a `+` is a new cell in
+    // the SAME row, not a new row.
+    const input = '|===\n.2+| length +\nlongueur | radius +\nrayon\n|===';
+    const result = renderContent(input);
+    expect(result).toContain('length');
+    expect(result).toContain('longueur');
+    expect(result).toContain('radius');
+    expect(result).toContain('rayon');
+    expect(result).toContain('length<br>longueur');
+    expect(result).toContain('radius<br>rayon');
+  });
+
+  it('preserves rendered math spans inside table cells (no double-escaping)', () => {
+    const input = '|===\n| length, stem:[l] | radius, stem:[r]\n|===';
+    const result = renderContent(input);
+    expect(result).toContain('data-expr="l"');
+    expect(result).toContain('data-expr="r"');
+    expect(result).not.toContain('&lt;span');
+  });
+
   it('resolves URN inline refs via xrefResolver', () => {
     const resolver = (uri: string, term: string) => `[${term}→${uri}]`;
     const result = renderContent(
