@@ -97,5 +97,7 @@ export function formatExternalLabel(
   label: string,
   isExternal: boolean,
 ): string {
-  return isExternal ? `(${label})` : label;
+  if (!isExternal) return label;
+  if (label.startsWith('(') && label.endsWith(')')) return label;
+  return `(${label})`;
 }
