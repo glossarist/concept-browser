@@ -86,6 +86,9 @@ export function defsToJsonLd(defs: any[]): Record<string, any>[] {
 
 export function refToJsonLd(ref: any, typeName = 'gl:Ref'): Record<string, any> | undefined {
   if (!ref) return undefined;
+  if (ref.ellipsis === true) {
+    return { '@type': typeName, 'gl:ellipsis': true };
+  }
   const refObj: Record<string, any> = { '@type': typeName };
   if (typeof ref === 'string') {
     refObj['gl:source'] = ref;
@@ -94,6 +97,7 @@ export function refToJsonLd(ref: any, typeName = 'gl:Ref'): Record<string, any> 
     if (ref.id) refObj['gl:id'] = ref.id;
     if (ref.version) refObj['gl:version'] = ref.version;
     if (ref.text) refObj['gl:text'] = ref.text;
+    if (ref.external === true) refObj['gl:external'] = true;
   }
   return refObj;
 }
