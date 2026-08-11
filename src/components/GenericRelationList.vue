@@ -4,16 +4,7 @@
  * decompositions as ISO 704 rake diagrams. Mirror of
  * PartitiveRelationList with type label swapped.
  *
- * Each relation card shows:
- *   - completeness badge (Complete / Partial)
- *   - the comprehensive (genus) designation as the card title
- *   - optional criterion as italic text
- *   - the rake diagram itself (PartitiveRelationDiagram, reused —
- *     the line notation is identical for generic rakes)
- *
- * OIML V 2-200:2010 has ~8 generic hyperedges; 5.1 measurement
- * standard alone has 6 criterion groups. This component is the
- * primary rendering surface for those datasets.
+ * External concepts are parenthesized per ISO 704 §5.5.4.3.1.
  */
 import type { GenericRelationWire, Manifest } from '../adapters/types';
 import { useRouter } from 'vue-router';
@@ -23,6 +14,7 @@ import { useI18n, locale } from '../i18n';
 import { completenessLabel } from '../utils/partitive-relation-styling';
 import { presenceLabel, countLabel } from '../utils/partitive-multiplicity';
 import { resolveDesignation } from '../utils/resolve-designation';
+import { isExternalMember, isExternalComprehensive, formatExternalLabel } from '../utils/external-detection';
 import PartitiveRelationDiagram, {
   type PartitiveMemberLabeled,
 } from './PartitiveRelationDiagram.vue';
@@ -38,8 +30,41 @@ const store = useVocabularyStore();
 const factory = getFactory();
 const { t } = useI18n();
 
-function designationFor(uri: string): string {
-  return resolveDesignation(uri, store, factory, locale.value);
+const externalCache = new Map<string, boolean>();
+
+const externalStore = {
+  lookup(ref: { source?: string | null; id?: string | null }) {
+    if (!ref?.source && !ref?.id) return null;
+    for (const adapter of store.datasets.values()) {
+      for (const entry of adapter.getConcepts() ?? []) {
+        if (entry && entry.id === ref.id) {
+          return {
+            status: entry.status,
+            related: (entry as any).relatedConcepts ?? (entry as any).related ?? [],
+          };
+        }
+      }
+    }
+    return null;
+  },
+};
+
+function isExternalUri(uri: string, kind: 'member' | 'comprehensive'): boolean {
+  if (externalCache.has(uri)) return externalCache.get(uri)!;
+  const ref = { source: uri, id: uri.split('/').pop() ?? uri };
+  let isExt: boolean;
+  if (kind === 'comprehensive') {
+    isExt = isExternalComprehensive({ comprehensive: ref, members: [] }, externalStore);
+  } else {
+    isExt = isExternalMember({ ref }, externalStore);
+  }
+  externalCache.set(uri, isExt);
+  return isExt;
+}
+
+function designationFor(uri: string, kind: 'member' | 'comprehensive' = 'member'): string {
+  const label = resolveDesignation(uri, store, factory, locale.value);
+  return formatExternalLabel(label, isExternalUri(uri, kind));
 }
 
 /** Resolve a LocalizedString delimitingCharacteristic to the current locale. */
@@ -53,7 +78,7 @@ function memberLabel(member: GenericRelationWire['members'][number]): PartitiveM
     presence: member.presence,
     count: member.count,
     isDelimiting: false,
-    label: designationFor(member.uri),
+    label: designationFor(member.uri, 'member'),
   };
 }
 </script>
@@ -70,7 +95,7 @@ function memberLabel(member: GenericRelationWire['members'][number]): PartitiveM
           {{ completenessLabel(rel.completeness) }}
         </span>
         <span class="badge badge-type">{{ t('relations.generic') }}</span>
-        <h4 class="comprehensive">{{ designationFor(rel.comprehensive) }}</h4>
+        <h4 class="comprehensive">{{ designationFor(rel.comprehensive, 'comprehensive') }}</h4>
       </header>
 
       <p v-if="rel.criterion" class="criterion">
@@ -79,13 +104,13 @@ function memberLabel(member: GenericRelationWire['members'][number]): PartitiveM
 
       <PartitiveRelationDiagram
         :partitives="rel.members.map(memberLabel)"
-        :comprehensive-label="designationFor(rel.comprehensive)"
+        :comprehensive-label="designationFor(rel.comprehensive, 'comprehensive')"
         :completeness="rel.completeness"
       />
 
       <ul class="member-presence-list" aria-label="Member delimiting characteristics">
         <li v-for="(m, j) in rel.members" :key="j">
-          <span class="member-label">{{ designationFor(m.uri) }}</span>
+          <span class="member-label">{{ designationFor(m.uri, 'member') }}</span>
           <span
             v-if="m.delimitingCharacteristic"
             class="member-delimiting-characteristic"
