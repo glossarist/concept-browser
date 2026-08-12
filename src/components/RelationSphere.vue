@@ -1408,19 +1408,22 @@ defineExpose({ navigate });
             <div v-for="item in legendItems" :key="item.type"
               class="sp-legend-item"
               :class="{ muted: isTypeMuted(item.type), 'is-partitive': item.type === '__partitive__' }"
+              @click="toggleType(item.type)"
+              role="switch"
+              :aria-checked="!isTypeMuted(item.type)"
+              :aria-label="`${t('sphere.toggleMute')}: ${item.label}`"
             >
-              <button class="sp-legend-toggle"
-                @click="toggleType(item.type)"
-                :title="item.type"
-                :aria-label="`${t('sphere.toggleMute')}: ${item.label}`">
                 <span v-if="item.type === '__partitive__'" class="sp-swatch sp-swatch-rake"
                   :style="{ '--rake-color': isTypeMuted(item.type) ? '#b8b9cc' : item.color }"></span>
                 <span v-else class="sp-swatch" :style="{ background: isTypeMuted(item.type) ? '#b8b9cc' : item.color }"></span>
                 <span class="sp-count">{{ item.count }}</span>
-              </button>
-              <router-link class="sp-legend-label"
-                :to="{ name: 'learn-relationships', hash: '#' + item.type }"
-                :title="t('sphere.learnAbout') + ': ' + item.label">{{ item.label }}</router-link>
+                <span class="sp-legend-label">{{ item.label }}</span>
+                <a class="sp-legend-info"
+                  :href="'/learn/relationships#' + item.type"
+                  target="_blank"
+                  rel="noopener"
+                  :title="t('sphere.learnAbout') + ': ' + item.label"
+                  @click.stop>?</a>
             </div>
           </div>
         </div>
@@ -1663,19 +1666,25 @@ defineExpose({ navigate });
   display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 3px;
   border: 1px solid transparent; background: transparent; text-align: left;
   width: 100%; font-family: inherit; font-size: 11px; color: var(--ink-mute);
+  cursor: pointer; user-select: none;
 }
 .sp-legend-item:hover { background: var(--rule); }
 .sp-legend-item.muted { opacity: 0.35; }
-.sp-legend-toggle {
-  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
-  cursor: pointer; border: none; background: transparent; padding: 0;
-  font: inherit; color: inherit;
-}
+.sp-legend-item .sp-count { flex-shrink: 0; font-size: 10px; color: var(--ink-faint); }
 .sp-legend-label {
-  color: inherit; text-decoration: none; flex: 1; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.sp-legend-label:hover { text-decoration: underline; }
+.sp-legend-info {
+  flex-shrink: 0; width: 14px; height: 14px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 9px; line-height: 1; text-decoration: none;
+  color: var(--ink-faint); border: 1px solid var(--rule);
+  transition: all 0.15s;
+}
+.sp-legend-info:hover {
+  color: var(--ink); border-color: var(--ink-mute);
+  background: var(--surface);
+}
 .sp-swatch { width: 18px; height: 2px; flex-shrink: 0; border-radius: 1px; }
 /* Rake swatch — small bracket icon signaling a PartitiveRelation hyperedge
    (not a single binary edge). Two parallel solid lines (close-set double)
