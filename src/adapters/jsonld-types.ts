@@ -43,6 +43,8 @@ export interface JsonLdRef {
   'gl:id'?: string;
   'gl:version'?: string;
   'gl:text'?: string;
+  'gl:external'?: boolean;
+  'gl:ellipsis'?: boolean;
   source?: string;
   id?: string;
   version?: string;

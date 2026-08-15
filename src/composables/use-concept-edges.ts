@@ -190,7 +190,26 @@ export function useConceptEdges(
     const isGeneric = rel instanceof GenericHyperedge;
     const members: any[] = (rel?.members ?? rel?.partitives ?? [])
       .map((m: any): any | null => {
-        const uri = resolveConceptRefUri(m?.ref);
+        const ref = m?.ref;
+        /* Ghost members (concept-model PR #91): external parenthetical
+           concepts and ellipsis gaps have no dataset node, so they get a
+           synthetic urn: URI plus flags. Renderers draw them as ghosts
+           without resolving the URI. */
+        if (ref?.ellipsis === true) {
+          return { uri: 'urn:gloss:ellipsis', presence: m?.presence, count: m?.count, ellipsis: true };
+        }
+        if (ref?.external === true || ref?.isExternal === true) {
+          const text = ref?.text ?? '';
+          return {
+            uri: `urn:gloss:ext:${text}`,
+            presence: m?.presence,
+            count: m?.count,
+            external: true,
+            text,
+            ...(isGeneric ? { delimitingCharacteristic: m?.delimitingCharacteristic } : {}),
+          };
+        }
+        const uri = resolveConceptRefUri(ref);
         if (!uri || uri === source) return null;
         const base: any = {
           uri,

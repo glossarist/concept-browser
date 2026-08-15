@@ -204,6 +204,14 @@ export interface GenericMemberWire {
    * distinguishes this specific concept from its coordinate concepts.
    * Required on every GenericMember. LocalizedString shape. */
   delimitingCharacteristic: Record<string, string>;
+  /** Inline external concept (concept-model PR #91). No dataset node —
+   * rendered as a dashed `(text)` ghost, never resolved to a URI. */
+  external?: boolean;
+  /** Author-acknowledged gap (concept-model PR #91). Rendered as a
+   * muted `...` ghost. */
+  ellipsis?: boolean;
+  /** Display text for external members (the parenthetical label). */
+  text?: string;
 }
 
 export interface GraphNode {
