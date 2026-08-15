@@ -167,3 +167,117 @@ describe('drawGenericPipes — pipe-and-thread contract', () => {
     expect(svg.querySelectorAll('line.pipe-seg').length).toBe(0);
   });
 });
+
+describe('drawGenericPipes — external + ellipsis ghosts (concept-model PR #91)', () => {
+  const pos = new Map<string, { x: number; y: number }>([
+    ['vim-2012/1.9', { x: 0, y: 0 }],
+    ['vim-2012/1.15', { x: 100, y: -50 }],
+  ]);
+
+  function makeGhostRelation(): GenericRelationWire {
+    return {
+      source: 'https://example.org/vim-2012/concept/1.9',
+      comprehensive: 'https://example.org/vim-2012/concept/1.9',
+      completeness: 'complete',
+      criterion: { eng: 'by system membership' },
+      register: 'vim-2012',
+      members: [
+        { uri: 'https://example.org/vim-2012/concept/1.15', presence: 'required', count: 'at_least_one',
+          delimitingCharacteristic: { eng: 'off-system measurement unit' } },
+        { uri: 'urn:gloss:ext:in-system measurement unit', presence: 'optional', count: 'any',
+          external: true, text: 'in-system measurement unit',
+          delimitingCharacteristic: { eng: 'in-system measurement unit' } },
+      ],
+    };
+  }
+
+  function makeEllipsisRelation(): GenericRelationWire {
+    return {
+      source: 'https://example.org/vim-2012/concept/1.9',
+      comprehensive: 'https://example.org/vim-2012/concept/1.9',
+      completeness: 'partial',
+      criterion: { eng: 'by epistemic status' },
+      register: 'vim-2012',
+      members: [
+        { uri: 'https://example.org/vim-2012/concept/1.15', presence: 'required', count: 'at_least_one',
+          delimitingCharacteristic: { eng: 'x' } },
+        { uri: 'urn:gloss:ellipsis', presence: 'required', count: 'exactly_one', ellipsis: true },
+      ],
+    };
+  }
+
+  it('renders an external member as a dashed pill with parenthesized text', () => {
+    const svg = makeSvg();
+    drawGenericPipes(svg, pos, {
+      isDark: false,
+      color: '#b45309',
+      isMuted: false,
+      relations: [makeGhostRelation()],
+      locale: 'eng',
+    });
+    const pill = svg.querySelector('rect.pipe-ghost-external');
+    expect(pill).toBeDefined();
+    expect(pill!.getAttribute('stroke-dasharray')).toBe('3 2');
+    const label = svg.querySelector('text.pipe-ghost-external-label');
+    expect(label).toBeDefined();
+    expect(label!.textContent).toBe('(in-system measurement unit)');
+  });
+
+  it('renders an ellipsis member as a muted ... ghost', () => {
+    const svg = makeSvg();
+    drawGenericPipes(svg, pos, {
+      isDark: false,
+      color: '#b45309',
+      isMuted: false,
+      relations: [makeEllipsisRelation()],
+      locale: 'eng',
+    });
+    const ell = svg.querySelector('text.pipe-ghost-ellipsis');
+    expect(ell).toBeDefined();
+    expect(ell!.textContent).toBe('...');
+  });
+
+  it('keeps a 1-resolved + 1-ghost rake alive (ghosts count as members)', () => {
+    const svg = makeSvg();
+    drawGenericPipes(svg, pos, {
+      isDark: false,
+      color: '#b45309',
+      isMuted: false,
+      relations: [makeGhostRelation()],
+      locale: 'eng',
+    });
+    /* 1 resolved member + 1 ghost = 2 layout members → 1 pipe + 2 threads. */
+    expect(svg.querySelectorAll('line.pipe-seg').length).toBe(3);
+  });
+
+  it('draws ghost threads dashed so they read as non-node placeholders', () => {
+    const svg = makeSvg();
+    drawGenericPipes(svg, pos, {
+      isDark: false,
+      color: '#b45309',
+      isMuted: false,
+      relations: [makeEllipsisRelation()],
+      locale: 'eng',
+    });
+    const dashed = Array.from(svg.querySelectorAll('line.pipe-seg'))
+      .filter(l => l.getAttribute('stroke-dasharray') === '3 3');
+    expect(dashed.length).toBe(1);
+  });
+
+  it('drops a rake whose members are ALL ghosts with no positioned anchor', () => {
+    const svg = makeSvg();
+    const emptyPos = new Map<string, { x: number; y: number }>([
+      ['vim-2012/1.9', { x: 0, y: 0 }],
+    ]);
+    drawGenericPipes(svg, emptyPos, {
+      isDark: false,
+      color: '#b45309',
+      isMuted: false,
+      relations: [makeGhostRelation()],
+      locale: 'eng',
+    });
+    /* 1.15 not in pos → zero positioned members → layout collapses onto
+       comp; ghosts have no anchor distinct from comp, so nothing draws. */
+    expect(svg.querySelectorAll('line.pipe-seg').length).toBe(0);
+  });
+});

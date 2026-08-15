@@ -298,7 +298,9 @@ function mapRefFromJsonLd(rawRef: JsonLdRef | string | undefined): Record<string
   refObj.id = rawRef[GL.LOCAL_ID] ?? rawRef.id;
   refObj.version = rawRef[GL.VERSION] ?? rawRef.version;
   if (rawRef[GL.TEXT]) refObj.text = rawRef[GL.TEXT];
-  return (refObj.source ?? refObj.id ?? refObj.version ?? refObj.text) != null
+  if (rawRef[GL.EXTERNAL] === true) refObj.external = true;
+  if (rawRef[GL.ELLIPSIS] === true) refObj.ellipsis = true;
+  return (refObj.source ?? refObj.id ?? refObj.version ?? refObj.text ?? refObj.external ?? refObj.ellipsis) != null
     ? refObj : null;
 }
 

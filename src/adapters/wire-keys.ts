@@ -108,6 +108,12 @@ export const GL = {
   VERSION: 'gl:version',
   TEXT: 'gl:text',
 
+  // ConceptRef external/ellipsis flags (concept-model PR #91).
+  // external = parenthetical (ISO 704:2022 §5.5.4.3.1); renders as `(text)`.
+  // ellipsis = author-acknowledged gap; renders as `...`.
+  EXTERNAL: 'gl:external',
+  ELLIPSIS: 'gl:ellipsis',
+
   // Locally-scoped id within source/origin/ref (NOT JSON-LD's @id)
   LOCAL_ID: 'gl:id',
 
