@@ -1,5 +1,5 @@
 /**
- * Concept format emitters — Turtle, SKOS JSON-LD, TBX.
+ * Concept format emitters — Turtle, SKOS JSON-LD, TBX, aggregate CSV.
  *
  * Extracted from generate-data.ts. Each function takes a JSON-LD concept
  * object and serializes it to a different interchange format.
@@ -55,16 +55,17 @@ export function conceptJsonToTurtle(concept: Record<string, any>): string {
   return lines.join('\n');
 }
 
-export function conceptJsonToSkosJsonLd(concept: Record<string, any>): string {
+const SKOS_JSON_LD_CONTEXT = {
+  skos: 'http://www.w3.org/2004/02/skos/core#',
+  dcterms: 'http://purl.org/dc/terms/',
+  '@language': { '@container': '@language' },
+};
+
+function buildSkosJsonLdObject(concept: Record<string, any>): Record<string, any> {
   const uri = concept['@id'] || '';
   const id = concept['gl:identifier'] || '';
 
   const doc: Record<string, any> = {
-    '@context': {
-      skos: 'http://www.w3.org/2004/02/skos/core#',
-      dcterms: 'http://purl.org/dc/terms/',
-      '@language': { '@container': '@language' },
-    },
     '@id': uri,
     '@type': 'skos:Concept',
     'skos:notation': id,
@@ -91,7 +92,126 @@ export function conceptJsonToSkosJsonLd(concept: Record<string, any>): string {
   if (Object.keys(definitions).length) doc['skos:definition'] = definitions;
   if (Object.keys(scopeNotes).length) doc['skos:scopeNote'] = scopeNotes;
 
-  return JSON.stringify(doc);
+  return doc;
+}
+
+export function conceptJsonToSkosJsonLd(concept: Record<string, any>): string {
+  return JSON.stringify({
+    '@context': SKOS_JSON_LD_CONTEXT,
+    ...buildSkosJsonLdObject(concept),
+  });
+}
+
+export function conceptsToSkosJsonLdGraph(concepts: Record<string, any>[]): string {
+  return JSON.stringify(
+    {
+      '@context': SKOS_JSON_LD_CONTEXT,
+      '@graph': concepts.map(buildSkosJsonLdObject),
+    },
+    null,
+    2,
+  );
+}
+
+export const CSV_COLUMNS = [
+  'termid',
+  'uri',
+  'status',
+  'section',
+  'language',
+  'term',
+  'alt_terms',
+  'definition',
+  'notes',
+  'examples',
+  'sources',
+  'source_links',
+] as const;
+
+function csvEscape(value: string): string {
+  if (/[",\r\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+function joinLines(items: string[]): string {
+  return items.filter(Boolean).join('\n');
+}
+
+function localizedLanguages(localized: Record<string, any>, languageOrder?: string[]): string[] {
+  const present = Object.keys(localized);
+  if (!languageOrder?.length) return present;
+  const ordered = languageOrder.filter(lang => present.includes(lang));
+  return ordered.concat(present.filter(lang => !ordered.includes(lang)));
+}
+
+function sourceRefString(src: Record<string, any>): string {
+  const ref = src?.['gl:origin']?.['gl:ref'];
+  if (!ref) return '';
+  return [ref['gl:source'], ref['gl:id']].filter(Boolean).join(': ');
+}
+
+function sourceLinkString(src: Record<string, any>): string {
+  return src?.['gl:origin']?.['gl:link'] || '';
+}
+
+/**
+ * Aggregate CSV export: one row per (concept × language). Columns follow the
+ * Glossarist concept-model fields. UTF-8 BOM + CRLF so Excel opens the file
+ * with correct encoding without an import wizard.
+ */
+export function conceptsToCsv(
+  concepts: Record<string, any>[],
+  opts: { languageOrder?: string[] } = {},
+): string {
+  const rows: string[] = [CSV_COLUMNS.join(',')];
+
+  for (const concept of concepts) {
+    const localized = concept['gl:localizedConcept'] || {};
+    const domains = (concept['gl:domain'] || [])
+      .map((d: any) => d['gl:conceptId'])
+      .filter(Boolean)
+      .join('; ');
+    const managedSources = concept['gl:source'] || [];
+    const shared = {
+      termid: concept['gl:identifier'] || '',
+      uri: concept['@id'] || '',
+      status: concept['gl:status'] || '',
+      section: domains,
+    };
+
+    const languages = localizedLanguages(localized, opts.languageOrder);
+    if (languages.length === 0) {
+      rows.push([shared.termid, shared.uri, shared.status, shared.section, '', '', '', '', '', '', '', ''].map(csvEscape).join(','));
+      continue;
+    }
+
+    for (const lang of languages) {
+      const lc = localized[lang] || {};
+      const designations = (lc['gl:designation'] || []).filter((d: any) => d['gl:term']);
+      const preferred = designations.find((d: any) => d['gl:normativeStatus'] === 'preferred') || designations[0];
+      const altTerms = designations.filter((d: any) => d !== preferred).map((d: any) => d['gl:term']);
+      const localizedSources = lc['gl:source']?.length ? lc['gl:source'] : managedSources;
+
+      rows.push([
+        shared.termid,
+        shared.uri,
+        shared.status,
+        shared.section,
+        lang,
+        preferred?.['gl:term'] || '',
+        altTerms.join('; '),
+        joinLines((lc['gl:definition'] || []).map((d: any) => d['gl:content'])),
+        joinLines((lc['gl:notes'] || []).map((d: any) => d['gl:content'])),
+        joinLines((lc['gl:examples'] || []).map((d: any) => d['gl:content'])),
+        localizedSources.map(sourceRefString).filter(Boolean).join('; '),
+        localizedSources.map(sourceLinkString).filter(Boolean).join('; '),
+      ].map(csvEscape).join(','));
+    }
+  }
+
+  return '\uFEFF' + rows.join('\r\n') + '\r\n';
 }
 
 export function conceptJsonToTbx(concept: Record<string, any>): string {

@@ -40,3 +40,4 @@ registerFormat({ id: 'jsonld', extension: 'jsonld',  mediaType: 'application/ld+
 registerFormat({ id: 'yaml',   extension: 'yaml',   mediaType: 'application/yaml',       label: 'YAML',        available: 'per-concept',  serialize: 'build' });
 registerFormat({ id: 'tbx',    extension: 'tbx.xml', mediaType: 'application/x-tbx',     label: 'TBX',         available: 'aggregate',    serialize: 'build' });
 registerFormat({ id: 'jsonl',  extension: 'jsonl',  mediaType: 'application/jsonl+json', label: 'JSON-Lines',  available: 'aggregate',    serialize: 'build' });
+registerFormat({ id: 'csv',    extension: 'csv',    mediaType: 'text/csv',              label: 'CSV',         available: 'aggregate',    serialize: 'build' });

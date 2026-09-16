@@ -47,6 +47,7 @@ const SNAKE_TO_CAMEL = {
   footer_nav: 'footerNav',
   footer_logo: 'footerLogo',
   news_dir: 'newsDir',
+  bulk_exports: 'bulkExports',
   // Dataset-level
   gcr_package: 'gcrPackage',
   source_repo: 'sourceRepo',

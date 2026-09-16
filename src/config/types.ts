@@ -186,6 +186,7 @@ export const FORMAT_LABELS: Record<string, string> = {
   tbx: 'TBX-XML',
   jsonl: 'JSONL',
   yaml: 'YAML',
+  csv: 'CSV (Excel)',
 };
 
 // === Pages ===
