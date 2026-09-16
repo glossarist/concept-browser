@@ -425,6 +425,26 @@ data:
 
 Or use a Glossarist GCR package — set `gcr_package` in your dataset config and the CLI downloads it automatically.
 
+## Bulk exports
+
+The build emits single-file aggregate distributions per dataset into `public/data/{id}/`:
+
+| File | Format | Contents |
+|------|--------|----------|
+| `{id}.csv` | CSV (UTF-8 BOM + CRLF, RFC 4180) | One row per concept × language — termid, uri, status, section, language, term, alt terms, definition, notes, examples, sources, source links. Opens directly in Excel. |
+| `{id}.jsonld` | SKOS JSON-LD | All concepts in one `@graph` document |
+| `{id}.ttl` | Turtle | dcat:Dataset + ConceptScheme metadata |
+
+Files from the dataset's GCR `compiled/` directory are also copied and listed. The dataset page's **Downloads** card offers everything found, unless you restrict it with `bulk_exports` in `site-config.yml`:
+
+```yaml
+bulk_exports:
+  - csv
+  - ttl
+```
+
+Values: `ttl`, `jsonld`, `csv`, `tbx`, `jsonl`, `yaml`. Absent or empty = offer all available.
+
 ## Deployment
 
 The build outputs a static site to `dist/`. Deploy it anywhere:

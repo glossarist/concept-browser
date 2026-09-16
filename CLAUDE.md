@@ -26,7 +26,7 @@ Glossarist Concept Browser (`@glossarist/concept-browser`) — a Vue 3 SPA that 
 ## Architecture
 
 ### Data Pipeline
-Source repos (listed in `datasets.yml`) → `scripts/fetch-datasets.mjs` → `.datasets/{id}/concepts/*.yaml` → `scripts/generate-data.mjs` → static files in `public/data/{id}/`. The generator now emits additional RDF artifacts: `_vocab.ttl` (vocabulary graph), `{register}.ttl` (dataset-level dcat:Dataset), `activity/{runId}.ttl` (build provenance), `agents.ttl` (contributor records), `versions.ttl` (version chain), `bib.ttl` (bibliography).
+Source repos (listed in `datasets.yml`) → `scripts/fetch-datasets.mjs` → `.datasets/{id}/concepts/*.yaml` → `scripts/generate-data.mjs` → static files in `public/data/{id}/`. The generator emits additional RDF artifacts: `_vocab.ttl` (vocabulary graph), `{register}.ttl` (dataset-level dcat:Dataset), `activity/{runId}.ttl` (build provenance), `agents.ttl` (contributor records), `versions.ttl` (version chain), `bib.ttl` (bibliography). Aggregate distributions per register: `{id}.csv` (concept × language table for Excel) and `{id}.jsonld` (single `@graph` SKOS document), listed in `manifest.bulkFormats`; site-config `bulk_exports` filters which formats the dataset page offers.
 
 ### RDF Intermediate Representation
 `src/components/concept-rdf/` contains a graph-based IR that is the single source of truth for all RDF emission. The `ConceptEmitter` walks the Concept model and populates an `RdfGraph`; the Turtle/JSON-LD writers and the UI sections builder all consume the same graph. Key design (ADRs 0001–0009):
