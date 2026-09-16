@@ -49,6 +49,15 @@ datasets:
     ref: My Vocab (2020)
     year: 2020
 
+# ── Bulk exports (optional) ──
+# Which aggregate download formats the dataset pages offer. The build always
+# generates {id}.ttl, {id}.jsonld and {id}.csv; this list only filters what
+# is shown. Values: ttl, jsonld, csv, tbx, jsonl, yaml. Absent/empty = all.
+# bulk_exports:
+#   - csv
+#   - ttl
+#   - jsonld
+
 # ── Dataset groups (optional) ──
 # Group related datasets into lineages, topics, etc.
 dataset_groups:
