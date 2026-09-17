@@ -55,24 +55,64 @@ describe('doctor — runDoctor on synthetic projects', () => {
 
   it('fails on missing datasets.yml', async () => {
     const { results } = await runDoctor(root);
-    const ymlCheck = results.find((r) => r.id === 'datasets-yml');
+    const ymlCheck = results.find((r) => r.id === 'datasets-registered');
     expect(ymlCheck.status).toBe('warn');
   });
 
   it('fails on malformed datasets.yml', async () => {
     writeFileSync(join(root, 'datasets.yml'), 'datasets: [this is broken');
     const { results, exitCode } = await runDoctor(root);
-    const ymlCheck = results.find((r) => r.id === 'datasets-yml');
+    const ymlCheck = results.find((r) => r.id === 'datasets-registered');
     expect(ymlCheck.status).toBe('fail');
     expect(exitCode).toBe(1);
   });
 
-  it('passes datasets-yml when the file parses and lists entries', async () => {
+  it('passes datasets-registered when the file parses and lists entries', async () => {
     writeDatasetsYml(root, ['foo', 'bar']);
     const { results } = await runDoctor(root);
-    const ymlCheck = results.find((r) => r.id === 'datasets-yml');
+    const ymlCheck = results.find((r) => r.id === 'datasets-registered');
     expect(ymlCheck.status).toBe('pass');
     expect(ymlCheck.label).toContain('2 dataset(s)');
+    expect(ymlCheck.label).toContain('datasets.yml');
+  });
+
+  it('registers datasets from site-config.yml when datasets.yml is absent', async () => {
+    writeFileSync(join(root, 'site-config.yml'), 'datasets:\n  - id: viml-2022\n    local_path: datasets/viml-2022\n');
+    mkdirSync(join(root, 'datasets', 'viml-2022'), { recursive: true });
+    stubGenerated(root, ['viml-2022']);
+    const { results, exitCode } = await runDoctor(root);
+    const reg = results.find((r) => r.id === 'datasets-registered');
+    expect(reg.status).toBe('pass');
+    expect(reg.label).toContain('site-config.yml');
+    const fetched = results.find((r) => r.id === 'datasets-fetched');
+    expect(fetched.status).toBe('pass');
+    expect(exitCode).toBe(0);
+  });
+
+  it('fails datasets-fetched when a site-config local_path is missing', async () => {
+    writeFileSync(join(root, 'site-config.yml'), 'datasets:\n  - id: viml-2022\n    local_path: datasets/viml-2022\n');
+    const { results, exitCode } = await runDoctor(root);
+    const fetched = results.find((r) => r.id === 'datasets-fetched');
+    expect(fetched.status).toBe('fail');
+    expect(fetched.detail).toContain('viml-2022');
+    expect(exitCode).toBe(1);
+  });
+
+  it('reports generated manifests for site-config datasets', async () => {
+    writeFileSync(join(root, 'site-config.yml'), 'datasets:\n  - id: viml-2022\n    local_path: datasets/viml-2022\n');
+    mkdirSync(join(root, 'datasets', 'viml-2022'), { recursive: true });
+    stubGenerated(root, ['viml-2022']);
+    const { results } = await runDoctor(root);
+    const gen = results.find((r) => r.id === 'datasets-generated');
+    expect(gen.status).toBe('pass');
+  });
+
+  it('fails on malformed site-config.yml', async () => {
+    writeFileSync(join(root, 'site-config.yml'), 'datasets: [broken');
+    const { results, exitCode } = await runDoctor(root);
+    const reg = results.find((r) => r.id === 'datasets-registered');
+    expect(reg.status).toBe('fail');
+    expect(exitCode).toBe(1);
   });
 
   it('fails when registered datasets are not fetched', async () => {
@@ -125,7 +165,7 @@ describe('doctor — runDoctor on synthetic projects', () => {
   it('does not crash when datasets.yml lists zero datasets', async () => {
     writeFileSync(join(root, 'datasets.yml'), 'datasets: []\n');
     const { results } = await runDoctor(root);
-    const ymlCheck = results.find((r) => r.id === 'datasets-yml');
+    const ymlCheck = results.find((r) => r.id === 'datasets-registered');
     expect(ymlCheck.status).toBe('warn');
   });
 });
