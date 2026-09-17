@@ -22,7 +22,9 @@ export const NODE_MIN_MAJOR = 18;
 /**
  * @typedef {'pass'|'fail'|'warn'} CheckStatus
  * @typedef {{ id: string, label: string, status: CheckStatus, detail?: string, hint?: string }} CheckResult
- * @typedef {{ cwd: string, pkgRoot: string, datasetsYml?: any, datasetsYmlError?: string }} DoctorContext
+ * @typedef {{ id: string, localPath?: string }} RegisteredDataset
+ * @typedef {{ registered: RegisteredDataset[], source: 'datasets.yml'|'site-config.yml'|null, error?: string }} DatasetRegistry
+ * @typedef {{ cwd: string, pkgRoot: string, datasetsYml?: any, datasetsYmlError?: string, registry: DatasetRegistry }} DoctorContext
  */
 
 /**
@@ -63,8 +65,12 @@ function nodeVersionCheck() {
 }
 
 function packageDepsCheck(ctx) {
-  const nm = resolve(ctx.pkgRoot, 'node_modules');
-  if (!existsSync(nm)) {
+  // When installed as a library, the CLI's deps may be hoisted into the
+  // consumer's node_modules or nested under the package's own — accept
+  // either. Checking only PKG_ROOT (the installed package dir) reported
+  // false "node_modules missing" in consumer deployments.
+  const roots = [resolve(ctx.cwd, 'node_modules'), resolve(ctx.pkgRoot, 'node_modules')];
+  if (!roots.some((nm) => existsSync(nm))) {
     return {
       id: 'package-deps',
       label: 'Dependencies installed',
@@ -74,7 +80,7 @@ function packageDepsCheck(ctx) {
     };
   }
   const required = ['vue', 'vue-router', 'pinia', 'vite', 'n3', 'glossarist', '@rdfjs/dataset'];
-  const missing = required.filter((p) => !existsSync(join(nm, p)));
+  const missing = required.filter((p) => !roots.some((nm) => existsSync(join(nm, p))));
   if (missing.length) {
     return {
       id: 'package-deps',
@@ -87,67 +93,103 @@ function packageDepsCheck(ctx) {
   return { id: 'package-deps', label: 'Dependencies installed', status: 'pass' };
 }
 
-function datasetsYmlCheck(ctx) {
-  const path = resolve(ctx.cwd, 'datasets.yml');
-  if (!existsSync(path)) {
-    return {
-      id: 'datasets-yml',
-      label: 'datasets.yml present',
-      status: 'warn',
-      detail: 'file not found at project root',
-      hint: 'datasets.yml registers every dataset the browser serves',
-    };
+/**
+ * Dataset registrations come from either `datasets.yml` (source repos to
+ * fetch) or `site-config.yml` (deployment sites, entries carry
+ * `local_path` to in-repo YAML). Doctor only knew the former, so
+ * site-config deployments reported "no datasets registered".
+ * @returns {{ registered: Array<{id: string, localPath?: string}>, source: 'datasets.yml'|'site-config.yml'|null, error?: string }}
+ */
+export function resolveDatasetRegistry(cwd, fileError = undefined) {
+  if (fileError) return { registered: [], source: 'datasets.yml', error: fileError };
+  const ymlPath = resolve(cwd, 'datasets.yml');
+  if (existsSync(ymlPath)) {
+    const list = normalizeRegistry(yaml.load(readFileSync(ymlPath, 'utf8')));
+    return { registered: list, source: 'datasets.yml' };
   }
-  if (ctx.datasetsYmlError) {
+  const sitePath = resolve(cwd, 'site-config.yml');
+  if (existsSync(sitePath)) {
+    try {
+      const list = normalizeRegistry(yaml.load(readFileSync(sitePath, 'utf8')));
+      return { registered: list, source: 'site-config.yml' };
+    } catch (err) {
+      return { registered: [], source: 'site-config.yml', error: err.message };
+    }
+  }
+  return { registered: [], source: null };
+}
+
+function normalizeRegistry(doc) {
+  const datasets = doc?.datasets;
+  if (!Array.isArray(datasets)) return [];
+  return datasets
+    .filter((d) => d && typeof d === 'object' && d.id)
+    .map((d) => ({ id: String(d.id), localPath: d.local_path ?? d.localPath }));
+}
+
+function datasetsRegisteredCheck(ctx) {
+  if (ctx.registry.error) {
     return {
-      id: 'datasets-yml',
-      label: 'datasets.yml parses',
+      id: 'datasets-registered',
+      label: `${ctx.registry.source} parses`,
       status: 'fail',
-      detail: ctx.datasetsYmlError,
+      detail: ctx.registry.error,
       hint: 'fix the YAML syntax error',
     };
   }
-  const datasets = ctx.datasetsYml?.datasets;
-  if (!Array.isArray(datasets) || datasets.length === 0) {
+  if (!ctx.registry.source) {
     return {
-      id: 'datasets-yml',
-      label: 'datasets.yml lists datasets',
+      id: 'datasets-registered',
+      label: 'Dataset registry present',
       status: 'warn',
-      detail: '`datasets` key is empty or missing',
+      detail: 'neither datasets.yml nor site-config.yml found at project root',
+      hint: 'datasets.yml / site-config.yml register every dataset the browser serves',
+    };
+  }
+  if (ctx.registry.registered.length === 0) {
+    return {
+      id: 'datasets-registered',
+      label: 'Dataset registry lists datasets',
+      status: 'warn',
+      detail: `\`datasets\` key is empty or missing in ${ctx.registry.source}`,
       hint: 'add at least one dataset entry; see docs/adding-a-dataset.md',
     };
   }
   return {
-    id: 'datasets-yml',
-    label: `datasets.yml lists ${datasets.length} dataset(s)`,
+    id: 'datasets-registered',
+    label: `${ctx.registry.source} lists ${ctx.registry.registered.length} dataset(s)`,
     status: 'pass',
   };
 }
 
 function datasetsFetchedCheck(ctx) {
-  const datasets = ctx.datasetsYml?.datasets ?? [];
-  if (!datasets.length) {
+  const datasets = ctx.registry.registered;
+  if (!ctx.registry.source || !datasets.length) {
     return { id: 'datasets-fetched', label: 'Source datasets fetched', status: 'warn', detail: 'no datasets registered' };
   }
-  const dotDatasets = resolve(ctx.cwd, '.datasets');
+  // site-config deployments keep sources in-repo at local_path; the
+  // datasets.yml flow fetches source repos into .datasets/{id}/concepts.
   const missing = datasets
-    .filter((d) => !existsSync(join(dotDatasets, d.id, 'concepts')))
+    .filter((d) => {
+      if (d.localPath) return !existsSync(resolve(ctx.cwd, d.localPath));
+      return !existsSync(join(resolve(ctx.cwd, '.datasets'), d.id, 'concepts'));
+    })
     .map((d) => d.id);
   if (missing.length) {
     return {
       id: 'datasets-fetched',
       label: 'Source datasets fetched',
       status: 'fail',
-      detail: `.datasets/ missing: ${missing.join(', ')}`,
-      hint: 'run `npm run fetch-datasets`',
+      detail: `dataset sources missing: ${missing.join(', ')}`,
+      hint: 'run `npm run fetch-datasets` (or check local_path entries in site-config.yml)',
     };
   }
   return { id: 'datasets-fetched', label: 'Source datasets fetched', status: 'pass' };
 }
 
 function datasetsGeneratedCheck(ctx) {
-  const datasets = ctx.datasetsYml?.datasets ?? [];
-  if (!datasets.length) {
+  const datasets = ctx.registry.registered;
+  if (!ctx.registry.source || !datasets.length) {
     return { id: 'datasets-generated', label: 'Generated data present', status: 'warn', detail: 'no datasets registered' };
   }
   const publicData = resolve(ctx.cwd, 'public', 'data');
@@ -256,7 +298,7 @@ function jsonldContextCheck(ctx) {
 export const CHECKS = [
   safe('node-version', nodeVersionCheck),
   safe('package-deps', packageDepsCheck),
-  safe('datasets-yml', datasetsYmlCheck),
+  safe('datasets-registered', datasetsRegisteredCheck),
   safe('datasets-fetched', datasetsFetchedCheck),
   safe('datasets-generated', datasetsGeneratedCheck),
   safe('public-datasets-json', publicDatasetsJsonCheck),
@@ -280,7 +322,13 @@ export async function runDoctor(cwd = process.cwd()) {
     }
   }
   /** @type {DoctorContext} */
-  const ctx = { cwd, pkgRoot: PKG_ROOT, datasetsYml, datasetsYmlError };
+  const ctx = {
+    cwd,
+    pkgRoot: PKG_ROOT,
+    datasetsYml,
+    datasetsYmlError,
+    registry: resolveDatasetRegistry(cwd, datasetsYmlError),
+  };
 
   const results = [];
   for (const check of CHECKS) {
