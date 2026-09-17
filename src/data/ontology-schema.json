@@ -69,8 +69,8 @@
       "iri": "https://www.glossarist.org/ontologies/Designation",
       "compact": "gloss:Designation",
       "label": "Designation",
-      "comment": "Abstract base for all designation types. A designation is both a gloss:Designation and a skosxl:Label. The xl:literalForm carries the designation text. Corresponds to Designation::Base in glossarist-ruby.",
-      "subClassOf": "xl:Label",
+      "comment": "Abstract base for all designation types. A designation is both a gloss:Designation and a skosxl:Label. The skosxl:literalForm carries the designation text. Corresponds to Designation::Base in glossarist-ruby.",
+      "subClassOf": "skosxl:Label",
       "disjointWith": null,
       "children": [
         "gloss:Expression",
@@ -79,7 +79,7 @@
         "gloss:Suffix"
       ],
       "ancestors": [
-        "xl:Label"
+        "skosxl:Label"
       ]
     },
     "gloss:Expression": {
@@ -94,7 +94,7 @@
       ],
       "ancestors": [
         "gloss:Designation",
-        "xl:Label"
+        "skosxl:Label"
       ]
     },
     "gloss:Abbreviation": {
@@ -108,7 +108,7 @@
       "ancestors": [
         "gloss:Expression",
         "gloss:Designation",
-        "xl:Label"
+        "skosxl:Label"
       ]
     },
     "gloss:Symbol": {
@@ -124,7 +124,7 @@
       ],
       "ancestors": [
         "gloss:Designation",
-        "xl:Label"
+        "skosxl:Label"
       ]
     },
     "gloss:LetterSymbol": {
@@ -138,7 +138,7 @@
       "ancestors": [
         "gloss:Symbol",
         "gloss:Designation",
-        "xl:Label"
+        "skosxl:Label"
       ]
     },
     "gloss:GraphicalSymbol": {
@@ -152,7 +152,7 @@
       "ancestors": [
         "gloss:Symbol",
         "gloss:Designation",
-        "xl:Label"
+        "skosxl:Label"
       ]
     },
     "gloss:Prefix": {
@@ -165,7 +165,7 @@
       "children": [],
       "ancestors": [
         "gloss:Designation",
-        "xl:Label"
+        "skosxl:Label"
       ]
     },
     "gloss:Suffix": {
@@ -178,7 +178,7 @@
       "children": [],
       "ancestors": [
         "gloss:Designation",
-        "xl:Label"
+        "skosxl:Label"
       ]
     },
     "gloss:Pronunciation": {
@@ -235,11 +235,53 @@
       "iri": "https://www.glossarist.org/ontologies/RelatedConcept",
       "compact": "gloss:RelatedConcept",
       "label": "Related Concept",
-      "comment": "A concept with a typed relationship (deprecates, broader, equivalent, etc.).",
+      "comment": "A concept with a typed relationship (deprecates, broader, equivalent, etc.). Binary: one source concept, one target concept via a ConceptRef. For one-to-many partitive decompositions with plurality markers or open/closed enumeration, use gloss:PartitiveHyperedge.",
       "subClassOf": null,
       "disjointWith": null,
       "children": [],
       "ancestors": []
+    },
+    "gloss:PartitiveHyperedge": {
+      "iri": "https://www.glossarist.org/ontologies/PartitiveHyperedge",
+      "compact": "gloss:PartitiveHyperedge",
+      "label": "Partitive Hyperedge",
+      "comment": "A one-to-many partitive decomposition: one comprehensive (whole) concept related to one or more parts as a SINGLE relationship. Used when the source diagram depicts a partitive rake whose membership or notation is jointly significant — i.e. the decomposition cannot be faithfully split into binary RelatedConcept edges without losing invariants (which comprehensive a part belongs to, the plurality of the rake, the completeness of the enumeration). Independent of gloss:hasRelatedConcept. A concept may have both binary related entries and partitive hyperedges.",
+      "subClassOf": null,
+      "disjointWith": null,
+      "children": [],
+      "ancestors": []
+    },
+    "gloss:PartitiveEnumeration": {
+      "iri": "https://www.glossarist.org/ontologies/PartitiveEnumeration",
+      "compact": "gloss:PartitiveEnumeration",
+      "label": "Partitive Enumeration",
+      "comment": "Whether the parts array of a PartitiveHyperedge constitutes the COMPLETE decomposition of the comprehensive (closed) or only a PARTIAL one (open). Orthogonal to PluralityMarker.",
+      "subClassOf": null,
+      "disjointWith": null,
+      "children": [],
+      "ancestors": []
+    },
+    "gloss:PluralityMarker": {
+      "iri": "https://www.glossarist.org/ontologies/PluralityMarker",
+      "compact": "gloss:PluralityMarker",
+      "label": "Plurality Marker",
+      "comment": "Diagram notation flags that travel with a PartitiveHyperedge so the rendering layer can reproduce the source diagram's notation (close-set double line, dashed line). Originates from VIM (International Vocabulary of Metrology) concept-relationship diagrams. Orthogonal to PartitiveEnumeration.",
+      "subClassOf": null,
+      "disjointWith": null,
+      "children": [],
+      "ancestors": []
+    },
+    "gloss:DesignationRelationship": {
+      "iri": "https://www.glossarist.org/ontologies/DesignationRelationship",
+      "compact": "gloss:DesignationRelationship",
+      "label": "Designation Relationship",
+      "comment": "A designation-level relationship between two designations of the same concept (ISO 10241-1). Unlike RelatedConcept (which links concepts by identifier), DesignationRelationship links designations by their text. Types include abbreviated_form_for and short_form_for.",
+      "subClassOf": "owl:Thing",
+      "disjointWith": null,
+      "children": [],
+      "ancestors": [
+        "owl:Thing"
+      ]
     },
     "gloss:ConceptDate": {
       "iri": "https://www.glossarist.org/ontologies/ConceptDate",
@@ -285,7 +327,7 @@
       "iri": "https://www.glossarist.org/ontologies/ConceptRef",
       "compact": "gloss:ConceptRef",
       "label": "Concept Reference",
-      "comment": "A reference to a concept in another registry or vocabulary. Has source and id only — no version, locality, or link. Used as the ref of RelatedConcept. Corresponds to ConceptRef in glossarist-ruby.",
+      "comment": "A reference to a concept in another registry or vocabulary. Has source, id, and optional text. No version, locality, or link. Used as the ref of RelatedConcept. Corresponds to ConceptRef in glossarist-ruby.",
       "subClassOf": null,
       "disjointWith": null,
       "children": [],
@@ -301,6 +343,26 @@
       "children": [],
       "ancestors": []
     },
+    "gloss:DatasetRegister": {
+      "iri": "https://www.glossarist.org/ontologies/DatasetRegister",
+      "compact": "gloss:DatasetRegister",
+      "label": "Dataset Register",
+      "comment": "Self-describing dataset metadata (register.yaml). Each dataset directory contains a register.yaml that carries identity, structure, and relationship metadata. Corresponds to DatasetRegister in the Lutaml model.",
+      "subClassOf": null,
+      "disjointWith": null,
+      "children": [],
+      "ancestors": []
+    },
+    "gloss:Section": {
+      "iri": "https://www.glossarist.org/ontologies/Section",
+      "compact": "gloss:Section",
+      "label": "Section",
+      "comment": "A structural division within a dataset. Sections can be hierarchical: a section may contain child sections (e.g. Part > Section > Subsection) via gloss:hasChildSection.",
+      "subClassOf": null,
+      "disjointWith": null,
+      "children": [],
+      "ancestors": []
+    },
     "gloss:CustomLocality": {
       "iri": "https://www.glossarist.org/ontologies/CustomLocality",
       "compact": "gloss:CustomLocality",
@@ -311,17 +373,82 @@
       "children": [],
       "ancestors": []
     },
-    "gloss:DesignationRelationship": {
-      "iri": "https://www.glossarist.org/ontologies/DesignationRelationship",
-      "compact": "gloss:DesignationRelationship",
-      "label": "Designation Relationship",
-      "comment": "A typed relationship between designations (e.g. abbreviated_form_for, short_form_for). The target is a designation string, not a concept reference.",
-      "subClassOf": "gloss:RelatedConcept",
+    "gloss:NonVerbalEntity": {
+      "iri": "https://www.glossarist.org/ontologies/NonVerbalEntity",
+      "compact": "gloss:NonVerbalEntity",
+      "label": "Non-Verbal Entity",
+      "comment": "Abstract base for all non-verbal representation entities (ISO 10241-1 §6.5). Carries the shared accessibility + provenance payload: caption, description, alt, sources.",
+      "subClassOf": null,
+      "disjointWith": null,
+      "children": [
+        "gloss:SharedNonVerbalEntity"
+      ],
+      "ancestors": []
+    },
+    "gloss:SharedNonVerbalEntity": {
+      "iri": "https://www.glossarist.org/ontologies/SharedNonVerbalEntity",
+      "compact": "gloss:SharedNonVerbalEntity",
+      "label": "Shared Non-Verbal Entity",
+      "comment": "A non-verbal entity that has stable dataset-wide identity. Figure, Table, and Formula inherit from this. Distinct from NonVerbRep, which is concept-local and positional.",
+      "subClassOf": "gloss:NonVerbalEntity",
+      "disjointWith": null,
+      "children": [
+        "gloss:Figure",
+        "gloss:Table",
+        "gloss:Formula"
+      ],
+      "ancestors": [
+        "gloss:NonVerbalEntity"
+      ]
+    },
+    "gloss:Figure": {
+      "iri": "https://www.glossarist.org/ontologies/Figure",
+      "compact": "gloss:Figure",
+      "label": "Figure",
+      "comment": "A dataset-level figure entity with localized caption/alt and multiple image variants. May contain recursive subfigures.",
+      "subClassOf": "gloss:SharedNonVerbalEntity",
       "disjointWith": null,
       "children": [],
       "ancestors": [
-        "gloss:RelatedConcept"
+        "gloss:SharedNonVerbalEntity",
+        "gloss:NonVerbalEntity"
       ]
+    },
+    "gloss:Table": {
+      "iri": "https://www.glossarist.org/ontologies/Table",
+      "compact": "gloss:Table",
+      "label": "Table",
+      "comment": "A dataset-level table entity with localized content.",
+      "subClassOf": "gloss:SharedNonVerbalEntity",
+      "disjointWith": null,
+      "children": [],
+      "ancestors": [
+        "gloss:SharedNonVerbalEntity",
+        "gloss:NonVerbalEntity"
+      ]
+    },
+    "gloss:Formula": {
+      "iri": "https://www.glossarist.org/ontologies/Formula",
+      "compact": "gloss:Formula",
+      "label": "Formula",
+      "comment": "A dataset-level formula entity with localized expression.",
+      "subClassOf": "gloss:SharedNonVerbalEntity",
+      "disjointWith": null,
+      "children": [],
+      "ancestors": [
+        "gloss:SharedNonVerbalEntity",
+        "gloss:NonVerbalEntity"
+      ]
+    },
+    "gloss:FigureImage": {
+      "iri": "https://www.glossarist.org/ontologies/FigureImage",
+      "compact": "gloss:FigureImage",
+      "label": "Figure Image",
+      "comment": "One image variant within a Figure (format, role, dimensions).",
+      "subClassOf": null,
+      "disjointWith": null,
+      "children": [],
+      "ancestors": []
     }
   },
   "classHierarchyRoots": [
@@ -335,6 +462,9 @@
     "gloss:ConceptSource",
     "gloss:Reference",
     "gloss:RelatedConcept",
+    "gloss:PartitiveHyperedge",
+    "gloss:PartitiveEnumeration",
+    "gloss:PluralityMarker",
     "gloss:DesignationRelationship",
     "gloss:ConceptDate",
     "gloss:NonVerbalRepresentation",
@@ -342,7 +472,11 @@
     "gloss:CitationRef",
     "gloss:ConceptRef",
     "gloss:Locality",
-    "gloss:CustomLocality"
+    "gloss:DatasetRegister",
+    "gloss:Section",
+    "gloss:CustomLocality",
+    "gloss:NonVerbalEntity",
+    "gloss:FigureImage"
   ],
   "properties": {
     "gloss:hasLocalization": {
@@ -393,19 +527,90 @@
       "rangeUnion": null,
       "inverseOf": null
     },
+    "gloss:tag": {
+      "iri": "https://www.glossarist.org/ontologies/tag",
+      "compact": "gloss:tag",
+      "label": "tag",
+      "comment": "Organizational tag for grouping and filtering concepts (not rendered as a terminological domain).",
+      "type": "datatype",
+      "domain": "gloss:Concept",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
     "gloss:hasRelatedConcept": {
       "iri": "https://www.glossarist.org/ontologies/hasRelatedConcept",
       "compact": "gloss:hasRelatedConcept",
       "label": "has related concept",
-      "comment": "DATA: Typed semantic relationship — applicable at concept, localization, and designation levels.",
+      "comment": "DATA: Typed binary semantic relationship — applicable at concept and localization levels.",
       "type": "object",
       "domain": "[",
       "domainUnion": [
         "gloss:Concept",
-        "gloss:LocalizedConcept",
-        "gloss:Designation"
+        "gloss:LocalizedConcept"
       ],
       "range": "gloss:RelatedConcept",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:hasPartitiveHyperedge": {
+      "iri": "https://www.glossarist.org/ontologies/hasPartitiveHyperedge",
+      "compact": "gloss:hasPartitiveHyperedge",
+      "label": "has partitive hyperedge",
+      "comment": "DATA: One-to-many partitive decomposition on a managed concept. Concept-level only — hyperedges are not localized.",
+      "type": "object",
+      "domain": "gloss:Concept",
+      "domainUnion": null,
+      "range": "gloss:PartitiveHyperedge",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:comprehensive": {
+      "iri": "https://www.glossarist.org/ontologies/comprehensive",
+      "compact": "gloss:comprehensive",
+      "label": "comprehensive",
+      "comment": "The whole concept that owns the parts in a partitive hyperedge. Exactly one per hyperedge.",
+      "type": "object",
+      "domain": "gloss:PartitiveHyperedge",
+      "domainUnion": null,
+      "range": "gloss:ConceptRef",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:hasPart": {
+      "iri": "https://www.glossarist.org/ontologies/hasPart",
+      "compact": "gloss:hasPart",
+      "label": "has part",
+      "comment": "A partitive member of a hyperedge. A hyperedge has one or more parts.",
+      "type": "object",
+      "domain": "gloss:PartitiveHyperedge",
+      "domainUnion": null,
+      "range": "gloss:ConceptRef",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:enumeration": {
+      "iri": "https://www.glossarist.org/ontologies/enumeration",
+      "compact": "gloss:enumeration",
+      "label": "enumeration",
+      "comment": "Whether the encoded parts constitute a complete (closed) or partial (open) decomposition.",
+      "type": "object",
+      "domain": "gloss:PartitiveHyperedge",
+      "domainUnion": null,
+      "range": "gloss:PartitiveEnumeration",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:hasPluralityMarker": {
+      "iri": "https://www.glossarist.org/ontologies/hasPluralityMarker",
+      "compact": "gloss:hasPluralityMarker",
+      "label": "has plurality marker",
+      "comment": "Diagram notation flag on a hyperedge (double for close-set double line, dashed for uncertainty).",
+      "type": "object",
+      "domain": "gloss:PartitiveHyperedge",
+      "domainUnion": null,
+      "range": "gloss:PluralityMarker",
       "rangeUnion": null,
       "inverseOf": null
     },
@@ -518,7 +723,31 @@
       "iri": "https://www.glossarist.org/ontologies/hasExample",
       "compact": "gloss:hasExample",
       "label": "has example",
-      "comment": "Links a localized concept to an illustrative example.",
+      "comment": "Links a localized concept to a concept-level illustrative example.",
+      "type": "object",
+      "domain": "gloss:LocalizedConcept",
+      "domainUnion": null,
+      "range": "gloss:DetailedDefinition",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:hasScopedExample": {
+      "iri": "https://www.glossarist.org/ontologies/hasScopedExample",
+      "compact": "gloss:hasScopedExample",
+      "label": "has scoped example",
+      "comment": "Links a definition, note, or annotation to a scoped example nested inside it (VIM 1993 style). Distinct from gloss:hasExample, which links a LocalizedConcept to a concept-level example. MECE: concept- level examples use hasExample; definition/note-scoped examples use hasScopedExample.",
+      "type": "object",
+      "domain": "gloss:DetailedDefinition",
+      "domainUnion": null,
+      "range": "gloss:DetailedDefinition",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:hasAnnotation": {
+      "iri": "https://www.glossarist.org/ontologies/hasAnnotation",
+      "compact": "gloss:hasAnnotation",
+      "label": "has annotation",
+      "comment": "Editorial annotations about the definition or entry — distinct from notes, which supplement the concept.",
       "type": "object",
       "domain": "gloss:LocalizedConcept",
       "domainUnion": null,
@@ -722,6 +951,54 @@
       "rangeUnion": null,
       "inverseOf": null
     },
+    "gloss:hasDesignationRelationship": {
+      "iri": "https://www.glossarist.org/ontologies/hasDesignationRelationship",
+      "compact": "gloss:hasDesignationRelationship",
+      "label": "has designation relationship",
+      "comment": "Links a designation to a designation-level relationship (e.g. abbreviated_form_for, short_form_for).",
+      "type": "object",
+      "domain": "gloss:Designation",
+      "domainUnion": null,
+      "range": "gloss:DesignationRelationship",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:designationRelationshipType": {
+      "iri": "https://www.glossarist.org/ontologies/designationRelationshipType",
+      "compact": "gloss:designationRelationshipType",
+      "label": "designation relationship type",
+      "comment": "The type of designation relationship.",
+      "type": "object",
+      "domain": "gloss:DesignationRelationship",
+      "domainUnion": null,
+      "range": "skos:Concept",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:designationRelationshipContent": {
+      "iri": "https://www.glossarist.org/ontologies/designationRelationshipContent",
+      "compact": "gloss:designationRelationshipContent",
+      "label": "designation relationship content",
+      "comment": "Free-text description of the designation relationship.",
+      "type": "datatype",
+      "domain": "gloss:DesignationRelationship",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:relationshipTarget": {
+      "iri": "https://www.glossarist.org/ontologies/relationshipTarget",
+      "compact": "gloss:relationshipTarget",
+      "label": "relationship target",
+      "comment": "The target designation text that this designation relates to.",
+      "type": "datatype",
+      "domain": "gloss:DesignationRelationship",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
     "gloss:prefix": {
       "iri": "https://www.glossarist.org/ontologies/prefix",
       "compact": "gloss:prefix",
@@ -813,11 +1090,11 @@
       "iri": "https://www.glossarist.org/ontologies/image",
       "compact": "gloss:image",
       "label": "image",
-      "comment": "URI to the graphical symbol image.",
-      "type": "datatype",
-      "domain": "gloss:GraphicalSymbol",
+      "comment": "An image variant of a Figure.",
+      "type": "object",
+      "domain": "gloss:Figure",
       "domainUnion": null,
-      "range": "xsd:anyURI",
+      "range": "gloss:FigureImage",
       "rangeUnion": null,
       "inverseOf": null
     },
@@ -900,6 +1177,18 @@
       "comment": "Free-text description of the relationship.",
       "type": "datatype",
       "domain": "gloss:RelatedConcept",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:hyperedgeContent": {
+      "iri": "https://www.glossarist.org/ontologies/hyperedgeContent",
+      "compact": "gloss:hyperedgeContent",
+      "label": "hyperedge content",
+      "comment": "Free-form text associated with a PartitiveHyperedge, e.g. a diagram caption or label.",
+      "type": "datatype",
+      "domain": "gloss:PartitiveHyperedge",
       "domainUnion": null,
       "range": "xsd:string",
       "rangeUnion": null,
@@ -1001,6 +1290,18 @@
       "rangeUnion": null,
       "inverseOf": null
     },
+    "gloss:sourceId": {
+      "iri": "https://www.glossarist.org/ontologies/sourceId",
+      "compact": "gloss:sourceId",
+      "label": "source id",
+      "comment": "Optional stable identifier for the source, used by inline `{{cite:id}}` references. Local to the concept; must be unique within the concept's sources list.",
+      "type": "datatype",
+      "domain": "gloss:ConceptSource",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
     "gloss:sourceType": {
       "iri": "https://www.glossarist.org/ontologies/sourceType",
       "compact": "gloss:sourceType",
@@ -1046,6 +1347,18 @@
       "domain": "gloss:ConceptSource",
       "domainUnion": null,
       "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:sourcedFrom": {
+      "iri": "https://www.glossarist.org/ontologies/sourcedFrom",
+      "compact": "gloss:sourcedFrom",
+      "label": "sourced from",
+      "comment": "Citations to the documents that this source was itself sourced from. Only valid on lineage sources; authoritative sources are terminal. When present, status and modification describe how origin relates to these upstream sources.",
+      "type": "object",
+      "domain": "gloss:ConceptSource",
+      "domainUnion": null,
+      "range": "gloss:Citation",
       "rangeUnion": null,
       "inverseOf": null
     },
@@ -1150,6 +1463,18 @@
       "compact": "gloss:conceptRefId",
       "label": "concept ref identifier",
       "comment": "Concept identifier within the registry.",
+      "type": "datatype",
+      "domain": "gloss:ConceptRef",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:conceptRefText": {
+      "iri": "https://www.glossarist.org/ontologies/conceptRefText",
+      "compact": "gloss:conceptRefText",
+      "label": "concept ref text",
+      "comment": "Target designation text for lexical relationships (e.g. close_match, abbreviated_form_for).",
       "type": "datatype",
       "domain": "gloss:ConceptRef",
       "domainUnion": null,
@@ -1633,39 +1958,363 @@
       "rangeUnion": null,
       "inverseOf": "gloss:abbreviatedFormFor"
     },
-    "gloss:relationshipTarget": {
-      "iri": "https://www.glossarist.org/ontologies/relationshipTarget",
-      "compact": "gloss:relationshipTarget",
-      "label": "relationship target",
-      "comment": "The target designation text for a designation-level relationship (string, not a concept ref).",
+    "gloss:datasetId": {
+      "iri": "https://www.glossarist.org/ontologies/datasetId",
+      "compact": "gloss:datasetId",
+      "label": "dataset id",
+      "comment": "Dataset identifier, unique within the deployment.",
       "type": "datatype",
-      "domain": "gloss:DesignationRelationship",
+      "domain": "gloss:DatasetRegister",
       "domainUnion": null,
       "range": "xsd:string",
       "rangeUnion": null,
       "inverseOf": null
     },
-    "gloss:conceptRefText": {
-      "iri": "https://www.glossarist.org/ontologies/conceptRefText",
-      "compact": "gloss:conceptRefText",
-      "label": "concept ref text",
-      "comment": "Human-readable text label for the referenced concept (e.g. the term or designation).",
+    "gloss:datasetRef": {
+      "iri": "https://www.glossarist.org/ontologies/datasetRef",
+      "compact": "gloss:datasetRef",
+      "label": "dataset ref",
+      "comment": "Publication reference string (e.g. OIML V 1:2022).",
       "type": "datatype",
-      "domain": "gloss:ConceptRef",
+      "domain": "gloss:DatasetRegister",
       "domainUnion": null,
       "range": "xsd:string",
       "rangeUnion": null,
       "inverseOf": null
     },
-    "gloss:hasAnnotation": {
-      "iri": "https://www.glossarist.org/ontologies/hasAnnotation",
-      "compact": "gloss:hasAnnotation",
-      "label": "has annotation",
-      "comment": "Links a localized concept to an annotation (editorial or explanatory note).",
+    "gloss:datasetYear": {
+      "iri": "https://www.glossarist.org/ontologies/datasetYear",
+      "compact": "gloss:datasetYear",
+      "label": "dataset year",
+      "comment": "Publication year.",
+      "type": "datatype",
+      "domain": "gloss:DatasetRegister",
+      "domainUnion": null,
+      "range": "xsd:integer",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:datasetUrn": {
+      "iri": "https://www.glossarist.org/ontologies/datasetUrn",
+      "compact": "gloss:datasetUrn",
+      "label": "dataset URN",
+      "comment": "Primary URN for the dataset.",
+      "type": "datatype",
+      "domain": "gloss:DatasetRegister",
+      "domainUnion": null,
+      "range": "xsd:anyURI",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:datasetUrnAlias": {
+      "iri": "https://www.glossarist.org/ontologies/datasetUrnAlias",
+      "compact": "gloss:datasetUrnAlias",
+      "label": "dataset URN alias",
+      "comment": "Additional URN patterns for resolution.",
+      "type": "datatype",
+      "domain": "gloss:DatasetRegister",
+      "domainUnion": null,
+      "range": "xsd:anyURI",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:datasetRefAlias": {
+      "iri": "https://www.glossarist.org/ontologies/datasetRefAlias",
+      "compact": "gloss:datasetRefAlias",
+      "label": "dataset ref alias",
+      "comment": "Alternative publication references.",
+      "type": "datatype",
+      "domain": "gloss:DatasetRegister",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:datasetStatus": {
+      "iri": "https://www.glossarist.org/ontologies/datasetStatus",
+      "compact": "gloss:datasetStatus",
+      "label": "dataset status",
+      "comment": "Dataset lifecycle status: current, superseded, or retired.",
+      "type": "datatype",
+      "domain": "gloss:DatasetRegister",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:supersedesDataset": {
+      "iri": "https://www.glossarist.org/ontologies/supersedesDataset",
+      "compact": "gloss:supersedesDataset",
+      "label": "supersedes dataset",
+      "comment": "ID of the dataset edition that this one supersedes.",
+      "type": "datatype",
+      "domain": "gloss:DatasetRegister",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:owner": {
+      "iri": "https://www.glossarist.org/ontologies/owner",
+      "compact": "gloss:owner",
+      "label": "owner",
+      "comment": "Owning organization (e.g. ISO, IEC, OIML).",
+      "type": "datatype",
+      "domain": "gloss:DatasetRegister",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:sourceRepo": {
+      "iri": "https://www.glossarist.org/ontologies/sourceRepo",
+      "compact": "gloss:sourceRepo",
+      "label": "source repository",
+      "comment": "URL of the source repository.",
+      "type": "datatype",
+      "domain": "gloss:DatasetRegister",
+      "domainUnion": null,
+      "range": "xsd:anyURI",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:datasetLanguage": {
+      "iri": "https://www.glossarist.org/ontologies/datasetLanguage",
+      "compact": "gloss:datasetLanguage",
+      "label": "dataset language",
+      "comment": "ISO 639-2 language code available in this dataset.",
+      "type": "datatype",
+      "domain": "gloss:DatasetRegister",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:languageOrder": {
+      "iri": "https://www.glossarist.org/ontologies/languageOrder",
+      "compact": "gloss:languageOrder",
+      "label": "language order",
+      "comment": "Preferred display order for languages.",
+      "type": "datatype",
+      "domain": "gloss:DatasetRegister",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:hasSection": {
+      "iri": "https://www.glossarist.org/ontologies/hasSection",
+      "compact": "gloss:hasSection",
+      "label": "has section",
+      "comment": "Top-level section in the dataset's hierarchical section tree.",
       "type": "object",
-      "domain": "gloss:LocalizedConcept",
+      "domain": "gloss:DatasetRegister",
       "domainUnion": null,
-      "range": "gloss:DetailedDefinition",
+      "range": "gloss:Section",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:hasDefaultOrdering": {
+      "iri": "https://www.glossarist.org/ontologies/hasDefaultOrdering",
+      "compact": "gloss:hasDefaultOrdering",
+      "label": "default ordering",
+      "comment": "Default concept ordering method for the dataset.",
+      "type": "object",
+      "domain": "gloss:DatasetRegister",
+      "domainUnion": null,
+      "range": "skos:Concept",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:datasetDescription": {
+      "iri": "https://www.glossarist.org/ontologies/datasetDescription",
+      "compact": "gloss:datasetDescription",
+      "label": "dataset description",
+      "comment": "Localized dataset description.",
+      "type": "datatype",
+      "domain": "gloss:DatasetRegister",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:aboutPath": {
+      "iri": "https://www.glossarist.org/ontologies/aboutPath",
+      "compact": "gloss:aboutPath",
+      "label": "about path",
+      "comment": "Localized path to about-page document.",
+      "type": "datatype",
+      "domain": "gloss:DatasetRegister",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:logo": {
+      "iri": "https://www.glossarist.org/ontologies/logo",
+      "compact": "gloss:logo",
+      "label": "logo",
+      "comment": "Relative path to the dataset logo image.",
+      "type": "datatype",
+      "domain": "gloss:DatasetRegister",
+      "domainUnion": null,
+      "range": "xsd:anyURI",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:sectionId": {
+      "iri": "https://www.glossarist.org/ontologies/sectionId",
+      "compact": "gloss:sectionId",
+      "label": "section id",
+      "comment": "Section identifier used in concept references and URL routing.",
+      "type": "datatype",
+      "domain": "gloss:Section",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:sectionName": {
+      "iri": "https://www.glossarist.org/ontologies/sectionName",
+      "compact": "gloss:sectionName",
+      "label": "section name",
+      "comment": "Localized section title.",
+      "type": "datatype",
+      "domain": "gloss:Section",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:sectionOrdering": {
+      "iri": "https://www.glossarist.org/ontologies/sectionOrdering",
+      "compact": "gloss:sectionOrdering",
+      "label": "section ordering",
+      "comment": "Per-section ordering override; if absent, inherits dataset default.",
+      "type": "object",
+      "domain": "gloss:Section",
+      "domainUnion": null,
+      "range": "skos:Concept",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:caption": {
+      "iri": "https://www.glossarist.org/ontologies/caption",
+      "compact": "gloss:caption",
+      "label": "caption",
+      "comment": "Localized title/caption.",
+      "type": "datatype",
+      "domain": "gloss:NonVerbalEntity",
+      "domainUnion": null,
+      "range": "rdf:langString",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:altText": {
+      "iri": "https://www.glossarist.org/ontologies/altText",
+      "compact": "gloss:altText",
+      "label": "alt text",
+      "comment": "Localized short alt text for screen readers.",
+      "type": "datatype",
+      "domain": "gloss:NonVerbalEntity",
+      "domainUnion": null,
+      "range": "rdf:langString",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:description": {
+      "iri": "https://www.glossarist.org/ontologies/description",
+      "compact": "gloss:description",
+      "label": "description",
+      "comment": "Localized long description (aria-describedby).",
+      "type": "datatype",
+      "domain": "gloss:NonVerbalEntity",
+      "domainUnion": null,
+      "range": "rdf:langString",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:hasSubfigure": {
+      "iri": "https://www.glossarist.org/ontologies/hasSubfigure",
+      "compact": "gloss:hasSubfigure",
+      "label": "has subfigure",
+      "comment": "Recursive composite subfigure.",
+      "type": "object",
+      "domain": "gloss:Figure",
+      "domainUnion": null,
+      "range": "gloss:Figure",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:src": {
+      "iri": "https://www.glossarist.org/ontologies/src",
+      "compact": "gloss:src",
+      "label": "src",
+      "comment": "Image filename relative to images/ directory.",
+      "type": "datatype",
+      "domain": "gloss:FigureImage",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:format": {
+      "iri": "https://www.glossarist.org/ontologies/format",
+      "compact": "gloss:format",
+      "label": "format",
+      "comment": "Image format (svg, png, jpg, webp, avif, gif).",
+      "type": "datatype",
+      "domain": "gloss:FigureImage",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:role": {
+      "iri": "https://www.glossarist.org/ontologies/role",
+      "compact": "gloss:role",
+      "label": "role",
+      "comment": "Variant role (vector, raster, dark, light, print).",
+      "type": "datatype",
+      "domain": "gloss:FigureImage",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:content": {
+      "iri": "https://www.glossarist.org/ontologies/content",
+      "compact": "gloss:content",
+      "label": "content",
+      "comment": "Serialized table content (HTML, AsciiDoc, or similar markup).",
+      "type": "datatype",
+      "domain": "gloss:Table",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:expression": {
+      "iri": "https://www.glossarist.org/ontologies/expression",
+      "compact": "gloss:expression",
+      "label": "expression",
+      "comment": "The formula expression in its source notation (AsciiDoc stem, MathML, etc.).",
+      "type": "datatype",
+      "domain": "gloss:Formula",
+      "domainUnion": null,
+      "range": "xsd:string",
+      "rangeUnion": null,
+      "inverseOf": null
+    },
+    "gloss:latexForm": {
+      "iri": "https://www.glossarist.org/ontologies/latexForm",
+      "compact": "gloss:latexForm",
+      "label": "LaTeX form",
+      "comment": "LaTeX rendering of the formula expression for downstream typesetting.",
+      "type": "datatype",
+      "domain": "gloss:Formula",
+      "domainUnion": null,
+      "range": "xsd:string",
       "rangeUnion": null,
       "inverseOf": null
     }
@@ -1677,10 +2326,12 @@
         "gloss:hasStatus",
         "gloss:hasDomain",
         "gloss:hasRelatedConcept",
+        "gloss:hasPartitiveHyperedge",
         "gloss:hasDate",
         "gloss:hasSource"
       ],
       "datatype": [
+        "gloss:tag",
         "gloss:identifier",
         "gloss:uri"
       ]
@@ -1696,9 +2347,9 @@
         "gloss:hasDefinition",
         "gloss:hasNote",
         "gloss:hasExample",
+        "gloss:hasAnnotation",
         "gloss:hasNonVerbalRep",
-        "gloss:hasReference",
-        "gloss:hasAnnotation"
+        "gloss:hasReference"
       ],
       "datatype": [
         "gloss:domain",
@@ -1711,13 +2362,26 @@
         "gloss:conversionSystem"
       ]
     },
+    "gloss:PartitiveHyperedge": {
+      "object": [
+        "gloss:comprehensive",
+        "gloss:hasPart",
+        "gloss:enumeration",
+        "gloss:hasPluralityMarker"
+      ],
+      "datatype": [
+        "gloss:hyperedgeContent"
+      ]
+    },
     "gloss:Designation": {
       "object": [
-        "gloss:hasRelatedConcept",
         "gloss:hasSource",
         "gloss:normativeStatus",
         "gloss:hasPronunciation",
-        "gloss:hasTermType"
+        "gloss:hasTermType",
+        "gloss:hasDesignationRelationship",
+        "gloss:abbreviatedFormFor",
+        "gloss:shortFormFor"
       ],
       "datatype": [
         "gloss:language",
@@ -1731,7 +2395,8 @@
     },
     "gloss:DetailedDefinition": {
       "object": [
-        "gloss:hasSource"
+        "gloss:hasSource",
+        "gloss:hasScopedExample"
       ],
       "datatype": []
     },
@@ -1766,6 +2431,15 @@
         "gloss:prefix",
         "gloss:usageInfo",
         "gloss:fieldOfApplication"
+      ]
+    },
+    "gloss:DesignationRelationship": {
+      "object": [
+        "gloss:designationRelationshipType"
+      ],
+      "datatype": [
+        "gloss:designationRelationshipContent",
+        "gloss:relationshipTarget"
       ]
     },
     "gloss:Abbreviation": {
@@ -1816,9 +2490,11 @@
       "object": [
         "gloss:sourceType",
         "gloss:sourceStatus",
-        "gloss:sourceOrigin"
+        "gloss:sourceOrigin",
+        "gloss:sourcedFrom"
       ],
       "datatype": [
+        "gloss:sourceId",
         "gloss:modification"
       ]
     },
@@ -1906,13 +2582,72 @@
       ],
       "datatype": []
     },
-    "gloss:DesignationRelationship": {
+    "gloss:DatasetRegister": {
       "object": [
-        "gloss:relationshipType"
+        "gloss:hasSection",
+        "gloss:hasDefaultOrdering"
       ],
       "datatype": [
-        "gloss:relationshipTarget",
-        "gloss:relationshipContent"
+        "gloss:datasetId",
+        "gloss:datasetRef",
+        "gloss:datasetYear",
+        "gloss:datasetUrn",
+        "gloss:datasetUrnAlias",
+        "gloss:datasetRefAlias",
+        "gloss:datasetStatus",
+        "gloss:supersedesDataset",
+        "gloss:owner",
+        "gloss:sourceRepo",
+        "gloss:datasetLanguage",
+        "gloss:languageOrder",
+        "gloss:datasetDescription",
+        "gloss:aboutPath",
+        "gloss:logo"
+      ]
+    },
+    "gloss:Section": {
+      "object": [
+        "gloss:sectionOrdering"
+      ],
+      "datatype": [
+        "gloss:sectionId",
+        "gloss:sectionName"
+      ]
+    },
+    "gloss:NonVerbalEntity": {
+      "object": [],
+      "datatype": [
+        "gloss:caption",
+        "gloss:altText",
+        "gloss:description"
+      ]
+    },
+    "gloss:Figure": {
+      "object": [
+        "gloss:image",
+        "gloss:hasSubfigure"
+      ],
+      "datatype": []
+    },
+    "gloss:FigureImage": {
+      "object": [],
+      "datatype": [
+        "gloss:src",
+        "gloss:format",
+        "gloss:role"
+      ]
+    },
+    "gloss:Table": {
+      "object": [],
+      "datatype": [
+        "gloss:content"
+      ]
+    },
+    "gloss:Formula": {
+      "object": [],
+      "datatype": [
+        "gloss:expression",
+        "gloss:latexForm"
       ]
     }
   },
@@ -1959,7 +2694,7 @@
           "path": "gloss:hasStatus",
           "datatype": null,
           "class": "skos:Concept",
-          "valuesFrom": "<https://www.glossarist.org/ontologies/conceptstatus>",
+          "valuesFrom": "<https://www.glossarist.org/ontologies/status>",
           "nodeKind": null,
           "minCount": null,
           "maxCount": 1,
@@ -1969,6 +2704,16 @@
           "path": "gloss:hasRelatedConcept",
           "datatype": null,
           "class": "gloss:RelatedConcept",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "gloss:hasPartitiveHyperedge",
+          "datatype": null,
+          "class": "gloss:PartitiveHyperedge",
           "valuesFrom": null,
           "nodeKind": null,
           "minCount": null,
@@ -1999,6 +2744,16 @@
           "path": "gloss:hasDomain",
           "datatype": null,
           "class": "gloss:Reference",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "gloss:tag",
+          "datatype": "xsd:string",
+          "class": null,
           "valuesFrom": null,
           "nodeKind": null,
           "minCount": null,
@@ -2067,6 +2822,16 @@
         },
         {
           "path": "gloss:hasExample",
+          "datatype": null,
+          "class": "gloss:DetailedDefinition",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "gloss:hasAnnotation",
           "datatype": null,
           "class": "gloss:DetailedDefinition",
           "valuesFrom": null,
@@ -2200,16 +2965,46 @@
         }
       ]
     },
+    "gloss:ConceptCollectionShape": {
+      "iri": "https://www.glossarist.org/ontologies/ConceptCollectionShape",
+      "compact": "gloss:ConceptCollectionShape",
+      "label": "ConceptCollection",
+      "comment": null,
+      "targetClass": "gloss:ConceptCollection",
+      "shapeClass": "skos:Collection",
+      "constraints": [
+        {
+          "path": "skos:member",
+          "datatype": null,
+          "class": "gloss:Concept",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "dcterms:title",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        }
+      ]
+    },
     "gloss:DesignationShape": {
       "iri": "https://www.glossarist.org/ontologies/DesignationShape",
       "compact": "gloss:DesignationShape",
       "label": "Designation",
       "comment": null,
       "targetClass": "gloss:Designation",
-      "shapeClass": "xl:Label",
+      "shapeClass": "skosxl:Label",
       "constraints": [
         {
-          "path": "xl:literalForm",
+          "path": "skosxl:literalForm",
           "datatype": null,
           "class": null,
           "valuesFrom": null,
@@ -2239,9 +3034,9 @@
           "in": null
         },
         {
-          "path": "gloss:hasRelatedConcept",
+          "path": "gloss:hasDesignationRelationship",
           "datatype": null,
-          "class": "gloss:RelatedConcept",
+          "class": "gloss:DesignationRelationship",
           "valuesFrom": null,
           "nodeKind": null,
           "minCount": null,
@@ -2467,6 +3262,46 @@
       "shapeClass": null,
       "constraints": []
     },
+    "gloss:DesignationRelationshipShape": {
+      "iri": "https://www.glossarist.org/ontologies/DesignationRelationshipShape",
+      "compact": "gloss:DesignationRelationshipShape",
+      "label": "DesignationRelationship",
+      "comment": null,
+      "targetClass": "gloss:DesignationRelationship",
+      "shapeClass": null,
+      "constraints": [
+        {
+          "path": "gloss:designationRelationshipType",
+          "datatype": null,
+          "class": "skos:Concept",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": 1,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:designationRelationshipContent",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:relationshipTarget",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        }
+      ]
+    },
     "gloss:PronunciationShape": {
       "iri": "https://www.glossarist.org/ontologies/PronunciationShape",
       "compact": "gloss:PronunciationShape",
@@ -2554,6 +3389,16 @@
           "minCount": null,
           "maxCount": null,
           "in": null
+        },
+        {
+          "path": "gloss:hasScopedExample",
+          "datatype": null,
+          "class": "gloss:DetailedDefinition",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": null,
+          "in": null
         }
       ]
     },
@@ -2565,6 +3410,16 @@
       "targetClass": "gloss:ConceptSource",
       "shapeClass": null,
       "constraints": [
+        {
+          "path": "gloss:sourceId",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
         {
           "path": "gloss:sourceType",
           "datatype": null,
@@ -2603,6 +3458,16 @@
           "nodeKind": null,
           "minCount": null,
           "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:sourcedFrom",
+          "datatype": null,
+          "class": "gloss:Citation",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": null,
           "in": null
         }
       ]
@@ -2656,37 +3521,203 @@
       "shapeClass": null,
       "constraints": [
         {
-          "path": "gloss:representationType",
-          "datatype": "xsd:string",
+          "path": "skosxl:prefLabel",
+          "datatype": null,
           "class": null,
           "valuesFrom": null,
           "nodeKind": null,
           "minCount": 1,
-          "maxCount": 1,
-          "in": [
-            "image",
-            "table",
-            "formula"
-          ]
+          "maxCount": null,
+          "in": null
         },
         {
-          "path": "gloss:representationRef",
+          "path": "gloss:image",
+          "datatype": "xsd:anyURI",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "dcterms:description",
+          "datatype": null,
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "prov:wasDerivedFrom",
+          "datatype": null,
+          "class": "prov:Entity",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        }
+      ]
+    },
+    "gloss:FigureShape": {
+      "iri": "https://www.glossarist.org/ontologies/FigureShape",
+      "compact": "gloss:FigureShape",
+      "label": "Figure",
+      "comment": null,
+      "targetClass": "gloss:Figure",
+      "shapeClass": null,
+      "constraints": [
+        {
+          "path": "gloss:image",
           "datatype": "xsd:anyURI",
           "class": null,
           "valuesFrom": null,
           "nodeKind": null,
           "minCount": 1,
+          "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "gloss:caption",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
           "maxCount": 1,
           "in": null
         },
         {
-          "path": "gloss:hasSource",
-          "datatype": null,
-          "class": "gloss:ConceptSource",
+          "path": "dcterms:description",
+          "datatype": "xsd:string",
+          "class": null,
           "valuesFrom": null,
           "nodeKind": null,
           "minCount": null,
+          "maxCount": 1,
+          "in": null
+        }
+      ]
+    },
+    "gloss:TableShape": {
+      "iri": "https://www.glossarist.org/ontologies/TableShape",
+      "compact": "gloss:TableShape",
+      "label": "Table",
+      "comment": null,
+      "targetClass": "gloss:Table",
+      "shapeClass": null,
+      "constraints": [
+        {
+          "path": "gloss:content",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": 1,
           "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "gloss:caption",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "dcterms:title",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        }
+      ]
+    },
+    "gloss:FormulaShape": {
+      "iri": "https://www.glossarist.org/ontologies/FormulaShape",
+      "compact": "gloss:FormulaShape",
+      "label": "Formula",
+      "comment": null,
+      "targetClass": "gloss:Formula",
+      "shapeClass": null,
+      "constraints": [
+        {
+          "path": "gloss:expression",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": 1,
+          "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "gloss:latexForm",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "dcterms:description",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        }
+      ]
+    },
+    "gloss:ImageShape": {
+      "iri": "https://www.glossarist.org/ontologies/ImageShape",
+      "compact": "gloss:ImageShape",
+      "label": "Image",
+      "comment": null,
+      "targetClass": "foaf:Image",
+      "shapeClass": null,
+      "constraints": [
+        {
+          "path": "dcterms:format",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": 1,
+          "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "dcterms:language",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "dcat:byteSize",
+          "datatype": "xsd:integer",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
           "in": null
         }
       ]
@@ -2968,6 +3999,16 @@
           "minCount": null,
           "maxCount": 1,
           "in": null
+        },
+        {
+          "path": "gloss:conceptRefText",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
         }
       ]
     },
@@ -2997,6 +4038,243 @@
           "nodeKind": null,
           "minCount": 1,
           "maxCount": 1,
+          "in": null
+        }
+      ]
+    },
+    "gloss:RelatedConceptShape": {
+      "iri": "https://www.glossarist.org/ontologies/RelatedConceptShape",
+      "compact": "gloss:RelatedConceptShape",
+      "label": "RelatedConcept",
+      "comment": null,
+      "targetClass": "gloss:RelatedConcept",
+      "shapeClass": null,
+      "constraints": [
+        {
+          "path": "gloss:relationshipType",
+          "datatype": null,
+          "class": "skos:Concept",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": 1,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:relationshipRef",
+          "datatype": null,
+          "class": "gloss:ConceptRef",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:relationshipContent",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        }
+      ]
+    },
+    "gloss:PartitiveHyperedgeShape": {
+      "iri": "https://www.glossarist.org/ontologies/PartitiveHyperedgeShape",
+      "compact": "gloss:PartitiveHyperedgeShape",
+      "label": "PartitiveHyperedge",
+      "comment": null,
+      "targetClass": "gloss:PartitiveHyperedge",
+      "shapeClass": null,
+      "constraints": [
+        {
+          "path": "gloss:comprehensive",
+          "datatype": null,
+          "class": "gloss:ConceptRef",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": 1,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:hasPart",
+          "datatype": null,
+          "class": "gloss:ConceptRef",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": 1,
+          "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "gloss:enumeration",
+          "datatype": null,
+          "class": "skos:Concept",
+          "valuesFrom": "<https://www.glossarist.org/ontologies/partitiveEnumeration>",
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:hasPluralityMarker",
+          "datatype": null,
+          "class": "skos:Concept",
+          "valuesFrom": "<https://www.glossarist.org/ontologies/pluralityMarker>",
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "gloss:hyperedgeContent",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        }
+      ]
+    },
+    "gloss:PartitiveHyperedgeOwnershipShape": {
+      "iri": "https://www.glossarist.org/ontologies/PartitiveHyperedgeOwnershipShape",
+      "compact": "gloss:PartitiveHyperedgeOwnershipShape",
+      "label": "PartitiveHyperedgeOwnership",
+      "comment": null,
+      "targetClass": "gloss:PartitiveHyperedge",
+      "shapeClass": null,
+      "constraints": []
+    },
+    "gloss:PartitiveEnumerationShape": {
+      "iri": "https://www.glossarist.org/ontologies/PartitiveEnumerationShape",
+      "compact": "gloss:PartitiveEnumerationShape",
+      "label": "PartitiveEnumeration",
+      "comment": null,
+      "targetClass": "gloss:PartitiveEnumeration",
+      "shapeClass": "skos:ConceptScheme",
+      "constraints": []
+    },
+    "gloss:PluralityMarkerShape": {
+      "iri": "https://www.glossarist.org/ontologies/PluralityMarkerShape",
+      "compact": "gloss:PluralityMarkerShape",
+      "label": "PluralityMarker",
+      "comment": null,
+      "targetClass": "gloss:PluralityMarker",
+      "shapeClass": "skos:ConceptScheme",
+      "constraints": []
+    },
+    "gloss:NonVerbalEntityShape": {
+      "iri": "https://www.glossarist.org/ontologies/NonVerbalEntityShape",
+      "compact": "gloss:NonVerbalEntityShape",
+      "label": "NonVerbalEntity",
+      "comment": null,
+      "targetClass": "gloss:NonVerbalEntity",
+      "shapeClass": null,
+      "constraints": [
+        {
+          "path": "gloss:caption",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:altText",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:description",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "gloss:hasSource",
+          "datatype": null,
+          "class": "gloss:ConceptSource",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": null,
+          "in": null
+        }
+      ]
+    },
+    "gloss:SharedNonVerbalEntityShape": {
+      "iri": "https://www.glossarist.org/ontologies/SharedNonVerbalEntityShape",
+      "compact": "gloss:SharedNonVerbalEntityShape",
+      "label": "SharedNonVerbalEntity",
+      "comment": null,
+      "targetClass": "gloss:SharedNonVerbalEntity",
+      "shapeClass": "gloss:NonVerbalEntity",
+      "constraints": [
+        {
+          "path": "gloss:role",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        }
+      ]
+    },
+    "gloss:FigureImageShape": {
+      "iri": "https://www.glossarist.org/ontologies/FigureImageShape",
+      "compact": "gloss:FigureImageShape",
+      "label": "FigureImage",
+      "comment": null,
+      "targetClass": "gloss:FigureImage",
+      "shapeClass": null,
+      "constraints": [
+        {
+          "path": "gloss:src",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": 1,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:format",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:hasSubfigure",
+          "datatype": null,
+          "class": "gloss:FigureImage",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": null,
           "in": null
         }
       ]
@@ -3040,6 +4318,200 @@
           "in": null
         }
       ]
+    },
+    "gloss:DatasetRegisterShape": {
+      "iri": "https://www.glossarist.org/ontologies/DatasetRegisterShape",
+      "compact": "gloss:DatasetRegisterShape",
+      "label": "DatasetRegister",
+      "comment": null,
+      "targetClass": "gloss:DatasetRegister",
+      "shapeClass": null,
+      "constraints": [
+        {
+          "path": "gloss:datasetId",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": 1,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:datasetUrn",
+          "datatype": "xsd:anyURI",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": 1,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:datasetRef",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:datasetYear",
+          "datatype": "xsd:integer",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:datasetStatus",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": [
+            "current",
+            "superseded",
+            "retired"
+          ]
+        },
+        {
+          "path": "gloss:supersedesDataset",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:owner",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:sourceRepo",
+          "datatype": "xsd:anyURI",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:datasetLanguage",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "gloss:hasSection",
+          "datatype": null,
+          "class": "gloss:Section",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "gloss:hasDefaultOrdering",
+          "datatype": null,
+          "class": "skos:Concept",
+          "valuesFrom": "<https://www.glossarist.org/ontologies/orderingmethod>",
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:logo",
+          "datatype": "xsd:anyURI",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        }
+      ]
+    },
+    "gloss:SectionShape": {
+      "iri": "https://www.glossarist.org/ontologies/SectionShape",
+      "compact": "gloss:SectionShape",
+      "label": "Section",
+      "comment": null,
+      "targetClass": "gloss:Section",
+      "shapeClass": null,
+      "constraints": [
+        {
+          "path": "gloss:sectionId",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": 1,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:sectionName",
+          "datatype": "xsd:string",
+          "class": null,
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "gloss:hasChildSection",
+          "datatype": null,
+          "class": "gloss:Section",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": null,
+          "in": null
+        },
+        {
+          "path": "gloss:hasParentSection",
+          "datatype": null,
+          "class": "gloss:Section",
+          "valuesFrom": null,
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        },
+        {
+          "path": "gloss:sectionOrdering",
+          "datatype": null,
+          "class": "skos:Concept",
+          "valuesFrom": "<https://www.glossarist.org/ontologies/orderingmethod>",
+          "nodeKind": null,
+          "minCount": null,
+          "maxCount": 1,
+          "in": null
+        }
+      ]
     }
   },
   "shapesByTargetClass": {
@@ -3048,6 +4520,9 @@
     ],
     "gloss:LocalizedConcept": [
       "gloss:LocalizedConceptShape"
+    ],
+    "gloss:ConceptCollection": [
+      "gloss:ConceptCollectionShape"
     ],
     "gloss:Designation": [
       "gloss:DesignationShape"
@@ -3073,6 +4548,9 @@
     "gloss:Suffix": [
       "gloss:SuffixShape"
     ],
+    "gloss:DesignationRelationship": [
+      "gloss:DesignationRelationshipShape"
+    ],
     "gloss:Pronunciation": [
       "gloss:PronunciationShape"
     ],
@@ -3086,7 +4564,20 @@
       "gloss:ConceptDateShape"
     ],
     "gloss:NonVerbalRepresentation": [
+      "gloss:NonVerbalRepresentationShape",
       "gloss:NonVerbalRepresentationShape"
+    ],
+    "gloss:Figure": [
+      "gloss:FigureShape"
+    ],
+    "gloss:Table": [
+      "gloss:TableShape"
+    ],
+    "gloss:Formula": [
+      "gloss:FormulaShape"
+    ],
+    "foaf:Image": [
+      "gloss:ImageShape"
     ],
     "gloss:Reference": [
       "gloss:ReferenceShape"
@@ -3106,8 +4597,36 @@
     "gloss:CustomLocality": [
       "gloss:CustomLocalityShape"
     ],
+    "gloss:RelatedConcept": [
+      "gloss:RelatedConceptShape"
+    ],
+    "gloss:PartitiveHyperedge": [
+      "gloss:PartitiveHyperedgeShape",
+      "gloss:PartitiveHyperedgeOwnershipShape"
+    ],
+    "gloss:PartitiveEnumeration": [
+      "gloss:PartitiveEnumerationShape"
+    ],
+    "gloss:PluralityMarker": [
+      "gloss:PluralityMarkerShape"
+    ],
+    "gloss:NonVerbalEntity": [
+      "gloss:NonVerbalEntityShape"
+    ],
+    "gloss:SharedNonVerbalEntity": [
+      "gloss:SharedNonVerbalEntityShape"
+    ],
+    "gloss:FigureImage": [
+      "gloss:FigureImageShape"
+    ],
     "gloss:GrammarInfo": [
       "gloss:GrammarInfoShape"
+    ],
+    "gloss:DatasetRegister": [
+      "gloss:DatasetRegisterShape"
+    ],
+    "gloss:Section": [
+      "gloss:SectionShape"
     ]
   },
   "annotationProperties": [
@@ -3168,10 +4687,10 @@
     }
   ],
   "stats": {
-    "classCount": 25,
-    "objectPropertyCount": 46,
-    "datatypePropertyCount": 62,
-    "shapeCount": 22,
+    "classCount": 36,
+    "objectPropertyCount": 60,
+    "datatypePropertyCount": 92,
+    "shapeCount": 39,
     "annotationPropertyCount": 11
   }
 }
