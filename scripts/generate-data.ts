@@ -1,7 +1,19 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
-import { naturalSort, Register, parseMention, parseMentions, InvalidMentionError } from 'glossarist';
+import {
+  naturalSort,
+  Register,
+  parseMention,
+  parseMentions,
+  InvalidMentionError,
+  parseConceptYaml,
+  conceptToTurtle,
+  conceptsToTbx,
+  conceptsToCsv,
+  emitOutputSet,
+  type Concept,
+} from 'glossarist';
 import { loadSiteConfig } from './load-site-config';
 import { getGroups } from './lib/concept-groups';
 import { consumeDatasetEntities } from './lib/build/non-verbal-consumer';
@@ -23,7 +35,7 @@ import type {
   YamlNewsFrontmatter,
   YamlContentPage,
 } from './lib/yaml-types';
-import { buildConceptUri } from './lib/concept-uri';
+import { buildConceptUri, buildConceptUriPrefix } from './lib/concept-uri';
 import {
   loadConceptFile,
   readYaml,
@@ -41,15 +53,6 @@ import {
   refsToJsonLd,
   citationToJsonLd,
 } from './lib/jsonld-emitter';
-import {
-  escapeTurtle,
-  escapeXml,
-  conceptJsonToTurtle,
-  conceptJsonToSkosJsonLd,
-  conceptJsonToTbx,
-  conceptsToCsv,
-  conceptsToSkosJsonLdGraph,
-} from './lib/concept-formats';
 
 // MECE partitive multiplicity: 2 independent axes (ISO 704:2022).
 //   presence × count
@@ -691,7 +694,7 @@ async function processDataset(dir, register, opts) {
     for (const f of fs.readdirSync(conceptsDir)) fs.unlinkSync(path.join(conceptsDir, f));
   }
   const concepts = [];
-  const jsonlds = [];
+  const conceptInstances: Concept[] = [];
   const langTermCounts = {};
   const langDefCounts = {};
   const availableFormats = ['ttl', 'jsonld', 'yaml', 'tbx', 'csv'];
@@ -805,17 +808,34 @@ async function processDataset(dir, register, opts) {
       const termid = String(conceptYaml.termid);
       const jsonld = yamlToJsonLd(conceptYaml, register, dsRefMaps);
       writeJson(path.join(conceptsDir, `${termid}.json`), jsonld);
-      jsonlds.push(jsonld);
-
-      const ttlContent = conceptJsonToTurtle(jsonld);
-      fs.writeFileSync(path.join(conceptsDir, `${termid}.ttl`), ttlContent);
-
-      const skosJsonLd = conceptJsonToSkosJsonLd(jsonld);
-      fs.writeFileSync(path.join(conceptsDir, `${termid}.jsonld`), skosJsonLd);
-
-      const tbxContent = conceptJsonToTbx(jsonld);
-      if (tbxContent) {
-        fs.writeFileSync(path.join(conceptsDir, `${termid}.tbx`), tbxContent);
+      // Canonical interchange exports — routed through glossarist's
+      // output API (one model walk; predicates generated from the
+      // concept-model context, wire shape from schemas/v3). The hand-rolled
+      // gl:-shaped emitters in scripts/lib/concept-formats.ts are retired.
+      // Note: TBX now includes <term> entries — the retired emitter
+      // computed termEntries but never wrote them into the document.
+      let conceptInstance: Concept | null = null;
+      try {
+        conceptInstance = parseConceptYaml(fs.readFileSync(path.join(dir, file), 'utf8'), termid);
+      } catch (e) {
+        console.warn(`  ${termid}: canonical parse failed (${e.message}); skipping glossarist exports`);
+      }
+      if (conceptInstance) {
+        conceptInstances.push(conceptInstance);
+        fs.writeFileSync(
+          path.join(conceptsDir, `${termid}.ttl`),
+          conceptToTurtle(conceptInstance, { uriBase: refMaps.uriBase, registerId: register }),
+        );
+        const conceptJsonLd = await emitOutputSet([conceptInstance], {
+          registerId: register,
+          uriBase: refMaps.uriBase,
+          formats: ['jsonld'],
+        });
+        fs.writeFileSync(path.join(conceptsDir, `${termid}.jsonld`), conceptJsonLd.jsonld!);
+        const tbxContent = conceptsToTbx([conceptInstance], { registerId: register });
+        if (tbxContent) {
+          fs.writeFileSync(path.join(conceptsDir, `${termid}.tbx`), tbxContent);
+        }
       }
 
       fs.copyFileSync(path.join(dir, file), path.join(conceptsDir, `${termid}.yaml`));
@@ -835,9 +855,15 @@ async function processDataset(dir, register, opts) {
     }
   }
 
-  // Aggregate distributions: single-file exports of the whole register
-  fs.writeFileSync(path.join(DATA, register, `${register}.csv`), conceptsToCsv(jsonlds, { languageOrder: opts.languageOrder || opts.languages }));
-  fs.writeFileSync(path.join(DATA, register, `${register}.jsonld`), conceptsToSkosJsonLdGraph(jsonlds));
+  // Aggregate distributions: single-file exports of the whole register,
+  // emitted by glossarist's output-set API from the canonical model walk.
+  const aggregate = await emitOutputSet(conceptInstances, {
+    registerId: register,
+    uriBase: refMaps.uriBase,
+    languageOrder: opts.languageOrder || opts.languages,
+  });
+  fs.writeFileSync(path.join(DATA, register, `${register}.csv`), aggregate.csv!);
+  fs.writeFileSync(path.join(DATA, register, `${register}.jsonld`), aggregate.jsonld!);
 
   const CHUNK_SIZE = 500;
   const chunks = [];
@@ -885,7 +911,7 @@ async function processDataset(dir, register, opts) {
   fs.writeFileSync(
     path.join(DATA, register, 'graph-nodes.json'),
     JSON.stringify({
-      uriPrefix: `${refMaps.uriBase}/${register}/concept/`,
+      uriPrefix: buildConceptUriPrefix(refMaps.uriBase, register),
       registerId: register,
       nodes: graphNodeEntries,
     }),
