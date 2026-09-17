@@ -128,7 +128,7 @@ Deployed to https://www.geolexica.org via GitHub Pages. CI/CD pipeline: `.github
 ## Release Rules
 
 - **ALWAYS bump PATCH version only** (e.g. 0.7.41 → 0.7.42). Never bump minor or major unless explicitly requested.
-- **Release (Patch) workflow** — manually triggered via GitHub Actions UI.
+- **Release flow (tag-based)** — merge the version-bump PR, then push the `v*` tag; `release.yml` runs the test suite and the Playwright smoke gate, then publishes to npm with provenance. (The old `release-patch.yml` UI workflow was removed in PR #176.)
 - After release, bump `@glossarist/concept-browser` in every consumer repo listed in **README § Known deployments**.
 
 ## ABSOLUTE RULE: NEVER HARDCODE DEPLOYMENT CONFIGURATION
