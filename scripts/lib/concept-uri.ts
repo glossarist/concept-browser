@@ -26,3 +26,21 @@ export function buildConceptUriPrefix(uriBase: string, registerId: string): stri
 export function buildDatasetUriPrefix(uriBase: string, registerId: string): string {
   return `${uriBase}/dataset/${registerId}/`;
 }
+
+/**
+ * Public site origin from the deployment's own configuration.
+ *
+ * site-config `domain` is the hosting coordinate and carries any custom
+ * path (e.g. "oimlsmart.github.io/vocab", "www.glossarist.org/iala-vocab",
+ * "isotc204.geolexica.org"). Links a human opens (CSV `uri` column) must
+ * use this — NOT uriBase, which is the RDF identity root and may differ
+ * from the deployed host. Falls back to uriBase only when a deployment
+ * declares no domain.
+ */
+export function buildSiteOrigin(domain: string | undefined | null, uriBase: string): string {
+  if (domain) {
+    const trimmed = String(domain).trim().replace(/\/+$/, '');
+    return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  }
+  return uriBase.replace(/\/+$/, '');
+}

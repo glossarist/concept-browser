@@ -103,4 +103,19 @@ describe('conceptsToCsv (glossarist output API)', () => {
     expect(rows[1]![0]).toBe('222-02-02');
     expect(rows[1]![4]).toBe('');
   });
+
+  // generate-data passes conceptUriPrefix = buildConceptUriPrefix(uriBase,
+  // register) so the uri column carries the SPA route shape
+  // (/dataset/<register>/concept/<id>) and opens in a browser — the
+  // RDF-canonical fallback would 404.
+  it('uri column carries the SPA route shape via conceptUriPrefix', () => {
+    const bare = new Concept({ id: '1-1-010', termid: '1-1-010', status: 'valid' });
+    const csv = conceptsToCsv([bare], {
+      uriBase: 'https://www.glossarist.org/iala-vocab',
+      registerId: 'iala-2023',
+      conceptUriPrefix: 'https://www.glossarist.org/iala-vocab/dataset/iala-2023/concept/',
+    });
+    const rows = parseCsv(csv);
+    expect(rows[1]![1]).toBe('https://www.glossarist.org/iala-vocab/dataset/iala-2023/concept/1-1-010');
+  });
 });
