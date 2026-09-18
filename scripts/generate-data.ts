@@ -35,7 +35,7 @@ import type {
   YamlNewsFrontmatter,
   YamlContentPage,
 } from './lib/yaml-types';
-import { buildConceptUri, buildConceptUriPrefix } from './lib/concept-uri';
+import { buildConceptUri, buildConceptUriPrefix, buildSiteOrigin } from './lib/concept-uri';
 import {
   loadConceptFile,
   readYaml,
@@ -246,7 +246,11 @@ function buildRefMaps(config, registerCache) {
 
   const uriBase = config.uriBase;
   if (!uriBase) throw new Error('site-config.yml: uriBase is required');
-  return { patternIndex, refPrefixMap, uriBase, register: null };
+  // Public hosting coordinate from the deployment's own configuration —
+  // `domain` carries any custom path (/vocab/, /iala-vocab). Used for
+  // human-facing links (CSV uri column); uriBase stays the RDF identity.
+  const siteOrigin = buildSiteOrigin(config.domain, uriBase);
+  return { patternIndex, refPrefixMap, uriBase, siteOrigin, register: null };
 }
 
 
@@ -857,10 +861,14 @@ async function processDataset(dir, register, opts) {
 
   // Aggregate distributions: single-file exports of the whole register,
   // emitted by glossarist's output-set API from the canonical model walk.
+  // The CSV uri column is a link a human opens — it carries the SPA route
+  // shape on the deployment's configured host (siteOrigin), not the
+  // RDF-canonical IRI.
   const aggregate = await emitOutputSet(conceptInstances, {
     registerId: register,
     uriBase: refMaps.uriBase,
     languageOrder: opts.languageOrder || opts.languages,
+    conceptUriPrefix: buildConceptUriPrefix(refMaps.siteOrigin, register),
   });
   fs.writeFileSync(path.join(DATA, register, `${register}.csv`), aggregate.csv!);
   fs.writeFileSync(path.join(DATA, register, `${register}.jsonld`), aggregate.jsonld!);
