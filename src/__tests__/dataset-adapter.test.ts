@@ -548,7 +548,7 @@ describe('DatasetAdapter', () => {
       expect(edges.length).toBe(2);
       expect(edges.every(e => e.type === 'domain')).toBe(true);
       expect(edges.find(e => e.lang === 'eng')?.target).toContain('/domain/geometry');
-      expect(edges.find(e => e.lang === 'fra')?.target).toContain('/domain/gomtrie');
+      expect(edges.find(e => e.lang === 'fra')?.target).toContain('/domain/géométrie');
       expect(edges.find(e => e.lang === 'eng')?.label).toBe('geometry');
       expect(edges.find(e => e.lang === 'fra')?.label).toBe('géométrie');
     });

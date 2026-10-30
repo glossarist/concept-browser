@@ -82,16 +82,11 @@ import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
 import { Register } from 'glossarist';
+import { slugify } from '../src/utils/slugify';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = process.cwd();
 const DATA_DIR = join(ROOT, 'public', 'data');
-
-// --- Normalization ---
-
-function slugify(text) {
-  return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s/]+/g, '-');
-}
 
 // --- Extractors (open/closed: add new extractors to EXTRACTORS array) ---
 
