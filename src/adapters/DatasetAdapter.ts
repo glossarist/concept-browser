@@ -26,7 +26,7 @@ interface IndexJson {
   schemaVersion: string;
   conceptCount: number;
   chunkSize: number;
-  chunks: { file: string; count: number }[];
+  chunks: { file: string; count: number; hash?: string }[];
   concepts: IndexConceptJson[];
 }
 
@@ -52,7 +52,7 @@ export class DatasetAdapter {
   private summaryMap = new Map<string, ConceptSummary>();
   private designationMap = new Map<string, string>();
   private loadedChunks = new Set<number>();
-  private indexMeta: { conceptCount: number; chunkSize: number; chunks: { file: string; count: number }[] } | null = null;
+  private indexMeta: Pick<IndexJson, 'conceptCount' | 'chunkSize' | 'chunks'> | null = null;
 
   constructor(registerId: string, baseUrl: string) {
     this.registerId = registerId;
@@ -152,7 +152,7 @@ export class DatasetAdapter {
 
   private async loadIndexChunked(): Promise<ConceptIndex> {
     const metaResp = await fetch(`${this.baseUrl}/index-meta.json`);
-    let meta: { registerId: string; schemaVersion: string; conceptCount: number; chunkSize: number; chunks: { file: string; count: number }[] };
+    let meta: Omit<IndexJson, 'concepts'>;
     if (metaResp.ok) {
       meta = await metaResp.json();
     } else {
@@ -183,10 +183,17 @@ export class DatasetAdapter {
     return this.index;
   }
 
+  private chunkUrl(chunkIndex: number): string {
+    const chunks: IndexJson['chunks'] = this.indexMeta?.chunks ?? this.index?.chunks ?? [];
+    const chunk = chunks[chunkIndex];
+    const file = chunk?.file ?? `index-${String(chunkIndex).padStart(4, '0')}.json`;
+    const query = chunk?.hash ? `?v=${encodeURIComponent(chunk.hash)}` : '';
+    return `${this.baseUrl}/chunks/${file}${query}`;
+  }
+
   async loadChunk(chunkIndex: number): Promise<ConceptEntry[]> {
     if (this.loadedChunks.has(chunkIndex)) return [];
-    const chunkFile = `index-${String(chunkIndex).padStart(4, '0')}.json`;
-    const resp = await fetch(`${this.baseUrl}/chunks/${chunkFile}`);
+    const resp = await fetch(this.chunkUrl(chunkIndex));
     if (!resp.ok) throw ChunkLoadError.make(this.registerId, chunkIndex, resp.status);
     const data = await resp.json();
     this.loadedChunks.add(chunkIndex);
@@ -196,8 +203,7 @@ export class DatasetAdapter {
   private async loadChunkAsSummaries(chunkIndex: number): Promise<void> {
     if (this.loadedChunks.has(chunkIndex)) return;
 
-    const chunkFile = `index-${String(chunkIndex).padStart(4, '0')}.json`;
-    const resp = await fetch(`${this.baseUrl}/chunks/${chunkFile}`);
+    const resp = await fetch(this.chunkUrl(chunkIndex));
     if (!resp.ok) throw ChunkLoadError.make(this.registerId, chunkIndex, resp.status);
     const data = await resp.json();
     this.loadedChunks.add(chunkIndex);

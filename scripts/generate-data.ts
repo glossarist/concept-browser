@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { createHash } from 'node:crypto';
 import yaml from 'js-yaml';
 import {
   naturalSort,
@@ -879,12 +880,17 @@ async function processDataset(dir, register, opts) {
     const chunk = concepts.slice(i, i + CHUNK_SIZE);
     const chunkIndex = Math.floor(i / CHUNK_SIZE);
     const chunkFile = `index-${String(chunkIndex).padStart(4, '0')}.json`;
-    writeJson(path.join(DATA, register, 'chunks', chunkFile), {
+    const chunkData = {
       registerId: register,
       chunkIndex,
       concepts: chunk,
-    });
-    chunks.push({ file: chunkFile, count: chunk.length });
+    };
+    const chunkContent = JSON.stringify(chunkData);
+    const chunkPath = path.join(DATA, register, 'chunks', chunkFile);
+    fs.mkdirSync(path.dirname(chunkPath), { recursive: true });
+    fs.writeFileSync(chunkPath, chunkContent);
+    const hash = createHash('sha256').update(chunkContent).digest('hex').slice(0, 12);
+    chunks.push({ file: chunkFile, count: chunk.length, hash });
   }
 
   const summary = concepts.map(c => ({
