@@ -263,42 +263,21 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
       await discoverDatasets();
     }
 
-    const MIN_RESULTS = 20;
-
-    // Pass 1: search loaded data only
-    const loadedHits: SearchHit[] = [];
-    const unloadedAdapters: DatasetAdapter[] = [];
-
+    const allHits: SearchHit[] = [];
     for (const adapter of datasets.value.values()) {
       if (!adapter.manifest) continue;
-      if (!adapter.index) {
-        try {
-          await adapter.loadIndex();
-        } catch {
-          continue;
-        }
-      }
-      const hits = adapter.search(query);
-      if (hits.length > 0) {
-        loadedHits.push(...hits);
-      } else {
-        unloadedAdapters.push(adapter);
-      }
-    }
-
-    const pass1 = deduplicateSearchHits(loadedHits);
-    if (pass1.length >= MIN_RESULTS) return pass1;
-
-    // Pass 2: load chunks lazily for datasets that found nothing in index
-    let allHits = [...loadedHits];
-    for (const adapter of unloadedAdapters) {
-      if (deduplicateSearchHits(allHits).length >= MIN_RESULTS) break;
       try {
-        await adapter.ensureAllChunksLoaded();
-        const hits = adapter.search(query);
-        allHits.push(...hits);
+        if (!adapter.index) {
+          await adapter.loadIndex();
+        }
+        try {
+          await adapter.ensureAllChunksLoaded();
+        } catch {
+          // Search the chunks already loaded if another chunk fails.
+        }
+        allHits.push(...adapter.search(query));
       } catch {
-        // Skip datasets that fail to load
+        // Skip datasets that fail to load or search.
       }
     }
 

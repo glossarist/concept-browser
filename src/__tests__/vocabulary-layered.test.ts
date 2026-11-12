@@ -178,7 +178,7 @@ describe('vocabulary store — layered loading', () => {
   });
 
   describe('searchAcrossDatasets — two-pass', () => {
-    it('returns results from loaded data without loading chunks', async () => {
+    it('loads every chunk even when the index already has 20 or more hits', async () => {
       const store = useVocabularyStore();
       store.initialized = true;
 
@@ -207,11 +207,11 @@ describe('vocabulary store — layered loading', () => {
       const results = await store.searchAcrossDatasets('concept');
 
       expect(results.length).toBe(25);
-      // With ≥20 results, chunks should NOT be loaded
-      expect(chunksLoaded).toBe(false);
+      // Load every chunk even when the index already has at least 20 hits.
+      expect(chunksLoaded).toBe(true);
     });
 
-    it('loads chunks for adapters with zero index hits when total is under threshold', async () => {
+    it('loads every dataset regardless of whether its index has hits', async () => {
       const store = useVocabularyStore();
       store.initialized = true;
 
@@ -258,9 +258,9 @@ describe('vocabulary store — layered loading', () => {
       const results = await store.searchAcrossDatasets('item');
 
       expect(results.length).toBe(6); // 5 from ds1 index + 1 from ds2 chunks
-      // Adapter 1 should NOT have loaded chunks (it had index hits)
-      expect(adapter1ChunksLoaded).toBe(false);
-      // Adapter 2 should have loaded chunks (it had 0 index hits, total < 20)
+      // Adapter 1 loads every chunk even though its index already had hits.
+      expect(adapter1ChunksLoaded).toBe(true);
+      // Adapter 2 also loads every chunk, exposing its hidden hit.
       expect(adapter2ChunksLoaded).toBe(true);
     });
 
