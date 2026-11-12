@@ -53,6 +53,9 @@ function onInput() {
 }
 
 function clearSearch() {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = null;
+  ui.searchQuery = '';
   query.value = '';
   results.value = [];
   searched.value = false;

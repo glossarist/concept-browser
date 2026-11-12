@@ -108,6 +108,54 @@ describe('SearchBar', () => {
     }
   });
 
+  it('clears shared search state and does not restore it after remount', async () => {
+    const hits: SearchHit[] = [makeHit({ designation: 'road network' })];
+    store.searchAcrossDatasets = vi.fn(async () => hits);
+    const ui = useUiStore();
+    const wrapper = mountSearch();
+    await wrapper.find('input').setValue('road');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(ui.searchQuery).toBe('road');
+    expect(wrapper.text()).toContain('road network');
+    expect(router.currentRoute.value.query.q).toBe('road');
+
+    const clearBtn = wrapper.findAll('button').find(b => b.find('svg').exists() && b.element.closest('.relative') !== null);
+    expect(clearBtn).toBeDefined();
+    await clearBtn!.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('input').element.value).toBe('');
+    expect(ui.searchQuery).toBe('');
+    expect(wrapper.text()).not.toContain('road network');
+    expect(router.currentRoute.value.query.q).toBeUndefined();
+
+    wrapper.unmount();
+    const callsBeforeRemount = vi.mocked(store.searchAcrossDatasets).mock.calls.length;
+    const remounted = mountSearch();
+    await flushPromises();
+    expect(remounted.find('input').element.value).toBe('');
+    expect(vi.mocked(store.searchAcrossDatasets)).toHaveBeenCalledTimes(callsBeforeRemount);
+    remounted.unmount();
+  });
+
+  it('cancels a pending search debounce when cleared', async () => {
+    store.searchAcrossDatasets = vi.fn(async () => []);
+    const wrapper = mountSearch();
+    await wrapper.find('input').setValue('road');
+    expect(vi.getTimerCount()).toBe(1);
+
+    const clearBtn = wrapper.findAll('button').find(b => b.find('svg').exists() && b.element.closest('.relative') !== null);
+    expect(clearBtn).toBeDefined();
+    await clearBtn!.trigger('click');
+    expect(vi.getTimerCount()).toBe(0);
+
+    await vi.advanceTimersByTimeAsync(300);
+    expect(store.searchAcrossDatasets).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
   it('shows loading spinner during search', async () => {
     const wrapper = mountSearch();
     // Mock a slow search
