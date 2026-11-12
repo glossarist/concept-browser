@@ -180,6 +180,7 @@ concept.note: Note
 concept.examples: Examples
 concept.example: Example
 concept.sources: Sources
+concept.sameStandardTerms: Terms from the same standard
 concept.designations: Designations
 concept.relations: Relations
 concept.compareWith: Compare with this edition

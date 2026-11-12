@@ -3,9 +3,11 @@ import { computed, watch, ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import ConceptDetail from '../components/ConceptDetail.vue';
+import SameStandardPane from '../components/SameStandardPane.vue';
 import RelationSphere from '../components/RelationSphere.vue';
 import ShortcutsModal from '../components/ShortcutsModal.vue';
 import { useConceptEdges } from '../composables/use-concept-edges';
+import { useSameStandardTerms } from '../composables/use-same-standard-terms';
 import { useI18n } from '../i18n';
 
 const { t } = useI18n();
@@ -16,6 +18,8 @@ const props = defineProps<{
 }>();
 
 const store = useVocabularyStore();
+const sameStandardGroups = useSameStandardTerms();
+const hasSameStandardTerms = computed(() => sameStandardGroups.value.some(group => group.terms.length > 0));
 const router = useRouter();
 const conceptLoading = ref(false);
 const localError = ref<string | null>(null);
@@ -298,14 +302,23 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
           @navigate="onSphereNavigate"
         />
         <!-- Detail mode -->
-        <ConceptDetail
-          v-else
-          :concept="concept as any"
-          :manifest="manifest"
-          :edges="edges"
-          :adjacent="adjacent"
-          :register-id="registerId"
-        />
+        <div v-else class="detail-layout" :class="{ 'has-standard-pane': hasSameStandardTerms }">
+          <div class="detail-main">
+            <ConceptDetail
+              :concept="concept as any"
+              :manifest="manifest"
+              :edges="edges"
+              :adjacent="adjacent"
+              :register-id="registerId"
+            />
+          </div>
+          <SameStandardPane
+            v-if="hasSameStandardTerms"
+            :groups="sameStandardGroups"
+            :register-id="activeRegisterId"
+            :concept-id="concept.id"
+          />
+        </div>
       </div>
     </template>
 
@@ -337,6 +350,19 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+.detail-layout {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+}
+.detail-main {
+  min-width: 0;
+}
+@media (min-width: 1024px) {
+  .detail-layout.has-standard-pane {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
 }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }

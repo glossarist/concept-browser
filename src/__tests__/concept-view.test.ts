@@ -5,6 +5,7 @@ import { useVocabularyStore } from '../stores/vocabulary';
 import { conceptFromJson } from '../adapters/model-bridge';
 import { createTestRouter, setupPinia, makeManifest, makeAdapterStub } from './test-helpers';
 import { ChunkLoadError } from '../errors';
+import { Concept } from 'glossarist';
 
 // Mock fetch for cross-ref-index.json requests from ensureEdgesForDataset
 const mockFetch = vi.fn();
@@ -91,6 +92,60 @@ describe('ConceptView', () => {
     const wrapper = mountConceptView();
     await flushPromises();
     expect(wrapper.text()).toContain('Failed to load concept');
+  });
+
+  it('shows same-standard terms only in detail mode and clears them for an unrelated concept', async () => {
+    const registerId = 'same-standard-view';
+    const concept = Concept.fromJSON({
+      id: '1',
+      sources: [{ type: 'authoritative', origin: { ref: { source: 'ISO', id: '704:2022' } } }],
+    });
+    const store = useVocabularyStore();
+    store.manifests.set(registerId, makeManifest({ id: registerId }));
+    store.datasets.set(registerId, makeAdapterStub({
+      fetchConcept: async () => concept,
+      getIndexEntry: () => ({ designations: { eng: 'Related term' } }),
+    }));
+    mockFetch.mockImplementation(async (url: string) => url.endsWith('/standards.json')
+      ? { ok: true, json: async () => ({
+        'iso 704:2022': { label: 'ISO 704:2022', conceptIds: ['1', '2'] },
+        'iso 999:2020': { label: 'ISO 999:2020', conceptIds: ['4'] },
+      }) }
+      : { ok: false, status: 404 });
+    const wrapper = mount(ConceptView, {
+      global: { plugins: [pinia, router], stubs: { ConceptDetail: true, RelationSphere: true } },
+      props: { registerId, conceptId: '1' },
+    });
+    try {
+      await flushPromises();
+      expect(mockFetch).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}data/${registerId}/standards.json`);
+      expect(wrapper.find('aside').text()).toContain('ISO 704:2022');
+      expect(wrapper.find('aside a').attributes('href')).toBe(`/dataset/${registerId}/concept/2`);
+      expect(wrapper.find(`aside a[href="/dataset/${registerId}/concept/1"]`).exists()).toBe(false);
+
+      await wrapper.get('button[title="Relation sphere view (s)"]').trigger('click');
+      expect(wrapper.find('aside').exists()).toBe(false);
+      expect(wrapper.findComponent({ name: 'RelationSphere' }).exists()).toBe(true);
+
+      await wrapper.get('button[title="Detail view (d)"]').trigger('click');
+      expect(wrapper.find('aside').exists()).toBe(true);
+      expect(wrapper.findComponent({ name: 'ConceptDetail' }).exists()).toBe(true);
+
+      store.currentConcept = Concept.fromJSON({
+        id: '4',
+        sources: [{ type: 'authoritative', origin: { ref: { source: 'ISO', id: '999:2020' } } }],
+      });
+      await flushPromises();
+      expect(wrapper.find('aside').exists()).toBe(false);
+      expect(wrapper.get('.detail-layout').classes()).not.toContain('has-standard-pane');
+
+      store.currentConcept = Concept.fromJSON({ id: '3' });
+      await flushPromises();
+      expect(wrapper.find('aside').exists()).toBe(false);
+      expect(wrapper.findComponent({ name: 'ConceptDetail' }).exists()).toBe(true);
+    } finally {
+      wrapper.unmount();
+    }
   });
 
   it('keeps the concept visible and removes stale navigation when adjacent chunks fail', async () => {
