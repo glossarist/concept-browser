@@ -16,6 +16,8 @@ import {
   type Concept,
 } from 'glossarist';
 import { loadSiteConfig } from './load-site-config';
+import { standardKey, standardLabel } from '../src/utils/source-standard';
+import type { StandardsIndex } from '../src/adapters/standards-index';
 import { getGroups } from './lib/concept-groups';
 import { consumeDatasetEntities } from './lib/build/non-verbal-consumer';
 import { copyImageAssets } from './lib/build/image-assets';
@@ -741,7 +743,27 @@ async function processDataset(dir, register, opts) {
     },
   };
 
+  const standards = new Map<string, StandardsIndex[string]>();
+
   const STATS_PROCESSORS = [
+    function collectStandards(cy, termid) {
+      const sources = [
+        ...(cy._sources || []),
+        ...opts.languages.flatMap(lang => cy[lang]?.sources || []),
+      ];
+      const seen = new Set<string>();
+      for (const source of sources) {
+        if (source.type !== 'authoritative') continue;
+        const ref = source.origin?.ref;
+        const key = standardKey(ref);
+        if (key === null || seen.has(key)) continue;
+        seen.add(key);
+        if (!standards.has(key)) {
+          standards.set(key, { label: standardLabel(ref)!, conceptIds: [] });
+        }
+        standards.get(key)!.conceptIds.push(termid);
+      }
+    },
     function collectSources(cy, termid, s) {
       const refs = new Set();
       const allSources = [
@@ -998,6 +1020,8 @@ async function processDataset(dir, register, opts) {
     }))
     .sort((a, b) => b.conceptCount - a.conceptCount);
   const totalRelationships = Object.values(stats.relTypeCounts).reduce((a: number, b: number) => a + b, 0);
+
+  writeJson(path.join(DATA, register, 'standards.json'), Object.fromEntries(standards));
 
   writeJson(path.join(DATA, register, 'stats.json'), {
     sourceCount: sourceStats.length,
