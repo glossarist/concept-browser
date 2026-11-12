@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useUiStore } from '../stores/ui';
 import { useVocabularyStore } from '../stores/vocabulary';
-import { ref, watch, onMounted, computed, nextTick } from 'vue';
+import { ref, watch, onBeforeUnmount, computed, nextTick } from 'vue';
 import type { SearchHit } from '../adapters/types';
 import { useI18n } from '../i18n';
 import SearchResults from './SearchResults.vue';
 
 const router = useRouter();
+const route = useRoute();
 const ui = useUiStore();
 const store = useVocabularyStore();
 const { t } = useI18n();
@@ -20,11 +21,13 @@ const searchError = ref<string | null>(null);
 const searchInputEl = ref<HTMLInputElement | null>(null);
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let searchGeneration = 0;
+let activeQuery = '';
 
 async function doSearch() {
   const q = query.value.trim();
   if (!q) return;
   const generation = ++searchGeneration;
+  activeQuery = q;
   ui.searchQuery = q;
   loading.value = true;
   searchError.value = null;
@@ -57,8 +60,9 @@ function onInput() {
   }, 300);
 }
 
-function clearSearch() {
+function resetSearch() {
   searchGeneration++;
+  activeQuery = '';
   if (debounceTimer) clearTimeout(debounceTimer);
   debounceTimer = null;
   ui.searchQuery = '';
@@ -68,6 +72,10 @@ function clearSearch() {
   searchError.value = null;
   searched.value = false;
   selectedIdx.value = -1;
+}
+
+function clearSearch() {
+  resetSearch();
   router.replace({ query: {} });
 }
 
@@ -125,19 +133,20 @@ function scrollToSelected() {
   });
 }
 
-watch(() => ui.searchQuery, (q) => {
-  if (q && q !== query.value) {
-    query.value = q;
+watch(() => [route.name, route.query.q], () => {
+  const q = route.name === 'search' && typeof route.query.q === 'string'
+    ? route.query.q.trim()
+    : '';
+  // A completed search writes its query to the URL; do not run it twice.
+  if (q && q === activeQuery) return;
+  resetSearch();
+  query.value = q;
+  if (q) {
     doSearch();
   }
-});
+}, { immediate: true });
 
-onMounted(() => {
-  if (ui.searchQuery) {
-    query.value = ui.searchQuery;
-    doSearch();
-  }
-});
+onBeforeUnmount(resetSearch);
 </script>
 
 <template>
