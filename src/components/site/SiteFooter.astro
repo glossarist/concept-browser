@@ -8,6 +8,12 @@ const siteConfig = await getSiteConfig();
     <div class="flex items-center gap-4">
       <a href="/about" class="hover:text-ink-600 dark:hover:text-ink-300">About</a>
       <a href="/contributors" class="hover:text-ink-600 dark:hover:text-ink-300">Contributors</a>
+      {siteConfig.branding?.hostedBy && (
+        <a href={siteConfig.branding.hostedBy.url} class="inline-flex items-center gap-1 hover:text-ink-600 dark:hover:text-ink-300">
+          <span>Hosted by</span>
+          <img src={siteConfig.branding.hostedBy.logo} alt={siteConfig.branding.hostedBy.name || 'Host'} class="h-4 w-auto" />
+        </a>
+      )}
       {siteConfig.branding?.poweredBy && <span>{siteConfig.branding.poweredBy}</span>}
     </div>
   </div>

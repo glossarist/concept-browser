@@ -35,4 +35,40 @@ describe('AppFooter', () => {
     expect(link).toBeDefined();
     expect(link!.attributes('href')).toBe('https://glossarist.org');
   });
+
+  it('omits hosted by when branding.hostedBy is absent', () => {
+    const wrapper = mountFooter();
+    expect(wrapper.text()).not.toContain('Hosted by');
+  });
+
+  it('renders hosted by with logo when branding.hostedBy is configured', async () => {
+    const inline = document.createElement('script');
+    inline.id = 'site-config-json';
+    inline.type = 'application/json';
+    inline.textContent = JSON.stringify({
+      title: 'Test Site',
+      branding: {
+        hostedBy: {
+          name: 'Enosema Foundation',
+          url: 'https://www.enosema.org',
+          logo: 'https://www.enosema.org/logos/logo-text-white.svg',
+        },
+      },
+    });
+    document.head.appendChild(inline);
+
+    const { useSiteConfig } = await import('../config/use-site-config');
+    await useSiteConfig().loadConfig();
+
+    const wrapper = mountFooter();
+    expect(wrapper.text()).toContain('Hosted by');
+    const link = wrapper.findAll('a').find(a => a.attributes('href') === 'https://www.enosema.org');
+    expect(link).toBeDefined();
+    expect(link!.attributes('href')).toBe('https://www.enosema.org');
+    const img = link!.find('img');
+    expect(img.attributes('src')).toBe('https://www.enosema.org/logos/logo-text-white.svg');
+    expect(img.attributes('alt')).toBe('Enosema Foundation');
+    inline.remove();
+  });
+
 });
