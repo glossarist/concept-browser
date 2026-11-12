@@ -1,25 +1,22 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { onBeforeUnmount, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import SearchBar from '../components/SearchBar.vue';
 import { useUiStore } from '../stores/ui';
 import { useI18n } from '../i18n';
 
 const route = useRoute();
-const router = useRouter();
 const ui = useUiStore();
 const { t } = useI18n();
 
-onMounted(() => {
-  if (route.query.q && typeof route.query.q === 'string') {
-    ui.searchQuery = route.query.q;
-  }
-});
+watch(() => [route.name, route.query.q], () => {
+  ui.searchQuery = route.name === 'search' && typeof route.query.q === 'string'
+    ? route.query.q.trim()
+    : '';
+}, { immediate: true });
 
-watch(() => route.query.q, (q) => {
-  if (typeof q === 'string' && q) {
-    ui.searchQuery = q;
-  }
+onBeforeUnmount(() => {
+  ui.searchQuery = '';
 });
 </script>
 
