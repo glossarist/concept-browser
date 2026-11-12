@@ -5,6 +5,7 @@ import { createRouter, createMemoryHistory } from 'vue-router';
 import SearchBar from '../components/SearchBar.vue';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useUiStore } from '../stores/ui';
+import { entryStatusColor, entryStatusLabel } from '../utils/concept-helpers';
 import type { Manifest, SearchHit } from '../adapters/types';
 
 function makeManifest(): Manifest {
@@ -269,6 +270,17 @@ describe('SearchBar', () => {
     await wrapper.find('form').trigger('submit');
     await flushPromises();
     expect(wrapper.text()).toContain('ID match');
+  });
+
+  it('shows the coloured entry status badge for a superseded hit', async () => {
+    store.searchAcrossDatasets = vi.fn(async () => [makeHit({ status: 'superseded' })]);
+    const wrapper = mountSearch();
+    await wrapper.find('input').setValue('road');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    const badge = wrapper.findAll('.badge').find(b => b.text() === entryStatusLabel('superseded'));
+    expect(badge).toBeDefined();
+    expect(badge!.classes()).toEqual(expect.arrayContaining(entryStatusColor('superseded').split(' ')));
   });
 
   it('updates URL query parameter on search', async () => {
