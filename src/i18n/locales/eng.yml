@@ -158,6 +158,9 @@ search.manyResultsFor: '{count} results for "{query}"'
 search.noResults: No concepts found matching your search
 search.tryDifferent: Try a different term or check the spelling.
 search.range: '{start}–{end} of {total}'
+search.sort: Sort search results
+search.sortEnglishFirst: English first
+search.sortRelevance: Relevance
 search.prev: Prev
 search.next: Next
 search.idMatch: ID match

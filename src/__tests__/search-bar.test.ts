@@ -8,6 +8,9 @@ import { useUiStore } from '../stores/ui';
 import { entryStatusColor, entryStatusLabel } from '../utils/concept-helpers';
 import type { Manifest, SearchHit } from '../adapters/types';
 
+const siteConfig = vi.hoisted(() => ({ value: null as null | { defaults: { language?: string; languageOrder?: string[] } } }));
+vi.mock('../config/use-site-config', () => ({ useSiteConfig: () => ({ config: siteConfig }) }));
+
 function makeManifest(): Manifest {
   return {
     id: 'test',
@@ -60,6 +63,8 @@ describe('SearchBar', () => {
   let store: ReturnType<typeof useVocabularyStore>;
 
   beforeEach(async () => {
+    localStorage.removeItem('searchSort');
+    siteConfig.value = null;
     pinia = createPinia();
     setActivePinia(pinia);
     router = await createTestRouter();
@@ -218,6 +223,86 @@ describe('SearchBar', () => {
     expect(wrapper.text()).toContain('2 results');
     expect(wrapper.text()).toContain('road network');
     expect(wrapper.text()).toContain('road user');
+  });
+
+  it('lists English before higher-ranked French hits and navigates in rendered order', async () => {
+    store.searchAcrossDatasets = vi.fn(async () => [
+      makeHit({ conceptId: 'french', designation: 'route', language: 'fra' }),
+      makeHit({ conceptId: 'english', designation: 'road', language: 'eng' }),
+    ]);
+    const wrapper = mountSearch();
+    await wrapper.find('input').setValue('road');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    expect(wrapper.findAll('.card-hover').map(hit => hit.text())).toEqual([
+      expect.stringContaining('road'), expect.stringContaining('route'),
+    ]);
+    await wrapper.find('input').trigger('keydown', { key: 'ArrowDown' });
+    expect(wrapper.find('.search-hit-selected').text()).toContain('road');
+
+    await wrapper.get('select').setValue('relevance');
+    expect(useUiStore().searchSort).toBe('relevance');
+    expect(localStorage.getItem('searchSort')).toBe('relevance');
+    expect(wrapper.find('.search-hit-selected').exists()).toBe(false);
+    expect(wrapper.findAll('.card-hover').map(hit => hit.text())).toEqual([
+      expect.stringContaining('route'), expect.stringContaining('road'),
+    ]);
+    expect(store.searchAcrossDatasets).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
+  });
+
+  it('includes an English hit beyond raw position 100 on the first page', async () => {
+    store.searchAcrossDatasets = vi.fn(async () => [
+      ...Array.from({ length: 101 }, (_, i) => makeHit({ conceptId: `fra-${i}`, language: 'fra', designation: `route ${i}` })),
+      makeHit({ conceptId: 'english', designation: 'road' }),
+    ]);
+    const wrapper = mountSearch();
+    await wrapper.find('input').setValue('road');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    expect(wrapper.findAll('.card-hover')[0].text()).toContain('road');
+    expect(wrapper.text()).toContain('1–20 of 102');
+    await wrapper.findAll('button').find(button => button.text() === 'Next')!.trigger('click');
+    expect(wrapper.text()).toContain('21–40 of 102');
+    await wrapper.get('select').setValue('relevance');
+    expect(wrapper.text()).toContain('1–20 of 102');
+    expect(wrapper.findAll('.card-hover')[0].text()).toContain('route 0');
+    wrapper.unmount();
+  });
+
+  it('keeps the English designation when the same concept first matches in French', async () => {
+    store.initialized = true;
+    const english = makeHit({ designation: 'road' });
+    store.datasets.set('test', {
+      manifest: makeManifest(), index: [], ensureAllChunksLoaded: async () => {},
+      search: () => [makeHit({ language: 'fra', designation: 'route' }), english],
+    } as any);
+    expect(await store.searchAcrossDatasets('road')).toEqual([english]);
+  });
+
+  it.each([
+    { language: 'fra' },
+    { language: 'eng', languageOrder: ['fra', 'eng'] },
+  ])('uses configured priorities for listing and concept deduplication: %j', async (defaults) => {
+    siteConfig.value = { defaults };
+    store.initialized = true;
+    store.datasets.set('test', {
+      manifest: makeManifest(), index: [], ensureAllChunksLoaded: async () => {},
+      search: () => [
+        makeHit({ conceptId: 'shared', language: 'eng', designation: 'English duplicate' }),
+        makeHit({ conceptId: 'english', language: 'eng', designation: 'road' }),
+        makeHit({ conceptId: 'shared', language: 'fra', designation: 'route' }),
+      ],
+    } as any);
+    const wrapper = mountSearch();
+    await wrapper.find('input').setValue('road');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    expect(wrapper.findAll('.card-hover').map(hit => hit.text())).toEqual([
+      expect.stringContaining('route'), expect.stringContaining('road'),
+    ]);
+    expect(wrapper.text()).not.toContain('English duplicate');
+    wrapper.unmount();
   });
 
   it('paginates all 23 hits in pages of 20 and disables boundary navigation', async () => {
