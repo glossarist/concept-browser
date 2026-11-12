@@ -150,6 +150,7 @@ search.fullPlaceholder: Search terms across all datasets...
 search.button: Search
 search.searching: Searching across datasets...
 search.failed: Search failed
+search.incomplete: Some results could not be loaded. Retry to search all entries.
 search.retry: Retry
 search.result: result
 search.results: results

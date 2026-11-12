@@ -21,6 +21,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
   const currentConceptId = ref<string>('');
   const loading = ref(false);
   const error = ref<string | null>(null);
+  const searchWarning = ref<string | null>(null);
   const graph = shallowRef(new GraphEngine());
   const conceptEdges = ref<GraphEdge[]>([]);
   const initialized = ref(false);
@@ -274,6 +275,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
     }
 
     const allHits: SearchHit[] = [];
+    let incomplete = false;
     for (const adapter of datasets.value.values()) {
       if (!adapter.manifest) continue;
       try {
@@ -283,14 +285,17 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
         try {
           await adapter.ensureAllChunksLoaded();
         } catch {
-          // Search the chunks already loaded if another chunk fails.
+          // Preserve loaded hits, but make the incomplete result set visible.
+          incomplete = true;
         }
         allHits.push(...adapter.search(query));
       } catch {
-        // Skip datasets that fail to load or search.
+        // Other datasets may still provide useful results.
+        incomplete = true;
       }
     }
 
+    searchWarning.value = incomplete ? 'search.incomplete' : null;
     return deduplicateSearchHits(allHits, searchPriorityLanguages.value);
   }
 
@@ -313,6 +318,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
     currentConceptId,
     loading,
     error,
+    searchWarning,
     graph,
     graphVersion,
     conceptEdges,

@@ -149,6 +149,7 @@ search.fullPlaceholder: Rechercher des termes dans tous les jeux de données…
 search.button: Rechercher
 search.searching: Recherche dans les jeux de données...
 search.failed: Échec de la recherche
+search.incomplete: Certains résultats n’ont pas pu être chargés. Réessayez pour rechercher toutes les entrées.
 search.retry: Réessayer
 search.result: résultat
 search.results: résultats

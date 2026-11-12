@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { createRouter, createMemoryHistory, RouterView } from 'vue-router';
 import SearchView from '../views/SearchView.vue';
+import { DatasetAdapter } from '../adapters/DatasetAdapter';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useUiStore } from '../stores/ui';
 import { createTestRouter, setupPinia, makeManifest, makeAdapterStub, makeSearchHit } from './test-helpers';
@@ -17,6 +18,10 @@ describe('SearchView', () => {
     store.initialized = true;
     store.manifests.set('test', makeManifest());
     store.datasets.set('test', makeAdapterStub());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   function mountView() {
@@ -46,6 +51,81 @@ describe('SearchView', () => {
     const wrapper = mountView();
     expect(wrapper.text()).toContain('Home');
     expect(wrapper.text()).toContain('Search');
+  });
+
+  it.each(['transient', 'persistent'] as const)('warns about a %s chunk failure and retries from the routed search', async (failure) => {
+    const manifest = makeManifest({ conceptCount: 2001 });
+    const adapter = new DatasetAdapter('test', '/data/test');
+    adapter.manifest = manifest;
+    const store = useVocabularyStore();
+    store.manifests.set('test', manifest);
+    store.datasets.set('test', adapter);
+
+    const chunks = [
+      Array.from({ length: 1000 }, (_, i) => ({
+        id: i === 0 ? '276' : `first-${i}`,
+        designations: { eng: i === 0 ? 'location' : `unrelated first ${i}` },
+        status: i === 0 ? 'superseded' : 'valid',
+      })),
+      Array.from({ length: 1000 }, (_, i) => ({
+        id: i === 0 ? '2345' : `second-${i}`,
+        designations: { eng: i === 0 ? 'location' : `unrelated second ${i}` },
+        status: 'valid',
+      })),
+      [{ id: '9999', designations: { eng: 'unrelated last entry' }, status: 'valid' }],
+    ];
+    let failedChunkRequests = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/data/test/index-meta.json') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            registerId: 'test', schemaVersion: '1.0.0', conceptCount: 2001, chunkSize: 1000,
+            chunks: chunks.map((concepts, i) => ({ file: `index-${i}.json`, count: concepts.length })),
+          }),
+        } as Response;
+      }
+      const chunkIndex = chunks.findIndex((_, i) => url === `/data/test/chunks/index-${i}.json`);
+      if (chunkIndex < 0) throw new Error(`Unexpected fetch: ${url}`);
+      if (chunkIndex === 1 && (++failedChunkRequests === 1 || failure === 'persistent')) {
+        return { ok: false, status: 404 } as Response;
+      }
+      return { ok: true, status: 200, json: async () => ({ concepts: chunks[chunkIndex] }) } as Response;
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const wrapper = await mountRoutedSearch('/search?q=location');
+    try {
+      expect((wrapper.find('input').element as HTMLInputElement).value).toBe('location');
+      expect(wrapper.get('[role="alert"]').text()).toContain('Some results could not be loaded');
+      expect(wrapper.get('.search-results').text()).toContain('276');
+      expect(wrapper.get('.search-results').text()).toContain('superseded');
+      expect(wrapper.get('.search-results').text()).not.toContain('2345');
+      expect(wrapper.get('.search-results').text()).not.toContain('9999');
+
+      const retry = wrapper.findAll('button').find(button => button.text() === 'Retry');
+      expect(retry).toBeDefined();
+      await retry!.trigger('click');
+      await flushPromises();
+
+      expect(failedChunkRequests).toBe(2);
+      expect(router.currentRoute.value.fullPath).toBe('/search?q=location');
+      expect(wrapper.get('.search-results').text()).toContain('276');
+      expect(wrapper.get('.search-results').text()).not.toContain('9999');
+      if (failure === 'transient') {
+        expect(wrapper.get('.search-results').text()).toContain('2345');
+        expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+      } else {
+        expect(wrapper.get('.search-results').text()).not.toContain('2345');
+        expect(wrapper.get('[role="alert"]').text()).toContain('Some results could not be loaded');
+      }
+      expect(fetchMock.mock.calls.filter(([url]) => url === '/data/test/chunks/index-0.json')).toHaveLength(1);
+      expect(fetchMock.mock.calls.filter(([url]) => url === '/data/test/chunks/index-2.json')).toHaveLength(1);
+    } finally {
+      wrapper.unmount();
+    }
   });
 
   it('renders SearchBar component', () => {
