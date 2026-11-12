@@ -238,6 +238,7 @@ export interface SectionNode {
 export interface SearchHit {
   conceptId: string;
   registerId: string;
+  status?: string;
   designation: string;
   language: string;
   matchField: 'designation' | 'id';

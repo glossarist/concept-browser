@@ -218,6 +218,34 @@ describe('DatasetAdapter', () => {
       expect(hits[0].conceptId).toBe('103-01-02');
     });
 
+    it('carries concept status on designation and ID search hits', async () => {
+      const index = {
+        registerId: 'test',
+        schemaVersion: '1.0.0',
+        conceptCount: 2,
+        chunkSize: 500,
+        chunks: [],
+        concepts: [
+          { id: '102-01-01', designations: { eng: 'shared term' }, eng: 'shared term', status: 'valid' },
+          { id: '102-01-02', designations: { eng: 'shared term' }, eng: 'shared term', status: 'superseded' },
+        ],
+      };
+      mockFetch.mockReturnValue(mockJsonResponse(index));
+      await adapter.loadIndex();
+
+      const designationHits = adapter.search('shared term');
+      expect(Object.fromEntries(designationHits.map(({ conceptId, status }) => [conceptId, status]))).toEqual({
+        '102-01-01': 'valid',
+        '102-01-02': 'superseded',
+      });
+
+      const idHits = ['102-01-01', '102-01-02'].flatMap((id) => adapter.search(id));
+      expect(Object.fromEntries(idHits.map(({ conceptId, status }) => [conceptId, status]))).toEqual({
+        '102-01-01': 'valid',
+        '102-01-02': 'superseded',
+      });
+    });
+
     it('is case insensitive', async () => {
       const index = {
         registerId: 'test',
