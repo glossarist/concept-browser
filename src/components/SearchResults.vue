@@ -12,7 +12,7 @@ interface GroupedResults {
   hits: SearchHit[];
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   loading: boolean;
   searchError: string | null;
   searched: boolean;
@@ -20,10 +20,13 @@ const props = defineProps<{
   results: SearchHit[];
   groupedResults: GroupedResults[];
   selectedIdx: number;
-}>();
+  currentPage?: number;
+  pageSize?: number;
+}>(), { currentPage: 1, pageSize: 20 });
 
 const emit = defineEmits<{
   retry: [];
+  changePage: [page: number];
   goHit: [hit: SearchHit];
 }>();
 
@@ -93,8 +96,24 @@ const hitIndexMap = computed(() => {
       </div>
     </div>
 
-    <div v-if="results.length > 100" class="text-center text-sm text-ink-300 mt-6 pt-4 border-t border-ink-100/60">
-      {{ t('search.showingFirst', { max: '100', total: String(results.length) }) }}
+    <div v-if="results.length > 0" class="flex items-center justify-between gap-4 text-sm text-ink-500 mt-6 pt-4 border-t border-ink-100/60">
+      <button
+        type="button"
+        class="btn-secondary disabled:opacity-50"
+        :disabled="currentPage === 1"
+        @click="emit('changePage', currentPage - 1)"
+      >{{ t('search.prev') }}</button>
+      <span aria-live="polite">{{ t('search.range', {
+        start: String((currentPage - 1) * pageSize + 1),
+        end: String(Math.min(currentPage * pageSize, results.length)),
+        total: String(results.length),
+      }) }}</span>
+      <button
+        type="button"
+        class="btn-secondary disabled:opacity-50"
+        :disabled="currentPage * pageSize >= results.length"
+        @click="emit('changePage', currentPage + 1)"
+      >{{ t('search.next') }}</button>
     </div>
   </div>
 </template>

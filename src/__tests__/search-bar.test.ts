@@ -220,6 +220,131 @@ describe('SearchBar', () => {
     expect(wrapper.text()).toContain('road user');
   });
 
+  it('paginates all 23 hits in pages of 20 and disables boundary navigation', async () => {
+    const hits = Array.from({ length: 23 }, (_, index) => makeHit({
+      conceptId: `term-${index + 1}`,
+      designation: `term ${index + 1}`,
+    }));
+    store.searchAcrossDatasets = vi.fn(async () => hits);
+    const wrapper = mountSearch();
+    await wrapper.find('input').setValue('term');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    const pageButtons = () => wrapper.findAll('button').filter(button => ['Prev', 'Next'].includes(button.text()));
+    const hitButtons = () => wrapper.findAll('.search-results button').filter(button => !['Prev', 'Next'].includes(button.text()));
+    expect(wrapper.text()).toContain('1–20 of 23');
+    expect(hitButtons()).toHaveLength(20);
+    expect(hitButtons().map(button => button.text())).toEqual(expect.arrayContaining(
+      hits.slice(0, 20).map(hit => expect.stringContaining(hit.designation)),
+    ));
+    expect(pageButtons().map(button => button.text())).toEqual(['Prev', 'Next']);
+    expect(pageButtons()[0].element.disabled).toBe(true);
+    expect(pageButtons()[1].element.disabled).toBe(false);
+
+    await pageButtons()[1].trigger('click');
+    await vi.advanceTimersByTimeAsync(300);
+    await flushPromises();
+    expect(wrapper.text()).toContain('21–23 of 23');
+    expect(hitButtons()).toHaveLength(3);
+    expect(hitButtons().map(button => button.text())).toEqual(expect.arrayContaining([
+      expect.stringContaining('term 21'),
+      expect.stringContaining('term 22'),
+      expect.stringContaining('term 23'),
+    ]));
+    expect(pageButtons()[0].element.disabled).toBe(false);
+    expect(pageButtons()[1].element.disabled).toBe(true);
+
+    await pageButtons()[0].trigger('click');
+    expect(wrapper.text()).toContain('1–20 of 23');
+    expect(hitButtons()).toHaveLength(20);
+    await pageButtons()[1].trigger('click');
+    expect(hitButtons().map(button => button.text()).join(' ')).toContain('term 23');
+    wrapper.unmount();
+  });
+
+  it('resets pagination when a new search is submitted', async () => {
+    const firstHits = Array.from({ length: 23 }, (_, index) => makeHit({ conceptId: `first-${index + 1}`, designation: `first ${index + 1}` }));
+    const secondHits = [makeHit({ conceptId: 'second-1', designation: 'second result' })];
+    store.searchAcrossDatasets = vi.fn(async (query: string) => query === 'first' ? firstHits : secondHits);
+    const wrapper = mountSearch();
+    const input = wrapper.find('input');
+    await input.setValue('first');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    await wrapper.findAll('button').find(button => button.text() === 'Next')!.trigger('click');
+    expect(wrapper.text()).toContain('21–23 of 23');
+
+    await input.setValue('second');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    expect(wrapper.text()).toContain('second result');
+    expect(wrapper.text()).not.toContain('21–23 of 23');
+    expect(wrapper.text()).toContain('1–1 of 1');
+    const paginationButtons = wrapper.findAll('button').filter(button => ['Prev', 'Next'].includes(button.text()));
+    expect(paginationButtons).toHaveLength(2);
+    expect(paginationButtons.every(button => button.element.disabled)).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('resets keyboard selection on page change and selects only current page hits', async () => {
+    const hits = Array.from({ length: 23 }, (_, index) => makeHit({
+      conceptId: `keyboard-${index + 1}`,
+      designation: `keyboard ${index + 1}`,
+    }));
+    store.searchAcrossDatasets = vi.fn(async () => hits);
+    const wrapper = mountSearch();
+    const input = wrapper.find('input');
+    await input.setValue('keyboard');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    for (let index = 0; index < 20; index++) await input.trigger('keydown', { key: 'ArrowDown' });
+    expect(wrapper.find('.search-hit-selected').text()).toContain('keyboard 20');
+    await wrapper.findAll('button').find(button => button.text() === 'Next')!.trigger('click');
+    expect(wrapper.find('.search-hit-selected').exists()).toBe(false);
+    await input.trigger('keydown', { key: 'ArrowDown' });
+    expect(wrapper.find('.search-hit-selected').text()).toContain('keyboard 21');
+    await input.trigger('keydown', { key: 'ArrowDown' });
+    expect(wrapper.find('.search-hit-selected').text()).toContain('keyboard 22');
+    await input.trigger('keydown', { key: 'ArrowDown' });
+    expect(wrapper.find('.search-hit-selected').text()).toContain('keyboard 23');
+    await input.trigger('keydown', { key: 'ArrowDown' });
+    expect(wrapper.find('.search-hit-selected').text()).toContain('keyboard 23');
+    await input.trigger('keydown', { key: 'Enter' });
+    await flushPromises();
+    expect(router.currentRoute.value.params.conceptId).toBe('keyboard-23');
+    wrapper.unmount();
+  });
+
+  it('keeps hits beyond the fifth page reachable', async () => {
+    const hits = Array.from({ length: 103 }, (_, index) => makeHit({
+      conceptId: `many-${index + 1}`,
+      designation: `many ${index + 1}`,
+    }));
+    store.searchAcrossDatasets = vi.fn(async () => hits);
+    const wrapper = mountSearch();
+    await wrapper.find('input').setValue('many');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    for (let page = 1; page < 6; page++) {
+      const next = wrapper.findAll('button').find(button => button.text() === 'Next');
+      expect(next).toBeDefined();
+      expect(next!.element.disabled).toBe(false);
+      await next!.trigger('click');
+    }
+    expect(wrapper.text()).toContain('101–103 of 103');
+    const pageHits = wrapper.findAll('.search-results button').filter(button => !['Prev', 'Next'].includes(button.text()));
+    expect(pageHits.map(button => button.text())).toEqual(expect.arrayContaining([
+      expect.stringContaining('many 101'),
+      expect.stringContaining('many 102'),
+      expect.stringContaining('many 103'),
+    ]));
+    expect(wrapper.findAll('button').find(button => button.text() === 'Next')!.element.disabled).toBe(true);
+    wrapper.unmount();
+  });
+
   it('shows empty state when no results', async () => {
     store.searchAcrossDatasets = vi.fn(async () => []);
     const wrapper = mountSearch();

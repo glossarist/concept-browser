@@ -157,7 +157,9 @@ search.oneResultFor: '1 result for "{query}"'
 search.manyResultsFor: '{count} results for "{query}"'
 search.noResults: No concepts found matching your search
 search.tryDifferent: Try a different term or check the spelling.
-search.showingFirst: Showing first {max} of {total} results. Refine your search for more specific matches.
+search.range: '{start}–{end} of {total}'
+search.prev: Prev
+search.next: Next
 search.idMatch: ID match
 
 # Page view
