@@ -19,19 +19,24 @@ const loading = ref(false);
 const searchError = ref<string | null>(null);
 const searchInputEl = ref<HTMLInputElement | null>(null);
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let searchGeneration = 0;
 
 async function doSearch() {
   const q = query.value.trim();
   if (!q) return;
+  const generation = ++searchGeneration;
   ui.searchQuery = q;
   loading.value = true;
   searchError.value = null;
   try {
-    results.value = await store.searchAcrossDatasets(q);
+    const hits = await store.searchAcrossDatasets(q);
+    if (generation !== searchGeneration) return;
+    results.value = hits;
   } catch (e: any) {
+    if (generation !== searchGeneration) return;
     searchError.value = e.message || 'Search failed';
   } finally {
-    loading.value = false;
+    if (generation === searchGeneration) loading.value = false;
   }
   searched.value = true;
   selectedIdx.value = -1;
@@ -53,11 +58,14 @@ function onInput() {
 }
 
 function clearSearch() {
+  searchGeneration++;
   if (debounceTimer) clearTimeout(debounceTimer);
   debounceTimer = null;
   ui.searchQuery = '';
   query.value = '';
   results.value = [];
+  loading.value = false;
+  searchError.value = null;
   searched.value = false;
   selectedIdx.value = -1;
   router.replace({ query: {} });

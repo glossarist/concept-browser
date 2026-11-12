@@ -156,6 +156,40 @@ describe('SearchBar', () => {
     wrapper.unmount();
   });
 
+  it.each(['resolve', 'reject'] as const)('ignores an in-flight search that %s after clearing', async (outcome) => {
+    let resolveSearch!: (hits: SearchHit[]) => void;
+    let rejectSearch!: (error: Error) => void;
+    store.searchAcrossDatasets = vi.fn(() => new Promise<SearchHit[]>((resolve, reject) => {
+      resolveSearch = resolve;
+      rejectSearch = reject;
+    }));
+    const ui = useUiStore();
+    const wrapper = mountSearch();
+    await wrapper.find('input').setValue('road');
+    await wrapper.find('form').trigger('submit');
+    expect(store.searchAcrossDatasets).toHaveBeenCalledWith('road');
+    expect(wrapper.html()).toContain('animate-spin');
+
+    await wrapper.get('button[type="button"]').trigger('click');
+    await flushPromises();
+
+    if (outcome === 'resolve') {
+      resolveSearch([makeHit({ designation: 'road network' })]);
+    } else {
+      rejectSearch(new Error('Late search failure'));
+    }
+    await flushPromises();
+
+    expect(wrapper.find('input').element.value).toBe('');
+    expect(ui.searchQuery).toBe('');
+    expect(wrapper.find('.search-results').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('road network');
+    expect(wrapper.text()).not.toContain('Late search failure');
+    expect(router.currentRoute.value.query.q).toBeUndefined();
+    expect(wrapper.html()).not.toContain('animate-spin');
+    wrapper.unmount();
+  });
+
   it('shows loading spinner during search', async () => {
     const wrapper = mountSearch();
     // Mock a slow search
