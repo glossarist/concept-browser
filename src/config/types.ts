@@ -83,6 +83,8 @@ export interface SiteBranding {
   favicon?: string | FaviconConfig;
   ownerName?: string;
   ownerUrl?: string;
+  /** Hosting organization identity, rendered in the footer as "Hosted by ⟨logo⟩". */
+  hostedBy?: HostedByConfig;
 }
 
 // === Features ===
@@ -90,6 +92,15 @@ export interface SiteBranding {
 export interface PoweredByConfig {
   message?: string;
   url?: string;
+}
+
+export interface HostedByConfig {
+  /** Organization name, used as the logo alt text. */
+  name?: string;
+  /** Link target for the hosted-by credit. */
+  url: string;
+  /** Logo image path or URL. */
+  logo: string;
 }
 
 export interface SiteFeatures {

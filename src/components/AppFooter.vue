@@ -26,6 +26,7 @@ const footerNav = computed(() => config.value?.footerNav ?? []);
 const copyrightOwner = computed(() => config.value?.copyright || '');
 const ownerName = computed(() => config.value?.branding?.ownerName || config.value?.title || '');
 const ownerUrl = computed(() => config.value?.branding?.ownerUrl || '/');
+const hostedBy = computed(() => config.value?.branding?.hostedBy as { name?: string; url: string; logo: string } | undefined);
 </script>
 
 <template>
@@ -58,6 +59,12 @@ const ownerUrl = computed(() => config.value?.branding?.ownerUrl || '/');
             class="hover:text-ink-700 transition-colors"
           >{{ link.label }}</a>
           <span class="text-ink-200">|</span>
+          <span v-if="hostedBy" class="text-xs inline-flex items-center gap-1.5">
+            <span>Hosted by</span>
+            <a :href="hostedBy.url" target="_blank" rel="noopener" class="inline-flex items-center">
+              <img :src="hostedBy.logo" :alt="hostedBy.name || 'Host'" class="h-4 w-auto opacity-80" />
+            </a>
+          </span>
           <span class="text-xs inline-flex items-center gap-1.5">
             <img :src="glossaristLogo" alt="Glossarist" class="w-4 h-4 opacity-80" />
             <a :href="poweredBy.url" target="_blank" rel="noopener" class="concept-link">{{ poweredBy.message }}</a>
