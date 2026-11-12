@@ -32,6 +32,7 @@ export interface RuntimeSiteConfig {
     footerLogo?: { path: string; alt: string; url?: string; light?: string; dark?: string };
     ownerName?: string;
     ownerUrl?: string;
+    hostedBy?: { name?: string; url: string; logo: string };
   };
   analytics?: { googleAnalyticsId?: string };
   features?: Record<string, unknown>;
