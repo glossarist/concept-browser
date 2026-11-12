@@ -4,6 +4,7 @@ import ConceptView from '../views/ConceptView.vue';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { conceptFromJson } from '../adapters/model-bridge';
 import { createTestRouter, setupPinia, makeManifest, makeAdapterStub } from './test-helpers';
+import { ChunkLoadError } from '../errors';
 
 // Mock fetch for cross-ref-index.json requests from ensureEdgesForDataset
 const mockFetch = vi.fn();
@@ -90,5 +91,52 @@ describe('ConceptView', () => {
     const wrapper = mountConceptView();
     await flushPromises();
     expect(wrapper.text()).toContain('Failed to load concept');
+  });
+
+  it('keeps the concept visible and removes stale navigation when adjacent chunks fail', async () => {
+    const concept = conceptFromJson({
+      '@id': 'https://glossarist.org/test/concept/1',
+      '@type': 'gl:Concept',
+      'gl:identifier': '1',
+      'gl:localizedConcept': {
+        eng: {
+          '@type': 'gl:LocalizedConcept',
+          'gl:languageCode': 'eng',
+          'gl:entryStatus': 'valid',
+          'gl:designation': [{ '@type': 'gl:Expression', 'gl:term': 'test term', 'gl:normativeStatus': 'preferred' }],
+        },
+      },
+    });
+    const error = ChunkLoadError.make('test', 1, 503);
+    const ensureChunks = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(error);
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    useVocabularyStore().datasets.set('test', makeAdapterStub({
+      fetchConcept: async () => concept,
+      getConceptPosition: () => 1,
+      getAdjacentConcepts: () => ({ prev: '0', next: '2' }),
+      ensureChunksForRange: ensureChunks,
+    }));
+    const wrapper = mount(ConceptView, {
+      global: { plugins: [pinia, router] },
+      props: { registerId: 'test', conceptId: '1' },
+    });
+    try {
+      await flushPromises();
+      expect(wrapper.find('h1').text()).toBe('test term');
+      expect(wrapper.find('button[title="Previous concept (←)"]').exists()).toBe(true);
+      expect(wrapper.find('button[title="Next concept (→)"]').exists()).toBe(true);
+
+      await wrapper.setProps({ conceptId: '2' });
+      await flushPromises();
+
+      expect(wrapper.find('h1').text()).toBe('test term');
+      expect(wrapper.find('button[title="Previous concept (←)"]').exists()).toBe(false);
+      expect(wrapper.find('button[title="Next concept (→)"]').exists()).toBe(false);
+      expect(wrapper.text()).not.toContain('Failed to load concept');
+      expect(log).toHaveBeenCalledWith('Failed to load adjacent concepts:', error);
+    } finally {
+      wrapper.unmount();
+      log.mockRestore();
+    }
   });
 });

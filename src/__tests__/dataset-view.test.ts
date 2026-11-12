@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import DatasetView from '../views/DatasetView.vue';
 import { useVocabularyStore } from '../stores/vocabulary';
 import type { Manifest, ConceptSummary, SectionNode } from '../adapters/types';
+import { ChunkLoadError } from '../errors';
 
 function makeManifest(overrides: Partial<Manifest> = {}): Manifest {
   return {
@@ -135,6 +136,45 @@ describe('DatasetView', () => {
     // Should show pagination
     expect(wrapper.text()).toContain('Prev');
     expect(wrapper.text()).toContain('Next');
+  });
+
+  it.each(['page', 'filter'] as const)('shows a chunk failure instead of remaining loading after a %s change', async (action) => {
+    const store = useVocabularyStore();
+    const adapter = makeAdapter(makeConcepts(120));
+    const error = ChunkLoadError.make('test', 1, 503);
+    let failing = true;
+    adapter.isRangeLoaded = (start: number) => start === 0;
+    adapter.ensureChunksForRange = vi.fn(async () => { if (failing) throw error; });
+    adapter.ensureAllChunksLoaded = vi.fn(async () => { if (failing) throw error; });
+    store.manifests.set('test', makeManifest());
+    store.datasets.set('test', adapter);
+    const wrapper = mount(DatasetView, {
+      global: { plugins: [pinia, router] },
+      props: { registerId: 'test' },
+    });
+    await flushPromises();
+    expect(wrapper.text()).toContain('term 1');
+
+    if (action === 'page') {
+      await wrapper.findAll('button').find(b => b.text().includes('Next'))!.trigger('click');
+    } else {
+      await wrapper.find('input[aria-label="Filter concepts"]').setValue('term');
+    }
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(error.message);
+    expect(wrapper.findAll('button').some(b => b.text() === 'Retry')).toBe(true);
+    expect(wrapper.find('.skeleton').exists()).toBe(false);
+    expect((wrapper.vm as unknown as { chunkLoading: boolean }).chunkLoading).toBe(false);
+
+    failing = false;
+    await wrapper.findAll('button').find(b => b.text() === 'Retry')!.trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).not.toContain(error.message);
+    expect(wrapper.text()).toContain(action === 'page' ? 'term 51' : 'term 1');
+    expect(wrapper.find('.skeleton').exists()).toBe(false);
+    expect(action === 'page' ? adapter.ensureChunksForRange : adapter.ensureAllChunksLoaded).toHaveBeenCalledTimes(2);
+    wrapper.unmount();
   });
 
   it('shows correct page count in pagination', async () => {
