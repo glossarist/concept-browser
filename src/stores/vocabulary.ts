@@ -270,7 +270,11 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
         if (!adapter.index) {
           await adapter.loadIndex();
         }
-        await adapter.ensureAllChunksLoaded();
+        try {
+          await adapter.ensureAllChunksLoaded();
+        } catch {
+          // Search the chunks already loaded if another chunk fails.
+        }
         allHits.push(...adapter.search(query));
       } catch {
         // Skip datasets that fail to load or search.

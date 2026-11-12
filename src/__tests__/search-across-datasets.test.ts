@@ -63,6 +63,19 @@ describe('searchAcrossDatasets', () => {
     expect(placeHits.map(({ registerId, conceptId }) => [registerId, conceptId])).toEqual([['large', '999'], ['large', '1280'], ['other', '1280']]);
   });
 
+  it('preserves loaded hits when a later chunk fails and continues searching other datasets', async () => {
+    const loadedHit = hit('partial', '276', 'location', 'superseded');
+    const partial = adapter('partial', [loadedHit], [], { failLoad: true });
+    const healthyHit = hit('healthy', '2345', 'location');
+    const healthy = adapter('healthy', [], [healthyHit]);
+    discoverDatasets.mockResolvedValue([partial.adapter, healthy.adapter]);
+
+    const results = await useVocabularyStore().searchAcrossDatasets('location');
+
+    expect(partial.ensureAllChunksLoaded).toHaveBeenCalledOnce();
+    expect(results).toEqual([loadedHit, healthyHit]);
+  });
+
   it('continues after more than 20 hits and isolates chunk load and search failures', async () => {
     const crowdedRows = Array.from({ length: 21 }, (_, i) => hit('crowded', `needle-${i}`, 'needle'));
     const crowded = adapter('crowded', crowdedRows);
