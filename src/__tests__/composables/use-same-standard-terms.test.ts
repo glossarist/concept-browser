@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, nextTick, shallowReactive, type EffectScope } from 'vue';
 import { Concept } from 'glossarist';
+import { DatasetAdapter } from '../../adapters/DatasetAdapter';
 import type { ConceptSummary } from '../../adapters/types';
 import { useSameStandardTerms } from '../../composables/use-same-standard-terms';
 
@@ -55,7 +56,10 @@ describe('useSameStandardTerms', () => {
       currentRegisterId: `same-standard-${++registerNumber}`,
       currentConceptId: '1',
       currentConcept: concept('1'),
-      currentAdapter: { getIndexEntry: (id: string) => summaries.get(id) },
+      currentAdapter: {
+        getIndexEntry: (id: string) => summaries.get(id),
+        ensureAllChunksLoaded: vi.fn(async () => {}),
+      },
     });
     stores.ui = shallowReactive({ selectedLang: 'fra' });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(index)));
@@ -90,6 +94,148 @@ describe('useSameStandardTerms', () => {
         { conceptId: '3', designation: 'concept' },
       ] },
     ]);
+  });
+
+  it('loads summaries from later index chunks without fetching concept payloads', async () => {
+    const adapter = new DatasetAdapter('chunked-standard', '/data/chunked-standard');
+    adapter.manifest = { conceptCount: 1200 } as any;
+    const chunks = Array.from({ length: 3 }, (_, chunk) => ({
+      file: `index-${chunk}.json`, count: chunk === 2 ? 200 : 500,
+    }));
+    const ids = ['1', '2', '600', '1100'];
+    const chunkConcepts = (chunk: number) => Array.from({ length: chunks[chunk].count }, (_, offset) => {
+      const id = String(chunk * 500 + offset + 1);
+      return {
+        id,
+        designations: ids.includes(id) ? { eng: `term number ${id}` } : {},
+        status: 'valid',
+      };
+    });
+    vi.mocked(fetch).mockImplementation(async input => {
+      const url = String(input);
+      if (url.endsWith('/standards.json')) return response({
+        'iso 19165-2:2020': { label: 'ISO 19165-2:2020', conceptIds: ids },
+      });
+      if (url.endsWith('/index-meta.json')) return response({
+        registerId: 'chunked-standard', schemaVersion: '1', conceptCount: 1200,
+        chunkSize: 500, chunks,
+      });
+      const chunk = Number(url.match(/index-(\d)\.json$/)?.[1]);
+      if (Number.isInteger(chunk)) return response({ concepts: chunkConcepts(chunk) });
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    await adapter.loadIndex();
+    expect(adapter.getIndexEntry('2')).toBeDefined();
+    expect(adapter.getIndexEntry('600')).toBeUndefined();
+
+    stores.vocabulary.currentRegisterId = 'chunked-standard';
+    stores.vocabulary.currentConceptId = '1';
+    stores.vocabulary.currentConcept = Concept.fromJSON({
+      id: '1', localizations: { eng: { sources: [standard('19165-2:2020')] } },
+    });
+    stores.vocabulary.currentAdapter = adapter;
+    const groups = useTerms('/');
+    await vi.waitFor(() => expect(groups.value[0]?.terms.map(term => term.designation)).toEqual([
+      'term number 2', 'term number 600', 'term number 1100',
+    ]));
+
+    expect(groups.value).toEqual([{
+      key: 'iso 19165-2:2020', label: 'ISO 19165-2:2020', terms: [
+        { conceptId: '2', designation: 'term number 2' },
+        { conceptId: '600', designation: 'term number 600' },
+        { conceptId: '1100', designation: 'term number 1100' },
+      ],
+    }]);
+    stores.vocabulary.currentConceptId = '600';
+    stores.vocabulary.currentConcept = Concept.fromJSON({
+      id: '600', localizations: { eng: { sources: [standard('19165-2:2020')] } },
+    });
+    await settle();
+    expect(groups.value[0].terms).toEqual([
+      { conceptId: '1', designation: 'term number 1' },
+      { conceptId: '2', designation: 'term number 2' },
+      { conceptId: '1100', designation: 'term number 1100' },
+    ]);
+    expect(fetch).not.toHaveBeenCalledWith(expect.stringContaining('/concepts/'));
+  });
+
+  it('keeps ID fallbacks after summary loading fails and retries from a later instance', async () => {
+    const loaded = new Map<string, ConceptSummary>([
+      ['3', summaries.get('3')!],
+      ['4', summaries.get('4')!],
+    ]);
+    const ensureAllChunksLoaded = vi.fn()
+      .mockRejectedValueOnce(new Error('chunk unavailable'))
+      .mockImplementationOnce(async () => {
+        loaded.set('2', { id: '2', designations: { eng: 'retried term' }, eng: 'retried term', status: 'valid' });
+      });
+    stores.vocabulary.currentAdapter = {
+      getIndexEntry: (id: string) => loaded.get(id),
+      ensureAllChunksLoaded,
+    };
+    const first = useTerms('/');
+    await vi.waitFor(() => expect(ensureAllChunksLoaded).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(first.value[0]?.terms).toEqual([
+      { conceptId: '2', designation: '2' },
+      { conceptId: '3', designation: 'concept' },
+      { conceptId: '4', designation: '4' },
+    ]));
+
+    const second = useTerms('/');
+    await vi.waitFor(() => expect(ensureAllChunksLoaded).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(second.value[0]?.terms[0]).toEqual({
+      conceptId: '2', designation: 'retried term',
+    }));
+  });
+
+  it('shares deferred summary loading and ignores its completion after register navigation', async () => {
+    let resolveOld!: () => void;
+    const oldSummaries = new Map<string, ConceptSummary>();
+    const oldAdapter = {
+      getIndexEntry: (id: string) => oldSummaries.get(id),
+      ensureAllChunksLoaded: vi.fn(() => new Promise<void>(resolve => { resolveOld = resolve; })),
+    };
+    stores.vocabulary.currentAdapter = oldAdapter;
+    vi.mocked(fetch).mockImplementation(async input => {
+      const url = String(input);
+      if (url.endsWith('/standards.json') && url.includes('/old-register/')) return response({
+        'iso 704:2022': { label: 'Old standard', conceptIds: ['1', '2'] },
+      });
+      if (url.endsWith('/standards.json')) return response({
+        'iso 704:2022': { label: 'New standard', conceptIds: ['1', '5'] },
+      });
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    stores.vocabulary.currentRegisterId = 'old-register';
+    const first = useTerms('/');
+    const second = useTerms('/');
+    await vi.waitFor(() => expect(oldAdapter.ensureAllChunksLoaded).toHaveBeenCalledTimes(1));
+
+    stores.vocabulary.currentRegisterId = 'new-register';
+    const newSummaries = new Map<string, ConceptSummary>([
+      ['1', { id: '1', designations: { eng: 'new current' }, eng: 'new current', status: 'valid' }],
+      ['5', { id: '5', designations: { eng: 'new related' }, eng: 'new related', status: 'valid' }],
+    ]);
+    stores.vocabulary.currentAdapter = {
+      getIndexEntry: (id: string) => newSummaries.get(id),
+      ensureAllChunksLoaded: vi.fn(async () => {}),
+    };
+    stores.vocabulary.currentConcept = concept('1');
+    const expected = [{
+      key: 'iso 704:2022', label: 'New standard',
+      terms: [{ conceptId: '5', designation: 'new related' }],
+    }];
+    await vi.waitFor(() => {
+      expect(first.value).toEqual(expected);
+      expect(second.value).toEqual(expected);
+    });
+
+    oldSummaries.set('2', { id: '2', designations: { eng: 'stale related' }, eng: 'stale related', status: 'valid' });
+    resolveOld();
+    await settle();
+    expect(first.value).toEqual(expected);
+    expect(second.value).toEqual(expected);
+    expect(oldAdapter.ensureAllChunksLoaded).toHaveBeenCalledTimes(1);
   });
 
   it('reacts to selected language using English and then the concept ID as fallbacks', async () => {
@@ -186,7 +332,10 @@ describe('useSameStandardTerms', () => {
     const newSummaries = new Map<string, ConceptSummary>([
       ['9', { id: '9', designations: { fra: 'nouveau terme' }, eng: 'new term', status: 'valid' }],
     ]);
-    stores.vocabulary.currentAdapter = { getIndexEntry: (id: string) => newSummaries.get(id) };
+    stores.vocabulary.currentAdapter = {
+      getIndexEntry: (id: string) => newSummaries.get(id),
+      ensureAllChunksLoaded: vi.fn(async () => {}),
+    };
     expect(groups.value).toEqual([]);
     await settle();
     expect(groups.value).toEqual([]);
