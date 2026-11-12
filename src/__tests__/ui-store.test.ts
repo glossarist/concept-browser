@@ -97,4 +97,30 @@ describe('useUiStore', () => {
     ui.setTheme('light');
     expect(ui.isDark).toBe(false);
   });
+
+  it('defaults searchSort to language', () => {
+    const ui = useUiStore();
+    expect(ui.searchSort).toBe('language');
+  });
+
+  it('setSearchSort updates value and localStorage', () => {
+    const ui = useUiStore();
+    ui.setSearchSort('relevance');
+    expect(ui.searchSort).toBe('relevance');
+    expect(localStorage.getItem('searchSort')).toBe('relevance');
+  });
+
+  it('reads stored searchSort from localStorage', () => {
+    localStorage.setItem('searchSort', 'relevance');
+    setActivePinia(createPinia());
+    const ui = useUiStore();
+    expect(ui.searchSort).toBe('relevance');
+  });
+
+  it('falls back to language for a junk stored searchSort', () => {
+    localStorage.setItem('searchSort', 'bogus');
+    setActivePinia(createPinia());
+    const ui = useUiStore();
+    expect(ui.searchSort).toBe('language');
+  });
 });
