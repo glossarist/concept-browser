@@ -198,7 +198,7 @@ export class DatasetAdapter {
 
     const chunkFile = `index-${String(chunkIndex).padStart(4, '0')}.json`;
     const resp = await fetch(`${this.baseUrl}/chunks/${chunkFile}`);
-    if (!resp.ok) return;
+    if (!resp.ok) throw ChunkLoadError.make(this.registerId, chunkIndex, resp.status);
     const data = await resp.json();
     this.loadedChunks.add(chunkIndex);
 

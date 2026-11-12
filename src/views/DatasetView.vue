@@ -156,6 +156,8 @@ async function ensureAllChunksForFilter(needsLoad: boolean) {
   try {
     await a.ensureAllChunksLoaded();
     allChunksLoaded.value = true;
+  } catch (e) {
+    localError.value = e instanceof Error ? e.message : String(e);
   } finally {
     chunkLoading.value = false;
   }
@@ -271,15 +273,33 @@ const totalPages = computed(() => {
 });
 
 // Load chunks needed for current page
-watch(page, async () => {
+async function loadPageChunks() {
   if (!adapter.value || isFiltering.value) return;
   const start = (page.value - 1) * perPage;
   if (!adapter.value.isRangeLoaded(start, perPage)) {
     chunkLoading.value = true;
-    await adapter.value.ensureChunksForRange(start, perPage);
-    chunkLoading.value = false;
+    try {
+      await adapter.value.ensureChunksForRange(start, perPage);
+    } catch (e) {
+      localError.value = e instanceof Error ? e.message : String(e);
+    } finally {
+      chunkLoading.value = false;
+    }
   }
-}, { immediate: true });
+}
+
+watch(page, loadPageChunks, { immediate: true });
+
+async function retryLoad() {
+  localError.value = null;
+  if (!adapter.value?.index) {
+    await ensureLoaded();
+  } else if (isFiltering.value) {
+    await ensureAllChunksForFilter(true);
+  } else {
+    await loadPageChunks();
+  }
+}
 
 // Visible page numbers for pagination (avoids iterating 445+ pages)
 const visiblePages = computed(() => {
@@ -383,7 +403,7 @@ function clearSection() {
         <p class="text-red-700 font-medium mb-1">{{ t('dataset.failedToLoad') }}</p>
         <p class="text-sm text-red-600/80 mb-4">{{ localError }}</p>
         <div class="flex gap-2 justify-center">
-          <button @click="ensureLoaded" class="btn-primary">{{ t('dataset.retry') }}</button>
+          <button @click="retryLoad" class="btn-primary">{{ t('dataset.retry') }}</button>
           <router-link :to="{ name: 'home' }" class="btn-secondary">{{ t('dataset.backToHome') }}</router-link>
         </div>
       </div>

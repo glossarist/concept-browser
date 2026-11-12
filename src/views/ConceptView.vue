@@ -86,11 +86,16 @@ async function copyPermalink() {
 async function loadAdjacent() {
   const adapter = store.datasets.get(props.registerId);
   if (!adapter?.index) return;
-  const idx = adapter.getConceptPosition(props.conceptId);
-  if (idx >= 0) {
-    await adapter.ensureChunksForRange(Math.max(0, idx - 1), 3);
+  try {
+    const idx = adapter.getConceptPosition(props.conceptId);
+    if (idx >= 0) {
+      await adapter.ensureChunksForRange(Math.max(0, idx - 1), 3);
+    }
+    adjacent.value = adapter.getAdjacentConcepts(props.conceptId);
+  } catch (e) {
+    adjacent.value = { prev: null, next: null };
+    console.error('Failed to load adjacent concepts:', e);
   }
-  adjacent.value = adapter.getAdjacentConcepts(props.conceptId);
 }
 
 function goAdjacent(id: string) {

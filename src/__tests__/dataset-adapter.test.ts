@@ -134,6 +134,31 @@ describe('DatasetAdapter', () => {
   });
 
   describe('chunked index failures', () => {
+    it('rejects loadIndex when its first chunk fails and allows a retry', async () => {
+      adapter.manifest = { conceptCount: 1001 } as any;
+      const meta = {
+        registerId: 'test', schemaVersion: '1.0.0', conceptCount: 1001, chunkSize: 1000,
+        chunks: [{ file: 'index-0000.json', count: 1000 }, { file: 'index-0001.json', count: 1 }],
+      };
+      mockFetch
+        .mockReturnValueOnce(mockJsonResponse(meta))
+        .mockResolvedValueOnce({ ok: false, status: 404 } as Response);
+
+      await expect(adapter.loadIndex()).rejects.toBeInstanceOf(ChunkLoadError);
+      expect(adapter.isRangeLoaded(0, 1)).toBe(false);
+
+      mockFetch
+        .mockReturnValueOnce(mockJsonResponse(meta))
+        .mockReturnValueOnce(mockJsonResponse({ concepts: [
+          { id: 'first', designations: { eng: 'First' }, status: 'valid' },
+        ] }));
+      await adapter.loadIndex();
+
+      expect(adapter.isRangeLoaded(0, 1)).toBe(true);
+      expect(adapter.getIndexEntry('first')?.eng).toBe('First');
+      expect(mockFetch).toHaveBeenNthCalledWith(4, '/data/test/chunks/index-0000.json');
+    });
+
     it.each(['all', 'range'] as const)('rejects a missing chunk and retries it when loading %s chunks', async (mode) => {
       adapter.manifest = { conceptCount: 1002 } as any;
       const first = { id: 'first', designations: { eng: 'First' }, status: 'valid' };
@@ -150,7 +175,11 @@ describe('DatasetAdapter', () => {
         ? adapter.ensureAllChunksLoaded()
         : adapter.ensureChunksForRange(1000, 2);
 
-      await expect(ensureLoaded()).rejects.toEqual(ChunkLoadError.make('test', 1, 404));
+      const failedLoad = ensureLoaded();
+      await expect(failedLoad).rejects.toBeInstanceOf(ChunkLoadError);
+      await expect(failedLoad).rejects.toMatchObject({
+        context: { registerId: 'test', chunkIndex: 1, status: 404 },
+      });
       expect(adapter.isRangeLoaded(1000, 2)).toBe(false);
       expect(adapter.getIndexEntry('missing')).toBeUndefined();
       expect(adapter.getIndexEntry('first')).toMatchObject(first);
