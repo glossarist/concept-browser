@@ -166,6 +166,7 @@ export interface JsonLdConcept {
   'gl:identifier'?: string | number;
   'gl:term'?: string;
   'gl:localizedConcept'?: Record<string, JsonLdLocalizedConcept>;
+  'gl:source'?: JsonLdSource[];
   'gl:related'?: JsonLdRelated[];
   'gl:partitiveRelations'?: JsonLdPartitiveRelation[];
   'gl:genericRelations'?: JsonLdPartitiveRelation[];

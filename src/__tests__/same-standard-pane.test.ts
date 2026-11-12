@@ -1,3 +1,11 @@
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { DatasetAdapter } from '../adapters/DatasetAdapter';
+import { collectStandardKeys } from '../utils/source-standard';
+import { useSameStandardTerms } from '../composables/use-same-standard-terms';
+import { useVocabularyStore } from '../stores/vocabulary';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { RouterLink } from 'vue-router';
@@ -34,6 +42,63 @@ describe('SameStandardPane', () => {
       global: { plugins: [pinia, router] },
     });
   }
+
+  it('renders peers from generated concept-level sources in a 1200-concept register', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'concept-source-pane-'));
+    let wrapper: ReturnType<typeof mount> | undefined;
+    try {
+      const conceptsDir = join(root, 'source', 'concepts');
+      const configPath = join(root, 'site-config.yml');
+      mkdirSync(conceptsDir, { recursive: true });
+      writeFileSync(configPath, JSON.stringify({
+        id: 'fixture', title: 'Fixture', uri_base: 'https://example.test',
+        datasets: [{ id: 'fixture', local_path: 'source', languages: ['eng'] }],
+      }));
+      for (let id = 1; id <= 1200; id++) {
+        writeFileSync(join(conceptsDir, `${id}.yaml`), JSON.stringify({
+          termid: String(id),
+          _sources: [1, 600, 1100].includes(id)
+            ? [{ type: 'authoritative', origin: { ref: { source: 'ISO', id: '19165-2:2020' } } }]
+            : [],
+          eng: { terms: [{ designation: `Fixture term ${id}` }] },
+        }));
+      }
+      execFileSync(process.execPath, [
+        '--import', resolve('node_modules/tsx/dist/loader.mjs'), resolve('scripts/generate-data.ts'),
+      ], { cwd: root, env: { ...process.env, SITE_CONFIG: configPath }, stdio: 'pipe', timeout: 30_000 });
+      const readJson = (url: string) => JSON.parse(readFileSync(join(root, 'public', url), 'utf8'));
+      expect(readJson('/data/fixture/standards.json')).toEqual({
+        'iso 19165-2:2020': { label: 'ISO 19165-2:2020', conceptIds: ['1', '600', '1100'] },
+      });
+      vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () => readJson(url) })));
+      const adapter = new DatasetAdapter('fixture', '/data/fixture');
+      await adapter.loadIndex();
+      const concept = await adapter.fetchConcept('1');
+      expect(concept.sources).toHaveLength(1);
+      expect(concept.localization('eng')!.sources).toEqual([]);
+      expect(collectStandardKeys(concept)).toEqual(['iso 19165-2:2020']);
+      const store = useVocabularyStore();
+      store.datasets.set('fixture', adapter);
+      store.currentRegisterId = 'fixture';
+      store.currentConcept = concept;
+      wrapper = mount({
+        components: { SameStandardPane },
+        setup: () => ({ groups: useSameStandardTerms('/') }),
+        template: '<SameStandardPane :groups="groups" register-id="fixture" concept-id="1" />',
+      }, { global: { plugins: [pinia, router] } });
+      await vi.waitFor(() => expect(wrapper!.findAll('a').map(link => link.text())).toEqual([
+        'Fixture term 600', 'Fixture term 1100',
+      ]));
+      expect(wrapper.findAll('a').map(link => link.attributes('href'))).toEqual([
+        '/dataset/fixture/concept/600', '/dataset/fixture/concept/1100',
+      ]);
+      expect(wrapper.get('h3').text()).toContain('ISO 19165-2:2020');
+    } finally {
+      wrapper?.unmount();
+      vi.unstubAllGlobals();
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 60_000);
 
   it('groups terms with filtered counts and named links in the current register', async () => {
     const wrapper = mountPane();
