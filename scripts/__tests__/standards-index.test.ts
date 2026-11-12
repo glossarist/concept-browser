@@ -71,4 +71,51 @@ describe('generate-data standards index', () => {
       rmSync(root, { recursive: true, force: true });
     }
   }, 60_000);
+
+  it('includes authoritative standards from languages absent from the dataset config', () => {
+    const root = mkdtempSync(join(tmpdir(), 'generate-data-unconfigured-language-'));
+    const conceptsDir = join(root, 'source', 'concepts');
+    const configPath = join(root, 'site-config.yml');
+    try {
+      mkdirSync(conceptsDir, { recursive: true });
+      writeFileSync(configPath, JSON.stringify({
+        id: 'fixture', title: 'Fixture', uri_base: 'https://example.test',
+        datasets: [{ id: 'fixture', local_path: 'source', languages: ['eng'] }],
+      }));
+      writeFileSync(join(conceptsDir, '1.yaml'), JSON.stringify({
+        termid: '1',
+        eng: {
+          terms: [{ designation: 'Term' }],
+          sources: [{ type: 'authoritative', origin: { ref: { source: 'ISO' } } }],
+        },
+        deu: {
+          terms: [{ designation: 'Begriff' }],
+          sources: [
+            { type: 'authoritative', origin: { ref: { source: 'DIN', id: '1' } } },
+            { type: 'lineage', origin: { ref: { source: 'DIN', id: '2' } } },
+          ],
+        },
+      }));
+      execFileSync(process.execPath, [
+        '--import', resolve('node_modules/tsx/dist/loader.mjs'), resolve('scripts/generate-data.ts'),
+      ], {
+        cwd: root,
+        env: { ...process.env, SITE_CONFIG: configPath },
+        stdio: 'pipe',
+        timeout: 30_000,
+      });
+      const outputDir = join(root, 'public', 'data', 'fixture');
+      expect(JSON.parse(readFileSync(join(outputDir, 'standards.json'), 'utf8'))).toEqual({
+        iso: { label: 'ISO', conceptIds: ['1'] },
+        'din 1': { label: 'DIN 1', conceptIds: ['1'] },
+      });
+      const stats = JSON.parse(readFileSync(join(outputDir, 'stats.json'), 'utf8'));
+      expect(stats.sourceCount).toBe(1);
+      expect(stats.sources).toEqual([
+        { ref: 'ISO', types: ['authoritative'], conceptCount: 1, conceptIds: ['1'] },
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 60_000);
 });

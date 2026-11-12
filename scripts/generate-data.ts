@@ -16,7 +16,7 @@ import {
   type Concept,
 } from 'glossarist';
 import { loadSiteConfig } from './load-site-config';
-import { standardKey, standardLabel } from '../src/utils/source-standard';
+import { collectStandardKeys, standardKey, standardLabel } from '../src/utils/source-standard';
 import type { StandardsIndex } from '../src/adapters/standards-index';
 import { getGroups } from './lib/concept-groups';
 import { consumeDatasetEntities } from './lib/build/non-verbal-consumer';
@@ -747,19 +747,23 @@ async function processDataset(dir, register, opts) {
 
   const STATS_PROCESSORS = [
     function collectStandards(cy, termid) {
+      // Harmonized metadata uses underscore-prefixed fields; object-valued
+      // language entries include every localization, even if not configured.
+      const concept = {
+        sources: cy._sources || [],
+        languages: Object.keys(cy).filter(lang =>
+          !lang.startsWith('_') && cy[lang] && typeof cy[lang] === 'object' && !Array.isArray(cy[lang])),
+        localization: (lang: string) => cy[lang],
+      };
       const sources = [
-        ...(cy._sources || []),
-        ...opts.languages.flatMap(lang => cy[lang]?.sources || []),
+        ...concept.sources,
+        ...concept.languages.flatMap(lang => concept.localization(lang).sources || []),
       ];
-      const seen = new Set<string>();
-      for (const source of sources) {
-        if (source.type !== 'authoritative') continue;
-        const ref = source.origin?.ref;
-        const key = standardKey(ref);
-        if (key === null || seen.has(key)) continue;
-        seen.add(key);
+      for (const key of collectStandardKeys(concept)) {
         if (!standards.has(key)) {
-          standards.set(key, { label: standardLabel(ref)!, conceptIds: [] });
+          const source = sources.find(source =>
+            source.type === 'authoritative' && standardKey(source.origin?.ref) === key);
+          standards.set(key, { label: standardLabel(source.origin.ref)!, conceptIds: [] });
         }
         standards.get(key)!.conceptIds.push(termid);
       }
