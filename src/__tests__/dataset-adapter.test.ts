@@ -133,6 +133,58 @@ describe('DatasetAdapter', () => {
     });
   });
 
+  describe('chunk URLs', () => {
+    it.each([undefined, 'abc123def456'])('uses metadata filenames and optional hash %s for summary chunks', async (hash) => {
+      adapter.manifest = { conceptCount: 1001 } as any;
+      const first = { id: 'first', designations: { eng: 'First' }, status: 'valid' };
+      const last = { id: 'last', designations: { eng: 'Last' }, status: 'valid' };
+      mockFetch
+        .mockReturnValueOnce(mockJsonResponse({
+          registerId: 'test', schemaVersion: '1.0.0', conceptCount: 1001, chunkSize: 1000,
+          chunks: [
+            { file: 'first.json', count: 1000, hash },
+            { file: 'last.json', count: 1, hash },
+          ],
+        }))
+        .mockReturnValueOnce(mockJsonResponse({ concepts: [first] }))
+        .mockReturnValueOnce(mockJsonResponse({ concepts: [last] }));
+
+      await adapter.loadIndex();
+      await adapter.ensureAllChunksLoaded();
+
+      const query = hash ? `?v=${hash}` : '';
+      expect(mockFetch.mock.calls.map(([url]) => url)).toEqual([
+        '/data/test/index-meta.json',
+        `/data/test/chunks/first.json${query}`,
+        `/data/test/chunks/last.json${query}`,
+      ]);
+      expect(adapter.getIndexEntry('first')).toMatchObject(first);
+      expect(adapter.getIndexEntry('last')).toMatchObject(last);
+    });
+
+    it.each([undefined, 'abc123def456'])('uses index metadata and optional hash %s for full chunks', async (hash) => {
+      const entry = { id: 'first', designations: { eng: 'First' }, status: 'valid' };
+      mockFetch
+        .mockReturnValueOnce(mockJsonResponse({
+          registerId: 'test', schemaVersion: '1.0.0', conceptCount: 1, chunkSize: 1000,
+          chunks: [{ file: 'custom.json', count: 1, hash }], concepts: [entry],
+        }))
+        .mockReturnValueOnce(mockJsonResponse({ concepts: [entry] }));
+
+      await adapter.loadIndex();
+      expect(await adapter.loadChunk(0)).toEqual([entry]);
+      expect(mockFetch).toHaveBeenLastCalledWith(`/data/test/chunks/custom.json${hash ? `?v=${hash}` : ''}`);
+      expect(await adapter.loadChunk(0)).toEqual([]);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the legacy filename when no index metadata is available', async () => {
+      mockFetch.mockReturnValueOnce(mockJsonResponse({ concepts: [] }));
+      await adapter.loadChunk(2);
+      expect(mockFetch).toHaveBeenCalledWith('/data/test/chunks/index-0002.json');
+    });
+  });
+
   describe('chunked index failures', () => {
     it('rejects loadIndex when its first chunk fails and allows a retry', async () => {
       adapter.manifest = { conceptCount: 1001 } as any;
