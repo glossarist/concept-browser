@@ -16,6 +16,8 @@ import {
   type Concept,
 } from 'glossarist';
 import { loadSiteConfig } from './load-site-config';
+import { collectStandardKeys, standardKey, standardLabel } from '../src/utils/source-standard';
+import type { StandardsIndex } from '../src/adapters/standards-index';
 import { getGroups } from './lib/concept-groups';
 import { consumeDatasetEntities } from './lib/build/non-verbal-consumer';
 import { copyImageAssets } from './lib/build/image-assets';
@@ -741,7 +743,31 @@ async function processDataset(dir, register, opts) {
     },
   };
 
+  const standards = new Map<string, StandardsIndex[string]>();
+
   const STATS_PROCESSORS = [
+    function collectStandards(cy, termid) {
+      // Harmonized metadata uses underscore-prefixed fields; object-valued
+      // language entries include every localization, even if not configured.
+      const concept = {
+        sources: cy._sources || [],
+        languages: Object.keys(cy).filter(lang =>
+          !lang.startsWith('_') && cy[lang] && typeof cy[lang] === 'object' && !Array.isArray(cy[lang])),
+        localization: (lang: string) => cy[lang],
+      };
+      const sources = [
+        ...concept.sources,
+        ...concept.languages.flatMap(lang => concept.localization(lang).sources || []),
+      ];
+      for (const key of collectStandardKeys(concept)) {
+        if (!standards.has(key)) {
+          const source = sources.find(source =>
+            source.type === 'authoritative' && standardKey(source.origin?.ref) === key);
+          standards.set(key, { label: standardLabel(source.origin.ref)!, conceptIds: [] });
+        }
+        standards.get(key)!.conceptIds.push(termid);
+      }
+    },
     function collectSources(cy, termid, s) {
       const refs = new Set();
       const allSources = [
@@ -998,6 +1024,8 @@ async function processDataset(dir, register, opts) {
     }))
     .sort((a, b) => b.conceptCount - a.conceptCount);
   const totalRelationships = Object.values(stats.relTypeCounts).reduce((a: number, b: number) => a + b, 0);
+
+  writeJson(path.join(DATA, register, 'standards.json'), Object.fromEntries(standards));
 
   writeJson(path.join(DATA, register, 'stats.json'), {
     sourceCount: sourceStats.length,
