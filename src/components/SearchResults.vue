@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import type { SearchHit } from '../adapters/types';
 import { langName } from '../utils/lang';
+import { entryStatusColor, entryStatusLabel, entryStatusDefinition } from '../utils/concept-helpers';
 import { useDsStyle } from '../utils/dataset-style';
 import { useI18n } from '../i18n';
 
@@ -84,6 +85,7 @@ const hitIndexMap = computed(() => {
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
               <span v-if="hit.matchField === 'id'" class="badge badge-gray text-[10px]">{{ t('search.idMatch') }}</span>
+              <span v-if="hit.status" class="badge text-[10px]" :class="entryStatusColor(hit.status)" :title="entryStatusDefinition(hit.status) ?? ''">{{ entryStatusLabel(hit.status) }}</span>
               <span class="text-xs font-semibold text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">{{ langName(hit.language) }}</span>
             </div>
           </button>
