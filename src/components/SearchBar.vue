@@ -16,6 +16,8 @@ const query = ref('');
 const results = ref<SearchHit[]>([]);
 const searched = ref(false);
 const selectedIdx = ref(-1);
+const pageSize = 20;
+const currentPage = ref(1);
 const loading = ref(false);
 const searchError = ref<string | null>(null);
 const searchInputEl = ref<HTMLInputElement | null>(null);
@@ -26,8 +28,12 @@ let activeQuery = '';
 async function doSearch() {
   const q = query.value.trim();
   if (!q) return;
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = null;
   const generation = ++searchGeneration;
   activeQuery = q;
+  currentPage.value = 1;
+  selectedIdx.value = -1;
   ui.searchQuery = q;
   loading.value = true;
   searchError.value = null;
@@ -71,6 +77,7 @@ function resetSearch() {
   loading.value = false;
   searchError.value = null;
   searched.value = false;
+  currentPage.value = 1;
   selectedIdx.value = -1;
 }
 
@@ -86,9 +93,10 @@ interface GroupedResults {
 }
 
 const groupedResults = computed(() => {
-  const capped = results.value.slice(0, 100);
+  const start = (currentPage.value - 1) * pageSize;
+  const pageHits = results.value.slice(start, start + pageSize);
   const map = new Map<string, SearchHit[]>();
-  for (const hit of capped) {
+  for (const hit of pageHits) {
     const group = map.get(hit.registerId) ?? [];
     group.push(hit);
     map.set(hit.registerId, group);
@@ -102,6 +110,11 @@ const groupedResults = computed(() => {
 });
 
 const flatHits = computed(() => groupedResults.value.flatMap(g => g.hits));
+
+function changePage(page: number) {
+  currentPage.value = page;
+  selectedIdx.value = -1;
+}
 
 function goToHit(hit: SearchHit) {
   router.push({
@@ -192,6 +205,9 @@ onBeforeUnmount(resetSearch);
       :results="results"
       :grouped-results="groupedResults"
       :selected-idx="selectedIdx"
+      :current-page="currentPage"
+      :page-size="pageSize"
+      @change-page="changePage"
       @retry="doSearch"
       @go-hit="goToHit"
     />
