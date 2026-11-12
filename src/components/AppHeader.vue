@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useUiStore } from '../stores/ui';
 import { useVocabularyStore } from '../stores/vocabulary';
 import { useSiteConfig } from '../config/use-site-config';
@@ -9,6 +9,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 const glossaristLogo = new URL('../assets/glossarist-logo.svg', import.meta.url).href;
 
 const router = useRouter();
+const route = useRoute();
 const ui = useUiStore();
 const store = useVocabularyStore();
 const { config: siteConfig, localizedTitle } = useSiteConfig();
@@ -26,8 +27,8 @@ const currentLangLabel = computed(() => {
 function doSearch() {
   const q = searchInput.value.trim();
   if (q) {
-    ui.searchQuery = q;
     router.push({ name: 'search', query: { q } });
+    searchInput.value = '';
   }
 }
 
@@ -85,13 +86,13 @@ onBeforeUnmount(() => document.removeEventListener('click', closeLangOnOutside))
       </button>
 
       <!-- Search -->
-      <form @submit.prevent="doSearch" class="flex-1 max-w-lg mx-2 sm:mx-4">
+      <form v-if="route.name !== 'search'" @submit.prevent="doSearch" class="flex-1 max-w-lg mx-2 sm:mx-4">
         <div class="relative">
           <input
             v-model="searchInput"
             type="text"
-            :aria-label="t('search.conceptSearch')"
-            :placeholder="t('search.placeholder')"
+            :aria-label="t('search.quickSearch')"
+            :placeholder="t('search.quickPlaceholder')"
             class="w-full pl-9 pr-3 py-2 text-sm bg-surface border border-ink-100 rounded-lg focus:ring-2 focus:ring-ink-200 focus:border-ink-400 outline-none placeholder:text-ink-300 transition-all"
           />
           <svg class="absolute left-3 top-2.5 w-4 h-4 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">

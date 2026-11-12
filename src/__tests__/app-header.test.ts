@@ -3,6 +3,8 @@ import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import AppHeader from '../components/AppHeader.vue';
+import { useUiStore } from '../stores/ui';
+import { locale } from '../i18n';
 import { useVocabularyStore } from '../stores/vocabulary';
 import type { Manifest } from '../adapters/types';
 
@@ -45,6 +47,7 @@ describe('AppHeader', () => {
   let router: Awaited<ReturnType<typeof createTestRouter>>;
 
   beforeEach(async () => {
+    locale.value = 'eng';
     pinia = createPinia();
     setActivePinia(pinia);
     router = await createTestRouter();
@@ -66,10 +69,28 @@ describe('AppHeader', () => {
     expect(wrapper.text()).toContain('Glossarist');
   });
 
-  it('renders search input', () => {
+  it('renders quick search on the home route', () => {
     const wrapper = mountHeader();
-    const input = wrapper.find('input[aria-label="Search concepts"]');
+    const input = wrapper.find('input[aria-label="Quick search"]');
     expect(input.exists()).toBe(true);
+    expect(input.attributes('placeholder')).toBe('Quick search...');
+  });
+
+  it('hides quick search on the search route and restores it elsewhere', async () => {
+    await router.push('/search?q=road');
+    const wrapper = mountHeader();
+    expect(wrapper.find('form').exists()).toBe(false);
+
+    await router.push('/');
+    expect(wrapper.find('form').exists()).toBe(true);
+  });
+
+  it('labels quick search in French', () => {
+    locale.value = 'fra';
+    const wrapper = mountHeader();
+    const input = wrapper.get('input');
+    expect(input.attributes('aria-label')).toBe('Recherche rapide');
+    expect(input.attributes('placeholder')).toBe('Recherche rapide…');
   });
 
   it('renders mobile hamburger button', () => {
@@ -89,13 +110,19 @@ describe('AppHeader', () => {
 
   it('navigates to search on form submit with query', async () => {
     const wrapper = mountHeader();
-    const input = wrapper.find('input[aria-label="Search concepts"]');
-    await input.setValue('road');
+    const input = wrapper.find('input[aria-label="Quick search"]');
+    await input.setValue('  road & rail  ');
     const form = wrapper.find('form');
     await form.trigger('submit');
     await flushPromises();
     expect(router.currentRoute.value.name).toBe('search');
-    expect(router.currentRoute.value.query.q).toBe('road');
+    expect(router.currentRoute.value.query).toEqual({ q: 'road & rail' });
+    expect(router.currentRoute.value.path).toBe('/search');
+    expect(useUiStore().searchQuery).toBe('');
+    expect(wrapper.find('form').exists()).toBe(false);
+
+    await router.push('/');
+    expect(wrapper.get('input').element.value).toBe('');
   });
 
   it('does not navigate on empty search', async () => {
