@@ -146,6 +146,60 @@ describe('useSameStandardTerms', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it('retries a rejected request on a later instance and caches the successful response', async () => {
+    vi.mocked(fetch)
+      .mockRejectedValueOnce(new Error('temporarily offline'))
+      .mockResolvedValueOnce(response(index));
+    const first = useTerms('/');
+    await settle();
+    expect(first.value).toEqual([]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    const second = useTerms('/');
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(second.value).toEqual([{
+      key: 'iso 704:2022', label: 'ISO 704:2022', terms: [
+        { conceptId: '2', designation: 'terme' },
+        { conceptId: '3', designation: 'concept' },
+        { conceptId: '4', designation: '4' },
+      ],
+    }]);
+
+    const third = useTerms('/');
+    await settle();
+    expect(third.value).toEqual(second.value);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits for the new register concept even when its ID matches the previous concept', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(index))
+      .mockResolvedValueOnce(response({
+        'iso 704:2022': { label: 'New register standard', conceptIds: ['1', '9'] },
+      }));
+    const groups = useTerms('/');
+    await settle();
+    expect(groups.value[0].terms).toHaveLength(3);
+
+    stores.vocabulary.currentRegisterId = `same-standard-other-${registerNumber}`;
+    const newSummaries = new Map<string, ConceptSummary>([
+      ['9', { id: '9', designations: { fra: 'nouveau terme' }, eng: 'new term', status: 'valid' }],
+    ]);
+    stores.vocabulary.currentAdapter = { getIndexEntry: (id: string) => newSummaries.get(id) };
+    expect(groups.value).toEqual([]);
+    await settle();
+    expect(groups.value).toEqual([]);
+
+    stores.vocabulary.currentConcept = concept('1');
+    await settle();
+    expect(groups.value).toEqual([{
+      key: 'iso 704:2022', label: 'New register standard',
+      terms: [{ conceptId: '9', designation: 'nouveau terme' }],
+    }]);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it('keys the cache by full URL, including the base path', async () => {
     useTerms('/first/');
     useTerms('/second/');
@@ -177,6 +231,8 @@ describe('useSameStandardTerms', () => {
     const groups = useTerms('/');
     await nextTick();
     stores.vocabulary.currentRegisterId = `same-standard-new-${registerNumber}`;
+    await settle();
+    stores.vocabulary.currentConcept = concept('1');
     await settle();
     const expected = [{
       key: 'iso 704:2022', label: 'New register standard',

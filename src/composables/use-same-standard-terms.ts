@@ -17,14 +17,13 @@ function loadIndex(url: string): Promise<StandardsIndex> {
   let pending = indexes.get(url);
   if (!pending) {
     pending = (async () => {
-      try {
-        const response = await fetch(url);
-        return response.ok ? await response.json() as StandardsIndex : {};
-      } catch {
-        // Older builds may not publish this optional index.
-        return {};
-      }
-    })();
+      const response = await fetch(url);
+      return response.ok ? await response.json() as StandardsIndex : {};
+    })().catch(() => {
+      // A transient failure should allow a later mount to retry.
+      indexes.delete(url);
+      return {};
+    });
     indexes.set(url, pending);
   }
   return pending;
@@ -35,11 +34,14 @@ export function useSameStandardTerms(baseUrl: string = import.meta.env.BASE_URL)
   const vocabulary = useVocabularyStore();
   const ui = useUiStore();
   const index = shallowRef<StandardsIndex>({});
+  const staleConcept = shallowRef<typeof vocabulary.currentConcept>(null);
 
   watch(() => vocabulary.currentRegisterId, async (registerId, _previous, onCleanup) => {
     let active = true;
     onCleanup(() => { active = false; });
     index.value = {};
+    // The store changes registers before replacing the concept; IDs may overlap.
+    if (_previous !== undefined) staleConcept.value = vocabulary.currentConcept;
     if (!registerId) return;
 
     const loaded = await loadIndex(`${baseUrl}data/${registerId}/standards.json`);
@@ -48,7 +50,7 @@ export function useSameStandardTerms(baseUrl: string = import.meta.env.BASE_URL)
 
   return computed<SameStandardTerms[]>(() => {
     const concept = vocabulary.currentConcept;
-    if (!concept) return [];
+    if (!concept || concept === staleConcept.value) return [];
 
     return collectStandardKeys(concept).flatMap(key => {
       const standard = index.value[key];
