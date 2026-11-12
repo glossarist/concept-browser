@@ -5,6 +5,7 @@ import { langName } from '../utils/lang';
 import { entryStatusColor, entryStatusLabel, entryStatusDefinition } from '../utils/concept-helpers';
 import { useDsStyle } from '../utils/dataset-style';
 import { useI18n } from '../i18n';
+import { useUiStore } from '../stores/ui';
 
 interface GroupedResults {
   registerId: string;
@@ -32,6 +33,14 @@ const emit = defineEmits<{
 
 const { getStyle } = useDsStyle();
 const { t } = useI18n();
+const uiStore = useUiStore();
+
+function updateSearchSort(event: Event) {
+  const value = (event.target as HTMLSelectElement).value;
+  if (value === 'language' || value === 'relevance') {
+    uiStore.setSearchSort(value);
+  }
+}
 
 const flatHits = computed(() => props.groupedResults.flatMap(g => g.hits));
 const hitIndexMap = computed(() => {
@@ -59,7 +68,18 @@ const hitIndexMap = computed(() => {
   </div>
 
   <div v-else-if="searched" class="search-results">
-    <p class="text-sm text-ink-400 mb-4">{{ results.length === 1 ? t('search.oneResultFor', { query: searchQuery }) : t('search.manyResultsFor', { count: String(results.length), query: searchQuery }) }}</p>
+    <div class="flex items-center justify-between gap-3 text-sm text-ink-400 mb-4">
+      <span>{{ results.length === 1 ? t('search.oneResultFor', { query: searchQuery }) : t('search.manyResultsFor', { count: String(results.length), query: searchQuery }) }}</span>
+      <select
+        :value="uiStore.searchSort"
+        :aria-label="t('search.sort')"
+        class="text-xs text-ink-500 bg-surface border border-ink-200 rounded px-2 py-1"
+        @change="updateSearchSort"
+      >
+        <option value="language">{{ t('search.sortEnglishFirst') }}</option>
+        <option value="relevance">{{ t('search.sortRelevance') }}</option>
+      </select>
+    </div>
     <div v-if="results.length === 0" class="text-center py-16">
       <div class="text-ink-200 text-5xl mb-4 font-serif">&empty;</div>
       <p class="text-ink-500 font-medium">{{ t('search.noResults') }}</p>

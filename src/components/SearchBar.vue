@@ -6,6 +6,7 @@ import { ref, watch, onBeforeUnmount, computed, nextTick } from 'vue';
 import type { SearchHit } from '../adapters/types';
 import { useI18n } from '../i18n';
 import SearchResults from './SearchResults.vue';
+import { orderSearchHits } from '../utils/search';
 
 const router = useRouter();
 const route = useRoute();
@@ -92,9 +93,18 @@ interface GroupedResults {
   hits: SearchHit[];
 }
 
+const orderedResults = computed(() => ui.searchSort === 'language'
+  ? orderSearchHits(results.value, store.searchPriorityLanguages)
+  : results.value);
+
+watch(() => ui.searchSort, () => {
+  currentPage.value = 1;
+  selectedIdx.value = -1;
+});
+
 const groupedResults = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
-  const pageHits = results.value.slice(start, start + pageSize);
+  const pageHits = orderedResults.value.slice(start, start + pageSize);
   const map = new Map<string, SearchHit[]>();
   for (const hit of pageHits) {
     const group = map.get(hit.registerId) ?? [];
@@ -202,7 +212,7 @@ onBeforeUnmount(resetSearch);
       :search-error="searchError"
       :searched="searched"
       :search-query="ui.searchQuery"
-      :results="results"
+      :results="orderedResults"
       :grouped-results="groupedResults"
       :selected-idx="selectedIdx"
       :current-page="currentPage"

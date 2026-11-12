@@ -8,6 +8,8 @@ import { conceptUri } from '../adapters/model-bridge';
 import { GraphEngine } from '../graph';
 import { UriRouter } from '../adapters/UriRouter';
 import { deduplicateSearchHits } from '../utils/search';
+import { useSiteConfig } from '../config/use-site-config';
+import { DEFAULT_LANG } from '../utils/lang';
 import { UnknownDatasetError } from '../errors';
 
 export const useVocabularyStore = defineStore('vocabulary', () => {
@@ -31,6 +33,14 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
   const edgeStatus = ref<Record<string, { loaded: boolean; count: number }>>({});
 
   const factory = getFactory();
+
+  const { config } = useSiteConfig();
+  const searchPriorityLanguages = computed(() => {
+    const defaults = config.value?.defaults;
+    return defaults?.languageOrder?.length
+      ? defaults.languageOrder
+      : [defaults?.language ?? DEFAULT_LANG];
+  });
 
   // Computed
   const currentManifest = computed(() =>
@@ -281,7 +291,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
       }
     }
 
-    return deduplicateSearchHits(allHits);
+    return deduplicateSearchHits(allHits, searchPriorityLanguages.value);
   }
 
   async function getRandomConcept(): Promise<{ registerId: string; conceptId: string } | null> {
@@ -317,6 +327,7 @@ export const useVocabularyStore = defineStore('vocabulary', () => {
     viewConcept,
     navigateToUri,
     searchAcrossDatasets,
+    searchPriorityLanguages,
     loadAllGraphData,
     getRandomConcept,
   };
