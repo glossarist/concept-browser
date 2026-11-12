@@ -2,6 +2,26 @@ import { describe, it, expect } from 'vitest';
 import { conceptFromJson, getRelatedSourceId, getRelatedCitation } from '../adapters/model-bridge';
 
 describe('model-bridge — source id mapping', () => {
+  it('preserves concept-level sources alongside localized sources', () => {
+    const source = (id: string, type = 'authoritative') => ({
+      'gl:sourceType': type,
+      'gl:origin': { 'gl:ref': { 'gl:source': 'ISO', 'gl:id': id } },
+    });
+    const concept = conceptFromJson({
+      '@type': 'gl:Concept',
+      'gl:identifier': '1',
+      'gl:source': [source('19165-2:2020'), source('704:2022', 'lineage')],
+      'gl:localizedConcept': { eng: { 'gl:source': [source('1087:2019')] } },
+    });
+
+    expect(concept.sources.map(s => [s.type, s.origin?.ref?.source, s.origin?.ref?.id])).toEqual([
+      ['authoritative', 'ISO', '19165-2:2020'],
+      ['lineage', 'ISO', '704:2022'],
+    ]);
+    expect(concept.localization('eng')!.sources.map(s => s.origin?.ref?.id)).toEqual(['1087:2019']);
+    expect(conceptFromJson({ '@type': 'gl:Concept', 'gl:identifier': '2' }).sources).toEqual([]);
+  });
+
   it('maps gl:id from JSON-LD ConceptSource', () => {
     const doc = {
       '@type': 'gl:Concept',

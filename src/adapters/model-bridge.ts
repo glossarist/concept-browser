@@ -623,6 +623,7 @@ function conceptFromJsonLd(doc: JsonLdConcept): Concept {
     term: doc[GL.TERM] ?? null,
     uri: doc['@id'] ?? null,
     localizations: localizations as Record<string, any>,
+    sources: (doc[GL.SOURCE] ?? []).map(mapSourceFromJsonLd),
     related,
     partitive_relations: partitiveRelations,
     generic_relations: genericRelations,
