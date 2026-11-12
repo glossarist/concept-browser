@@ -21,6 +21,7 @@ const pageSize = 20;
 const currentPage = ref(1);
 const loading = ref(false);
 const searchError = ref<string | null>(null);
+const searchWarning = ref<string | null>(null);
 const searchInputEl = ref<HTMLInputElement | null>(null);
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let searchGeneration = 0;
@@ -38,10 +39,12 @@ async function doSearch() {
   ui.searchQuery = q;
   loading.value = true;
   searchError.value = null;
+  searchWarning.value = null;
   try {
     const hits = await store.searchAcrossDatasets(q);
     if (generation !== searchGeneration) return;
     results.value = hits;
+    searchWarning.value = store.searchWarning;
   } catch (e: any) {
     if (generation !== searchGeneration) return;
     searchError.value = e.message || 'Search failed';
@@ -77,6 +80,7 @@ function resetSearch() {
   results.value = [];
   loading.value = false;
   searchError.value = null;
+  searchWarning.value = null;
   searched.value = false;
   currentPage.value = 1;
   selectedIdx.value = -1;
@@ -206,6 +210,11 @@ onBeforeUnmount(resetSearch);
         <button type="submit" class="btn-primary" :disabled="loading">{{ t('search.button') }}</button>
       </div>
     </form>
+
+    <div v-if="searched && !loading && searchWarning" role="alert" class="card p-4 mb-4 border-red-200 bg-red-50/50">
+      <p class="text-sm text-red-700 mb-3">{{ t(searchWarning) }}</p>
+      <button @click="doSearch" class="btn-primary">{{ t('search.retry') }}</button>
+    </div>
 
     <SearchResults
       :loading="loading"

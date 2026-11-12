@@ -70,10 +70,16 @@ describe('searchAcrossDatasets', () => {
     const healthy = adapter('healthy', [], [healthyHit]);
     discoverDatasets.mockResolvedValue([partial.adapter, healthy.adapter]);
 
-    const results = await useVocabularyStore().searchAcrossDatasets('location');
+    const store = useVocabularyStore();
+    const results = await store.searchAcrossDatasets('location');
 
     expect(partial.ensureAllChunksLoaded).toHaveBeenCalledOnce();
     expect(results).toEqual([loadedHit, healthyHit]);
+    expect(store.searchWarning).toBe('search.incomplete');
+
+    partial.ensureAllChunksLoaded.mockResolvedValue(undefined);
+    await store.searchAcrossDatasets('location');
+    expect(store.searchWarning).toBeNull();
   });
 
   it('continues after more than 20 hits and isolates chunk load and search failures', async () => {
