@@ -108,6 +108,88 @@ describe('SearchBar', () => {
     }
   });
 
+  it('clears shared search state and does not restore it after remount', async () => {
+    const hits: SearchHit[] = [makeHit({ designation: 'road network' })];
+    store.searchAcrossDatasets = vi.fn(async () => hits);
+    const ui = useUiStore();
+    const wrapper = mountSearch();
+    await wrapper.find('input').setValue('road');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(ui.searchQuery).toBe('road');
+    expect(wrapper.text()).toContain('road network');
+    expect(router.currentRoute.value.query.q).toBe('road');
+
+    const clearBtn = wrapper.findAll('button').find(b => b.find('svg').exists() && b.element.closest('.relative') !== null);
+    expect(clearBtn).toBeDefined();
+    await clearBtn!.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('input').element.value).toBe('');
+    expect(ui.searchQuery).toBe('');
+    expect(wrapper.text()).not.toContain('road network');
+    expect(router.currentRoute.value.query.q).toBeUndefined();
+
+    wrapper.unmount();
+    const callsBeforeRemount = vi.mocked(store.searchAcrossDatasets).mock.calls.length;
+    const remounted = mountSearch();
+    await flushPromises();
+    expect(remounted.find('input').element.value).toBe('');
+    expect(vi.mocked(store.searchAcrossDatasets)).toHaveBeenCalledTimes(callsBeforeRemount);
+    remounted.unmount();
+  });
+
+  it('cancels a pending search debounce when cleared', async () => {
+    store.searchAcrossDatasets = vi.fn(async () => []);
+    const wrapper = mountSearch();
+    await wrapper.find('input').setValue('road');
+    expect(vi.getTimerCount()).toBe(1);
+
+    const clearBtn = wrapper.findAll('button').find(b => b.find('svg').exists() && b.element.closest('.relative') !== null);
+    expect(clearBtn).toBeDefined();
+    await clearBtn!.trigger('click');
+    expect(vi.getTimerCount()).toBe(0);
+
+    await vi.advanceTimersByTimeAsync(300);
+    expect(store.searchAcrossDatasets).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it.each(['resolve', 'reject'] as const)('ignores an in-flight search that %s after clearing', async (outcome) => {
+    let resolveSearch!: (hits: SearchHit[]) => void;
+    let rejectSearch!: (error: Error) => void;
+    store.searchAcrossDatasets = vi.fn(() => new Promise<SearchHit[]>((resolve, reject) => {
+      resolveSearch = resolve;
+      rejectSearch = reject;
+    }));
+    const ui = useUiStore();
+    const wrapper = mountSearch();
+    await wrapper.find('input').setValue('road');
+    await wrapper.find('form').trigger('submit');
+    expect(store.searchAcrossDatasets).toHaveBeenCalledWith('road');
+    expect(wrapper.html()).toContain('animate-spin');
+
+    await wrapper.get('button[type="button"]').trigger('click');
+    await flushPromises();
+
+    if (outcome === 'resolve') {
+      resolveSearch([makeHit({ designation: 'road network' })]);
+    } else {
+      rejectSearch(new Error('Late search failure'));
+    }
+    await flushPromises();
+
+    expect(wrapper.find('input').element.value).toBe('');
+    expect(ui.searchQuery).toBe('');
+    expect(wrapper.find('.search-results').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('road network');
+    expect(wrapper.text()).not.toContain('Late search failure');
+    expect(router.currentRoute.value.query.q).toBeUndefined();
+    expect(wrapper.html()).not.toContain('animate-spin');
+    wrapper.unmount();
+  });
+
   it('shows loading spinner during search', async () => {
     const wrapper = mountSearch();
     // Mock a slow search
