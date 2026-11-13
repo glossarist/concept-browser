@@ -696,15 +696,33 @@ async function processDataset(dir, register, opts) {
   console.log(`Processing ${register}: ${files.length} files`);
 
   const conceptsDir = path.join(DATA, register, 'concepts');
-  // Clean previous output to avoid stale files accumulating across runs
-  if (fs.existsSync(conceptsDir)) {
-    for (const f of fs.readdirSync(conceptsDir)) fs.unlinkSync(path.join(conceptsDir, f));
-  }
+  fs.mkdirSync(conceptsDir, { recursive: true });
+
+  // Incremental emission cache: per-source-file content hash → last
+  // emitted termid. Unchanged sources skip per-concept file emission;
+  // orphans (source removed, renamed termid, older cache version) are
+  // swept below. Bump EMISSION_CACHE_VERSION whenever the per-concept
+  // emission logic changes its output shape.
+  const EMISSION_CACHE_VERSION = 1;
+  const EMISSION_EXTENSIONS = ['json', 'ttl', 'jsonld', 'tbx', 'yaml'];
+  const cacheDir = path.join(ROOT, '.gcb-cache');
+  const cachePath = path.join(cacheDir, `${register}.json`);
+  const emissionCache: { version: number; files: Record<string, { hash: string; termid: string }> } = {
+    version: EMISSION_CACHE_VERSION,
+    files: {},
+  };
+  try {
+    const loaded = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+    if (loaded?.version === EMISSION_CACHE_VERSION && loaded.files) emissionCache.files = loaded.files;
+  } catch {}
+
   const concepts = [];
   const conceptInstances: Concept[] = [];
   const langTermCounts = {};
   const langDefCounts = {};
   const availableFormats = ['ttl', 'jsonld', 'yaml', 'tbx', 'csv'];
+  const producedOutputs = new Set<string>();
+  const emissionCacheFiles: Record<string, { hash: string; termid: string }> = {};
 
   // Pre-scan: build designation → concept ID lookup for same-dataset designation refs
   const designationLookup = new Map();
@@ -835,43 +853,65 @@ async function processDataset(dir, register, opts) {
     const file = files[i];
     if (i > 0 && i % 250 === 0) console.log(`  ${i}/${files.length} concepts`);
     try {
-      const conceptYaml = loadConceptFile(path.join(dir, file));
+      const filePath = path.join(dir, file);
+      const sourceText = fs.readFileSync(filePath, 'utf8');
+      const sourceHash = createHash('sha256').update(sourceText).digest('hex');
+
+      const conceptYaml = loadConceptFile(filePath);
       if (!conceptYaml || !conceptYaml.termid) continue;
 
       const termid = String(conceptYaml.termid);
-      const jsonld = yamlToJsonLd(conceptYaml, register, dsRefMaps);
-      writeJson(path.join(conceptsDir, `${termid}.json`), jsonld);
-      // Canonical interchange exports — routed through glossarist's
-      // output API (one model walk; predicates generated from the
-      // concept-model context, wire shape from schemas/v3). The hand-rolled
-      // gl:-shaped emitters in scripts/lib/concept-formats.ts are retired.
-      // Note: TBX now includes <term> entries — the retired emitter
-      // computed termEntries but never wrote them into the document.
+
+      const cached = emissionCache.files[file];
+      const unchanged = cached?.hash === sourceHash
+        && EMISSION_EXTENSIONS.every(ext => fs.existsSync(path.join(conceptsDir, `${termid}.${ext}`)));
+
+      // Canonical model instance — required for the aggregate exports on
+      // every run, independent of per-file emission caching.
       let conceptInstance: Concept | null = null;
       try {
-        conceptInstance = parseConceptYaml(fs.readFileSync(path.join(dir, file), 'utf8'), termid);
+        conceptInstance = parseConceptYaml(sourceText, termid);
       } catch (e) {
         console.warn(`  ${termid}: canonical parse failed (${e.message}); skipping glossarist exports`);
       }
-      if (conceptInstance) {
-        conceptInstances.push(conceptInstance);
-        fs.writeFileSync(
-          path.join(conceptsDir, `${termid}.ttl`),
-          conceptToTurtle(conceptInstance, { uriBase: refMaps.uriBase, registerId: register }),
-        );
-        const conceptJsonLd = await emitOutputSet([conceptInstance], {
-          registerId: register,
-          uriBase: refMaps.uriBase,
-          formats: ['jsonld'],
-        });
-        fs.writeFileSync(path.join(conceptsDir, `${termid}.jsonld`), conceptJsonLd.jsonld!);
-        const tbxContent = conceptsToTbx([conceptInstance], { registerId: register });
-        if (tbxContent) {
-          fs.writeFileSync(path.join(conceptsDir, `${termid}.tbx`), tbxContent);
+      if (conceptInstance) conceptInstances.push(conceptInstance);
+
+      if (!unchanged) {
+        const jsonld = yamlToJsonLd(conceptYaml, register, dsRefMaps);
+        writeJson(path.join(conceptsDir, `${termid}.json`), jsonld);
+        // Canonical interchange exports — routed through glossarist's
+        // output API (one model walk; predicates generated from the
+        // concept-model context, wire shape from schemas/v3). The hand-rolled
+        // gl:-shaped emitters in scripts/lib/concept-formats.ts are retired.
+        // Note: TBX now includes <term> entries — the retired emitter
+        // computed termEntries but never wrote them into the document.
+        if (conceptInstance) {
+          fs.writeFileSync(
+            path.join(conceptsDir, `${termid}.ttl`),
+            conceptToTurtle(conceptInstance, { uriBase: refMaps.uriBase, registerId: register }),
+          );
+          const conceptJsonLd = await emitOutputSet([conceptInstance], {
+            registerId: register,
+            uriBase: refMaps.uriBase,
+            formats: ['jsonld'],
+          });
+          fs.writeFileSync(path.join(conceptsDir, `${termid}.jsonld`), conceptJsonLd.jsonld!);
+          const tbxContent = conceptsToTbx([conceptInstance], { registerId: register });
+          if (tbxContent) {
+            fs.writeFileSync(path.join(conceptsDir, `${termid}.tbx`), tbxContent);
+          }
         }
+        fs.copyFileSync(filePath, path.join(conceptsDir, `${termid}.yaml`));
       }
 
-      fs.copyFileSync(path.join(dir, file), path.join(conceptsDir, `${termid}.yaml`));
+      producedOutputs.add(`${termid}.json`);
+      producedOutputs.add(`${termid}.yaml`);
+      if (conceptInstance) {
+        producedOutputs.add(`${termid}.ttl`);
+        producedOutputs.add(`${termid}.jsonld`);
+        producedOutputs.add(`${termid}.tbx`);
+      }
+      emissionCacheFiles[file] = { hash: sourceHash, termid };
 
       concepts.push({
         id: termid,
@@ -887,6 +927,15 @@ async function processDataset(dir, register, opts) {
       console.warn(`  Skipping ${file}: ${e.message}`);
     }
   }
+
+  // Sweep per-concept outputs this run no longer produces (removed or
+  // renamed sources) — replaces the wholesale pre-loop clean, which the
+  // incremental cache needs gone.
+  for (const entry of fs.readdirSync(conceptsDir)) {
+    if (!producedOutputs.has(entry)) fs.unlinkSync(path.join(conceptsDir, entry));
+  }
+  fs.mkdirSync(cacheDir, { recursive: true });
+  fs.writeFileSync(cachePath, JSON.stringify({ version: EMISSION_CACHE_VERSION, files: emissionCacheFiles }));
 
   console.log(`  Per-concept emissions: ${((Date.now() - loopStart) / 1000).toFixed(1)}s`);
 
