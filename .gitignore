@@ -45,3 +45,6 @@ __snapshots__/
 scripts/*.js
 scripts/*.js.map
 .tmp-consumer-test/
+
+# Incremental generate-data emission cache (consumer-side)
+.gcb-cache/
