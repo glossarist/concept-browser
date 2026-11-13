@@ -1,5 +1,7 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
+import { Worker as WorkerThread } from 'node:worker_threads';
 import { createHash } from 'node:crypto';
 import yaml from 'js-yaml';
 import {
@@ -690,6 +692,96 @@ function getPrimaryDesignation(conceptYaml) {
   return descs;
 }
 
+// Worker pool for glossarist-native per-concept emissions (ttl/jsonld/tbx).
+// Set GCB_WORKERS=0 to force inline emission (same outputs, one thread).
+type EmissionJob = { file: string; termid: string; sourceText: string; sourceHash: string; conceptInstance: Concept };
+type EmissionResult = { termid: string; ttl?: string; jsonld?: string; tbx?: string; error?: string };
+
+async function inlineEmission(job: EmissionJob, register: string, uriBase: string): Promise<EmissionResult> {
+  try {
+    const outputs = await emitOutputSet([job.conceptInstance], {
+      registerId: register,
+      uriBase,
+      formats: ['jsonld'],
+    });
+    return {
+      termid: job.termid,
+      ttl: conceptToTurtle(job.conceptInstance, { uriBase, registerId: register }),
+      jsonld: outputs.jsonld,
+      tbx: conceptsToTbx([job.conceptInstance], { registerId: register }) || null,
+    };
+  } catch (e) {
+    return { termid: job.termid, error: String((e && e.message) || e) };
+  }
+}
+
+function createEmissionPool(register: string, uriBase: string): {
+  emit(job: EmissionJob): Promise<EmissionResult>;
+  close(): Promise<void>;
+} | null {
+  const configured = Number(process.env.GCB_WORKERS);
+  if (Number.isFinite(configured) && configured <= 0) return null;
+  const size = Number.isFinite(configured)
+    ? configured
+    : Math.max(1, Math.min(4, (os.availableParallelism ? os.availableParallelism() : os.cpus().length) - 1));
+  const workerPath = path.join(__dirname, 'lib', 'workers', 'emit-concept-worker.mjs');
+
+  let pool: WorkerThread[];
+  try {
+    pool = Array.from({ length: size }, () => new WorkerThread(workerPath, { workerData: { registerId: register, uriBase } }));
+  } catch {
+    return null;
+  }
+
+  const active = new Map<WorkerThread, { resolve: (r: EmissionResult) => void; reject: (e: Error) => void }>();
+  const pending: { job: EmissionJob; resolve: (r: EmissionResult) => void; reject: (e: Error) => void }[] = [];
+  const idle = new Set<WorkerThread>();
+
+  function dispatch() {
+    while (pending.length > 0) {
+      const worker = idle.values().next();
+      if (worker.done) return;
+      idle.delete(worker.value);
+      const entry = pending.shift()!;
+      active.set(worker.value, entry);
+      worker.value.postMessage({ termid: entry.job.termid, sourceText: entry.job.sourceText });
+    }
+  }
+
+  for (const worker of pool) {
+    idle.add(worker);
+    worker.on('message', (msg: EmissionResult) => {
+      const entry = active.get(worker);
+      active.delete(worker);
+      idle.add(worker);
+      entry?.resolve(msg);
+      dispatch();
+    });
+    const fail = (err: Error) => {
+      const entry = active.get(worker);
+      active.delete(worker);
+      idle.delete(worker);
+      pool = pool.filter(w => w !== worker);
+      entry?.reject(err);
+      dispatch();
+    };
+    worker.on('error', fail);
+    worker.on('exit', () => fail(new Error('emission worker exited')));
+  }
+
+  return {
+    emit(job: EmissionJob): Promise<EmissionResult> {
+      return new Promise((resolve, reject) => {
+        pending.push({ job, resolve, reject });
+        dispatch();
+      });
+    },
+    async close() {
+      await Promise.allSettled(pool.map(w => w.terminate()));
+    },
+  };
+}
+
 async function processDataset(dir, register, opts) {
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.yaml')).sort((a, b) => naturalSort(a.replace('.yaml', ''), b.replace('.yaml', '')));
 
@@ -849,6 +941,8 @@ async function processDataset(dir, register, opts) {
   ];
 
   const loopStart = Date.now();
+  const emissionJobs: EmissionJob[] = [];
+
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     if (i > 0 && i % 250 === 0) console.log(`  ${i}/${files.length} concepts`);
@@ -879,29 +973,12 @@ async function processDataset(dir, register, opts) {
       if (!unchanged) {
         const jsonld = yamlToJsonLd(conceptYaml, register, dsRefMaps);
         writeJson(path.join(conceptsDir, `${termid}.json`), jsonld);
-        // Canonical interchange exports — routed through glossarist's
-        // output API (one model walk; predicates generated from the
-        // concept-model context, wire shape from schemas/v3). The hand-rolled
-        // gl:-shaped emitters in scripts/lib/concept-formats.ts are retired.
-        // Note: TBX now includes <term> entries — the retired emitter
-        // computed termEntries but never wrote them into the document.
-        if (conceptInstance) {
-          fs.writeFileSync(
-            path.join(conceptsDir, `${termid}.ttl`),
-            conceptToTurtle(conceptInstance, { uriBase: refMaps.uriBase, registerId: register }),
-          );
-          const conceptJsonLd = await emitOutputSet([conceptInstance], {
-            registerId: register,
-            uriBase: refMaps.uriBase,
-            formats: ['jsonld'],
-          });
-          fs.writeFileSync(path.join(conceptsDir, `${termid}.jsonld`), conceptJsonLd.jsonld!);
-          const tbxContent = conceptsToTbx([conceptInstance], { registerId: register });
-          if (tbxContent) {
-            fs.writeFileSync(path.join(conceptsDir, `${termid}.tbx`), tbxContent);
-          }
-        }
         fs.copyFileSync(filePath, path.join(conceptsDir, `${termid}.yaml`));
+        if (conceptInstance) {
+          emissionJobs.push({ file, termid, sourceText, sourceHash, conceptInstance });
+        }
+      } else {
+        emissionCacheFiles[file] = { hash: sourceHash, termid };
       }
 
       producedOutputs.add(`${termid}.json`);
@@ -911,7 +988,6 @@ async function processDataset(dir, register, opts) {
         producedOutputs.add(`${termid}.jsonld`);
         producedOutputs.add(`${termid}.tbx`);
       }
-      emissionCacheFiles[file] = { hash: sourceHash, termid };
 
       concepts.push({
         id: termid,
@@ -925,6 +1001,38 @@ async function processDataset(dir, register, opts) {
       }
     } catch (e) {
       console.warn(`  Skipping ${file}: ${e.message}`);
+    }
+  }
+
+  // Glossarist-native per-concept exports (ttl/jsonld/tbx), parallelized
+  // on worker threads; falls back to inline emission when workers are
+  // unavailable (GCB_WORKERS=0 or restricted environments).
+  if (emissionJobs.length > 0) {
+    const jobsByTermid = new Map(emissionJobs.map(j => [j.termid, j]));
+    const pool = createEmissionPool(register, refMaps.uriBase);
+    const emissionStart = Date.now();
+    try {
+      const results = await Promise.all(emissionJobs.map(job => {
+        if (!pool) return inlineEmission(job, register, refMaps.uriBase);
+        return pool.emit(job).catch(() => inlineEmission(job, register, refMaps.uriBase));
+      }));
+      for (const result of results) {
+        if (result.error) {
+          console.warn(`  ${result.termid}: canonical parse failed (${result.error}); skipping glossarist exports`);
+          const job = jobsByTermid.get(result.termid);
+          if (job) delete emissionCacheFiles[job.file];
+          for (const ext of ['ttl', 'jsonld', 'tbx']) producedOutputs.delete(`${result.termid}.${ext}`);
+          continue;
+        }
+        fs.writeFileSync(path.join(conceptsDir, `${result.termid}.ttl`), result.ttl);
+        fs.writeFileSync(path.join(conceptsDir, `${result.termid}.jsonld`), result.jsonld);
+        if (result.tbx) fs.writeFileSync(path.join(conceptsDir, `${result.termid}.tbx`), result.tbx);
+        const job = jobsByTermid.get(result.termid);
+        if (job) emissionCacheFiles[job.file] = { hash: job.sourceHash, termid: job.termid };
+      }
+      console.log(`  Interchange exports: ${((Date.now() - emissionStart) / 1000).toFixed(1)}s (${emissionJobs.length} concepts, ${pool ? 'parallel' : 'inline'})`);
+    } finally {
+      if (pool) await pool.close();
     }
   }
 
