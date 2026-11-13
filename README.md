@@ -41,11 +41,14 @@ Your project (CWD)                    Package (read-only)
 ├── public/                   ─┤ ──> │                          │
 │   └── (logos, favicons)     ─┤     │ generate-data.ts         │
 ├── .cb-content/   ← generated │     │ bridge-to-astro.ts       │
-└── dist/          ← output    │     │ astro build              │
-                             ──┘     └──────────────────────────┘
+├── .gcb-cache/    ← generated │     │ astro build              │
+└── dist/          ← output    │
+                             ──┘
 ```
 
-The package reads your config and data, generates `.cb-content/` (content collections) and `dist/` (static site) in your project. The package itself (`node_modules/`) is never modified.
+The package reads your config and data, generates `.cb-content/` (content collections), `.gcb-cache/` (incremental emission hashes), and `dist/` (static site) in your project. The package itself (`node_modules/`) is never modified.
+
+Generation is fast and incremental: unchanged concept sources skip per-concept emission (content-hash cache in `.gcb-cache/`), interchange exports (Turtle/JSON-LD/TBX) run on a small worker pool (`GCB_WORKERS=0` disables), aggregate JSON-LD is written directly from the quad layer, and every build phase logs its timing.
 
 ## Data / Deployment Boundary
 
