@@ -830,8 +830,10 @@ async function processDataset(dir, register, opts) {
     },
   ];
 
+  const loopStart = Date.now();
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
+    if (i > 0 && i % 250 === 0) console.log(`  ${i}/${files.length} concepts`);
     try {
       const conceptYaml = loadConceptFile(path.join(dir, file));
       if (!conceptYaml || !conceptYaml.termid) continue;
@@ -886,17 +888,23 @@ async function processDataset(dir, register, opts) {
     }
   }
 
+  console.log(`  Per-concept emissions: ${((Date.now() - loopStart) / 1000).toFixed(1)}s`);
+
   // Aggregate distributions: single-file exports of the whole register,
   // emitted by glossarist's output-set API from the canonical model walk.
   // The CSV uri column is a link a human opens — it carries the SPA route
   // shape on the deployment's configured host (siteOrigin), not the
-  // RDF-canonical IRI.
+  // RDF-canonical IRI. Only the two formats consumed downstream are
+  // requested — the output-set API computes all six by default.
+  const aggregateStart = Date.now();
   const aggregate = await emitOutputSet(conceptInstances, {
     registerId: register,
     uriBase: refMaps.uriBase,
+    formats: ['csv', 'jsonld'],
     languageOrder: opts.languageOrder || opts.languages,
     conceptUriPrefix: buildConceptUriPrefix(refMaps.siteOrigin, register),
   });
+  console.log(`  Aggregate csv+jsonld: ${((Date.now() - aggregateStart) / 1000).toFixed(1)}s`);
   fs.writeFileSync(path.join(DATA, register, `${register}.csv`), aggregate.csv!);
   fs.writeFileSync(path.join(DATA, register, `${register}.jsonld`), aggregate.jsonld!);
 
@@ -1074,7 +1082,9 @@ async function processDataset(dir, register, opts) {
   // Dataset-level RDF (WS J2/J5): dcat:Dataset + skos:ConceptScheme + skos:Collection per section.
   // Runs before the manifest write so the ttl distribution is on disk when
   // bulkFormats is assembled.
+  const rdfStart = Date.now();
   await writeDatasetRdf(register, manifest, concepts, refMaps, opts);
+  console.log(`  Dataset RDF: ${((Date.now() - rdfStart) / 1000).toFixed(1)}s`);
   addBulkFormat(`${register}.ttl`);
   manifest.bulkFormats = opts.bulkExports?.length
     ? bulkFormats.filter(f => opts.bulkExports.includes(f.format))
