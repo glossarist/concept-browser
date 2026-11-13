@@ -32,7 +32,11 @@ describe('generate-data chunk hashes', () => {
         cwd: root,
         env: { ...process.env, SITE_CONFIG: configPath },
         stdio: 'pipe',
-        timeout: 30_000,
+        // Three sequential full generations run in this test; each
+        // subprocess pays tsx startup, worker-pool spin-up, and aggregate
+        // emission. The suite runs tests in parallel, so leave generous
+        // headroom for CPU contention.
+        timeout: 120_000,
       });
       const indexes = ['index.json', 'index-meta.json'].map(file =>
         JSON.parse(readFileSync(join(outputDir, file), 'utf8')),
@@ -70,5 +74,5 @@ describe('generate-data chunk hashes', () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
-  }, 60_000);
+  }, 300_000);
 });
