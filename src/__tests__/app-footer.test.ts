@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import AppFooter from '../components/AppFooter.vue';
 import { createTestRouter, setupPinia } from './test-helpers';
@@ -39,9 +39,11 @@ describe('AppFooter', () => {
   it('omits hosted by when branding.hostedBy is absent', () => {
     const wrapper = mountFooter();
     expect(wrapper.text()).not.toContain('Hosted by');
+    expect(wrapper.text()).not.toContain('A service of');
   });
 
-  it('renders hosted by with logo when branding.hostedBy is configured', async () => {
+  it('renders the default hosted-by prefix', async () => {
+    vi.resetModules();
     const inline = document.createElement('script');
     inline.id = 'site-config-json';
     inline.type = 'application/json';
@@ -57,17 +59,51 @@ describe('AppFooter', () => {
     });
     document.head.appendChild(inline);
 
+    const { mount: freshMount } = await import('@vue/test-utils');
+    const { default: FreshFooter } = await import('../components/AppFooter.vue');
     const { useSiteConfig } = await import('../config/use-site-config');
     await useSiteConfig().loadConfig();
 
-    const wrapper = mountFooter();
+    const pinia = setupPinia();
+    const router = await createTestRouter('minimal', '/');
+    const wrapper = freshMount(FreshFooter, { global: { plugins: [pinia, router] } });
     expect(wrapper.text()).toContain('Hosted by');
     const link = wrapper.findAll('a').find(a => a.attributes('href') === 'https://www.enosema.org');
     expect(link).toBeDefined();
-    expect(link!.attributes('href')).toBe('https://www.enosema.org');
     const img = link!.find('img');
     expect(img.attributes('src')).toBe('https://www.enosema.org/logos/logo-text-white.svg');
     expect(img.attributes('alt')).toBe('Enosema Foundation');
+    inline.remove();
+  });
+
+  it('renders a configurable hosted-by prefix', async () => {
+    vi.resetModules();
+    const inline = document.createElement('script');
+    inline.id = 'site-config-json';
+    inline.type = 'application/json';
+    inline.textContent = JSON.stringify({
+      title: 'Test Site',
+      branding: {
+        hostedBy: {
+          prefix: 'A service of',
+          name: 'Enosema Foundation',
+          url: 'https://www.enosema.org',
+          logo: 'https://www.enosema.org/logos/logo-text-white.svg',
+        },
+      },
+    });
+    document.head.appendChild(inline);
+
+    const { mount: freshMount } = await import('@vue/test-utils');
+    const { default: FreshFooter } = await import('../components/AppFooter.vue');
+    const { useSiteConfig } = await import('../config/use-site-config');
+    await useSiteConfig().loadConfig();
+
+    const pinia = setupPinia();
+    const router = await createTestRouter('minimal', '/');
+    const wrapper = freshMount(FreshFooter, { global: { plugins: [pinia, router] } });
+    expect(wrapper.text()).toContain('A service of');
+    expect(wrapper.text()).not.toContain('Hosted by');
     inline.remove();
   });
 
