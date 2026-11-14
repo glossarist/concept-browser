@@ -101,6 +101,8 @@ export interface HostedByConfig {
   url: string;
   /** Logo image path or URL. */
   logo: string;
+  /** Text rendered before the logo. Defaults to "Hosted by". */
+  prefix?: string;
 }
 
 export interface SiteFeatures {

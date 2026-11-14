@@ -86,6 +86,14 @@ branding:
   #   alt: My Dictionary
   #   light: /images/logo-light.svg
   #   dark: /images/logo-dark.svg
+  # Hosted-by credit rendered in the footer before the Glossarist powered-by line:
+  hostedBy:
+    prefix: "A service of"        # text before the logo; defaults to "Hosted by"
+    name: "Enosema Foundation"    # logo alt text
+    url: "https://example.org"    # link target
+    logo: "/images/host-logo.svg"
+  # © line for the footer; defaults to "© <current year> <ownerName>"
+  # copyright: "© 2026 Example Org. Dataset content © its respective owners, used with permission."
 
 # ── Features ──
 features:
@@ -94,3 +102,6 @@ features:
   graph: true
   about: true
   search: true
+  poweredBy:
+    message: "Glossarist"         # text after the Glossarist logo in the footer; defaults to "Built with the Glossarist Concept Browser"
+    url: "https://glossarist.org"
