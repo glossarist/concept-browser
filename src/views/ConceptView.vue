@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { computed, watch, ref, onMounted, onUnmounted } from 'vue';
+import { computed, watch, ref, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { useRouter } from 'vue-router';
 import { useVocabularyStore } from '../stores/vocabulary';
 import ConceptDetail from '../components/ConceptDetail.vue';
 import SameStandardPane from '../components/SameStandardPane.vue';
-import RelationSphere from '../components/RelationSphere.vue';
 import ShortcutsModal from '../components/ShortcutsModal.vue';
 import { useConceptEdges } from '../composables/use-concept-edges';
 import { useSameStandardTerms } from '../composables/use-same-standard-terms';
 import { useI18n } from '../i18n';
+
+/* Visualization islands load on demand — the default detail view never
+   pays for d3. Each lands in its own chunk (issue #259 bundle budget). */
+const RelationSphere = defineAsyncComponent(() => import('../components/RelationSphere.vue'));
+const RelationGraph = defineAsyncComponent(() => import('../components/RelationGraph.vue'));
 
 const { t } = useI18n();
 
@@ -61,6 +65,7 @@ const concept = computed(() => store.currentConcept);
 const manifest = computed(() => store.currentManifest);
 const edges = computed(() => store.conceptEdges);
 const activeRegisterId = computed(() => sphereFocusPayload.value?.registerId ?? props.registerId);
+const activeConceptId = computed(() => sphereFocusPayload.value?.conceptId ?? props.conceptId);
 const adjacent = ref({ prev: null as string | null, next: null as string | null });
 
 const { conceptPartitiveRelations, conceptGenericRelations } = useConceptEdges(
@@ -70,8 +75,10 @@ const { conceptPartitiveRelations, conceptGenericRelations } = useConceptEdges(
   edges,
   router,
 );
-const viewMode = ref<'detail' | 'sphere'>(
-  router.currentRoute.value.query.view === 'sphere' ? 'sphere' : 'detail'
+const viewMode = ref<'detail' | 'sphere' | 'graph'>(
+  router.currentRoute.value.query.view === 'sphere'
+    ? 'sphere'
+    : router.currentRoute.value.query.view === 'graph' ? 'graph' : 'detail'
 );
 
 const permalinkCopied = ref(false);
@@ -128,6 +135,12 @@ function switchToSphere() {
   router.replace({ query: { ...router.currentRoute.value.query, view: 'sphere' } });
 }
 
+function switchToGraph() {
+  viewMode.value = 'graph';
+  sphereFocusPayload.value = null;
+  router.replace({ query: { ...router.currentRoute.value.query, view: 'graph' } });
+}
+
 function switchToDetail() {
   viewMode.value = 'detail';
   router.replace({ query: { ...router.currentRoute.value.query, view: 'detail' } });
@@ -153,10 +166,15 @@ function onKeydown(e: KeyboardEvent) {
     showShortcuts.value = false;
     return;
   }
-  /* View mode toggle: 's' for sphere, 'd' for detail */
+  /* View mode toggle: 's' for sphere, 'g' for graph, 'd' for detail */
   if (e.key === 's' && concept.value) {
     e.preventDefault();
     switchToSphere();
+    return;
+  }
+  if (e.key === 'g' && concept.value) {
+    e.preventDefault();
+    switchToGraph();
     return;
   }
   if (e.key === 'd') {
@@ -178,7 +196,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 </script>
 
 <template>
-  <div :class="['concept-view', { 'sphere-mode': viewMode === 'sphere' }]">
+  <div :class="['concept-view', { 'sphere-mode': viewMode !== 'detail' }]">
     <!-- View mode toolbar — slim sub-header with segmented control + permalink.
          Sits ABOVE the content (not floating, doesn't block anything). -->
     <div
@@ -219,6 +237,25 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
           </svg>
           <span>{{ t('concept.relationSphere') }}</span>
           <kbd class="ml-1 px-1 py-0.5 font-mono text-[9px] font-semibold rounded bg-ink-100 dark:bg-ink-700 text-ink-500 dark:text-ink-400 tracking-wide">s</kbd>
+        </button>
+        <button
+          role="tab"
+          :aria-selected="viewMode === 'graph'"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-md cursor-pointer transition-all border-none font-inherit"
+          :class="viewMode === 'graph'
+            ? 'bg-surface-raised dark:bg-ink-600 text-ink-800 dark:text-ink-50 shadow-sm'
+            : 'bg-transparent text-ink-500 dark:text-ink-400 hover:text-ink-700 dark:hover:text-ink-200'"
+          @click="switchToGraph"
+          title="Relation graph view (g)"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="6" cy="6" r="2.5"/>
+            <circle cx="18" cy="7" r="2.5"/>
+            <circle cx="12" cy="18" r="2.5"/>
+            <path d="M8.2 7.2l7.4-.6M7 8.2l4 7.6M17 9.3l-4 6.5" stroke-linecap="round"/>
+          </svg>
+          <span>{{ t('concept.relationGraph') }}</span>
+          <kbd class="ml-1 px-1 py-0.5 font-mono text-[9px] font-semibold rounded bg-ink-100 dark:bg-ink-700 text-ink-500 dark:text-ink-400 tracking-wide">g</kbd>
         </button>
       </nav>
 
@@ -289,7 +326,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
       </div>
     </div>
     <template v-else-if="concept && manifest">
-      <div class="concept-content" :class="{ 'sphere-content': viewMode === 'sphere' }">
+      <div class="concept-content" :class="{ 'sphere-content': viewMode !== 'detail' }">
         <!-- Sphere mode — receives concept + edges directly, no URI matching -->
         <RelationSphere
           v-if="viewMode === 'sphere'"
@@ -299,6 +336,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
           :edges="edges"
           :partitive-relations="conceptPartitiveRelations"
           :generic-relations="conceptGenericRelations"
+          @navigate="onSphereNavigate"
+        />
+        <!-- Relation graph mode — build-time neighborhood JSON, node click navigates -->
+        <RelationGraph
+          v-else-if="viewMode === 'graph'"
+          :register-id="activeRegisterId"
+          :concept-id="activeConceptId"
           @navigate="onSphereNavigate"
         />
         <!-- Detail mode -->

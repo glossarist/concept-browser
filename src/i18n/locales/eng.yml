@@ -342,7 +342,28 @@ sphere.toggleMute: Toggle visibility
 sphere.learnAbout: Learn about this relation type
 concept.detailView: Detail
 concept.relationSphere: Relation Sphere
+concept.relationGraph: Relation Graph
 concept.permalink: Permalink
 concept.copied: Copied
+
+# Relation neighborhood graph (concept page, issue #259)
+relationGraph.scope: Graph scope
+relationGraph.local: Direct
+relationGraph.global: Global
+relationGraph.depth: Hops
+relationGraph.nodes: nodes
+relationGraph.edges: edges
+relationGraph.truncated: 'Large neighborhood — showing the {max} nearest nodes.'
+relationGraph.resetZoom: Reset zoom
+relationGraph.relayout: Re-layout
+relationGraph.exportSvg: Export SVG
+relationGraph.exportPng: Export PNG
+relationGraph.exporting: Exporting…
+relationGraph.legend: Relation types
+relationGraph.loading: Loading relation data
+relationGraph.noData: No relation graph data was generated for this register.
+relationGraph.loadFailed: Failed to load relation data.
+relationGraph.noRelations: This concept has no typed relations to other concepts.
+relationGraph.ariaLabel: 'Relation neighborhood graph for {term}'
 
 # Relation types (displayed in legend + edge labels)
