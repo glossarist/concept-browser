@@ -8,6 +8,7 @@ nav.graph: Vue en graphe
 nav.ontology: Ontologie
 nav.concepts: Concepts
 nav.stats: Statistiques
+nav.curation: Curation
 nav.about: À propos
 nav.navigation: Navigation
 nav.datasets: Jeux de données
@@ -358,3 +359,20 @@ relationGraph.noRelations: Ce concept n'a aucune relation typée avec d'autres c
 relationGraph.ariaLabel: 'Graphe de voisinage des relations pour {term}'
 
 # Relation types (affichés dans la légende + étiquettes d'arêtes)
+
+# Files de curation (issue #260)
+curation.title: Files de curation
+curation.summary: 'Listes de qualité des données pour {title}. Chaque entrée mène à sa page concept.'
+curation.filter: Filtrer par désignation ou identifiant…
+curation.showMore: Afficher {count} de plus
+curation.failedToLoad: Échec du chargement du registre.
+curation.loadFailed: Échec du chargement des données de curation.
+curation.retry: Réessayer
+curation.noData: Ce registre a été généré sans données de curation. Régénérez avec concept-browser >= 0.7.143.
+curation.validation.title: Échecs de validation
+curation.validation.allClear: Aucune entrée n'échoue à la validation.
+curation.missing.title: Traductions manquantes
+curation.missing.allClear: Chaque entrée a des termes dans toutes les langues configurées.
+curation.missing.missingLang: Termes manquants en {lang}
+curation.noSources.title: Entrées sans source
+curation.noSources.allClear: Chaque entrée déclare au moins une source.

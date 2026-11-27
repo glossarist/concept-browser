@@ -123,6 +123,7 @@ const ROUTE_SETS: Record<RouteSet, any[]> = {
     { path: '/dataset/:registerId/concept/:conceptId', name: 'concept', component: STUB_COMPONENT },
     { path: '/dataset/:registerId/stats', name: 'stats', component: STUB_COMPONENT },
     { path: '/dataset/:registerId/about', name: 'about', component: STUB_COMPONENT },
+    { path: '/dataset/:registerId/curation', name: 'curation', component: STUB_COMPONENT },
   ],
   full: [
     { path: '/', name: 'home', component: STUB_COMPONENT },

@@ -23,6 +23,7 @@ describe('Router route definitions', () => {
     expect(routeMap.get('concept')!.path).toBe('/dataset/:registerId/concept/:conceptId');
     expect(routeMap.get('stats')!.path).toBe('/dataset/:registerId/stats');
     expect(routeMap.get('about')!.path).toBe('/dataset/:registerId/about');
+    expect(routeMap.get('curation')!.path).toBe('/dataset/:registerId/curation');
     expect(routeMap.get('search')!.path).toBe('/search');
     expect(routeMap.get('graph')!.path).toBe('/graph');
     expect(routeMap.get('resolve')!.path).toBe('/resolve/:uri(.*)');

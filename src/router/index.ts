@@ -38,6 +38,12 @@ export const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
+    path: '/dataset/:registerId/curation',
+    name: 'curation',
+    component: () => import('../views/CurationView.vue'),
+    props: true,
+  },
+  {
     path: '/group/:groupId',
     name: 'group',
     component: () => import('../views/GroupView.vue'),
