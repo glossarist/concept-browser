@@ -333,7 +333,28 @@ sphere.toggleMute: Basculer la visibilité
 sphere.learnAbout: En savoir plus sur ce type de relation
 concept.detailView: Détail
 concept.relationSphere: Sphère de relations
+concept.relationGraph: Graphe de relations
 concept.permalink: Permalien
 concept.copied: Copié
+
+# Graphe de voisinage des relations (page concept, issue #259)
+relationGraph.scope: Portée du graphe
+relationGraph.local: Directes
+relationGraph.global: Global
+relationGraph.depth: Niveaux
+relationGraph.nodes: nœuds
+relationGraph.edges: arêtes
+relationGraph.truncated: 'Voisinage étendu — {max} nœuds les plus proches affichés.'
+relationGraph.resetZoom: Réinitialiser le zoom
+relationGraph.relayout: Réorganiser
+relationGraph.exportSvg: Exporter en SVG
+relationGraph.exportPng: Exporter en PNG
+relationGraph.exporting: Export…
+relationGraph.legend: Types de relation
+relationGraph.loading: Chargement des données de relation
+relationGraph.noData: Aucune donnée de graphe n'a été générée pour ce registre.
+relationGraph.loadFailed: Échec du chargement des données de relation.
+relationGraph.noRelations: Ce concept n'a aucune relation typée avec d'autres concepts.
+relationGraph.ariaLabel: 'Graphe de voisinage des relations pour {term}'
 
 # Relation types (affichés dans la légende + étiquettes d'arêtes)

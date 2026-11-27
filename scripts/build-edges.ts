@@ -72,7 +72,9 @@ function normalizeLocalizedString(content) {
 /**
  * Pre-computes cross-reference and domain edges for each dataset.
  * Reads all concept JSON files, extracts structured references and
- * authoritative sources (domains), and writes edges.json + domain-nodes.json.
+ * authoritative sources (domains), and writes edges.json +
+ * partitive_relations.json + relation-graph.json (issue #259) +
+ * domain-nodes.json.
  *
  * Usage: node scripts/build-edges.js
  */
@@ -83,6 +85,7 @@ import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
 import { Register } from 'glossarist';
 import { slugify } from '../src/utils/slugify';
+import { UriRouter } from '../src/adapters/UriRouter';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = process.cwd();
@@ -257,6 +260,147 @@ function resolveConceptUri(ref, uriBase, urnMap) {
   return buildConceptUri(uriBase, reg, id);
 }
 
+// --- Relation neighborhood graph (issue #259) ---
+//
+// relation-graph.json is the client-side fuel for the per-concept
+// neighborhood graph: nodes = related concepts, edges = typed relations.
+// It is a strict projection of this file's own edge extraction —
+// concept-to-concept edges only (citation `cite:` targets, domain and
+// section URIs are not concept pages and are dropped here exactly as
+// UriRouter drops them client-side) — so the graph view and the
+// relationship lists can never drift onto different edge sets.
+//
+// Node ids are `${registerId}/${conceptId}` pairs; cross-register
+// targets appear under their own register prefix. Node labels come
+// from graph-nodes.json (generate-data output) and are best-effort:
+// a missing labels file yields empty designations, not a failed build.
+
+export type RelationGraphEdge = [string, string, string];
+export type RelationGraphLabels = Map<string, [string, string]>;
+
+export interface RelationGraph {
+  registerId: string;
+  nodeCount: number;
+  edgeCount: number;
+  /** nodeId → [designation, status]; designation empty when unlabeled */
+  nodes: Record<string, [string, string]>;
+  /** [sourceNodeId, targetNodeId, relationType], deduplicated, no self-loops */
+  edges: RelationGraphEdge[];
+  /** relationType → edge count, for the client legend */
+  types: Record<string, number>;
+}
+
+/**
+ * Flatten PartitiveRelation hyperedges into binary edges so partitive
+ * members surface in the neighborhood graph. Direction is comprehensive
+ * → member; presence/count semantics stay on the concept page's rake
+ * diagram, which renders them properly.
+ */
+export function flattenPartitiveEdges(relations: Record<string, any>[]): RelationGraphEdge[] {
+  const edges: RelationGraphEdge[] = [];
+  for (const rel of relations) {
+    const comprehensive = UriRouter.parseUri(rel.comprehensive);
+    if (!comprehensive) continue;
+    const from = `${comprehensive.registerId}/${comprehensive.conceptId}`;
+    for (const member of rel.partitives ?? []) {
+      const memberUri = member.uri ?? member;
+      const parsed = UriRouter.parseUri(memberUri);
+      if (!parsed) continue;
+      const to = `${parsed.registerId}/${parsed.conceptId}`;
+      if (to === from) continue;
+      edges.push([from, to, 'partitive']);
+    }
+  }
+  return edges;
+}
+
+/**
+ * Build the per-register neighborhood graph from already-extracted
+ * edges. `extraEdges` are pre-flattened binary tuples (e.g. partitive
+ * hyperedge members) merged into the same dedupe as the URI edges.
+ * Edges whose endpoints are not concept URIs (citations, domains,
+ * sections) are dropped; concept-to-concept duplicates (same pair +
+ * type, e.g. per-language reference variants) collapse to one edge.
+ */
+export function buildRelationGraph(
+  registerId: string,
+  edges: Record<string, any>[],
+  labels: RelationGraphLabels,
+  extraEdges: RelationGraphEdge[] = [],
+): RelationGraph {
+  const nodes: RelationGraph['nodes'] = {};
+  const seen = new Set<string>();
+  const outEdges: RelationGraphEdge[] = [];
+  const types: Record<string, number> = {};
+
+  const ensureNode = (id: string) => {
+    if (!nodes[id]) {
+      const label = labels.get(id);
+      nodes[id] = label ? [label[0], label[1]] : ['', ''];
+    }
+  };
+
+  const addEdge = (srcId: string, tgtId: string, type: string) => {
+    if (srcId === tgtId) return;
+    const key = `${srcId}|${tgtId}|${type}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    ensureNode(srcId);
+    ensureNode(tgtId);
+    outEdges.push([srcId, tgtId, type]);
+    types[type] = (types[type] ?? 0) + 1;
+  };
+
+  for (const edge of edges) {
+    const source = UriRouter.parseUri(edge.source);
+    const target = UriRouter.parseUri(edge.target);
+    if (!source || !target) continue;
+    addEdge(`${source.registerId}/${source.conceptId}`, `${target.registerId}/${target.conceptId}`, edge.type);
+  }
+  for (const [from, to, type] of extraEdges) {
+    addEdge(from, to, type);
+  }
+
+  return {
+    registerId,
+    nodeCount: Object.keys(nodes).length,
+    edgeCount: outEdges.length,
+    nodes,
+    edges: outEdges,
+    types,
+  };
+}
+
+/**
+ * Read graph-nodes.json (generate-data output) for every register and
+ * build the nodeId → [designation, status] label map. Best-effort per
+ * register: a missing or malformed graph-nodes.json contributes no
+ * labels instead of failing the build.
+ */
+export function loadRelationLabels(datasets: string[], dataDir: string): RelationGraphLabels {
+  const labels: RelationGraphLabels = new Map();
+  for (const ds of datasets) {
+    try {
+      const graphNodesPath = join(dataDir, ds, 'graph-nodes.json');
+      if (!existsSync(graphNodesPath)) continue;
+      const parsed = JSON.parse(readFileSync(graphNodesPath, 'utf-8'));
+      for (const entry of parsed.nodes ?? []) {
+        const [id, designations, status] = entry;
+        if (typeof id !== 'string' || !id) continue;
+        let designation = '';
+        if (designations && typeof designations === 'object') {
+          const values = Object.values(designations).filter((v): v is string => typeof v === 'string' && v.length > 0);
+          designation = (typeof designations.eng === 'string' && designations.eng) || values[0] || '';
+        }
+        labels.set(`${ds}/${id}`, [designation, typeof status === 'string' ? status : '']);
+      }
+    } catch {
+      // Labels are decorative — never fail the edge build over them.
+    }
+  }
+  return labels;
+}
+
 const EXTRACTORS = [extractReferences, extractRelated, extractDomains];
 
 function extractAllEdges(concept, registerId, uriBase, urnMap) {
@@ -296,7 +440,14 @@ function warnBinaryPartitiveRedundancy(edges, relations, registerId) {
 
 // --- Build ---
 
-function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest) {
+function buildEdgesForDataset(
+  datasetDir,
+  registerId,
+  uriBase,
+  urnMap,
+  manifest,
+  labels: RelationGraphLabels = new Map(),
+) {
   const conceptsDir = join(datasetDir, 'concepts');
   if (!existsSync(conceptsDir)) {
     console.log(`  Skipping ${registerId}: no concepts directory`);
@@ -367,6 +518,18 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest)
   const relationsPath = join(datasetDir, 'partitive_relations.json');
   writeFileSync(relationsPath, JSON.stringify(relationsOutput));
   console.log(`  Written ${allPartitiveRelations.length} partitive relations to partitive_relations.json (${(JSON.stringify(relationsOutput).length / 1024).toFixed(1)} KB)`);
+
+  // relation-graph.json — per-register neighborhood graph for the
+  // concept-page relation view (issue #259). Projection of the same
+  // deduped edges emitted above, concept-to-concept only, with node
+  // labels from graph-nodes.json. Partitive hyperedges are flattened
+  // into binary comprehensive → member edges so their members surface
+  // in the neighborhood.
+  const relationGraph = buildRelationGraph(registerId, deduped, labels, flattenPartitiveEdges(allPartitiveRelations));
+  const graphPath = join(datasetDir, 'relation-graph.json');
+  const graphContent = JSON.stringify(relationGraph);
+  writeFileSync(graphPath, graphContent);
+  console.log(`  Written ${relationGraph.nodeCount} nodes / ${relationGraph.edgeCount} edges to relation-graph.json (${(graphContent.length / 1024).toFixed(1)} KB)`);
 
   // Build domain-nodes.json from manifest sections (authoritative source)
   const manifestSections = manifest.sections;
@@ -476,6 +639,12 @@ for (const ds of datasets) {
 }
 console.log(`URI resolution map: ${[...urnMap.entries()].map(([k,v]) => `${k}→${v}`).join(', ')}\n`);
 
+// Node labels for relation-graph.json (issue #259) — read from every
+// register's graph-nodes.json (generate-data output). Best-effort:
+// running build-edges without a prior generate-data yields unlabeled
+// nodes, not a failed build.
+const relationLabels = loadRelationLabels(datasets, DATA_DIR);
+
 const allDatasetEdges = new Map();
 const allSourceRefs = [];
 
@@ -486,7 +655,7 @@ for (const ds of datasets) {
     console.log(`${manifest.title} (${ds}):`);
     const uriBase = manifest.uriBase;
     if (!uriBase) throw new Error('build-edges: manifest.uriBase is required');
-    const result = buildEdgesForDataset(join(DATA_DIR, ds), ds, uriBase, urnMap, manifest);
+    const result = buildEdgesForDataset(join(DATA_DIR, ds), ds, uriBase, urnMap, manifest, relationLabels);
     allDatasetEdges.set(ds, result.edges);
     allSourceRefs.push(...result.sourceRefs);
   } catch (e) {
