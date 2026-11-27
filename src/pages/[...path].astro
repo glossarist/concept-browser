@@ -23,6 +23,9 @@ export async function getStaticPaths() {
     paths.push({ params: { path: `dataset/${ds.data.id}/about` } });
     paths.push({ params: { path: `dataset/${ds.data.id}/stats` } });
     paths.push({ params: { path: `dataset/${ds.data.id}/sources` } });
+    /* Curation queues (issue #260) — same reasoning as stats/sources:
+       without a static path the SPA route 404s on prefetch. */
+    paths.push({ params: { path: `dataset/${ds.data.id}/curation` } });
     for (const g of await getCollection('groups')) {
       paths.push({ params: { path: `group/${g.data.id}/about` } });
     }

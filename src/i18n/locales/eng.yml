@@ -10,6 +10,7 @@ nav.concepts: Concepts
 nav.stats: Statistics
 nav.about: About
 nav.sources: Sources
+nav.curation: Curation
 nav.navigation: Navigation
 nav.datasets: Datasets
 nav.relationTypes: Relation Types
@@ -367,3 +368,20 @@ relationGraph.noRelations: This concept has no typed relations to other concepts
 relationGraph.ariaLabel: 'Relation neighborhood graph for {term}'
 
 # Relation types (displayed in legend + edge labels)
+
+# Curation queues (issue #260)
+curation.title: Curation Queues
+curation.summary: 'Data-quality worklists for {title}. Every entry links to its concept page.'
+curation.filter: Filter entries by designation or id…
+curation.showMore: Show {count} more
+curation.failedToLoad: Failed to load the dataset.
+curation.loadFailed: Failed to load curation data.
+curation.retry: Retry
+curation.noData: This register was built without curation data. Regenerate with concept-browser >= 0.7.143.
+curation.validation.title: Failing validation
+curation.validation.allClear: No entries are failing validation.
+curation.missing.title: Missing translations
+curation.missing.allClear: Every entry has terms in every configured language.
+curation.missing.missingLang: Missing terms in {lang}
+curation.noSources.title: Entries without sources
+curation.noSources.allClear: Every entry declares at least one source.

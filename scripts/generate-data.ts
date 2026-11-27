@@ -23,6 +23,7 @@ import type { StandardsIndex } from '../src/adapters/standards-index';
 import { getGroups } from './lib/concept-groups';
 import { consumeDatasetEntities } from './lib/build/non-verbal-consumer';
 import { copyImageAssets } from './lib/build/image-assets';
+import { buildCurationReport, collectCurationFlags, type CurationEntry } from './lib/curation';
 import { buildDatasetTurtle } from './lib/dataset-turtle';
 import { buildActivityTurtle } from './lib/build-activity-turtle';
 import { buildVocabularyTurtle } from './lib/vocab-turtle';
@@ -943,6 +944,12 @@ async function processDataset(dir, register, opts) {
   const loopStart = Date.now();
   const emissionJobs: EmissionJob[] = [];
 
+  // Curation queues (issue #260): per-concept data-quality signals,
+  // collected in the same pass as the stats processors and emitted as
+  // curation.json at the end of processDataset.
+  const curationEntries: CurationEntry[] = [];
+  const unparseableFiles: string[] = [];
+
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     if (i > 0 && i % 250 === 0) console.log(`  ${i}/${files.length} concepts`);
@@ -952,7 +959,10 @@ async function processDataset(dir, register, opts) {
       const sourceHash = createHash('sha256').update(sourceText).digest('hex');
 
       const conceptYaml = loadConceptFile(filePath);
-      if (!conceptYaml || !conceptYaml.termid) continue;
+      if (!conceptYaml || !conceptYaml.termid) {
+        unparseableFiles.push(file);
+        continue;
+      }
 
       const termid = String(conceptYaml.termid);
 
@@ -963,9 +973,11 @@ async function processDataset(dir, register, opts) {
       // Canonical model instance — required for the aggregate exports on
       // every run, independent of per-file emission caching.
       let conceptInstance: Concept | null = null;
+      let canonicalParseError: string | undefined;
       try {
         conceptInstance = parseConceptYaml(sourceText, termid);
       } catch (e) {
+        canonicalParseError = e.message;
         console.warn(`  ${termid}: canonical parse failed (${e.message}); skipping glossarist exports`);
       }
       if (conceptInstance) conceptInstances.push(conceptInstance);
@@ -989,11 +1001,24 @@ async function processDataset(dir, register, opts) {
         producedOutputs.add(`${termid}.tbx`);
       }
 
+      const primaryDesignations = getPrimaryDesignation(conceptYaml);
       concepts.push({
         id: termid,
-        designations: getPrimaryDesignation(conceptYaml),
+        designations: primaryDesignations,
         groups: getGroups(conceptYaml),
         status: (conceptYaml.eng as Record<string, any>)?.entry_status || 'valid',
+      });
+
+      // Curation signal (issue #260): languages without terms, source
+      // coverage, and canonical-parse failures in one pass.
+      const curationDesignations = primaryDesignations as Record<string, string>;
+      curationEntries.push({
+        id: termid,
+        designation: stripHtml(
+          String(curationDesignations.eng || Object.values(curationDesignations).find(Boolean) || ''),
+        ),
+        flags: collectCurationFlags(conceptYaml as Record<string, any>, opts.languages),
+        ...(canonicalParseError ? { parseError: canonicalParseError } : {}),
       });
 
       for (const processor of STATS_PROCESSORS) {
@@ -1001,6 +1026,7 @@ async function processDataset(dir, register, opts) {
       }
     } catch (e) {
       console.warn(`  Skipping ${file}: ${e.message}`);
+      unparseableFiles.push(file);
     }
   }
 
@@ -1199,6 +1225,24 @@ async function processDataset(dir, register, opts) {
     relationshipTypes: stats.relTypeCounts,
     partitiveRelations: stats.partitiveRelations,
   });
+
+  // Curation queues (issue #260): static worklists per register —
+  // canonical-parse failures, missing translations per configured
+  // language, entries without sources. Each item deep-links to its
+  // concept page from the /dataset/{id}/curation view.
+  const curationReport = buildCurationReport(
+    register,
+    concepts.length,
+    opts.languages,
+    curationEntries,
+    unparseableFiles,
+  );
+  writeJson(path.join(DATA, register, 'curation.json'), curationReport);
+  console.log(
+    `  Curation queues: ${curationReport.validation.count} invalid, `
+    + `${curationReport.missingTranslations.count} missing translations, `
+    + `${curationReport.noSources.count} without sources`,
+  );
 
   const manifest: Record<string, any> = {
     id: register,
