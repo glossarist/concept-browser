@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   collectCurationFlags,
   buildCurationReport,
@@ -158,5 +161,61 @@ describe('buildCurationReport', () => {
     const report = buildCurationReport('r', 7, LANGS, []);
     expect(report.languages).toEqual(LANGS);
     expect(report.conceptCount).toBe(7);
+  });
+});
+
+// ── CLI generate-path emission contract ─────────────────────────────────────
+//
+// The CLI's `generate` command imports the COMMITTED bundle
+// scripts/generate-data.js (git-dependency installs run no esbuild-bearing
+// prepare, so the bundle is what executes). The bundled-scripts freshness
+// gate ties the bundle to this source, so pinning the source tail here pins
+// what every consumer build emits. A consumer site once ran a stale global
+// install whose generator predated this tail and silently produced no
+// curation.json — these guards keep the tail contract explicit.
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const GENERATE_SOURCE = readFileSync(resolve(__dirname, '../generate-data.ts'), 'utf8');
+const CLI_SOURCE = readFileSync(resolve(__dirname, '../../cli/index.mjs'), 'utf8');
+
+function sourceIndex(pattern: RegExp): number {
+  const m = GENERATE_SOURCE.search(pattern);
+  return m === -1 ? Number.POSITIVE_INFINITY : m;
+}
+
+describe('generate-data CLI emission contract', () => {
+  it('collects curation entries in the per-concept loop', () => {
+    expect(GENERATE_SOURCE).toMatch(/const curationEntries: CurationEntry\[\] = \[\];/);
+    expect(GENERATE_SOURCE).toMatch(/curationEntries\.push\(\{/);
+    expect(GENERATE_SOURCE).toMatch(/collectCurationFlags\(/);
+    expect(GENERATE_SOURCE).toMatch(/const unparseableFiles: string\[\] = \[\];/);
+  });
+
+  it('writes standards.json, stats.json, then curation.json in one tail block', () => {
+    const standardsIdx = sourceIndex(/writeJson\(path\.join\(DATA, register, 'standards\.json'\)/);
+    const statsIdx = sourceIndex(/writeJson\(path\.join\(DATA, register, 'stats\.json'\)/);
+    const curationIdx = sourceIndex(/writeJson\(path\.join\(DATA, register, 'curation\.json'\)/);
+    expect(standardsIdx).toBeLessThan(statsIdx);
+    expect(statsIdx).toBeLessThan(curationIdx);
+    expect(curationIdx).toBeLessThan(Number.POSITIVE_INFINITY);
+  });
+
+  it('reaches the final per-register log after the curation write — no early return skips it', () => {
+    const curationIdx = sourceIndex(/writeJson\(path\.join\(DATA, register, 'curation\.json'\)/);
+    const generatedLogIdx = sourceIndex(/Generated \$\{concepts\.length\} concepts, manifest/);
+    expect(generatedLogIdx).toBeLessThan(Number.POSITIVE_INFINITY);
+    // No return between the curation write and the tail log: everything
+    // between them is straight-line code in processDataset.
+    const between = GENERATE_SOURCE.slice(curationIdx, generatedLogIdx);
+    expect(between).not.toMatch(/\breturn\b/);
+  });
+
+  it('CLI generate imports the generate-data bundle (the chunked path consumers run)', () => {
+    expect(CLI_SOURCE).toMatch(/generate:\s*async \(\) => \{ await import\('\.\.\/scripts\/generate-data\.js'\); \}/);
+  });
+
+  it('startup banner logs the running package version', () => {
+    expect(GENERATE_SOURCE).toMatch(/Generating Glossarist vocabulary browser data \(concept-browser v\$\{/);
+    expect(GENERATE_SOURCE).toMatch(/package\.json/);
   });
 });

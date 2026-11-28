@@ -3,6 +3,7 @@ import {
   buildRelationGraph,
   flattenPartitiveEdges,
   loadRelationLabels,
+  summarizeProjectedOut,
   type RelationGraphLabels,
   type RelationGraph,
 } from '../build-edges';
@@ -141,6 +142,44 @@ describe('flattenPartitiveEdges', () => {
       { comprehensive: U('viml-2022', '2.1'), partitives: [{ uri: U('viml-2022', '2.1') }] },
     ]);
     expect(edges).toEqual([]);
+  });
+});
+
+describe('summarizeProjectedOut', () => {
+  it('counts edges whose endpoints are not concept URIs, by type', () => {
+    const summary = summarizeProjectedOut([
+      { source: U('vim-1984', '1.01'), target: 'https://vocab.example.org/vim-1984/domain/section-1', type: 'section' },
+      { source: U('vim-1984', '1.02'), target: 'https://vocab.example.org/vim-1984/domain/section-1', type: 'section' },
+      { source: U('vim-1984', '1.03'), target: 'https://vocab.example.org/vim-1984/domain/b-10', type: 'domain' },
+      { source: U('vim-1984', '1.04'), target: 'cite:VIML-1984-clause-4', type: 'citation' },
+    ]);
+    expect(summary).toEqual({ section: 2, domain: 1, citation: 1 });
+  });
+
+  it('excludes concept-to-concept edges — they are kept by the projection', () => {
+    const summary = summarizeProjectedOut([
+      { source: U('vim-1984-cor-1987', '1.01'), target: U('vim-1984', '1.01'), type: 'supersedes' },
+      { source: U('vim-1984-cor-1987', '1.02'), target: U('vim-1984', '1.02'), type: 'equivalent' },
+    ]);
+    expect(summary).toEqual({});
+  });
+
+  it('counts an edge dropped for an unparsable source endpoint too', () => {
+    const summary = summarizeProjectedOut([
+      { source: 'not-a-uri', target: U('viml-2022', '2.1'), type: 'related_concept' },
+    ]);
+    expect(summary).toEqual({ related_concept: 1 });
+  });
+
+  it('returns an empty summary for an empty edge set', () => {
+    expect(summarizeProjectedOut([])).toEqual({});
+  });
+
+  it('buckets unknown types so the log never crashes on a missing type', () => {
+    const summary = summarizeProjectedOut([
+      { source: U('r', '1'), target: 'cite:x' },
+    ]);
+    expect(summary).toEqual({ unknown: 1 });
   });
 });
 

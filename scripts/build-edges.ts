@@ -372,6 +372,24 @@ export function buildRelationGraph(
 }
 
 /**
+ * Count deduped edges the relation-graph projection drops because an
+ * endpoint is not a concept URI (section memberships, domain edges,
+ * citation targets). Emitted next to the write log so a 0/0 graph is
+ * self-explaining: a register whose only relationships are section
+ * memberships legitimately projects to zero concept nodes, matching
+ * what UriRouter drops client-side — not a build defect.
+ */
+export function summarizeProjectedOut(edges: Record<string, any>[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const edge of edges) {
+    if (UriRouter.parseUri(edge.source) && UriRouter.parseUri(edge.target)) continue;
+    const type = edge.type || 'unknown';
+    out[type] = (out[type] ?? 0) + 1;
+  }
+  return out;
+}
+
+/**
  * Read graph-nodes.json (generate-data output) for every register and
  * build the nodeId → [designation, status] label map. Best-effort per
  * register: a missing or malformed graph-nodes.json contributes no
@@ -530,6 +548,11 @@ function buildEdgesForDataset(
   const graphContent = JSON.stringify(relationGraph);
   writeFileSync(graphPath, graphContent);
   console.log(`  Written ${relationGraph.nodeCount} nodes / ${relationGraph.edgeCount} edges to relation-graph.json (${(graphContent.length / 1024).toFixed(1)} KB)`);
+  if (relationGraph.edgeCount === 0 && deduped.length > 0) {
+    const projectedOut = summarizeProjectedOut(deduped);
+    const breakdown = Object.entries(projectedOut).map(([type, n]) => `${n} ${type}`).join(', ');
+    console.log(`  All ${deduped.length} edge(s) projected out of relation-graph (${breakdown}) — the register has no concept-to-concept relations, so an empty graph is expected.`);
+  }
 
   // Build domain-nodes.json from manifest sections (authoritative source)
   const manifestSections = manifest.sections;

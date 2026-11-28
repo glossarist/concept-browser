@@ -1823,7 +1823,15 @@ async function processDataset(dir, register, opts) {
   console.log(`  Generated ${concepts.length} concepts, manifest, ${chunks.length} index chunks`);
   return concepts.length;
 }
-console.log("Generating Glossarist vocabulary browser data...\n");
+var PKG_VERSION = (() => {
+  try {
+    return JSON.parse(fs2.readFileSync(path3.join(__dirname3, "..", "package.json"), "utf8")).version ?? "unknown";
+  } catch {
+    return "unknown";
+  }
+})();
+console.log(`Generating Glossarist vocabulary browser data (concept-browser v${PKG_VERSION})...
+`);
 var { config } = loadSiteConfig();
 var counts = {};
 var registry = [];
