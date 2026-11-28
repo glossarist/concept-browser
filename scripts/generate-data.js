@@ -6,7 +6,7 @@ import { Worker as WorkerThread } from "node:worker_threads";
 import { createHash as createHash2 } from "node:crypto";
 import yaml4 from "js-yaml";
 import {
-  naturalSort,
+  naturalSort as naturalSort2,
   Register,
   parseMentions,
   InvalidMentionError,
@@ -446,15 +446,481 @@ function buildCurationReport(registerId, conceptCount, languages, entries, unpar
   for (const file of unparseableFiles) {
     validation.push({ id: file, designation: "", reason: "source file could not be parsed" });
   }
-  const byId = (a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  const byId2 = (a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   return {
     registerId,
     conceptCount,
     languages,
-    validation: { count: validation.length, items: validation.sort(byId) },
-    missingTranslations: { count: missingTranslations.length, items: missingTranslations.sort(byId) },
-    noSources: { count: noSources.length, items: noSources.sort(byId) }
+    validation: { count: validation.length, items: validation.sort(byId2) },
+    missingTranslations: { count: missingTranslations.length, items: missingTranslations.sort(byId2) },
+    noSources: { count: noSources.length, items: noSources.sort(byId2) }
   };
+}
+
+// scripts/lib/navigation.ts
+import { naturalSort } from "glossarist";
+
+// src/adapters/UriRouter.ts
+function matchUriPattern(uri, pattern) {
+  if (!pattern.endsWith("*")) return uri === pattern;
+  return uri.startsWith(pattern.slice(0, -1));
+}
+function extractConceptId(uri, pattern) {
+  if (!pattern.endsWith("*")) return null;
+  const base = pattern.slice(0, -1);
+  if (!uri.startsWith(base)) return null;
+  const remainder = uri.slice(base.length);
+  if (uri.startsWith("https://") || uri.startsWith("http://")) {
+    const match = remainder.match(/^\/?concept\/([^/?#]+)/);
+    return match ? match[1] : null;
+  }
+  if (uri.startsWith("urn:")) {
+    return remainder || null;
+  }
+  return null;
+}
+var URI_REGISTER_RE = /\/([^/]+)\/concept\/([^/]+)$/;
+var UriRouter = class _UriRouter {
+  /** registerId → { baseUrl, uriBase, uriPatterns } */
+  registerMap = /* @__PURE__ */ new Map();
+  /** URN prefix → registerId (extracted from uriPatterns at registration time) */
+  urnMap = /* @__PURE__ */ new Map();
+  /**
+   * Register a dataset's URI patterns for routing.
+   * URN-prefixed patterns are also indexed for fast URN → registerId lookup.
+   */
+  registerDataset(registerId, baseUrl, uriBase, uriPatterns) {
+    this.registerMap.set(registerId, { baseUrl, uriBase, uriPatterns });
+    for (const pattern of uriPatterns) {
+      const base = pattern.endsWith("*") ? pattern.slice(0, -1) : pattern;
+      if (base.startsWith("urn:")) {
+        const clean = base.endsWith(":") ? base.slice(0, -1) : base;
+        this.urnMap.set(clean, registerId);
+      }
+    }
+  }
+  /**
+   * Resolve a URI to {registerId, conceptId} using registered patterns.
+   * Returns null if no registered dataset matches.
+   */
+  resolveUri(uri) {
+    for (const [registerId, info] of this.registerMap) {
+      for (const pattern of info.uriPatterns) {
+        if (matchUriPattern(uri, pattern)) {
+          const conceptId = extractConceptId(uri, pattern);
+          if (conceptId) return { registerId, conceptId };
+        }
+      }
+    }
+    return null;
+  }
+  /** Resolve a URN prefix to a registerId. Matches by longest prefix. Returns null if unknown. */
+  resolveUrn(urn) {
+    for (let len = urn.length; len > 0; len--) {
+      const prefix = urn.slice(0, len);
+      const match = this.urnMap.get(prefix);
+      if (match) return match;
+    }
+    return null;
+  }
+  /** Get the uriBase for a register. Returns empty string if unknown. */
+  getUriBase(registerId) {
+    return this.registerMap.get(registerId)?.uriBase ?? "";
+  }
+  /** Extract registerId and conceptId from any glossarist URI (no registration needed). */
+  static parseUri(uri) {
+    const m = uri.match(URI_REGISTER_RE);
+    return m ? { registerId: m[1], conceptId: m[2] } : null;
+  }
+  /** Construct a canonical concept URI from components. */
+  static buildConceptUri(uriBase, registerId, conceptId) {
+    return `${uriBase}/${registerId}/concept/${conceptId}`;
+  }
+  /** Construct a canonical domain URI from components. */
+  static buildDomainUri(uriBase, registerId, domainSlug) {
+    return `${uriBase}/${registerId}/domain/${domainSlug}`;
+  }
+  /** Construct a canonical URI for a concept from its register-id + concept-id. */
+  buildUri(registerId, conceptId) {
+    const info = this.registerMap.get(registerId);
+    const uriBase = info?.uriBase ?? "";
+    return _UriRouter.buildConceptUri(uriBase, registerId, conceptId);
+  }
+  getRegisteredIds() {
+    return [...this.registerMap.keys()];
+  }
+};
+
+// scripts/lib/harmonize-concept.ts
+import fs from "fs";
+import yaml3 from "js-yaml";
+var LEGACY_MULTIPLICITY_MAP = {
+  compulsory: { presence: "required", count: "exactly_one" },
+  optional: { presence: "optional", count: "exactly_one" },
+  compulsory_multiple: { presence: "required", count: "multiple" },
+  optional_multiple: { presence: "optional", count: "multiple" },
+  compulsory_at_least_one: { presence: "required", count: "at_least_one" }
+};
+var LEGACY_CERTAINTY_FROM_AXIS = {
+  required: "confirmed",
+  optional: "possible"
+};
+function splitMultiplicity(multiplicity) {
+  return multiplicity in LEGACY_MULTIPLICITY_MAP ? LEGACY_MULTIPLICITY_MAP[multiplicity] : { presence: "required", count: "exactly_one" };
+}
+function loadConceptFile(filePath) {
+  const content = fs.readFileSync(filePath, "utf8");
+  const docs = yaml3.loadAll(content, null, { schema: yaml3.DEFAULT_SCHEMA });
+  if (docs.length === 1 && docs[0].termid !== void 0) {
+    return docs[0];
+  }
+  if (docs.length >= 1 && docs[0].data && docs[0].data.identifier !== void 0) {
+    const mc = docs[0];
+    const result = { termid: String(mc.data.identifier) };
+    if (mc.related) result._related = mc.related;
+    if (mc.partitive_relations) result._partitiveRelations = mc.partitive_relations;
+    if (mc.generic_relations) result._genericRelations = mc.generic_relations;
+    if (mc.data.domains) result._domains = mc.data.domains;
+    if (mc.dates) result._dates = mc.dates;
+    if (mc.sources) result._sources = mc.sources;
+    if (mc.status) result._status = mc.status;
+    if (mc.schema_version) result._schemaVersion = mc.schema_version;
+    if (mc.date_accepted) result._dateAccepted = mc.date_accepted;
+    const MERGE_KEYS = [
+      "terms",
+      "definition",
+      "notes",
+      "annotations",
+      "examples",
+      "sources",
+      "dates",
+      "domain",
+      "references",
+      "entry_status",
+      "classification",
+      "review_type",
+      "review_date",
+      "review_decision_date",
+      "review_decision_event",
+      "review_status",
+      "review_decision",
+      "review_decision_notes",
+      "lineage_source_similarity",
+      "release",
+      "script",
+      "system"
+    ];
+    for (const doc of docs.slice(1)) {
+      if (!doc) continue;
+      const lang = doc.data?.language_code || doc.language_code;
+      if (!lang) continue;
+      const lcData = { ...doc.data || {} };
+      delete lcData.language_code;
+      for (const key of MERGE_KEYS) {
+        if (doc[key] !== void 0 && lcData[key] === void 0) {
+          lcData[key] = doc[key];
+        }
+      }
+      result[lang] = lcData;
+    }
+    return result;
+  }
+  return docs[0];
+}
+function readYaml(filePath) {
+  return yaml3.load(fs.readFileSync(filePath, "utf8"));
+}
+function stripHtml(s) {
+  return s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+}
+
+// scripts/lib/navigation.ts
+var HIERARCHY_RELATION_TYPES = /* @__PURE__ */ new Set(["broader", "narrower"]);
+function collectNavigationRelation(rel, registerId, refPrefixMap) {
+  if (!rel.type || !HIERARCHY_RELATION_TYPES.has(rel.type)) return null;
+  if (typeof rel.target === "string" && rel.target) {
+    const parsed = UriRouter.parseUri(rel.target);
+    if (!parsed || parsed.registerId !== registerId) return null;
+    return { type: rel.type, targetId: parsed.conceptId };
+  }
+  const ref = rel.ref;
+  const id = ref?.id;
+  if (!id) return null;
+  const mapped = ref?.source && refPrefixMap ? refPrefixMap[ref.source] : void 0;
+  if (mapped && mapped !== registerId) return null;
+  return { type: rel.type, targetId: String(id) };
+}
+function hasNormalizedTerm(lc) {
+  if (!lc || typeof lc !== "object" || Array.isArray(lc)) return false;
+  const terms = lc.terms;
+  if (!Array.isArray(terms)) return false;
+  return terms.some((t) => {
+    if (!t || typeof t !== "object") return false;
+    const raw = t.designation;
+    if (typeof raw !== "string") return false;
+    return stripHtml(raw).toLowerCase().length > 0;
+  });
+}
+function collectNavigationEntry(conceptYaml, opts) {
+  const langs = [];
+  for (const key of Object.keys(conceptYaml)) {
+    if (key.startsWith("_")) continue;
+    const lc = conceptYaml[key];
+    if (!lc || typeof lc !== "object" || Array.isArray(lc)) continue;
+    if (hasNormalizedTerm(lc)) langs.push(key);
+  }
+  const designations = opts.designations ?? {};
+  const label = stripHtml(
+    String(designations.eng || Object.values(designations).find(Boolean) || opts.termid)
+  );
+  const related = [];
+  for (const rel of conceptYaml._related ?? []) {
+    const resolved = collectNavigationRelation(rel, opts.registerId, opts.refPrefixMap);
+    if (resolved) related.push(resolved);
+  }
+  return {
+    id: opts.termid,
+    label,
+    status: opts.status,
+    groups: opts.groups,
+    languages: langs,
+    related
+  };
+}
+var byId = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+var CLAUSE_ID_RE = /^\d+(\.\d+)*$/;
+function clauseStems(id) {
+  if (!CLAUSE_ID_RE.test(id)) return null;
+  const parts = id.split(".");
+  return parts.map((_, i) => parts.slice(0, i + 1).join("."));
+}
+function sectionLabel(section) {
+  const names = section.names ?? {};
+  return names.eng || Object.values(names).find(Boolean) || section.title || section.name || section.id || "";
+}
+function collectSections(sections, into, childOrder) {
+  for (const section of sections ?? []) {
+    const id = section.id ?? section.title ?? section.name;
+    if (!id || into.has(id)) continue;
+    const childIds = /* @__PURE__ */ new Set();
+    (section.children ?? []).forEach((c) => {
+      const cid = c.id ?? c.title ?? c.name;
+      if (cid) childIds.add(cid);
+    });
+    into.set(id, {
+      label: sectionLabel(section),
+      memberIds: new Set((section.members ?? []).filter((m) => typeof m === "string")),
+      childIds
+    });
+    childOrder.set(id, (section.children ?? []).map((c) => c.id ?? c.title ?? c.name).filter((c) => typeof c === "string"));
+    if (section.children?.length) collectSections(section.children, into, childOrder);
+  }
+}
+function sectionClosure(id, sections) {
+  const closure = /* @__PURE__ */ new Set();
+  const walk = (current) => {
+    if (closure.has(current)) return;
+    closure.add(current);
+    sections.get(current)?.childIds.forEach(walk);
+  };
+  walk(id);
+  return closure;
+}
+function buildNavigationIndex(registerId, entries, options) {
+  const sorted = [...entries].sort((a, b) => byId(a.id, b.id));
+  const idSet = new Set(sorted.map((e) => e.id));
+  const tree = buildTree(sorted, idSet, options.sections ?? []);
+  const languages = /* @__PURE__ */ new Map();
+  const status = /* @__PURE__ */ new Map();
+  for (const e of sorted) {
+    for (const lang of e.languages) {
+      const list2 = languages.get(lang) ?? [];
+      list2.push(e.id);
+      languages.set(lang, list2);
+    }
+    const list = status.get(e.status) ?? [];
+    list.push(e.id);
+    status.set(e.status, list);
+  }
+  const facets = {
+    languages: Object.fromEntries([...languages.entries()].sort((a, b) => byId(a[0], b[0]))),
+    status: Object.fromEntries([...status.entries()].sort((a, b) => byId(a[0], b[0]))),
+    standards: Object.fromEntries([...options.standards ?? /* @__PURE__ */ new Map()].map(([key, s]) => [
+      key,
+      { label: s.label, ids: s.conceptIds ?? [] }
+    ]))
+  };
+  return {
+    registerId,
+    conceptCount: sorted.length,
+    tree,
+    facets
+  };
+}
+function buildTree(entries, idSet, sections) {
+  const parentOf = /* @__PURE__ */ new Map();
+  for (const e of entries) {
+    for (const rel of e.related) {
+      if (!idSet.has(rel.targetId) || rel.targetId === e.id) continue;
+      const child = rel.type === "broader" ? e.id : rel.targetId;
+      const parent = rel.type === "broader" ? rel.targetId : e.id;
+      if (!parentOf.has(child)) parentOf.set(child, parent);
+    }
+  }
+  repairCycles(parentOf);
+  if (parentOf.size > 0) {
+    return {
+      kind: "hierarchy",
+      relationCount: parentOf.size,
+      roots: buildHierarchyRoots(entries, parentOf)
+    };
+  }
+  if (sections.length > 0) {
+    const sectionTree = buildSectionTree(entries, sections);
+    if (sectionTree) return { kind: "sections", roots: sectionTree };
+  }
+  const clauseTree = buildClauseTree(entries);
+  if (clauseTree) return { kind: "clauses", roots: clauseTree };
+  return { kind: "none", roots: [] };
+}
+function repairCycles(parentOf) {
+  for (const start of [...parentOf.keys()].sort(byId)) {
+    if (!parentOf.has(start)) continue;
+    const path4 = /* @__PURE__ */ new Set([start]);
+    let current = start;
+    while (parentOf.has(current)) {
+      current = parentOf.get(current);
+      if (path4.has(current)) {
+        parentOf.delete(start);
+        break;
+      }
+      path4.add(current);
+    }
+  }
+}
+function buildHierarchyRoots(entries, parentOf) {
+  const byIdMap = new Map(entries.map((e) => [e.id, e]));
+  const childrenOf = /* @__PURE__ */ new Map();
+  for (const [child, parent] of parentOf) {
+    const list = childrenOf.get(parent) ?? [];
+    list.push(child);
+    childrenOf.set(parent, list);
+  }
+  const buildNode = (id) => {
+    const entry = byIdMap.get(id);
+    const kids = (childrenOf.get(id) ?? []).sort(naturalSort);
+    const node = { id };
+    if (entry?.label) node.label = entry.label;
+    if (kids.length > 0) node.children = kids.map(buildNode);
+    return node;
+  };
+  const roots = [.../* @__PURE__ */ new Set([
+    ...entries.map((e) => e.id).filter((id) => !parentOf.has(id)),
+    ...parentOf.values()
+  ])].filter((id) => !parentOf.has(id)).sort(naturalSort);
+  return roots.map(buildNode);
+}
+function conceptInSections(entry, closure) {
+  if (entry.groups.some((g) => closure.has(g))) return true;
+  for (const sectionId of closure) {
+    if (entry.id === sectionId || entry.id.startsWith(sectionId + ".") || entry.id.startsWith(sectionId + "-")) return true;
+  }
+  return false;
+}
+function buildSectionTree(entries, sections) {
+  const nodes = /* @__PURE__ */ new Map();
+  const childOrder = /* @__PURE__ */ new Map();
+  collectSections(sections, nodes, childOrder);
+  const explicit = /* @__PURE__ */ new Set();
+  for (const id of nodes.keys()) {
+    if (nodes.get(id).memberIds.size > 0) {
+      for (const other of nodes.keys()) {
+        if (sectionClosure(other, nodes).has(id)) explicit.add(other);
+      }
+    }
+  }
+  const accepts = (id, entry) => {
+    const closure = sectionClosure(id, nodes);
+    if (explicit.has(id)) {
+      for (const covered of closure) {
+        if (nodes.get(covered).memberIds.has(entry.id)) return true;
+      }
+      return false;
+    }
+    return conceptInSections(entry, closure);
+  };
+  const membersOf = /* @__PURE__ */ new Map();
+  for (const entry of entries) {
+    let deepest = null;
+    for (const id of nodes.keys()) {
+      if (!accepts(id, entry)) continue;
+      if (!deepest || sectionClosure(id, nodes).has(deepest) || id.length > deepest.length) deepest = id;
+    }
+    if (deepest) {
+      const list = membersOf.get(deepest) ?? [];
+      list.push(entry.id);
+      membersOf.set(deepest, list);
+    }
+  }
+  const countCache = /* @__PURE__ */ new Map();
+  const countOf = (id) => {
+    if (countCache.has(id)) return countCache.get(id);
+    let total2 = (membersOf.get(id) ?? []).length;
+    for (const childId of childOrder.get(id) ?? []) total2 += countOf(childId);
+    countCache.set(id, total2);
+    return total2;
+  };
+  const buildNode = (id) => {
+    const node = { id, label: nodes.get(id)?.label || id };
+    const count = countOf(id);
+    if (count > 0) node.count = count;
+    const kids = (childOrder.get(id) ?? []).sort(naturalSort);
+    if (kids.length > 0) node.children = kids.map(buildNode);
+    return node;
+  };
+  const roots = sections.map((s) => s.id ?? s.title ?? s.name).filter((id) => typeof id === "string" && nodes.has(id)).sort(naturalSort);
+  if (!roots.some((id) => countOf(id) > 0)) return null;
+  return roots.map(buildNode);
+}
+function buildClauseTree(entries) {
+  const stems = /* @__PURE__ */ new Set();
+  const membersOf = /* @__PURE__ */ new Map();
+  for (const entry of entries) {
+    const path4 = clauseStems(entry.id);
+    if (!path4) continue;
+    path4.forEach((s) => stems.add(s));
+    const list = membersOf.get(entry.id) ?? [];
+    list.push(entry.id);
+    membersOf.set(entry.id, list);
+  }
+  if (![...stems].some((s) => s.includes("."))) return null;
+  const childrenOf = /* @__PURE__ */ new Map();
+  for (const stem of stems) {
+    const dot = stem.lastIndexOf(".");
+    if (dot === -1) continue;
+    const parent = stem.slice(0, dot);
+    const list = childrenOf.get(parent) ?? [];
+    list.push(stem);
+    childrenOf.set(parent, list);
+  }
+  const countCache = /* @__PURE__ */ new Map();
+  const countOf = (id) => {
+    if (countCache.has(id)) return countCache.get(id);
+    let total2 = (membersOf.get(id) ?? []).length;
+    for (const childId of childrenOf.get(id) ?? []) total2 += countOf(childId);
+    countCache.set(id, total2);
+    return total2;
+  };
+  const buildNode = (id) => {
+    const node = { id, label: id };
+    const count = countOf(id);
+    if (count > 0) node.count = count;
+    const kids = (childrenOf.get(id) ?? []).sort(naturalSort);
+    if (kids.length > 0) node.children = kids.map(buildNode);
+    return node;
+  };
+  const roots = [...stems].filter((s) => !s.includes(".")).sort(naturalSort);
+  return roots.map(buildNode);
 }
 
 // scripts/lib/dataset-turtle.ts
@@ -635,89 +1101,6 @@ function buildSiteOrigin(domain, uriBase) {
     return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   }
   return uriBase.replace(/\/+$/, "");
-}
-
-// scripts/lib/harmonize-concept.ts
-import fs from "fs";
-import yaml3 from "js-yaml";
-var LEGACY_MULTIPLICITY_MAP = {
-  compulsory: { presence: "required", count: "exactly_one" },
-  optional: { presence: "optional", count: "exactly_one" },
-  compulsory_multiple: { presence: "required", count: "multiple" },
-  optional_multiple: { presence: "optional", count: "multiple" },
-  compulsory_at_least_one: { presence: "required", count: "at_least_one" }
-};
-var LEGACY_CERTAINTY_FROM_AXIS = {
-  required: "confirmed",
-  optional: "possible"
-};
-function splitMultiplicity(multiplicity) {
-  return multiplicity in LEGACY_MULTIPLICITY_MAP ? LEGACY_MULTIPLICITY_MAP[multiplicity] : { presence: "required", count: "exactly_one" };
-}
-function loadConceptFile(filePath) {
-  const content = fs.readFileSync(filePath, "utf8");
-  const docs = yaml3.loadAll(content, null, { schema: yaml3.DEFAULT_SCHEMA });
-  if (docs.length === 1 && docs[0].termid !== void 0) {
-    return docs[0];
-  }
-  if (docs.length >= 1 && docs[0].data && docs[0].data.identifier !== void 0) {
-    const mc = docs[0];
-    const result = { termid: String(mc.data.identifier) };
-    if (mc.related) result._related = mc.related;
-    if (mc.partitive_relations) result._partitiveRelations = mc.partitive_relations;
-    if (mc.generic_relations) result._genericRelations = mc.generic_relations;
-    if (mc.data.domains) result._domains = mc.data.domains;
-    if (mc.dates) result._dates = mc.dates;
-    if (mc.sources) result._sources = mc.sources;
-    if (mc.status) result._status = mc.status;
-    if (mc.schema_version) result._schemaVersion = mc.schema_version;
-    if (mc.date_accepted) result._dateAccepted = mc.date_accepted;
-    const MERGE_KEYS = [
-      "terms",
-      "definition",
-      "notes",
-      "annotations",
-      "examples",
-      "sources",
-      "dates",
-      "domain",
-      "references",
-      "entry_status",
-      "classification",
-      "review_type",
-      "review_date",
-      "review_decision_date",
-      "review_decision_event",
-      "review_status",
-      "review_decision",
-      "review_decision_notes",
-      "lineage_source_similarity",
-      "release",
-      "script",
-      "system"
-    ];
-    for (const doc of docs.slice(1)) {
-      if (!doc) continue;
-      const lang = doc.data?.language_code || doc.language_code;
-      if (!lang) continue;
-      const lcData = { ...doc.data || {} };
-      delete lcData.language_code;
-      for (const key of MERGE_KEYS) {
-        if (doc[key] !== void 0 && lcData[key] === void 0) {
-          lcData[key] = doc[key];
-        }
-      }
-      result[lang] = lcData;
-    }
-    return result;
-  }
-  return docs[0];
-}
-function readYaml(filePath) {
-  return yaml3.load(fs.readFileSync(filePath, "utf8"));
-}
-function stripHtml(s) {
-  return s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 }
 
 // scripts/lib/jsonld-emitter.ts
@@ -1374,7 +1757,7 @@ function createEmissionPool(register, uriBase) {
   };
 }
 async function processDataset(dir, register, opts) {
-  const files = fs2.readdirSync(dir).filter((f) => f.endsWith(".yaml")).sort((a, b) => naturalSort(a.replace(".yaml", ""), b.replace(".yaml", "")));
+  const files = fs2.readdirSync(dir).filter((f) => f.endsWith(".yaml")).sort((a, b) => naturalSort2(a.replace(".yaml", ""), b.replace(".yaml", "")));
   console.log(`Processing ${register}: ${files.length} files`);
   const conceptsDir = path3.join(DATA, register, "concepts");
   fs2.mkdirSync(conceptsDir, { recursive: true });
@@ -1514,6 +1897,7 @@ async function processDataset(dir, register, opts) {
   const emissionJobs = [];
   const curationEntries = [];
   const unparseableFiles = [];
+  const navigationEntries = [];
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     if (i > 0 && i % 250 === 0) console.log(`  ${i}/${files.length} concepts`);
@@ -1571,6 +1955,14 @@ async function processDataset(dir, register, opts) {
         flags: collectCurationFlags(conceptYaml, opts.languages),
         ...canonicalParseError ? { parseError: canonicalParseError } : {}
       });
+      navigationEntries.push(collectNavigationEntry(conceptYaml, {
+        termid,
+        designations: curationDesignations,
+        groups: getGroups(conceptYaml),
+        status: conceptYaml.eng?.entry_status || "valid",
+        registerId: register,
+        refPrefixMap: refMaps.refPrefixMap
+      }));
       for (const processor of STATS_PROCESSORS) {
         processor(conceptYaml, termid, stats);
       }
@@ -1750,6 +2142,14 @@ async function processDataset(dir, register, opts) {
   writeJson(path3.join(DATA, register, "curation.json"), curationReport);
   console.log(
     `  Curation queues: ${curationReport.validation.count} invalid, ${curationReport.missingTranslations.count} missing translations, ${curationReport.noSources.count} without sources`
+  );
+  const navigationIndex = buildNavigationIndex(register, navigationEntries, {
+    sections: opts.sections ?? [],
+    standards
+  });
+  writeJson(path3.join(DATA, register, "navigation.json"), navigationIndex);
+  console.log(
+    `  Navigation tree: ${navigationIndex.tree.kind}${navigationIndex.tree.relationCount != null ? ` (${navigationIndex.tree.relationCount} relations)` : ""}, ${navigationIndex.tree.roots.length} roots, ${Object.keys(navigationIndex.facets.languages).length} languages, ${Object.keys(navigationIndex.facets.status).length} statuses, ${Object.keys(navigationIndex.facets.standards).length} standards`
   );
   const manifest = {
     id: register,

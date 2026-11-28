@@ -353,6 +353,9 @@ function clearSection() {
         <router-link :to="{ name: 'curation', params: { registerId } }" class="badge badge-purple hover:opacity-80 transition-opacity">
           {{ t('nav.curation') }}
         </router-link>
+        <router-link :to="{ name: 'browse', params: { registerId } }" class="badge badge-purple hover:opacity-80 transition-opacity">
+          {{ t('nav.browse') }}
+        </router-link>
         <router-link :to="{ name: 'about', params: { registerId } }" class="badge badge-purple hover:opacity-80 transition-opacity">
           {{ t('nav.about') }}
         </router-link>

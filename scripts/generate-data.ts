@@ -24,6 +24,11 @@ import { getGroups } from './lib/concept-groups';
 import { consumeDatasetEntities } from './lib/build/non-verbal-consumer';
 import { copyImageAssets } from './lib/build/image-assets';
 import { buildCurationReport, collectCurationFlags, type CurationEntry } from './lib/curation';
+import {
+  buildNavigationIndex,
+  collectNavigationEntry,
+  type NavigationEntry,
+} from './lib/navigation';
 import { buildDatasetTurtle } from './lib/dataset-turtle';
 import { buildActivityTurtle } from './lib/build-activity-turtle';
 import { buildVocabularyTurtle } from './lib/vocab-turtle';
@@ -950,6 +955,10 @@ async function processDataset(dir, register, opts) {
   const curationEntries: CurationEntry[] = [];
   const unparseableFiles: string[] = [];
 
+  // Tree/facet navigation (issue #261): per-concept tree/facet signals,
+  // emitted as navigation.json at the end of processDataset.
+  const navigationEntries: NavigationEntry[] = [];
+
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     if (i > 0 && i % 250 === 0) console.log(`  ${i}/${files.length} concepts`);
@@ -1020,6 +1029,17 @@ async function processDataset(dir, register, opts) {
         flags: collectCurationFlags(conceptYaml as Record<string, any>, opts.languages),
         ...(canonicalParseError ? { parseError: canonicalParseError } : {}),
       });
+
+      // Navigation signal (issue #261): tree label, per-language facet
+      // membership, hierarchy-relation candidates.
+      navigationEntries.push(collectNavigationEntry(conceptYaml as Record<string, any>, {
+        termid,
+        designations: curationDesignations,
+        groups: getGroups(conceptYaml),
+        status: (conceptYaml.eng as Record<string, any>)?.entry_status || 'valid',
+        registerId: register,
+        refPrefixMap: refMaps.refPrefixMap,
+      }));
 
       for (const processor of STATS_PROCESSORS) {
         processor(conceptYaml, termid, stats);
@@ -1242,6 +1262,25 @@ async function processDataset(dir, register, opts) {
     `  Curation queues: ${curationReport.validation.count} invalid, `
     + `${curationReport.missingTranslations.count} missing translations, `
     + `${curationReport.noSources.count} without sources`,
+  );
+
+  // Tree/facet navigation (issue #261): static structure per register —
+  // hierarchy-first concept tree (broader/narrower, then section/clause
+  // fallbacks) plus language/status/source-standard facet indices. The
+  // /dataset/{id}/browse view renders it; tree kind is logged so a
+  // clause/section fallback is visible in the build output.
+  const navigationIndex = buildNavigationIndex(register, navigationEntries, {
+    sections: opts.sections ?? [],
+    standards,
+  });
+  writeJson(path.join(DATA, register, 'navigation.json'), navigationIndex);
+  console.log(
+    `  Navigation tree: ${navigationIndex.tree.kind}`
+    + `${navigationIndex.tree.relationCount != null ? ` (${navigationIndex.tree.relationCount} relations)` : ''}`
+    + `, ${navigationIndex.tree.roots.length} roots, `
+    + `${Object.keys(navigationIndex.facets.languages).length} languages, `
+    + `${Object.keys(navigationIndex.facets.status).length} statuses, `
+    + `${Object.keys(navigationIndex.facets.standards).length} standards`,
   );
 
   const manifest: Record<string, any> = {

@@ -74,6 +74,9 @@ export interface YamlDate {
 export interface YamlRelation {
   type?: string;
   target?: string | { ref?: string; uri?: string };
+  /** Inline reference target as authors write it (e.g. isotc211's
+      `related: [{ type: broader, ref: { source: ISO, id: ... } }]`). */
+  ref?: { source?: string; id?: string; text?: string };
   content?: string;
   label?: string;
 }
