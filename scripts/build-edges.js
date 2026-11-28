@@ -387,6 +387,15 @@ function buildRelationGraph(registerId, edges, labels, extraEdges = []) {
     types
   };
 }
+function summarizeProjectedOut(edges) {
+  const out = {};
+  for (const edge of edges) {
+    if (UriRouter.parseUri(edge.source) && UriRouter.parseUri(edge.target)) continue;
+    const type = edge.type || "unknown";
+    out[type] = (out[type] ?? 0) + 1;
+  }
+  return out;
+}
 function loadRelationLabels(datasets, dataDir) {
   const labels = /* @__PURE__ */ new Map();
   for (const ds of datasets) {
@@ -498,6 +507,11 @@ function buildEdgesForDataset(datasetDir, registerId, uriBase, urnMap, manifest,
   const graphContent = JSON.stringify(relationGraph);
   writeFileSync(graphPath, graphContent);
   console.log(`  Written ${relationGraph.nodeCount} nodes / ${relationGraph.edgeCount} edges to relation-graph.json (${(graphContent.length / 1024).toFixed(1)} KB)`);
+  if (relationGraph.edgeCount === 0 && deduped.length > 0) {
+    const projectedOut = summarizeProjectedOut(deduped);
+    const breakdown = Object.entries(projectedOut).map(([type, n]) => `${n} ${type}`).join(", ");
+    console.log(`  All ${deduped.length} edge(s) projected out of relation-graph (${breakdown}) \u2014 the register has no concept-to-concept relations, so an empty graph is expected.`);
+  }
   const manifestSections = manifest.sections;
   if (manifestSections && manifestSections.length > 0) {
     let buildSectionNode2 = function(section, idx) {
@@ -684,5 +698,6 @@ export {
   buildRelationGraph,
   flattenPartitiveEdges,
   loadRelationLabels,
-  main
+  main,
+  summarizeProjectedOut
 };

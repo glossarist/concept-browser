@@ -1335,7 +1335,20 @@ async function processDataset(dir, register, opts) {
 }
 
 // --- Main ---
-console.log('Generating Glossarist vocabulary browser data...\n');
+
+// Startup banner carries the RUNNING package's version: consumers install
+// from git and a stale `concept-browser` on PATH (e.g. an older global
+// install) silently produces output from an older generator. The version
+// in the log is what actually executed.
+const PKG_VERSION = (() => {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).version ?? 'unknown';
+  } catch {
+    return 'unknown';
+  }
+})();
+
+console.log(`Generating Glossarist vocabulary browser data (concept-browser v${PKG_VERSION})...\n`);
 
 const { config } = loadSiteConfig();
 const counts = {};
