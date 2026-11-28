@@ -9,6 +9,7 @@ nav.ontology: Ontologie
 nav.concepts: Concepts
 nav.stats: Statistiques
 nav.curation: Curation
+nav.browse: Parcourir
 nav.about: À propos
 nav.navigation: Navigation
 nav.datasets: Jeux de données
@@ -376,3 +377,24 @@ curation.missing.allClear: Chaque entrée a des termes dans toutes les langues c
 curation.missing.missingLang: Termes manquants en {lang}
 curation.noSources.title: Entrées sans source
 curation.noSources.allClear: Chaque entrée déclare au moins une source.
+
+# Navigation arbre/facettes (issue #261)
+browse.title: Parcourir
+browse.summary: "Navigation arbre et facettes pour {title}. Sélectionnez un nœud de l'arbre pour restreindre la liste, ou filtrez par langue, statut ou source."
+browse.filter: Filtrer les concepts par désignation ou identifiant…
+browse.clearFilters: Effacer les filtres
+browse.noMatch: Aucun concept ne correspond aux filtres actifs.
+browse.noData: Ce registre a été généré sans données de navigation. Régénérez avec concept-browser >= 0.7.144.
+browse.failedToLoad: Échec du chargement du registre.
+browse.tree.hierarchy: Hiérarchie de concepts
+browse.tree.sections: Arbre des sections
+browse.tree.clauses: Arbre des clauses
+browse.tree.none: Aucune hiérarchie
+browse.tree.empty: "Ce registre n'a pas de structure arborescente ; utilisez les facettes pour parcourir."
+browse.tree.noteFallback: "Ce registre n'a pas de relations broader/narrower ; l'arbre reflète sa structure de sections/clauses."
+browse.tree.noteNone: "Ce registre n'a pas de structure hiérarchique ; utilisez les facettes pour parcourir."
+browse.tree.expand: Développer
+browse.tree.collapse: Réduire
+browse.facets.language: Langue
+browse.facets.status: Statut
+browse.facets.source: Source

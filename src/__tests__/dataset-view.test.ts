@@ -67,6 +67,7 @@ async function createTestRouter() {
       { path: '/dataset/:registerId/stats', name: 'stats', component: { template: '<div/>' } },
       { path: '/dataset/:registerId/about', name: 'about', component: { template: '<div/>' } },
       { path: '/dataset/:registerId/curation', name: 'curation', component: { template: '<div/>' } },
+      { path: '/dataset/:registerId/browse', name: 'browse', component: { template: '<div/>' } },
     ],
   });
   router.push('/dataset/test');

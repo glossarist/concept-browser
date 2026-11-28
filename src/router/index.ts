@@ -44,6 +44,12 @@ export const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
+    path: '/dataset/:registerId/browse',
+    name: 'browse',
+    component: () => import('../views/BrowseView.vue'),
+    props: true,
+  },
+  {
     path: '/group/:groupId',
     name: 'group',
     component: () => import('../views/GroupView.vue'),

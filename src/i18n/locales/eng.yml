@@ -11,6 +11,7 @@ nav.stats: Statistics
 nav.about: About
 nav.sources: Sources
 nav.curation: Curation
+nav.browse: Browse
 nav.navigation: Navigation
 nav.datasets: Datasets
 nav.relationTypes: Relation Types
@@ -385,3 +386,24 @@ curation.missing.allClear: Every entry has terms in every configured language.
 curation.missing.missingLang: Missing terms in {lang}
 curation.noSources.title: Entries without sources
 curation.noSources.allClear: Every entry declares at least one source.
+
+# Tree/facet navigation (issue #261)
+browse.title: Browse
+browse.summary: 'Tree and facet navigation for {title}. Select a tree node to narrow the list, or filter by language, status, or source.'
+browse.filter: Filter concepts by designation or id…
+browse.clearFilters: Clear filters
+browse.noMatch: No concepts match the active filters.
+browse.noData: This register was built without navigation data. Regenerate with concept-browser >= 0.7.144.
+browse.failedToLoad: Failed to load the dataset.
+browse.tree.hierarchy: Concept hierarchy
+browse.tree.sections: Section tree
+browse.tree.clauses: Clause tree
+browse.tree.none: No hierarchy
+browse.tree.empty: This register has no tree structure; use the facets to browse.
+browse.tree.noteFallback: 'This register has no broader/narrower relations, so the tree reflects its section/clause structure.'
+browse.tree.noteNone: This register has no hierarchical structure; use the facets to browse.
+browse.tree.expand: Expand
+browse.tree.collapse: Collapse
+browse.facets.language: Language
+browse.facets.status: Status
+browse.facets.source: Source standard
